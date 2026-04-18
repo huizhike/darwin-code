@@ -1,14 +1,14 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::ConfigLayerStackOrdering;
-use codex_core::config_loader::LoaderOverrides;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_core::config::Config;
+use darwin_code_core::config::ConfigBuilder;
+use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::ConfigLayerStackOrdering;
+use darwin_code_core::config_loader::LoaderOverrides;
+use darwin_code_features::Feature;
+use darwin_code_login::AuthManager;
+use darwin_code_utils_cli::CliConfigOverrides;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::ErrorKind;
@@ -32,19 +32,19 @@ use crate::transport::route_outgoing_envelope;
 use crate::transport::start_remote_control;
 use crate::transport::start_stdio_connection;
 use crate::transport::start_websocket_acceptor;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::TextPosition as AppTextPosition;
-use codex_app_server_protocol::TextRange as AppTextRange;
-use codex_core::ExecPolicyError;
-use codex_core::check_execpolicy_for_warnings;
-use codex_core::config_loader::ConfigLoadError;
-use codex_core::config_loader::TextRange as CoreTextRange;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_protocol::protocol::SessionSource;
-use codex_state::log_db;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::TextPosition as AppTextPosition;
+use darwin_code_app_server_protocol::TextRange as AppTextRange;
+use darwin_code_core::ExecPolicyError;
+use darwin_code_core::check_execpolicy_for_warnings;
+use darwin_code_core::config_loader::ConfigLoadError;
+use darwin_code_core::config_loader::TextRange as CoreTextRange;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_exec_server::ExecServerRuntimePaths;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_state::log_db;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -63,7 +63,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 mod app_server_tracing;
 mod bespoke_event_handling;
-mod codex_message_processor;
+mod darwin_code_message_processor;
 mod command_exec;
 mod config_api;
 mod dynamic_tools;
@@ -277,14 +277,14 @@ fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_darwin_code_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_codex_folder.as_path().display().to_string(),
+            dot_darwin_code_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -355,8 +355,8 @@ pub async fn run_main_with_transport(
 ) -> IoResult<()> {
     let environment_manager = Arc::new(EnvironmentManager::from_env_with_runtime_paths(Some(
         ExecServerRuntimePaths::from_optional_paths(
-            arg0_paths.codex_self_exe.clone(),
-            arg0_paths.codex_linux_sandbox_exe.clone(),
+            arg0_paths.darwin_code_self_exe.clone(),
+            arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         )?,
     )));
     let (transport_event_tx, mut transport_event_rx) =
@@ -383,8 +383,8 @@ pub async fn run_main_with_transport(
             let effective_toml = config.config_layer_stack.effective_config();
             match effective_toml.try_into() {
                 Ok(config_toml) => {
-                    if let Err(err) = codex_core::personality_migration::maybe_migrate_personality(
-                        &config.codex_home,
+                    if let Err(err) = darwin_code_core::personality_migration::maybe_migrate_personality(
+                        &config.darwin_code_home,
                         &config_toml,
                     )
                     .await
@@ -398,11 +398,11 @@ pub async fn run_main_with_transport(
             }
 
             let auth_manager =
-                AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false);
+                AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
             cloud_requirements_loader(
                 auth_manager,
                 config.chatgpt_base_url,
-                config.codex_home.to_path_buf(),
+                config.darwin_code_home.to_path_buf(),
             )
         }
         Err(err) => {
@@ -458,7 +458,7 @@ pub async fn run_main_with_transport(
         });
     }
     if let Some(warning) =
-        codex_core::config::system_bwrap_warning(config.permissions.sandbox_policy.get())
+        darwin_code_core::config::system_bwrap_warning(config.permissions.sandbox_policy.get())
     {
         config_warnings.push(ConfigWarningNotification {
             summary: warning,
@@ -470,10 +470,10 @@ pub async fn run_main_with_transport(
 
     let feedback = CodexFeedback::new();
 
-    let otel = codex_core::otel_init::build_provider(
+    let otel = darwin_code_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
-        Some("codex-app-server"),
+        Some("darwin-code-app-server"),
         default_analytics_enabled,
     )
     .map_err(|e| {
@@ -502,7 +502,7 @@ pub async fn run_main_with_transport(
 
     let feedback_layer = feedback.logger_layer();
     let feedback_metadata_layer = feedback.metadata_layer();
-    let state_db = codex_state::StateRuntime::init(
+    let state_db = darwin_code_state::StateRuntime::init(
         config.sqlite_home.clone(),
         config.model_provider_id.clone(),
     )
@@ -562,7 +562,7 @@ pub async fn run_main_with_transport(
     }
 
     let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false);
+        AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
 
     let remote_control_enabled = config.features.enabled(Feature::RemoteControl);
     if transport_accept_handles.is_empty() && !remote_control_enabled {
@@ -643,7 +643,7 @@ pub async fn run_main_with_transport(
         let outgoing_message_sender = Arc::new(OutgoingMessageSender::new(outgoing_tx));
         let outbound_control_tx = outbound_control_tx;
         let auth_manager =
-            AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false);
+            AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
         let cli_overrides: Vec<(String, TomlValue)> = cli_kv_overrides.clone();
         let loader_overrides = loader_overrides_for_config_api;
         let processor = Arc::new(MessageProcessor::new(MessageProcessorArgs {

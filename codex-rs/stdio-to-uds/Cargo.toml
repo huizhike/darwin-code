@@ -22,6 +22,6 @@ anyhow = { workspace = true }
 uds_windows = { workspace = true }
 
 [dev-dependencies]
-codex-utils-cargo-bin = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }

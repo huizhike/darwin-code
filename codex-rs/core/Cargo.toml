@@ -25,52 +25,52 @@ base64 = { workspace = true }
 bm25 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-api = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-apply-patch = { workspace = true }
-codex-async-utils = { workspace = true }
-codex-code-mode = { workspace = true }
-codex-config = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-core-skills = { workspace = true }
+darwin-code-api = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-apply-patch = { workspace = true }
+darwin-code-async-utils = { workspace = true }
+darwin-code-code-mode = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-core-plugins = { workspace = true }
+darwin-code-core-skills = { workspace = true }
 crypto_box = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-features = { workspace = true }
-codex-login = { workspace = true }
-codex-mcp = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-login = { workspace = true }
+darwin-code-mcp = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-models-manager = { workspace = true }
 ed25519-dalek = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-hooks = { workspace = true }
-codex-instructions = { workspace = true }
-codex-network-proxy = { workspace = true }
-codex-otel = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-thread-store = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cache = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-plugins = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-readiness = { workspace = true }
-codex-secrets = { workspace = true }
-codex-utils-string = { workspace = true }
-codex-utils-stream-parser = { workspace = true }
-codex-utils-template = { workspace = true }
-codex-windows-sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
+darwin-code-shell-command = { workspace = true }
+darwin-code-execpolicy = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-hooks = { workspace = true }
+darwin-code-instructions = { workspace = true }
+darwin-code-network-proxy = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-model-provider = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-rollout = { workspace = true }
+darwin-code-rmcp-client = { workspace = true }
+darwin-code-sandboxing = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-terminal-detection = { workspace = true }
+darwin-code-thread-store = { workspace = true }
+darwin-code-tools = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-cache = { workspace = true }
+darwin-code-utils-image = { workspace = true }
+darwin-code-utils-home-dir = { workspace = true }
+darwin-code-utils-output-truncation = { workspace = true }
+darwin-code-utils-path = { workspace = true }
+darwin-code-utils-plugins = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
+darwin-code-utils-readiness = { workspace = true }
+darwin-code-secrets = { workspace = true }
+darwin-code-utils-string = { workspace = true }
+darwin-code-utils-stream-parser = { workspace = true }
+darwin-code-utils-template = { workspace = true }
+darwin-code-windows-sandbox = { package = "darwin-code-windows-sandbox", path = "../windows-sandbox-rs" }
 csv = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
@@ -139,14 +139,14 @@ windows-sys = { version = "0.52", features = [
 ] }
 
 [target.'cfg(unix)'.dependencies]
-codex-shell-escalation = { workspace = true }
+darwin-code-shell-escalation = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-otel = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 core_test_support = { workspace = true }
 ctor = { workspace = true }
 insta = { workspace = true }

@@ -20,31 +20,31 @@ workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 clap_complete = { workspace = true }
-codex-app-server = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-api = { workspace = true }
-codex-utils-cli = { workspace = true }
-codex-config = { workspace = true }
-codex-core = { workspace = true }
-codex-exec = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-features = { workspace = true }
-codex-login = { workspace = true }
-codex-mcp = { workspace = true }
-codex-mcp-server = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-protocol = { workspace = true }
-codex-responses-api-proxy = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-stdio-to-uds = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-tui = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path = { workspace = true }
+darwin-code-app-server = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-api = { workspace = true }
+darwin-code-utils-cli = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-core = { workspace = true }
+darwin-code-exec = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-execpolicy = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-login = { workspace = true }
+darwin-code-mcp = { workspace = true }
+darwin-code-mcp-server = { workspace = true }
+darwin-code-model-provider = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-responses-api-proxy = { workspace = true }
+darwin-code-rmcp-client = { workspace = true }
+darwin-code-sandboxing = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-stdio-to-uds = { workspace = true }
+darwin-code-terminal-detection = { workspace = true }
+darwin-code-tui = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-path = { workspace = true }
 libc = { workspace = true }
 owo-colors = { workspace = true }
 regex-lite = { workspace = true }
@@ -64,12 +64,12 @@ tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-codex_windows_sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
+darwin_code_windows_sandbox = { package = "darwin-code-windows-sandbox", path = "../windows-sandbox-rs" }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 predicates = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }

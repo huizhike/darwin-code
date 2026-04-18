@@ -13,12 +13,12 @@ axum = { workspace = true, default-features = false, features = [
     "http1",
     "tokio",
 ] }
-codex-client = { workspace = true }
-codex-config = { workspace = true }
-codex-keyring-store = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-home-dir = { workspace = true }
+darwin-code-client = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-keyring-store = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
+darwin-code-utils-home-dir = { workspace = true }
 futures = { workspace = true, default-features = false, features = ["std"] }
 keyring = { workspace = true, features = ["crypto-rust"] }
 oauth2 = "5"
@@ -59,7 +59,7 @@ webbrowser = { workspace = true }
 which = { workspace = true }
 
 [dev-dependencies]
-codex-utils-cargo-bin = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }

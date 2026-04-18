@@ -8,7 +8,7 @@ license.workspace = true
 anyhow = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
-codex-protocol = { workspace = true }
+darwin-code-protocol = { workspace = true }
 dirs = { workspace = true }
 log = { workspace = true }
 owo-colors = { workspace = true }
@@ -22,7 +22,7 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-codex-git-utils = { workspace = true }
+darwin-code-git-utils = { workspace = true }
 pretty_assertions = { workspace = true }
 
 [lints]

@@ -14,9 +14,9 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-shell-command = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -36,7 +36,7 @@ uuid = { workspace = true, features = ["serde", "v7"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 similar = { workspace = true }
 tempfile = { workspace = true }

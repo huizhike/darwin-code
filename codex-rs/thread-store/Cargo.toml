@@ -18,10 +18,10 @@ workspace = true
 [dependencies]
 async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-codex-git-utils = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-state = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-rollout = { workspace = true }
+darwin-code-state = { workspace = true }
 prost = "0.14.3"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

@@ -14,13 +14,13 @@ workspace = true
 [dependencies]
 chardetng = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
-codex-async-utils = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-network-proxy = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-string = { workspace = true }
-codex-utils-template = { workspace = true }
+darwin-code-async-utils = { workspace = true }
+darwin-code-execpolicy = { workspace = true }
+darwin-code-network-proxy = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-image = { workspace = true }
+darwin-code-utils-string = { workspace = true }
+darwin-code-utils-template = { workspace = true }
 encoding_rs = { workspace = true }
 globset = { workspace = true }
 icu_decimal = { workspace = true }

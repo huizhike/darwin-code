@@ -1,5 +1,5 @@
 // Forbid accidental stdout/stderr writes in the *library* portion of the TUI.
-// The standalone `codex-tui` binary prints a short help message before the
+// The standalone `darwin-code-tui` binary prints a short help message before the
 // alternate‑screen mode starts; that file opts‑out locally via `allow`.
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
@@ -7,7 +7,7 @@ use crate::legacy_core::check_execpolicy_for_warnings;
 use crate::legacy_core::config::Config;
 use crate::legacy_core::config::ConfigBuilder;
 use crate::legacy_core::config::ConfigOverrides;
-use crate::legacy_core::config::find_codex_home;
+use crate::legacy_core::config::find_darwin_code_home;
 use crate::legacy_core::config::load_config_as_toml_with_cli_overrides;
 use crate::legacy_core::config::resolve_oss_provider;
 use crate::legacy_core::config_loader::CloudRequirementsLoader;
@@ -24,39 +24,39 @@ use app::App;
 pub use app::AppExitInfo;
 pub use app::ExitReason;
 use app_server_session::AppServerSession;
-use codex_app_server_client::AppServerClient;
-use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-use codex_app_server_client::InProcessAppServerClient;
-use codex_app_server_client::InProcessClientStartArgs;
-use codex_app_server_client::RemoteAppServerClient;
-use codex_app_server_client::RemoteAppServerConnectArgs;
-use codex_app_server_protocol::Account as AppServerAccount;
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::Thread as AppServerThread;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::AuthConfig;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::enforce_login_restrictions;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::TurnContextItem;
-use codex_rollout::state_db::get_state_db;
-use codex_state::log_db;
-use codex_terminal_detection::terminal_info;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use codex_utils_oss::ensure_oss_provider_ready;
-use codex_utils_oss::get_default_model_for_oss_provider;
+use darwin_code_app_server_client::AppServerClient;
+use darwin_code_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+use darwin_code_app_server_client::InProcessAppServerClient;
+use darwin_code_app_server_client::InProcessClientStartArgs;
+use darwin_code_app_server_client::RemoteAppServerClient;
+use darwin_code_app_server_client::RemoteAppServerConnectArgs;
+use darwin_code_app_server_protocol::Account as AppServerAccount;
+use darwin_code_app_server_protocol::AuthMode as AppServerAuthMode;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::Thread as AppServerThread;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
+use darwin_code_app_server_protocol::ThreadSourceKind;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_exec_server::ExecServerRuntimePaths;
+use darwin_code_login::AuthConfig;
+use darwin_code_login::default_client::set_default_client_residency_requirement;
+use darwin_code_login::enforce_login_restrictions;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::AltScreenMode;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_rollout::state_db::get_state_db;
+use darwin_code_state::log_db;
+use darwin_code_terminal_detection::terminal_info;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::canonicalize_existing_preserving_symlinks;
+use darwin_code_utils_oss::ensure_oss_provider_ready;
+use darwin_code_utils_oss::get_default_model_for_oss_provider;
 use color_eyre::eyre::WrapErr;
 use cwd_prompt::CwdPromptAction;
 use cwd_prompt::CwdPromptOutcome;
@@ -78,7 +78,7 @@ use tracing_subscriber::prelude::*;
 use url::Url;
 use uuid::Uuid;
 
-pub(crate) use codex_app_server_client::legacy_core;
+pub(crate) use darwin_code_app_server_client::legacy_core;
 
 mod additional_dirs;
 mod app;
@@ -175,7 +175,7 @@ mod voice;
 mod voice {
     use crate::app_event_sender::AppEventSender;
     use crate::legacy_core::config::Config;
-    use codex_protocol::protocol::RealtimeAudioFrame;
+    use darwin_code_protocol::protocol::RealtimeAudioFrame;
     use std::sync::Arc;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::AtomicU16;
@@ -236,7 +236,7 @@ use crate::onboarding::onboarding_screen::OnboardingScreenArgs;
 use crate::onboarding::onboarding_screen::run_onboarding_app;
 use crate::tui::Tui;
 pub use cli::Cli;
-use codex_arg0::Arg0DispatchPaths;
+use darwin_code_arg0::Arg0DispatchPaths;
 pub use markdown_render::render_markdown_text;
 pub use public_widgets::composer_input::ComposerAction;
 pub use public_widgets::composer_input::ComposerInput;
@@ -468,8 +468,8 @@ where
         log_db,
         environment_manager,
         config_warnings,
-        session_source: codex_protocol::protocol::SessionSource::Cli,
-        enable_codex_api_key_env: false,
+        session_source: darwin_code_protocol::protocol::SessionSource::Cli,
+        enable_darwin_code_api_key_env: false,
         client_name: "darwin-code-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
@@ -510,7 +510,7 @@ fn session_target_from_app_server_thread(
 
 async fn lookup_session_target_by_name_with_app_server(
     app_server: &mut AppServerSession,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     name: &str,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     let mut cursor = None;
@@ -539,7 +539,7 @@ async fn lookup_session_target_by_name_with_app_server(
             if app_server.is_remote() {
                 return Ok(None);
             }
-            return Ok(find_thread_meta_by_name_str(codex_home, name).await?.map(
+            return Ok(find_thread_meta_by_name_str(darwin_code_home, name).await?.map(
                 |(path, session_meta)| resume_picker::SessionTarget {
                     path: Some(path),
                     thread_id: session_meta.meta.id,
@@ -552,7 +552,7 @@ async fn lookup_session_target_by_name_with_app_server(
 
 async fn lookup_session_target_with_app_server(
     app_server: &mut AppServerSession,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     id_or_name: &str,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     if Uuid::parse_str(id_or_name).is_ok() {
@@ -583,7 +583,7 @@ async fn lookup_session_target_with_app_server(
         };
     }
 
-    lookup_session_target_by_name_with_app_server(app_server, codex_home, id_or_name).await
+    lookup_session_target_by_name_with_app_server(app_server, darwin_code_home, id_or_name).await
 }
 
 async fn lookup_latest_session_target_with_app_server(
@@ -717,7 +717,7 @@ pub async fn run_main(
     // gpt-oss:20b) and ensure it is present locally. Also, force the built‑in
     let raw_overrides = cli.config_overrides.raw_overrides.clone();
     // `oss` model provider.
-    let overrides_cli = codex_utils_cli::CliConfigOverrides { raw_overrides };
+    let overrides_cli = darwin_code_utils_cli::CliConfigOverrides { raw_overrides };
     let cli_kv_overrides = match overrides_cli.parse_overrides() {
         // Parse `-c` overrides from the CLI.
         Ok(v) => v,
@@ -730,18 +730,18 @@ pub async fn run_main(
 
     // we load config.toml here to determine project state.
     #[allow(clippy::print_stderr)]
-    let codex_home = match find_codex_home() {
-        Ok(codex_home) => codex_home.to_path_buf(),
+    let darwin_code_home = match find_darwin_code_home() {
+        Ok(darwin_code_home) => darwin_code_home.to_path_buf(),
         Err(err) => {
-            eprintln!("Error finding codex home: {err}");
+            eprintln!("Error finding darwin-code home: {err}");
             std::process::exit(1);
         }
     };
 
     let environment_manager = Arc::new(EnvironmentManager::from_env_with_runtime_paths(Some(
         ExecServerRuntimePaths::from_optional_paths(
-            arg0_paths.codex_self_exe.clone(),
-            arg0_paths.codex_linux_sandbox_exe.clone(),
+            arg0_paths.darwin_code_self_exe.clone(),
+            arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         )?,
     )));
     let cwd = cli.cwd.clone();
@@ -750,7 +750,7 @@ pub async fn run_main(
 
     #[allow(clippy::print_stderr)]
     let config_toml = match load_config_as_toml_with_cli_overrides(
-        &codex_home,
+        &darwin_code_home,
         config_cwd.as_ref(),
         cli_kv_overrides.clone(),
     )
@@ -775,7 +775,7 @@ pub async fn run_main(
     };
 
     if let Err(err) = crate::legacy_core::personality_migration::maybe_migrate_personality(
-        &codex_home,
+        &darwin_code_home,
         &config_toml,
     )
     .await
@@ -788,8 +788,8 @@ pub async fn run_main(
         .clone()
         .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_string());
     let cloud_requirements = cloud_requirements_loader_for_storage(
-        codex_home.to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        darwin_code_home.to_path_buf(),
+        /*enable_darwin_code_api_key_env*/ false,
         config_toml.cli_auth_credentials_store.unwrap_or_default(),
         chatgpt_base_url,
     );
@@ -805,7 +805,7 @@ pub async fn run_main(
             Some(provider)
         } else {
             // No provider configured, prompt the user
-            let provider = oss_selection::select_oss_provider(&codex_home).await?;
+            let provider = oss_selection::select_oss_provider(&darwin_code_home).await?;
             if provider == "__CANCELLED__" {
                 return Err(std::io::Error::other(
                     "OSS provider selection was cancelled by user",
@@ -843,8 +843,8 @@ pub async fn run_main(
         },
         model_provider: model_provider_override.clone(),
         config_profile: cli.config_profile.clone(),
-        codex_self_exe: arg0_paths.codex_self_exe.clone(),
-        codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+        darwin_code_self_exe: arg0_paths.darwin_code_self_exe.clone(),
+        darwin_code_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
         show_raw_agent_reasoning: cli.oss.then_some(true),
         additional_writable_roots: additional_dirs,
@@ -885,7 +885,7 @@ pub async fn run_main(
     if matches!(app_server_target, AppServerTarget::Embedded) {
         #[allow(clippy::print_stderr)]
         if let Err(err) = enforce_login_restrictions(&AuthConfig {
-            codex_home: config.codex_home.to_path_buf(),
+            darwin_code_home: config.darwin_code_home.to_path_buf(),
             auth_credentials_store_mode: config.cli_auth_credentials_store_mode,
             forced_login_method: config.forced_login_method,
             forced_chatgpt_workspace_id: config.forced_chatgpt_workspace_id.clone(),
@@ -911,15 +911,15 @@ pub async fn run_main(
         log_file_opts.mode(0o600);
     }
 
-    let log_file = log_file_opts.open(log_dir.join("codex-tui.log"))?;
+    let log_file = log_file_opts.open(log_dir.join("darwin-code-tui.log"))?;
 
     // Wrap file in non‑blocking writer.
     let (non_blocking, _guard) = non_blocking(log_file);
 
-    // use RUST_LOG env var, default to info for codex crates.
+    // use RUST_LOG env var, default to info for darwin-code crates.
     let env_filter = || {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("codex_core=info,codex_tui=info,codex_rmcp_client=info")
+            EnvFilter::new("darwin_code_core=info,darwin_code_tui=info,darwin_code_rmcp_client=info")
         })
     };
 
@@ -1066,7 +1066,7 @@ async fn run_ratatui_app(
                 UpdatePromptOutcome::RunUpdate(action) => {
                     terminal_restore_guard.restore()?;
                     return Ok(AppExitInfo {
-                        token_usage: codex_protocol::protocol::TokenUsage::default(),
+                        token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                         thread_id: None,
                         thread_name: None,
                         update_action: Some(action),
@@ -1143,7 +1143,7 @@ async fn run_ratatui_app(
             session_log::log_session_end();
             let _ = tui.terminal.clear();
             return Ok(AppExitInfo {
-                token_usage: codex_protocol::protocol::TokenUsage::default(),
+                token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                 thread_id: None,
                 thread_name: None,
                 update_action: None,
@@ -1156,8 +1156,8 @@ async fn run_ratatui_app(
         // status detection edge cases.
         if show_login_screen && !remote_mode {
             cloud_requirements = cloud_requirements_loader_for_storage(
-                initial_config.codex_home.to_path_buf(),
-                /*enable_codex_api_key_env*/ false,
+                initial_config.darwin_code_home.to_path_buf(),
+                /*enable_darwin_code_api_key_env*/ false,
                 initial_config.cli_auth_credentials_store_mode,
                 initial_config.chatgpt_base_url.clone(),
             );
@@ -1187,12 +1187,12 @@ async fn run_ratatui_app(
         session_log::log_session_end();
         let _ = tui.terminal.clear();
         Ok(AppExitInfo {
-            token_usage: codex_protocol::protocol::TokenUsage::default(),
+            token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
             thread_id: None,
             thread_name: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(format!(
-                "No saved session found with ID {id_str}. Run `codex {action}` without an ID to choose from existing sessions."
+                "No saved session found with ID {id_str}. Run `darwin-code {action}` without an ID to choose from existing sessions."
             )),
         })
     };
@@ -1205,7 +1205,7 @@ async fn run_ratatui_app(
             };
             match lookup_session_target_with_app_server(
                 startup_app_server,
-                config.codex_home.as_path(),
+                config.darwin_code_home.as_path(),
                 id_str,
             )
             .await?
@@ -1254,7 +1254,7 @@ async fn run_ratatui_app(
                     terminal_restore_guard.restore_silently();
                     session_log::log_session_end();
                     return Ok(AppExitInfo {
-                        token_usage: codex_protocol::protocol::TokenUsage::default(),
+                        token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                         thread_id: None,
                         thread_name: None,
                         update_action: None,
@@ -1272,7 +1272,7 @@ async fn run_ratatui_app(
         };
         match lookup_session_target_with_app_server(
             startup_app_server,
-            config.codex_home.as_path(),
+            config.darwin_code_home.as_path(),
             id_str,
         )
         .await?
@@ -1321,7 +1321,7 @@ async fn run_ratatui_app(
                 terminal_restore_guard.restore_silently();
                 session_log::log_session_end();
                 return Ok(AppExitInfo {
-                    token_usage: codex_protocol::protocol::TokenUsage::default(),
+                    token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                     thread_id: None,
                     thread_name: None,
                     update_action: None,
@@ -1366,7 +1366,7 @@ async fn run_ratatui_app(
                         terminal_restore_guard.restore_silently();
                         session_log::log_session_end();
                         return Ok(AppExitInfo {
-                            token_usage: codex_protocol::protocol::TokenUsage::default(),
+                            token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                             thread_id: None,
                             thread_name: None,
                             update_action: None,
@@ -1397,7 +1397,7 @@ async fn run_ratatui_app(
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
         config.tui_theme.clone(),
-        find_codex_home().ok().map(AbsolutePathBuf::into_path_buf),
+        find_darwin_code_home().ok().map(AbsolutePathBuf::into_path_buf),
     ) {
         config.startup_warnings.push(w);
     }
@@ -1658,7 +1658,7 @@ fn determine_alt_screen_mode(no_alt_screen: bool, tui_alternate_screen: AltScree
                 let terminal_info = terminal_info();
                 !matches!(
                     terminal_info.multiplexer,
-                    Some(codex_terminal_detection::Multiplexer::Zellij {})
+                    Some(darwin_code_terminal_detection::Multiplexer::Zellij {})
                 )
             }
         }
@@ -1759,26 +1759,26 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use codex_app_server_protocol::ClientRequest;
-    use codex_app_server_protocol::RequestId;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_config::config_toml::ProjectConfig;
-    use codex_features::Feature;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::RolloutLine;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::TurnContextItem;
+    use darwin_code_app_server_protocol::ClientRequest;
+    use darwin_code_app_server_protocol::RequestId;
+    use darwin_code_app_server_protocol::ThreadStartParams;
+    use darwin_code_app_server_protocol::ThreadStartResponse;
+    use darwin_code_config::config_toml::ProjectConfig;
+    use darwin_code_features::Feature;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::RolloutItem;
+    use darwin_code_protocol::protocol::RolloutLine;
+    use darwin_code_protocol::protocol::SessionMeta;
+    use darwin_code_protocol::protocol::SessionMetaLine;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::TurnContextItem;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> std::io::Result<Config> {
         ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .darwin_code_home(temp_dir.path().to_path_buf())
             .build()
             .await
     }
@@ -2073,8 +2073,8 @@ mod tests {
         std::fs::create_dir_all(rollout_dir)?;
         std::fs::write(&rollout_path, "")?;
 
-        let state_runtime = codex_state::StateRuntime::init(
-            config.codex_home.to_path_buf(),
+        let state_runtime = darwin_code_state::StateRuntime::init(
+            config.darwin_code_home.to_path_buf(),
             config.model_provider_id.clone(),
         )
         .await
@@ -2089,7 +2089,7 @@ mod tests {
         let created_at = chrono::DateTime::parse_from_rfc3339("2025-02-01T10:00:00Z")
             .expect("timestamp should parse")
             .with_timezone(&chrono::Utc);
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
             thread_id,
             rollout_path.clone(),
             created_at,
@@ -2105,7 +2105,7 @@ mod tests {
             .map_err(std::io::Error::other)?;
 
         let mut app_server =
-            AppServerSession::new(codex_app_server_client::AppServerClient::InProcess(
+            AppServerSession::new(darwin_code_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config).await?,
             ));
         let target = lookup_session_target_by_name_with_app_server(
@@ -2157,7 +2157,7 @@ mod tests {
         )?;
 
         let mut app_server =
-            AppServerSession::new(codex_app_server_client::AppServerClient::InProcess(
+            AppServerSession::new(darwin_code_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config).await?,
             ));
         let target = lookup_session_target_by_name_with_app_server(
@@ -2226,7 +2226,7 @@ mod tests {
     }
     #[tokio::test]
     async fn untrusted_project_skips_trust_prompt() -> std::io::Result<()> {
-        use codex_protocol::config_types::TrustLevel;
+        use darwin_code_protocol::config_types::TrustLevel;
         let temp_dir = TempDir::new()?;
         let mut config = build_config(&temp_dir).await?;
         config.active_project = ProjectConfig {
@@ -2263,7 +2263,7 @@ mod tests {
             effort: config.model_reasoning_effort,
             summary: config
                 .model_reasoning_summary
-                .unwrap_or(codex_protocol::config_types::ReasoningSummary::Auto),
+                .unwrap_or(darwin_code_protocol::config_types::ReasoningSummary::Auto),
             user_instructions: None,
             developer_instructions: None,
             final_output_json_schema: None,
@@ -2351,7 +2351,7 @@ mod tests {
     #[tokio::test]
     async fn config_rebuild_changes_trust_defaults_with_cwd() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let codex_home = temp_dir.path().to_path_buf();
+        let darwin_code_home = temp_dir.path().to_path_buf();
         let trusted = temp_dir.path().join("trusted");
         let untrusted = temp_dir.path().join("untrusted");
         std::fs::create_dir_all(&trusted)?;
@@ -2375,7 +2375,7 @@ trust_level = "untrusted"
             ..Default::default()
         };
         let trusted_config = ConfigBuilder::default()
-            .codex_home(codex_home.clone())
+            .darwin_code_home(darwin_code_home.clone())
             .harness_overrides(trusted_overrides.clone())
             .build()
             .await?;
@@ -2389,7 +2389,7 @@ trust_level = "untrusted"
             ..trusted_overrides
         };
         let untrusted_config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .darwin_code_home(darwin_code_home)
             .harness_overrides(untrusted_overrides)
             .build()
             .await?;
@@ -2504,8 +2504,8 @@ trust_level = "untrusted"
             ),
         )?;
 
-        let runtime = codex_state::StateRuntime::init(
-            config.codex_home.to_path_buf(),
+        let runtime = darwin_code_state::StateRuntime::init(
+            config.darwin_code_home.to_path_buf(),
             config.model_provider_id.clone(),
         )
         .await
@@ -2515,7 +2515,7 @@ trust_level = "untrusted"
             .await
             .map_err(std::io::Error::other)?;
 
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
             thread_id,
             rollout_path.clone(),
             chrono::Utc::now(),

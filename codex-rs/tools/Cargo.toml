@@ -8,12 +8,12 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-codex-app-server-protocol = { workspace = true }
-codex-code-mode = { workspace = true }
-codex-features = { workspace = true }
-codex-protocol = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-pty = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-code-mode = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
 rmcp = { workspace = true, default-features = false, features = [
     "base64",
     "macros",

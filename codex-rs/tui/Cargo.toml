@@ -25,34 +25,34 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-ansi-escape = { workspace = true }
-codex-app-server-client = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-install-context = { workspace = true }
-codex-config = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-features = { workspace = true }
-codex-file-search = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-utils-approval-presets = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cli = { workspace = true }
-codex-utils-elapsed = { workspace = true }
-codex-utils-fuzzy-match = { workspace = true }
-codex-utils-oss = { workspace = true }
-codex-utils-sandbox-summary = { workspace = true }
-codex-utils-sleep-inhibitor = { workspace = true }
-codex-utils-string = { workspace = true }
+darwin-code-ansi-escape = { workspace = true }
+darwin-code-app-server-client = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-install-context = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-file-search = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-login = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-models-manager = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-rollout = { workspace = true }
+darwin-code-shell-command = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-terminal-detection = { workspace = true }
+darwin-code-utils-approval-presets = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-cli = { workspace = true }
+darwin-code-utils-elapsed = { workspace = true }
+darwin-code-utils-fuzzy-match = { workspace = true }
+darwin-code-utils-oss = { workspace = true }
+darwin-code-utils-sandbox-summary = { workspace = true }
+darwin-code-utils-sleep-inhibitor = { workspace = true }
+darwin-code-utils-string = { workspace = true }
 color-eyre = { workspace = true }
 crossterm = { workspace = true, features = ["bracketed-paste", "event-stream"] }
 derive_more = { workspace = true, features = ["is_variant"] }
@@ -107,7 +107,7 @@ urlencoding = { workspace = true }
 webbrowser = { workspace = true }
 uuid = { workspace = true }
 
-codex-windows-sandbox = { workspace = true }
+darwin-code-windows-sandbox = { workspace = true }
 tokio-util = { workspace = true, features = ["time"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
@@ -131,10 +131,10 @@ arboard = { workspace = true }
 
 
 [dev-dependencies]
-codex-cli = { workspace = true }
-codex-mcp = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
-codex-utils-pty = { workspace = true }
+darwin-code-cli = { workspace = true }
+darwin-code-mcp = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
 assert_matches = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 insta = { workspace = true }

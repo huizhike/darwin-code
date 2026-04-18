@@ -14,10 +14,10 @@ workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-codex-api = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-protocol = { workspace = true }
+darwin-code-api = { workspace = true }
+darwin-code-login = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-protocol = { workspace = true }
 http = { workspace = true }
 
 [dev-dependencies]
