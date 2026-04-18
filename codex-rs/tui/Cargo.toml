@@ -1,12 +1,12 @@
 [package]
-name = "codex-tui"
+name = "darwin-code-tui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 autobins = false
 
 [[bin]]
-name = "codex-tui"
+name = "darwin-code-tui"
 path = "src/main.rs"
 
 [[bin]]
@@ -14,7 +14,7 @@ name = "md-events"
 path = "src/bin/md-events.rs"
 
 [lib]
-name = "codex_tui"
+name = "darwin_code_tui"
 path = "src/lib.rs"
 
 [lints]

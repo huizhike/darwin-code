@@ -58,7 +58,7 @@ use codex_protocol::protocol::AskForApproval;
 use codex_protocol::user_input::UserInput;
 use codex_terminal_detection::TerminalName;
 
-/// Codex CLI
+/// Darwin-Code CLI
 ///
 /// If no subcommand is specified, options will be forwarded to the interactive CLI.
 #[derive(Debug, Parser)]
@@ -68,10 +68,10 @@ use codex_terminal_detection::TerminalName;
     // If a sub‑command is given, ignore requirements of the default args.
     subcommand_negates_reqs = true,
     // The executable is sometimes invoked via a platform‑specific name like
-    // `codex-x86_64-unknown-linux-musl`, but the help output should always use
-    // the generic `codex` command name that users run.
-    bin_name = "codex",
-    override_usage = "codex [OPTIONS] [PROMPT]\n       codex [OPTIONS] <COMMAND> [ARGS]"
+    // `darwin-code-x86_64-unknown-linux-musl`, but the help output should always use
+    // the generic `darwin-code` command name that users run.
+    bin_name = "darwin-code",
+    override_usage = "darwin-code [OPTIONS] [PROMPT]\n       darwin-code [OPTIONS] <COMMAND> [ARGS]"
 )]
 struct MultitoolCli {
     #[clap(flatten)]
@@ -92,7 +92,7 @@ struct MultitoolCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum Subcommand {
-    /// Run Codex non-interactively.
+    /// Run Darwin-Code non-interactively.
     #[clap(visible_alias = "e")]
     Exec(ExecCli),
 
@@ -105,26 +105,26 @@ enum Subcommand {
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
 
-    /// Manage external MCP servers for Codex.
+    /// Manage external MCP servers for Darwin-Code.
     Mcp(McpCli),
 
-    /// Manage Codex plugins.
+    /// Manage Darwin-Code plugins.
     Plugin(PluginCli),
 
-    /// Start Codex as an MCP server (stdio).
+    /// Start Darwin-Code as an MCP server (stdio).
     McpServer,
 
     /// [experimental] Run the app server or related tooling.
     AppServer(AppServerCommand),
 
-    /// Launch the Codex desktop app (downloads the macOS installer if missing).
+    /// Launch the Darwin-Code desktop app (downloads the macOS installer if missing).
     #[cfg(target_os = "macos")]
     App(app_cmd::AppCommand),
 
     /// Generate shell completion scripts.
     Completion(CompletionCommand),
 
-    /// Run commands within a Codex-provided sandbox.
+    /// Run commands within a Darwin-Code-provided sandbox.
     Sandbox(SandboxArgs),
 
     /// Debugging tools.
@@ -134,7 +134,7 @@ enum Subcommand {
     #[clap(hide = true)]
     Execpolicy(ExecpolicyCommand),
 
-    /// Apply the latest diff produced by Codex agent as a `git apply` to your local working tree.
+    /// Apply the latest diff produced by Darwin-Code agent as a `git apply` to your local working tree.
     #[clap(visible_alias = "a")]
     Apply(ApplyCommand),
 
@@ -144,7 +144,7 @@ enum Subcommand {
     /// Fork a previous interactive session (picker by default; use --last to fork the most recent).
     Fork(ForkCommand),
 
-    /// [EXPERIMENTAL] Browse tasks from Codex Cloud and apply changes locally.
+    /// [EXPERIMENTAL] Browse tasks from Darwin-Code Cloud and apply changes locally.
     #[clap(name = "cloud", alias = "cloud-tasks")]
     Cloud(CloudTasksCli),
 
@@ -152,7 +152,7 @@ enum Subcommand {
     #[clap(hide = true)]
     ResponsesApiProxy(ResponsesApiProxyArgs),
 
-    /// Internal: send one raw Responses API payload through Codex auth.
+    /// Internal: send one raw Responses API payload through Darwin-Code auth.
     #[clap(hide = true)]
     Responses(ResponsesCommand),
 

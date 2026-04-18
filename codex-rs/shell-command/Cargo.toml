@@ -1,5 +1,5 @@
 [package]
-name = "codex-shell-command"
+name = "darwin-code-shell-command"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

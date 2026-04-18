@@ -1,11 +1,11 @@
 [package]
-name = "codex-process-hardening"
+name = "darwin-code-process-hardening"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_process_hardening"
+name = "darwin_code_process_hardening"
 path = "src/lib.rs"
 
 [lints]

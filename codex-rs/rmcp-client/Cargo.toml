@@ -1,5 +1,5 @@
 [package]
-name = "codex-rmcp-client"
+name = "darwin-code-rmcp-client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

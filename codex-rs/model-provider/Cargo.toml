@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-model-provider"
+name = "darwin-code-model-provider"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_model_provider"
+name = "darwin_code_model_provider"
 path = "src/lib.rs"
 
 [lints]

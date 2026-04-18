@@ -1,4 +1,4 @@
-//! Root of the `codex-core` library.
+//! Root of the `darwin-code-core` library.
 
 // Prevent accidental direct writes to stdout/stderr in library code. All
 // user-visible output must go through the appropriate abstraction (e.g.,

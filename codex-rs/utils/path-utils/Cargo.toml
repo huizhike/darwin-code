@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-utils-path"
+name = "darwin-code-utils-path"
 version.workspace = true
 
 [lints]

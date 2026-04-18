@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-hooks"
+name = "darwin-code-hooks"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_hooks"
+name = "darwin_code_hooks"
 path = "src/lib.rs"
 
 [lints]

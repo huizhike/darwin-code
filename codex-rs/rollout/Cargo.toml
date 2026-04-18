@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-rollout"
+name = "darwin-code-rollout"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_rollout"
+name = "darwin_code_rollout"
 path = "src/lib.rs"
 
 [lints]

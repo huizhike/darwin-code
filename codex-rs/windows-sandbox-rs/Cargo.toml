@@ -2,19 +2,19 @@
 build = "build.rs"
 edition.workspace = true
 license.workspace = true
-name = "codex-windows-sandbox"
+name = "darwin-code-windows-sandbox"
 version.workspace = true
 
 [lib]
-name = "codex_windows_sandbox"
+name = "darwin_code_windows_sandbox"
 path = "src/lib.rs"
 
 [[bin]]
-name = "codex-windows-sandbox-setup"
+name = "darwin-code-windows-sandbox-setup"
 path = "src/bin/setup_main.rs"
 
 [[bin]]
-name = "codex-command-runner"
+name = "darwin-code-command-runner"
 path = "src/bin/command_runner.rs"
 
 [lints]

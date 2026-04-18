@@ -357,7 +357,7 @@ async fn connect_remote_app_server(
     let app_server = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
         websocket_url,
         auth_token,
-        client_name: "codex-tui".to_string(),
+        client_name: "darwin-code-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         opt_out_notification_methods: Vec::new(),
@@ -470,7 +470,7 @@ where
         config_warnings,
         session_source: codex_protocol::protocol::SessionSource::Cli,
         enable_codex_api_key_env: false,
-        client_name: "codex-tui".to_string(),
+        client_name: "darwin-code-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         opt_out_notification_methods: Vec::new(),

@@ -1,16 +1,16 @@
 [package]
-name = "codex-exec"
+name = "darwin-code-exec"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 autotests = false
 
 [[bin]]
-name = "codex-exec"
+name = "darwin-code-exec"
 path = "src/main.rs"
 
 [lib]
-name = "codex_exec"
+name = "darwin_code_exec"
 path = "src/lib.rs"
 
 [[test]]

@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-protocol"
+name = "darwin-code-protocol"
 version.workspace = true
 
 [lib]
-name = "codex_protocol"
+name = "darwin_code_protocol"
 path = "src/lib.rs"
 
 [lints]

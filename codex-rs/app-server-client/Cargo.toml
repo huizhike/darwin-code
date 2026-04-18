@@ -1,11 +1,11 @@
 [package]
-name = "codex-app-server-client"
+name = "darwin-code-app-server-client"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_app_server_client"
+name = "darwin_code_app_server_client"
 path = "src/lib.rs"
 
 [lints]

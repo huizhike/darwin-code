@@ -1,19 +1,19 @@
 [package]
-name = "codex-app-server"
+name = "darwin-code-app-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "codex-app-server"
+name = "darwin-code-app-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "codex-app-server-test-notify-capture"
+name = "darwin-code-app-server-test-notify-capture"
 path = "src/bin/notify_capture.rs"
 
 [lib]
-name = "codex_app_server"
+name = "darwin_code_app_server"
 path = "src/lib.rs"
 
 [lints]

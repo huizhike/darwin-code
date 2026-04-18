@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-instructions"
+name = "darwin-code-instructions"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_instructions"
+name = "darwin_code_instructions"
 path = "src/lib.rs"
 
 [lints]

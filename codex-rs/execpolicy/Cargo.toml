@@ -1,16 +1,16 @@
 [package]
-name = "codex-execpolicy"
+name = "darwin-code-execpolicy"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Codex exec policy: prefix-based Starlark rules for command decisions."
+description = "darwin-code exec policy: prefix-based Starlark rules for command decisions."
 
 [lib]
-name = "codex_execpolicy"
+name = "darwin_code_execpolicy"
 path = "src/lib.rs"
 
 [[bin]]
-name = "codex-execpolicy"
+name = "darwin-code-execpolicy"
 path = "src/main.rs"
 
 [lints]

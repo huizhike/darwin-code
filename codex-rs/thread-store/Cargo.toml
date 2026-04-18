@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-thread-store"
+name = "darwin-code-thread-store"
 version.workspace = true
 
 [lib]
-name = "codex_thread_store"
+name = "darwin_code_thread_store"
 path = "src/lib.rs"
 
 [[example]]

@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-shell-escalation"
+name = "darwin-code-shell-escalation"
 version.workspace = true
 
 [[bin]]
-name = "codex-execve-wrapper"
+name = "darwin-code-execve-wrapper"
 path = "src/bin/main_execve_wrapper.rs"
 
 [lints]

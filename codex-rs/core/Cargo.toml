@@ -1,16 +1,16 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core"
+name = "darwin-code-core"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_core"
+name = "darwin_code_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "codex-write-config-schema"
+name = "darwin-code-write-config-schema"
 path = "src/bin/config_schema.rs"
 
 [lints]

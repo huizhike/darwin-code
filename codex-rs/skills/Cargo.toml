@@ -1,13 +1,13 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-skills"
+name = "darwin-code-skills"
 version.workspace = true
 build = "build.rs"
 
 [lib]
 doctest = false
-name = "codex_skills"
+name = "darwin_code_skills"
 path = "src/lib.rs"
 
 [lints]

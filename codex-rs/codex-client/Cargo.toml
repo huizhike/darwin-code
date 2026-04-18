@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-client"
+name = "darwin-code-client"
 version.workspace = true
 
 [dependencies]

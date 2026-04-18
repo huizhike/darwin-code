@@ -1,5 +1,5 @@
 [package]
-name = "codex-git-utils"
+name = "darwin-code-git-utils"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

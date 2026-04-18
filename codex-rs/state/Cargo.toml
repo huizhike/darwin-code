@@ -1,5 +1,5 @@
 [package]
-name = "codex-state"
+name = "darwin-code-state"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

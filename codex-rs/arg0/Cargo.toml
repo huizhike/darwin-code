@@ -1,11 +1,11 @@
 [package]
-name = "codex-arg0"
+name = "darwin-code-arg0"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_arg0"
+name = "darwin_code_arg0"
 path = "src/lib.rs"
 
 [lints]

@@ -1,11 +1,11 @@
 [package]
-name = "codex-network-proxy"
+name = "darwin-code-network-proxy"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_network_proxy"
+name = "darwin_code_network_proxy"
 path = "src/lib.rs"
 
 [lints]

@@ -1,11 +1,11 @@
 [package]
-name = "codex-sandboxing"
+name = "darwin-code-sandboxing"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_sandboxing"
+name = "darwin_code_sandboxing"
 path = "src/lib.rs"
 
 [lints]

@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-features"
+name = "darwin-code-features"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_features"
+name = "darwin_code_features"
 path = "src/lib.rs"
 
 [lints]

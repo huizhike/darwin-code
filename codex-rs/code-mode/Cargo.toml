@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-code-mode"
+name = "darwin-code-code-mode"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_code_mode"
+name = "darwin_code_code_mode"
 path = "src/lib.rs"
 
 [lints]

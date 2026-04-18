@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-mcp"
+name = "darwin-code-mcp"
 version.workspace = true
 
 [lib]
-name = "codex_mcp"
+name = "darwin_code_mcp"
 path = "src/lib.rs"
 
 [lints]

@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core-plugins"
+name = "darwin-code-core-plugins"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_core_plugins"
+name = "darwin_code_core_plugins"
 path = "src/lib.rs"
 
 [lints]

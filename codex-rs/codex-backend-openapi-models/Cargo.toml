@@ -1,11 +1,11 @@
 [package]
-name = "codex-backend-openapi-models"
+name = "darwin-code-backend-openapi-models"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_backend_openapi_models"
+name = "darwin_code_backend_openapi_models"
 path = "src/lib.rs"
 
 [lints]

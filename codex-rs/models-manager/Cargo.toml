@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-models-manager"
+name = "darwin-code-models-manager"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_models_manager"
+name = "darwin_code_models_manager"
 path = "src/lib.rs"
 
 [lints]
