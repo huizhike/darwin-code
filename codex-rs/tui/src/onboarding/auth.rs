@@ -960,7 +960,6 @@ mod tests {
     use codex_app_server_client::InProcessAppServerClient;
     use codex_app_server_client::InProcessClientStartArgs;
     use codex_arg0::Arg0DispatchPaths;
-    use codex_cloud_requirements::cloud_requirements_loader_for_storage;
     use codex_config::types::AuthCredentialsStoreMode;
 
     use codex_protocol::protocol::SessionSource;
@@ -981,13 +980,8 @@ mod tests {
             config: Arc::new(config),
             cli_overrides: Vec::new(),
             loader_overrides: Default::default(),
-            cloud_requirements: cloud_requirements_loader_for_storage(
-                codex_home_path.clone(),
-                /*enable_codex_api_key_env*/ false,
-                AuthCredentialsStoreMode::File,
-                "https://chatgpt.com/backend-api/".to_string(),
-            ),
-            feedback: codex_feedback::CodexFeedback::new(),
+            cloud_requirements: todo!(),
+            feedback: todo!(),
             log_db: None,
             environment_manager: Arc::new(codex_app_server_client::EnvironmentManager::new(
                 /*exec_server_url*/ None,

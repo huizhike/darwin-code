@@ -5,7 +5,6 @@ use codex_app_server_protocol::AppListUpdatedNotification;
 use codex_app_server_protocol::AppsListResponse;
 use codex_app_server_protocol::JSONRPCErrorError;
 use codex_app_server_protocol::ServerNotification;
-use codex_chatgpt::connectors;
 
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::outgoing_message::OutgoingMessageSender;
@@ -17,7 +16,7 @@ pub(super) fn merge_loaded_apps(
     let all_connectors_loaded = all_connectors.is_some();
     let all = all_connectors.map_or_else(Vec::new, <[AppInfo]>::to_vec);
     let accessible = accessible_connectors.map_or_else(Vec::new, <[AppInfo]>::to_vec);
-    connectors::merge_connectors_with_accessible(all, accessible, all_connectors_loaded)
+    if all_connectors_loaded { all } else { accessible }
 }
 
 pub(super) fn should_send_app_list_updated_notification(

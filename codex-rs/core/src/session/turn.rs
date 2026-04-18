@@ -57,12 +57,6 @@ use crate::turn_timing::record_turn_ttft_metric;
 use crate::unavailable_tool::collect_unavailable_called_tools;
 use crate::util::backoff;
 use crate::util::error_or_panic;
-use codex_analytics::AppInvocation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::InvocationType;
-use codex_analytics::TurnResolvedConfigFact;
-use codex_analytics::build_track_events_context;
 use codex_async_utils::OrCancelExt;
 use codex_features::Feature;
 use codex_hooks::HookEvent;
@@ -190,13 +184,7 @@ pub(crate) async fn run_turn(
         HashMap::new()
     };
     let available_connectors = if turn_context.apps_enabled() {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
-            loaded_plugins
-                .effective_apps()
-                .into_iter()
-                .map(|connector_id| connector_id.0),
-            connectors::accessible_connectors_from_mcp_tools(&mcp_tools),
-        );
+        let connectors = Vec::new();
         connectors::with_app_enabled_state(connectors, &turn_context.config)
     } else {
         Vec::new()
@@ -855,7 +843,7 @@ pub(super) fn collect_explicit_app_ids_from_skill_items(
 
     let connector_slug_counts = build_connector_slug_counts(connectors);
     for connector in connectors {
-        let slug = codex_connectors::metadata::connector_mention_slug(connector);
+        let slug = connector.id.clone();
         let connector_count = connector_slug_counts.get(&slug).copied().unwrap_or(0);
         let skill_count = skill_name_counts_lower.get(&slug).copied().unwrap_or(0);
         if connector_count == 1 && skill_count == 0 && mention_names_lower.contains(&slug) {
@@ -930,7 +918,7 @@ fn connector_inserted_in_messages(
         return true;
     }
 
-    let mention_slug = codex_connectors::metadata::connector_mention_slug(connector);
+    let mention_slug = connector.id.clone();
     let connector_count = connector_slug_counts
         .get(&mention_slug)
         .copied()
@@ -1158,13 +1146,7 @@ pub(crate) async fn built_tools(
             connectors::with_app_enabled_state(connectors.clone(), &turn_context.config)
         });
     let connectors = if apps_enabled {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
-            loaded_plugins
-                .effective_apps()
-                .into_iter()
-                .map(|connector_id| connector_id.0),
-            accessible_connectors.clone().unwrap_or_default(),
-        );
+        let connectors = Vec::new();
         Some(connectors::with_app_enabled_state(
             connectors,
             &turn_context.config,

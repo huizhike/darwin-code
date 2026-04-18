@@ -295,12 +295,12 @@ pub(crate) fn find_app_mentions(
 
     let mut slug_counts: HashMap<String, usize> = HashMap::new();
     for app in apps.iter().filter(|app| app.is_enabled) {
-        let slug = codex_connectors::metadata::connector_mention_slug(app);
+        let slug = app.id.clone();
         *slug_counts.entry(slug).or_insert(0) += 1;
     }
 
     for app in apps.iter().filter(|app| app.is_enabled) {
-        let slug = codex_connectors::metadata::connector_mention_slug(app);
+        let slug = app.id.clone();
         let slug_count = slug_counts.get(&slug).copied().unwrap_or(0);
         if mentions.names.contains(&slug)
             && !explicit_names.contains(&slug)

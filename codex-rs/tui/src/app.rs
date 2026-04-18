@@ -74,6 +74,8 @@ use crate::version::CODEX_CLI_VERSION;
 use codex_ansi_escape::ansi_escape_line;
 use codex_app_server_client::AppServerRequestHandle;
 use codex_app_server_client::TypedRequestError;
+
+type FeedbackClient = ();
 use codex_app_server_protocol::ClientRequest;
 use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
 use codex_app_server_protocol::ConfigLayerSource;
@@ -1016,7 +1018,7 @@ pub(crate) struct App {
     /// This is used after a confirmed thread rollback to ensure scrollback reflects the trimmed
     /// transcript cells.
     pub(crate) backtrack_render_pending: bool,
-    pub(crate) feedback: codex_feedback::CodexFeedback,
+    pub(crate) feedback: FeedbackClient,
     feedback_audience: FeedbackAudience,
     environment_manager: Arc<EnvironmentManager>,
     remote_app_server_url: Option<String>,
@@ -3861,7 +3863,7 @@ impl App {
         initial_prompt: Option<String>,
         initial_images: Vec<PathBuf>,
         session_selection: SessionSelection,
-        feedback: codex_feedback::CodexFeedback,
+        feedback: FeedbackClient,
         is_first_run: bool,
         entered_trust_nux: bool,
         should_prompt_windows_sandbox_nux_at_startup: bool,
@@ -7305,7 +7307,7 @@ mod tests {
             enhanced_keys_supported: false,
             has_chatgpt_account: false,
             model_catalog: app.model_catalog.clone(),
-            feedback: codex_feedback::CodexFeedback::new(),
+            feedback: todo!(),
             is_first_run: false,
             status_account_display: None,
             initial_plan_type: None,
@@ -9947,7 +9949,7 @@ guardian_approval = true
             terminal_title_invalid_items_warned: Arc::new(AtomicBool::new(false)),
             backtrack: BacktrackState::default(),
             backtrack_render_pending: false,
-            feedback: codex_feedback::CodexFeedback::new(),
+            feedback: todo!(),
             feedback_audience: FeedbackAudience::External,
             environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
             remote_app_server_url: None,
@@ -10003,7 +10005,7 @@ guardian_approval = true
                 terminal_title_invalid_items_warned: Arc::new(AtomicBool::new(false)),
                 backtrack: BacktrackState::default(),
                 backtrack_render_pending: false,
-                feedback: codex_feedback::CodexFeedback::new(),
+                feedback: todo!(),
                 feedback_audience: FeedbackAudience::External,
                 environment_manager: Arc::new(EnvironmentManager::new(
                     /*exec_server_url*/ None,

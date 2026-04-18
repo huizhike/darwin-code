@@ -37,7 +37,6 @@ use codex_app_server_protocol::Thread as AppServerThread;
 use codex_app_server_protocol::ThreadListParams;
 use codex_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
 use codex_app_server_protocol::ThreadSourceKind;
-use codex_cloud_requirements::cloud_requirements_loader_for_storage;
 use codex_exec_server::EnvironmentManager;
 use codex_exec_server::ExecServerRuntimePaths;
 use codex_login::AuthConfig;
@@ -68,6 +67,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::Level;
+
+type FeedbackClient = ();
 use tracing::error;
 use tracing::warn;
 use tracing_appender::non_blocking;
@@ -248,7 +249,7 @@ async fn start_embedded_app_server(
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
     cloud_requirements: CloudRequirementsLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
 ) -> color_eyre::Result<InProcessAppServerClient> {
@@ -375,7 +376,7 @@ async fn start_app_server(
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
     cloud_requirements: CloudRequirementsLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
 ) -> color_eyre::Result<AppServerClient> {
@@ -411,7 +412,7 @@ pub(crate) async fn start_app_server_for_picker(
         Vec::new(),
         LoaderOverrides::default(),
         CloudRequirementsLoader::default(),
-        codex_feedback::CodexFeedback::new(),
+        todo!(),
         /*log_db*/ None,
         environment_manager,
     )
@@ -438,7 +439,7 @@ async fn start_embedded_app_server_with<F, Fut>(
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
     cloud_requirements: CloudRequirementsLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
     start_client: F,
@@ -935,7 +936,7 @@ pub async fn run_main(
         )
         .with_filter(env_filter());
 
-    let feedback = codex_feedback::CodexFeedback::new();
+    let feedback = todo!();
     let feedback_layer = feedback.logger_layer();
     let feedback_metadata_layer = feedback.metadata_layer();
 
@@ -1028,7 +1029,7 @@ async fn run_ratatui_app(
     overrides: ConfigOverrides,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     mut cloud_requirements: CloudRequirementsLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     remote_url: Option<String>,
     remote_auth_token: Option<String>,
@@ -1791,7 +1792,7 @@ mod tests {
             Vec::new(),
             LoaderOverrides::default(),
             CloudRequirementsLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            todo!(),
             /*log_db*/ None,
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
         )
@@ -2183,7 +2184,7 @@ mod tests {
             Vec::new(),
             LoaderOverrides::default(),
             CloudRequirementsLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            todo!(),
             /*log_db*/ None,
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
             |_args| async { Err(std::io::Error::other("boom")) },

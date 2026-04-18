@@ -30,13 +30,9 @@ codex-app-server-client = { workspace = true }
 codex-app-server-protocol = { workspace = true }
 codex-arg0 = { workspace = true }
 codex-install-context = { workspace = true }
-codex-chatgpt = { workspace = true }
-codex-cloud-requirements = { workspace = true }
 codex-config = { workspace = true }
-codex-connectors = { workspace = true }
 codex-exec-server = { workspace = true }
 codex-features = { workspace = true }
-codex-feedback = { workspace = true }
 codex-file-search = { workspace = true }
 codex-git-utils = { workspace = true }
 codex-login = { workspace = true }
@@ -44,7 +40,6 @@ codex-model-provider-info = { workspace = true }
 codex-models-manager = { workspace = true }
 codex-otel = { workspace = true }
 codex-protocol = { workspace = true }
-codex-realtime-webrtc = { workspace = true }
 codex-rollout = { workspace = true }
 codex-shell-command = { workspace = true }
 codex-state = { workspace = true }

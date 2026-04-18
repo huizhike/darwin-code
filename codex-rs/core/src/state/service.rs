@@ -16,7 +16,6 @@ use crate::tools::code_mode::CodeModeService;
 use crate::tools::network_approval::NetworkApprovalService;
 use crate::tools::sandboxing::ApprovalStore;
 use crate::unified_exec::UnifiedExecProcessManager;
-use codex_analytics::AnalyticsEventsClient;
 use codex_exec_server::Environment;
 use codex_hooks::Hooks;
 use codex_login::AuthManager;

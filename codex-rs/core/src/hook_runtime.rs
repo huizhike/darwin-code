@@ -2,8 +2,6 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_analytics::HookRunFact;
-use codex_analytics::build_track_events_context;
 use codex_hooks::PermissionRequestDecision;
 use codex_hooks::PermissionRequestOutcome;
 use codex_hooks::PermissionRequestRequest;
@@ -406,7 +404,7 @@ fn hook_run_analytics_payload(
     thread_id: String,
     turn_context: &TurnContext,
     completed: &HookCompletedEvent,
-) -> (codex_analytics::TrackEventsContext, HookRunFact) {
+) -> (TrackEventsContext, HookRunFact) {
     (
         build_track_events_context(
             turn_context.model_info.slug.clone(),

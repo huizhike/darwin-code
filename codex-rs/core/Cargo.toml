@@ -25,20 +25,17 @@ base64 = { workspace = true }
 bm25 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-analytics = { workspace = true }
 codex-api = { workspace = true }
 codex-app-server-protocol = { workspace = true }
 codex-apply-patch = { workspace = true }
 codex-async-utils = { workspace = true }
 codex-code-mode = { workspace = true }
-codex-connectors = { workspace = true }
 codex-config = { workspace = true }
 codex-core-plugins = { workspace = true }
 codex-core-skills = { workspace = true }
 crypto_box = { workspace = true }
 codex-exec-server = { workspace = true }
 codex-features = { workspace = true }
-codex-feedback = { workspace = true }
 codex-login = { workspace = true }
 codex-mcp = { workspace = true }
 codex-model-provider-info = { workspace = true }
@@ -51,10 +48,8 @@ codex-hooks = { workspace = true }
 codex-instructions = { workspace = true }
 codex-network-proxy = { workspace = true }
 codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
 codex-model-provider = { workspace = true }
 codex-protocol = { workspace = true }
-codex-response-debug-context = { workspace = true }
 codex-rollout = { workspace = true }
 codex-rmcp-client = { workspace = true }
 codex-sandboxing = { workspace = true }
@@ -151,7 +146,6 @@ assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
 codex-arg0 = { workspace = true }
 codex-otel = { workspace = true }
-codex-test-binary-support = { workspace = true }
 codex-utils-cargo-bin = { workspace = true }
 core_test_support = { workspace = true }
 ctor = { workspace = true }
