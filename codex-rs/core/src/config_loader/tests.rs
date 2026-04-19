@@ -14,16 +14,16 @@ use crate::config_loader::FilesystemDenyReadPattern;
 use crate::config_loader::RequirementSource;
 use crate::config_loader::load_requirements_toml;
 use crate::config_loader::version_for_toml;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::protocol::AskForApproval;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::protocol::AskForApproval;
 #[cfg(target_os = "macos")]
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -39,13 +39,13 @@ fn config_error_from_io(err: &std::io::Error) -> &super::ConfigError {
 }
 
 async fn make_config_for_test(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     project_path: &Path,
     trust_level: TrustLevel,
     project_root_markers: Option<Vec<String>>,
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(CONFIG_TOML_FILE),
+        darwin_code_home.join(CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(HashMap::from([(
                 project_path.to_string_lossy().to_string(),
@@ -63,12 +63,12 @@ async fn make_config_for_test(
 
 #[tokio::test]
 async fn cli_overrides_resolve_relative_paths_against_cwd() -> std::io::Result<()> {
-    let codex_home = tempdir().expect("tempdir");
+    let darwin_code_home = tempdir().expect("tempdir");
     let cwd_dir = tempdir().expect("tempdir");
     let cwd_path = cwd_dir.path().to_path_buf();
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .cli_overrides(vec![(
             "log_dir".to_string(),
             TomlValue::String("run-logs".to_string()),
@@ -147,16 +147,16 @@ async fn returns_config_error_for_schema_error_in_user_config() {
     std::fs::write(&config_path, contents).expect("write config");
 
     let err = ConfigBuilder::default()
-        .codex_home(tmp.path().to_path_buf())
+        .darwin_code_home(tmp.path().to_path_buf())
         .fallback_cwd(Some(tmp.path().to_path_buf()))
         .build()
         .await
         .expect_err("expected error");
 
     let config_error = config_error_from_io(&err);
-    let _guard = codex_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
+    let _guard = darwin_code_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
     let expected_config_error =
-        codex_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+        darwin_code_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
             .expect("schema error");
     assert_eq!(config_error, &expected_config_error);
 }
@@ -168,8 +168,8 @@ fn schema_error_points_to_feature_value() {
     let config_path = tmp.path().join(CONFIG_TOML_FILE);
     std::fs::write(&config_path, contents).expect("write config");
 
-    let _guard = codex_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
-    let error = codex_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+    let _guard = darwin_code_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
+    let error = darwin_code_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
         .expect("schema error");
 
     let value_line = contents.lines().nth(1).expect("value line");
@@ -251,7 +251,7 @@ async fn returns_empty_when_all_layers_missing() {
     .expect("load layers");
     let user_layer = layers
         .get_user_layer()
-        .expect("expected a user layer even when CODEX_HOME/config.toml does not exist");
+        .expect("expected a user layer even when DARWIN_CODE_HOME/config.toml does not exist");
     assert_eq!(
         &ConfigLayerEntry {
             name: super::ConfigLayerSource::User {
@@ -392,7 +392,7 @@ writable_roots = ["~/code"]
     );
 
     let config = ConfigBuilder::default()
-        .codex_home(tmp.path().to_path_buf())
+        .darwin_code_home(tmp.path().to_path_buf())
         .fallback_cwd(Some(tmp.path().to_path_buf()))
         .loader_overrides(loader_overrides)
         .build()
@@ -846,8 +846,8 @@ deny_read = ["./sensitive/**/*.txt"]
 #[tokio::test]
 async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     let cwd = AbsolutePathBuf::from_absolute_path(tmp.path())?;
 
     let requirements = ConfigRequirementsToml {
@@ -869,7 +869,7 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
 
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -900,19 +900,19 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
 #[tokio::test]
 async fn load_config_layers_fails_when_cloud_requirements_loader_fails() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     let cwd = AbsolutePathBuf::from_absolute_path(tmp.path())?;
 
     let err = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
         CloudRequirementsLoader::new(async {
             Err(CloudRequirementsLoadError::new(
-                codex_config::CloudRequirementsLoadErrorCode::RequestFailed,
+                darwin_code_config::CloudRequirementsLoadErrorCode::RequestFailed,
                 /*status_code*/ None,
                 "cloud requirements failed",
             ))
@@ -932,25 +932,25 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
-    tokio::fs::create_dir_all(project_root.join(".codex")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     tokio::fs::write(
-        project_root.join(".codex").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"root\"\n",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".codex").join(CONFIG_TOML_FILE),
+        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
@@ -959,7 +959,7 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -971,15 +971,15 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            super::ConfigLayerSource::Project { dot_codex_folder } => Some(dot_codex_folder),
+            super::ConfigLayerSource::Project { dot_darwin_code_folder } => Some(dot_darwin_code_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".codex").as_path());
+    assert_eq!(project_layers[0].as_path(), nested.join(".darwin-code").as_path());
     assert_eq!(
         project_layers[1].as_path(),
-        project_root.join(".codex").as_path()
+        project_root.join(".darwin-code").as_path()
     );
 
     let config = layers.effective_config();
@@ -992,13 +992,13 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn project_paths_resolve_relative_to_dot_codex_and_override_in_order() -> std::io::Result<()>
+async fn project_paths_resolve_relative_to_dot_darwin_code_and_override_in_order() -> std::io::Result<()>
 {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(project_root.join(".codex")).await?;
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     let root_cfg = r#"
@@ -1007,23 +1007,23 @@ model_instructions_file = "root.txt"
     let nested_cfg = r#"
 model_instructions_file = "child.txt"
 "#;
-    tokio::fs::write(project_root.join(".codex").join(CONFIG_TOML_FILE), root_cfg).await?;
-    tokio::fs::write(nested.join(".codex").join(CONFIG_TOML_FILE), nested_cfg).await?;
+    tokio::fs::write(project_root.join(".darwin-code").join(CONFIG_TOML_FILE), root_cfg).await?;
+    tokio::fs::write(nested.join(".darwin-code").join(CONFIG_TOML_FILE), nested_cfg).await?;
     tokio::fs::write(
-        project_root.join(".codex").join("root.txt"),
+        project_root.join(".darwin-code").join("root.txt"),
         "root instructions",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".codex").join("child.txt"),
+        nested.join(".darwin-code").join("child.txt"),
         "child instructions",
     )
     .await?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
@@ -1031,7 +1031,7 @@ model_instructions_file = "child.txt"
     .await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .harness_overrides(ConfigOverrides {
             cwd: Some(nested.clone()),
             ..ConfigOverrides::default()
@@ -1050,9 +1050,9 @@ model_instructions_file = "child.txt"
 #[tokio::test]
 async fn cli_override_model_instructions_file_sets_base_instructions() -> std::io::Result<()> {
     let tmp = tempdir()?;
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
-    tokio::fs::write(codex_home.join(CONFIG_TOML_FILE), "").await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
+    tokio::fs::write(darwin_code_home.join(CONFIG_TOML_FILE), "").await?;
 
     let cwd = tmp.path().join("work");
     tokio::fs::create_dir_all(&cwd).await?;
@@ -1066,7 +1066,7 @@ async fn cli_override_model_instructions_file_sets_base_instructions() -> std::i
     )];
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .cli_overrides(cli_overrides)
         .harness_overrides(ConfigOverrides {
             cwd: Some(cwd),
@@ -1084,18 +1084,18 @@ async fn cli_override_model_instructions_file_sets_base_instructions() -> std::i
 }
 
 #[tokio::test]
-async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> std::io::Result<()> {
+async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
     tokio::fs::create_dir_all(&nested).await?;
-    tokio::fs::create_dir_all(project_root.join(".codex")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
@@ -1104,7 +1104,7 @@ async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> s
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1120,7 +1120,7 @@ async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> s
     assert_eq!(
         vec![&ConfigLayerEntry {
             name: super::ConfigLayerSource::Project {
-                dot_codex_folder: AbsolutePathBuf::from_absolute_path(project_root.join(".codex"))?,
+                dot_darwin_code_folder: AbsolutePathBuf::from_absolute_path(project_root.join(".darwin-code"))?,
             },
             config: TomlValue::Table(toml::map::Map::new()),
             raw_toml: None,
@@ -1134,17 +1134,17 @@ async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> s
 }
 
 #[tokio::test]
-async fn codex_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::Result<()> {
+async fn darwin_code_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let home_dir = tmp.path().join("home");
-    let codex_home = home_dir.join(".codex");
-    tokio::fs::create_dir_all(&codex_home).await?;
-    tokio::fs::write(codex_home.join(CONFIG_TOML_FILE), "foo = \"user\"\n").await?;
+    let darwin_code_home = home_dir.join(".darwin-code");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
+    tokio::fs::write(darwin_code_home.join(CONFIG_TOML_FILE), "foo = \"user\"\n").await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&home_dir)?;
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1171,26 +1171,26 @@ async fn codex_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::R
 }
 
 #[tokio::test]
-async fn codex_home_within_project_tree_is_not_double_loaded() -> std::io::Result<()> {
+async fn darwin_code_home_within_project_tree_is_not_double_loaded() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let project_dot_codex = project_root.join(".codex");
-    let nested_dot_codex = nested.join(".codex");
+    let project_dot_darwin_code = project_root.join(".darwin-code");
+    let nested_dot_darwin_code = nested.join(".darwin-code");
 
-    tokio::fs::create_dir_all(&nested_dot_codex).await?;
+    tokio::fs::create_dir_all(&nested_dot_darwin_code).await?;
     tokio::fs::create_dir_all(project_root.join(".git")).await?;
-    tokio::fs::write(nested_dot_codex.join(CONFIG_TOML_FILE), "foo = \"child\"\n").await?;
+    tokio::fs::write(nested_dot_darwin_code.join(CONFIG_TOML_FILE), "foo = \"child\"\n").await?;
 
-    tokio::fs::create_dir_all(&project_dot_codex).await?;
+    tokio::fs::create_dir_all(&project_dot_darwin_code).await?;
     make_config_for_test(
-        &project_dot_codex,
+        &project_dot_darwin_code,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
     )
     .await?;
-    let user_config_path = project_dot_codex.join(CONFIG_TOML_FILE);
+    let user_config_path = project_dot_darwin_code.join(CONFIG_TOML_FILE);
     let user_config_contents = tokio::fs::read_to_string(&user_config_path).await?;
     tokio::fs::write(
         &user_config_path,
@@ -1201,7 +1201,7 @@ async fn codex_home_within_project_tree_is_not_double_loaded() -> std::io::Resul
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &project_dot_codex,
+        &project_dot_darwin_code,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1222,7 +1222,7 @@ async fn codex_home_within_project_tree_is_not_double_loaded() -> std::io::Resul
     assert_eq!(
         vec![&ConfigLayerEntry {
             name: super::ConfigLayerSource::Project {
-                dot_codex_folder: AbsolutePathBuf::from_absolute_path(&nested_dot_codex)?,
+                dot_darwin_code_folder: AbsolutePathBuf::from_absolute_path(&nested_dot_darwin_code)?,
             },
             config: child_config.clone(),
             raw_toml: None,
@@ -1244,25 +1244,25 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
     tokio::fs::write(
-        nested.join(".codex").join(CONFIG_TOML_FILE),
+        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
 
-    let codex_home_untrusted = tmp.path().join("home_untrusted");
-    tokio::fs::create_dir_all(&codex_home_untrusted).await?;
+    let darwin_code_home_untrusted = tmp.path().join("home_untrusted");
+    tokio::fs::create_dir_all(&darwin_code_home_untrusted).await?;
     make_config_for_test(
-        &codex_home_untrusted,
+        &darwin_code_home_untrusted,
         &project_root,
         TrustLevel::Untrusted,
         /*project_root_markers*/ None,
     )
     .await?;
-    let untrusted_config_path = codex_home_untrusted.join(CONFIG_TOML_FILE);
+    let untrusted_config_path = darwin_code_home_untrusted.join(CONFIG_TOML_FILE);
     let untrusted_config_contents = tokio::fs::read_to_string(&untrusted_config_path).await?;
     tokio::fs::write(
         &untrusted_config_path,
@@ -1272,7 +1272,7 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
 
     let layers_untrusted = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home_untrusted,
+        &darwin_code_home_untrusted,
         Some(cwd.clone()),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1301,17 +1301,17 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
         Some(&TomlValue::String("user".to_string()))
     );
 
-    let codex_home_unknown = tmp.path().join("home_unknown");
-    tokio::fs::create_dir_all(&codex_home_unknown).await?;
+    let darwin_code_home_unknown = tmp.path().join("home_unknown");
+    tokio::fs::create_dir_all(&darwin_code_home_unknown).await?;
     tokio::fs::write(
-        codex_home_unknown.join(CONFIG_TOML_FILE),
+        darwin_code_home_unknown.join(CONFIG_TOML_FILE),
         "foo = \"user\"\n",
     )
     .await?;
 
     let layers_unknown = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home_unknown,
+        &darwin_code_home_unknown,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1349,19 +1349,19 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let alias_root = tmp.path().join("project_alias");
-    tokio::fs::create_dir_all(project_root.join(".codex")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
     tokio::fs::write(
-        project_root.join(".codex").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"project\"\n",
     )
     .await?;
     std::os::unix::fs::symlink(&project_root, &alias_root)?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     tokio::fs::write(
-        codex_home.join(CONFIG_TOML_FILE),
+        darwin_code_home.join(CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(HashMap::from([(
                 alias_root.to_string_lossy().to_string(),
@@ -1377,7 +1377,7 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
 
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(AbsolutePathBuf::from_absolute_path(&project_root)?),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1409,23 +1409,23 @@ async fn cli_override_can_update_project_local_mcp_server_when_project_is_truste
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let dot_codex = project_root.join(".codex");
-    let codex_home = tmp.path().join("home");
+    let dot_darwin_code = project_root.join(".darwin-code");
+    let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&nested).await?;
-    tokio::fs::create_dir_all(&dot_codex).await?;
-    tokio::fs::create_dir_all(&codex_home).await?;
+    tokio::fs::create_dir_all(&dot_darwin_code).await?;
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
     tokio::fs::write(
-        dot_codex.join(CONFIG_TOML_FILE),
+        dot_darwin_code.join(CONFIG_TOML_FILE),
         r#"
-[mcp_servers.sentry]
-url = "https://mcp.sentry.dev/mcp"
+[mcp_servers.monitoring]
+url = "https://mcp.monitoring.dev/mcp"
 enabled = false
 "#,
     )
     .await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
@@ -1433,9 +1433,9 @@ enabled = false
     .await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .cli_overrides(vec![(
-            "mcp_servers.sentry.enabled".to_string(),
+            "mcp_servers.monitoring.enabled".to_string(),
             TomlValue::Boolean(true),
         )])
         .fallback_cwd(Some(nested))
@@ -1445,7 +1445,7 @@ enabled = false
     let server = config
         .mcp_servers
         .get()
-        .get("sentry")
+        .get("monitoring")
         .expect("trusted project MCP server should load");
     assert!(server.enabled);
 
@@ -1458,26 +1458,26 @@ async fn cli_override_for_disabled_project_local_mcp_server_returns_invalid_tran
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let dot_codex = project_root.join(".codex");
-    let codex_home = tmp.path().join("home");
+    let dot_darwin_code = project_root.join(".darwin-code");
+    let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&nested).await?;
-    tokio::fs::create_dir_all(&dot_codex).await?;
-    tokio::fs::create_dir_all(&codex_home).await?;
+    tokio::fs::create_dir_all(&dot_darwin_code).await?;
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
     tokio::fs::write(
-        dot_codex.join(CONFIG_TOML_FILE),
+        dot_darwin_code.join(CONFIG_TOML_FILE),
         r#"
-[mcp_servers.sentry]
-url = "https://mcp.sentry.dev/mcp"
+[mcp_servers.monitoring]
+url = "https://mcp.monitoring.dev/mcp"
 enabled = false
 "#,
     )
     .await?;
 
     let err = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .cli_overrides(vec![(
-            "mcp_servers.sentry.enabled".to_string(),
+            "mcp_servers.monitoring.enabled".to_string(),
             TomlValue::Boolean(true),
         )])
         .fallback_cwd(Some(nested))
@@ -1487,7 +1487,7 @@ enabled = false
 
     assert!(
         err.to_string().contains("invalid transport")
-            && err.to_string().contains("mcp_servers.sentry"),
+            && err.to_string().contains("mcp_servers.monitoring"),
         "unexpected error: {err}"
     );
 
@@ -1499,9 +1499,9 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
-    tokio::fs::write(nested.join(".codex").join(CONFIG_TOML_FILE), "foo =").await?;
+    tokio::fs::write(nested.join(".darwin-code").join(CONFIG_TOML_FILE), "foo =").await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let cases = [
@@ -1510,13 +1510,13 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
     ];
 
     for (name, trust_level) in cases {
-        let codex_home = tmp.path().join(format!("home_{name}"));
-        tokio::fs::create_dir_all(&codex_home).await?;
-        let config_path = codex_home.join(CONFIG_TOML_FILE);
+        let darwin_code_home = tmp.path().join(format!("home_{name}"));
+        tokio::fs::create_dir_all(&darwin_code_home).await?;
+        let config_path = darwin_code_home.join(CONFIG_TOML_FILE);
 
         if let Some(trust_level) = trust_level {
             make_config_for_test(
-                &codex_home,
+                &darwin_code_home,
                 &project_root,
                 trust_level,
                 /*project_root_markers*/ None,
@@ -1530,7 +1530,7 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
 
         let layers = load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &codex_home,
+            &darwin_code_home,
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
@@ -1573,7 +1573,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
@@ -1584,11 +1584,11 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
     ];
 
     for (name, trust_level, expect_disabled) in cases {
-        let codex_home = tmp.path().join(format!("home_no_config_{name}"));
-        tokio::fs::create_dir_all(&codex_home).await?;
+        let darwin_code_home = tmp.path().join(format!("home_no_config_{name}"));
+        tokio::fs::create_dir_all(&darwin_code_home).await?;
         if let Some(trust_level) = trust_level {
             make_config_for_test(
-                &codex_home,
+                &darwin_code_home,
                 &project_root,
                 trust_level,
                 /*project_root_markers*/ None,
@@ -1598,7 +1598,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
 
         let layers = load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &codex_home,
+            &darwin_code_home,
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
@@ -1640,10 +1640,10 @@ async fn cli_overrides_with_relative_paths_do_not_break_trust_check() -> std::io
     tokio::fs::create_dir_all(&nested).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         /*project_root_markers*/ None,
@@ -1658,7 +1658,7 @@ async fn cli_overrides_with_relative_paths_do_not_break_trust_check() -> std::io
 
     load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &cli_overrides,
         LoaderOverrides::default(),
@@ -1674,24 +1674,24 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(project_root.join(".codex")).await?;
-    tokio::fs::create_dir_all(nested.join(".codex")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
     tokio::fs::write(project_root.join(".hg"), "hg").await?;
     tokio::fs::write(
-        project_root.join(".codex").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"root\"\n",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".codex").join(CONFIG_TOML_FILE),
+        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
 
-    let codex_home = tmp.path().join("home");
-    tokio::fs::create_dir_all(&codex_home).await?;
+    let darwin_code_home = tmp.path().join("home");
+    tokio::fs::create_dir_all(&darwin_code_home).await?;
     make_config_for_test(
-        &codex_home,
+        &darwin_code_home,
         &project_root,
         TrustLevel::Trusted,
         Some(vec![".hg".to_string()]),
@@ -1701,7 +1701,7 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
@@ -1713,15 +1713,15 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            super::ConfigLayerSource::Project { dot_codex_folder } => Some(dot_codex_folder),
+            super::ConfigLayerSource::Project { dot_darwin_code_folder } => Some(dot_darwin_code_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".codex").as_path());
+    assert_eq!(project_layers[0].as_path(), nested.join(".darwin-code").as_path());
     assert_eq!(
         project_layers[1].as_path(),
-        project_root.join(".codex").as_path()
+        project_root.join(".darwin-code").as_path()
     );
 
     let merged = layers.effective_config();
@@ -1742,16 +1742,16 @@ mod requirements_exec_policy_tests {
     use crate::config_loader::ConfigRequirementsWithSources;
     use crate::config_loader::RequirementSource;
     use crate::exec_policy::load_exec_policy;
-    use codex_app_server_protocol::ConfigLayerSource;
-    use codex_config::RequirementsExecPolicyDecisionToml;
-    use codex_config::RequirementsExecPolicyParseError;
-    use codex_config::RequirementsExecPolicyPatternTokenToml;
-    use codex_config::RequirementsExecPolicyPrefixRuleToml;
-    use codex_config::RequirementsExecPolicyToml;
-    use codex_execpolicy::Decision;
-    use codex_execpolicy::Evaluation;
-    use codex_execpolicy::RuleMatch;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_app_server_protocol::ConfigLayerSource;
+    use darwin_code_config::RequirementsExecPolicyDecisionToml;
+    use darwin_code_config::RequirementsExecPolicyParseError;
+    use darwin_code_config::RequirementsExecPolicyPatternTokenToml;
+    use darwin_code_config::RequirementsExecPolicyPrefixRuleToml;
+    use darwin_code_config::RequirementsExecPolicyToml;
+    use darwin_code_execpolicy::Decision;
+    use darwin_code_execpolicy::Evaluation;
+    use darwin_code_execpolicy::RuleMatch;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::tempdir;
@@ -1766,14 +1766,14 @@ mod requirements_exec_policy_tests {
         panic!("rule should match so heuristic should not be called");
     }
 
-    fn config_stack_for_dot_codex_folder_with_requirements(
-        dot_codex_folder: &Path,
+    fn config_stack_for_dot_darwin_code_folder_with_requirements(
+        dot_darwin_code_folder: &Path,
         requirements: ConfigRequirements,
     ) -> ConfigLayerStack {
-        let dot_codex_folder = AbsolutePathBuf::from_absolute_path(dot_codex_folder)
-            .expect("absolute dot_codex_folder");
+        let dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(dot_darwin_code_folder)
+            .expect("absolute dot_darwin_code_folder");
         let layer = ConfigLayerEntry::new(
-            ConfigLayerSource::Project { dot_codex_folder },
+            ConfigLayerSource::Project { dot_darwin_code_folder },
             TomlValue::Table(Default::default()),
         );
         ConfigLayerStack::new(vec![layer], requirements, ConfigRequirementsToml::default())
@@ -1987,7 +1987,7 @@ prefix_rules = []
             "#,
         );
         let config_stack =
-            config_stack_for_dot_codex_folder_with_requirements(temp_dir.path(), requirements);
+            config_stack_for_dot_darwin_code_folder_with_requirements(temp_dir.path(), requirements);
 
         let policy = load_exec_policy(&config_stack).await?;
 
@@ -2026,7 +2026,7 @@ prefix_rules = []
             "#,
         );
         let config_stack =
-            config_stack_for_dot_codex_folder_with_requirements(temp_dir.path(), requirements);
+            config_stack_for_dot_darwin_code_folder_with_requirements(temp_dir.path(), requirements);
 
         let policy = load_exec_policy(&config_stack).await?;
 
