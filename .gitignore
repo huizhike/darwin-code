@@ -92,3 +92,5 @@ CHANGELOG.ignore.md
 __pycache__/
 *.pyc
 
+# local one-off analysis helpers
+scan_telemetry_impact*.sh
