@@ -1,7 +1,7 @@
-use crate::codex_message_processor::ApiVersion;
-use crate::codex_message_processor::read_rollout_items_from_rollout;
-use crate::codex_message_processor::read_summary_from_rollout;
-use crate::codex_message_processor::summary_to_thread;
+use crate::darwin_code_message_processor::ApiVersion;
+use crate::darwin_code_message_processor::read_rollout_items_from_rollout;
+use crate::darwin_code_message_processor::read_summary_from_rollout;
+use crate::darwin_code_message_processor::summary_to_thread;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::outgoing_message::ClientRequestResult;
@@ -12,135 +12,135 @@ use crate::thread_state::TurnSummary;
 use crate::thread_state::resolve_server_request_on_thread_listener;
 use crate::thread_status::ThreadWatchActiveGuard;
 use crate::thread_status::ThreadWatchManager;
-use codex_app_server_protocol::AccountRateLimitsUpdatedNotification;
-use codex_app_server_protocol::AdditionalPermissionProfile as V2AdditionalPermissionProfile;
-use codex_app_server_protocol::AgentMessageDeltaNotification;
-use codex_app_server_protocol::ApplyPatchApprovalParams;
-use codex_app_server_protocol::ApplyPatchApprovalResponse;
-use codex_app_server_protocol::CodexErrorInfo as V2CodexErrorInfo;
-use codex_app_server_protocol::CollabAgentState as V2CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus as V2CollabToolCallStatus;
-use codex_app_server_protocol::CommandAction as V2ParsedCommand;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionOutputDeltaNotification;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ContextCompactedNotification;
-use codex_app_server_protocol::DeprecationNoticeNotification;
-use codex_app_server_protocol::DynamicToolCallOutputContentItem;
-use codex_app_server_protocol::DynamicToolCallParams;
-use codex_app_server_protocol::DynamicToolCallStatus;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::ExecCommandApprovalParams;
-use codex_app_server_protocol::ExecCommandApprovalResponse;
-use codex_app_server_protocol::ExecPolicyAmendment as V2ExecPolicyAmendment;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeOutputDeltaNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalParams;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::FileUpdateChange;
-use codex_app_server_protocol::GrantedPermissionProfile as V2GrantedPermissionProfile;
-use codex_app_server_protocol::HookCompletedNotification;
-use codex_app_server_protocol::HookStartedNotification;
-use codex_app_server_protocol::InterruptConversationResponse;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
-use codex_app_server_protocol::McpToolCallError;
-use codex_app_server_protocol::McpToolCallResult;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::ModelReroutedNotification;
-use codex_app_server_protocol::NetworkApprovalContext as V2NetworkApprovalContext;
-use codex_app_server_protocol::NetworkPolicyAmendment as V2NetworkPolicyAmendment;
-use codex_app_server_protocol::NetworkPolicyRuleAction as V2NetworkPolicyRuleAction;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PermissionsRequestApprovalParams;
-use codex_app_server_protocol::PermissionsRequestApprovalResponse;
-use codex_app_server_protocol::PlanDeltaNotification;
-use codex_app_server_protocol::RawResponseItemCompletedNotification;
-use codex_app_server_protocol::ReasoningSummaryPartAddedNotification;
-use codex_app_server_protocol::ReasoningSummaryTextDeltaNotification;
-use codex_app_server_protocol::ReasoningTextDeltaNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_app_server_protocol::SkillsChangedNotification;
-use codex_app_server_protocol::TerminalInteractionNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadNameUpdatedNotification;
-use codex_app_server_protocol::ThreadRealtimeClosedNotification;
-use codex_app_server_protocol::ThreadRealtimeErrorNotification;
-use codex_app_server_protocol::ThreadRealtimeItemAddedNotification;
-use codex_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
-use codex_app_server_protocol::ThreadRealtimeSdpNotification;
-use codex_app_server_protocol::ThreadRealtimeStartedNotification;
-use codex_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
-use codex_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
-use codex_app_server_protocol::ThreadRollbackResponse;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ThreadTokenUsageUpdatedNotification;
-use codex_app_server_protocol::ToolRequestUserInputOption;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::ToolRequestUserInputQuestion;
-use codex_app_server_protocol::ToolRequestUserInputResponse;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnDiffUpdatedNotification;
-use codex_app_server_protocol::TurnError;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnPlanStep;
-use codex_app_server_protocol::TurnPlanUpdatedNotification;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::WarningNotification;
-use codex_app_server_protocol::build_command_execution_end_item;
-use codex_app_server_protocol::build_file_change_approval_request_item;
-use codex_app_server_protocol::build_file_change_begin_item;
-use codex_app_server_protocol::build_file_change_end_item;
-use codex_app_server_protocol::build_item_from_guardian_event;
-use codex_app_server_protocol::build_turns_from_rollout_items;
-use codex_app_server_protocol::convert_patch_changes;
-use codex_app_server_protocol::guardian_auto_approval_review_notification;
-use codex_core::CodexThread;
-use codex_core::ThreadManager;
-use codex_core::find_thread_name_by_id;
-use codex_core::review_format::format_review_findings_block;
-use codex_core::review_prompts;
-use codex_protocol::ThreadId;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
-use codex_protocol::items::parse_hook_prompt_message;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::ReviewOutputEvent;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputAnswer as CoreRequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputResponse as CoreRequestUserInputResponse;
-use codex_sandboxing::policy_transforms::intersect_permission_profiles;
-use codex_shell_command::parse_command::shlex_join;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::AccountRateLimitsUpdatedNotification;
+use darwin_code_app_server_protocol::AdditionalPermissionProfile as V2AdditionalPermissionProfile;
+use darwin_code_app_server_protocol::AgentMessageDeltaNotification;
+use darwin_code_app_server_protocol::ApplyPatchApprovalParams;
+use darwin_code_app_server_protocol::ApplyPatchApprovalResponse;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo as V2DarwinCodeErrorInfo;
+use darwin_code_app_server_protocol::CollabAgentState as V2CollabAgentStatus;
+use darwin_code_app_server_protocol::CollabAgentTool;
+use darwin_code_app_server_protocol::CollabAgentToolCallStatus as V2CollabToolCallStatus;
+use darwin_code_app_server_protocol::CommandAction as V2ParsedCommand;
+use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
+use darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::CommandExecutionSource;
+use darwin_code_app_server_protocol::CommandExecutionStatus;
+use darwin_code_app_server_protocol::ContextCompactedNotification;
+use darwin_code_app_server_protocol::DeprecationNoticeNotification;
+use darwin_code_app_server_protocol::DynamicToolCallOutputContentItem;
+use darwin_code_app_server_protocol::DynamicToolCallParams;
+use darwin_code_app_server_protocol::DynamicToolCallStatus;
+use darwin_code_app_server_protocol::ErrorNotification;
+use darwin_code_app_server_protocol::ExecCommandApprovalParams;
+use darwin_code_app_server_protocol::ExecCommandApprovalResponse;
+use darwin_code_app_server_protocol::ExecPolicyAmendment as V2ExecPolicyAmendment;
+use darwin_code_app_server_protocol::FileChangeApprovalDecision;
+use darwin_code_app_server_protocol::FileChangeOutputDeltaNotification;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalResponse;
+use darwin_code_app_server_protocol::FileUpdateChange;
+use darwin_code_app_server_protocol::GrantedPermissionProfile as V2GrantedPermissionProfile;
+use darwin_code_app_server_protocol::HookCompletedNotification;
+use darwin_code_app_server_protocol::HookStartedNotification;
+use darwin_code_app_server_protocol::InterruptConversationResponse;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::McpServerElicitationAction;
+use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
+use darwin_code_app_server_protocol::McpServerElicitationRequestResponse;
+use darwin_code_app_server_protocol::McpServerStartupState;
+use darwin_code_app_server_protocol::McpServerStatusUpdatedNotification;
+use darwin_code_app_server_protocol::McpToolCallError;
+use darwin_code_app_server_protocol::McpToolCallResult;
+use darwin_code_app_server_protocol::McpToolCallStatus;
+use darwin_code_app_server_protocol::ModelReroutedNotification;
+use darwin_code_app_server_protocol::NetworkApprovalContext as V2NetworkApprovalContext;
+use darwin_code_app_server_protocol::NetworkPolicyAmendment as V2NetworkPolicyAmendment;
+use darwin_code_app_server_protocol::NetworkPolicyRuleAction as V2NetworkPolicyRuleAction;
+use darwin_code_app_server_protocol::PatchApplyStatus;
+use darwin_code_app_server_protocol::PermissionsRequestApprovalParams;
+use darwin_code_app_server_protocol::PermissionsRequestApprovalResponse;
+use darwin_code_app_server_protocol::PlanDeltaNotification;
+use darwin_code_app_server_protocol::RawResponseItemCompletedNotification;
+use darwin_code_app_server_protocol::ReasoningSummaryPartAddedNotification;
+use darwin_code_app_server_protocol::ReasoningSummaryTextDeltaNotification;
+use darwin_code_app_server_protocol::ReasoningTextDeltaNotification;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequestPayload;
+use darwin_code_app_server_protocol::SkillsChangedNotification;
+use darwin_code_app_server_protocol::TerminalInteractionNotification;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadNameUpdatedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeClosedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeErrorNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeItemAddedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeSdpNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeStartedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
+use darwin_code_app_server_protocol::ThreadRollbackResponse;
+use darwin_code_app_server_protocol::ThreadTokenUsage;
+use darwin_code_app_server_protocol::ThreadTokenUsageUpdatedNotification;
+use darwin_code_app_server_protocol::ToolRequestUserInputOption;
+use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+use darwin_code_app_server_protocol::ToolRequestUserInputQuestion;
+use darwin_code_app_server_protocol::ToolRequestUserInputResponse;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnDiffUpdatedNotification;
+use darwin_code_app_server_protocol::TurnError;
+use darwin_code_app_server_protocol::TurnInterruptResponse;
+use darwin_code_app_server_protocol::TurnPlanStep;
+use darwin_code_app_server_protocol::TurnPlanUpdatedNotification;
+use darwin_code_app_server_protocol::TurnStartedNotification;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::WarningNotification;
+use darwin_code_app_server_protocol::build_command_execution_end_item;
+use darwin_code_app_server_protocol::build_file_change_approval_request_item;
+use darwin_code_app_server_protocol::build_file_change_begin_item;
+use darwin_code_app_server_protocol::build_file_change_end_item;
+use darwin_code_app_server_protocol::build_item_from_guardian_event;
+use darwin_code_app_server_protocol::build_turns_from_rollout_items;
+use darwin_code_app_server_protocol::convert_patch_changes;
+use darwin_code_app_server_protocol::guardian_auto_approval_review_notification;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::find_thread_name_by_id;
+use darwin_code_core::review_format::format_review_findings_block;
+use darwin_code_core::review_prompts;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
+use darwin_code_protocol::items::parse_hook_prompt_message;
+use darwin_code_protocol::plan_tool::UpdatePlanArgs;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo as CoreDarwinCodeErrorInfo;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::ReviewOutputEvent;
+use darwin_code_protocol::protocol::TokenCountEvent;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::TurnDiffEvent;
+use darwin_code_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use darwin_code_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer as CoreRequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse as CoreRequestUserInputResponse;
+use darwin_code_sandboxing::policy_transforms::intersect_permission_profiles;
+use darwin_code_shell_command::parse_command::shlex_join;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -167,7 +167,7 @@ struct CommandExecutionCompletionItem {
 pub(crate) async fn apply_bespoke_event_handling(
     event: Event,
     conversation_id: ThreadId,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
     thread_manager: Arc<ThreadManager>,
     analytics_events_client: Option<AnalyticsEventsClient>,
     outgoing: ThreadScopedOutgoingMessageSender,
@@ -175,7 +175,7 @@ pub(crate) async fn apply_bespoke_event_handling(
     thread_watch_manager: ThreadWatchManager,
     api_version: ApiVersion,
     fallback_model_provider: String,
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) {
     let Event {
         id: event_turn_id,
@@ -243,16 +243,16 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::McpStartupUpdate(update) => {
             if let ApiVersion::V2 = api_version {
                 let (status, error) = match update.status {
-                    codex_protocol::protocol::McpStartupStatus::Starting => {
+                    darwin_code_protocol::protocol::McpStartupStatus::Starting => {
                         (McpServerStartupState::Starting, None)
                     }
-                    codex_protocol::protocol::McpStartupStatus::Ready => {
+                    darwin_code_protocol::protocol::McpStartupStatus::Ready => {
                         (McpServerStartupState::Ready, None)
                     }
-                    codex_protocol::protocol::McpStartupStatus::Failed { error } => {
+                    darwin_code_protocol::protocol::McpStartupStatus::Failed { error } => {
                         (McpServerStartupState::Failed, Some(error))
                     }
-                    codex_protocol::protocol::McpStartupStatus::Cancelled => {
+                    darwin_code_protocol::protocol::McpStartupStatus::Cancelled => {
                         (McpServerStartupState::Cancelled, None)
                     }
                 };
@@ -311,7 +311,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     assessment.turn_id.clone()
                 };
                 if assessment.status
-                    == codex_protocol::protocol::GuardianAssessmentStatus::InProgress
+                    == darwin_code_protocol::protocol::GuardianAssessmentStatus::InProgress
                     && let Some((target_item_id, completion_item)) =
                         pending_command_execution.as_ref()
                 {
@@ -335,15 +335,15 @@ pub(crate) async fn apply_bespoke_event_handling(
                 );
                 outgoing.send_server_notification(notification).await;
                 let completion_status = match assessment.status {
-                    codex_protocol::protocol::GuardianAssessmentStatus::Denied
-                    | codex_protocol::protocol::GuardianAssessmentStatus::Aborted => {
+                    darwin_code_protocol::protocol::GuardianAssessmentStatus::Denied
+                    | darwin_code_protocol::protocol::GuardianAssessmentStatus::Aborted => {
                         Some(CommandExecutionStatus::Declined)
                     }
-                    codex_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
+                    darwin_code_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
                         Some(CommandExecutionStatus::Failed)
                     }
-                    codex_protocol::protocol::GuardianAssessmentStatus::InProgress
-                    | codex_protocol::protocol::GuardianAssessmentStatus::Approved => None,
+                    darwin_code_protocol::protocol::GuardianAssessmentStatus::InProgress
+                    | darwin_code_protocol::protocol::GuardianAssessmentStatus::Approved => None,
                 };
                 if let Some(completion_status) = completion_status
                     && let Some((target_item_id, completion_item)) = pending_command_execution
@@ -865,7 +865,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                             .submit(Op::ResolveElicitation {
                                 server_name: request.server_name,
                                 request_id: request.id,
-                                decision: codex_protocol::approvals::ElicitationAction::Cancel,
+                                decision: darwin_code_protocol::approvals::ElicitationAction::Cancel,
                                 content: None,
                                 meta: None,
                             })
@@ -1089,8 +1089,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::CollabAgentSpawnEnd(end_event) => {
             let has_receiver = end_event.new_thread_id.is_some();
             let status = match &end_event.status {
-                codex_protocol::protocol::AgentStatus::Errored(_)
-                | codex_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                darwin_code_protocol::protocol::AgentStatus::Errored(_)
+                | darwin_code_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
                 _ if has_receiver => V2CollabToolCallStatus::Completed,
                 _ => V2CollabToolCallStatus::Failed,
             };
@@ -1149,8 +1149,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::CollabAgentInteractionEnd(end_event) => {
             let status = match &end_event.status {
-                codex_protocol::protocol::AgentStatus::Errored(_)
-                | codex_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                darwin_code_protocol::protocol::AgentStatus::Errored(_)
+                | darwin_code_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
                 _ => V2CollabToolCallStatus::Completed,
             };
             let receiver_id = end_event.receiver_thread_id.to_string();
@@ -1205,8 +1205,8 @@ pub(crate) async fn apply_bespoke_event_handling(
             let status = if end_event.statuses.values().any(|status| {
                 matches!(
                     status,
-                    codex_protocol::protocol::AgentStatus::Errored(_)
-                        | codex_protocol::protocol::AgentStatus::NotFound
+                    darwin_code_protocol::protocol::AgentStatus::Errored(_)
+                        | darwin_code_protocol::protocol::AgentStatus::NotFound
                 )
             }) {
                 V2CollabToolCallStatus::Failed
@@ -1271,8 +1271,8 @@ pub(crate) async fn apply_bespoke_event_handling(
                     .await;
             }
             let status = match &end_event.status {
-                codex_protocol::protocol::AgentStatus::Errored(_)
-                | codex_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                darwin_code_protocol::protocol::AgentStatus::Errored(_)
+                | darwin_code_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
                 _ => V2CollabToolCallStatus::Completed,
             };
             let receiver_id = end_event.receiver_thread_id.to_string();
@@ -1325,7 +1325,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::AgentMessageContentDelta(event) => {
-            let codex_protocol::protocol::AgentMessageContentDeltaEvent { item_id, delta, .. } =
+            let darwin_code_protocol::protocol::AgentMessageContentDeltaEvent { item_id, delta, .. } =
                 event;
             let notification = AgentMessageDeltaNotification {
                 thread_id: conversation_id.to_string(),
@@ -1420,14 +1420,14 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
 
             let message = ev.message.clone();
-            let codex_error_info = ev.codex_error_info.clone();
+            let darwin_code_error_info = ev.darwin_code_error_info.clone();
             // If this error belongs to an in-flight `thread/rollback` request, fail that request
             // (and clear pending state) so subsequent rollbacks are unblocked.
             //
             // Don't send a notification for this error.
             if matches!(
-                codex_error_info,
-                Some(CoreCodexErrorInfo::ThreadRollbackFailed)
+                darwin_code_error_info,
+                Some(CoreDarwinCodeErrorInfo::ThreadRollbackFailed)
             ) {
                 return handle_thread_rollback_failed(
                     conversation_id,
@@ -1444,7 +1444,7 @@ pub(crate) async fn apply_bespoke_event_handling(
 
             let turn_error = TurnError {
                 message: ev.message,
-                codex_error_info: ev.codex_error_info.map(V2CodexErrorInfo::from),
+                darwin_code_error_info: ev.darwin_code_error_info.map(V2DarwinCodeErrorInfo::from),
                 additional_details: None,
             };
             handle_error(conversation_id, turn_error.clone(), &thread_state).await;
@@ -1462,7 +1462,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             // but we notify the client.
             let turn_error = TurnError {
                 message: ev.message,
-                codex_error_info: ev.codex_error_info.map(V2CodexErrorInfo::from),
+                darwin_code_error_info: ev.darwin_code_error_info.map(V2DarwinCodeErrorInfo::from),
                 additional_details: ev.additional_details,
             };
             outgoing
@@ -1653,7 +1653,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             if matches!(api_version, ApiVersion::V2)
                 && matches!(
                     exec_command_begin_event.source,
-                    codex_protocol::protocol::ExecCommandSource::UnifiedExecInteraction
+                    darwin_code_protocol::protocol::ExecCommandSource::UnifiedExecInteraction
                 )
             {
                 // TerminalInteraction is the v2 surface for unified exec
@@ -1767,7 +1767,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             if matches!(api_version, ApiVersion::V2)
                 && matches!(
                     exec_command_end_event.source,
-                    codex_protocol::protocol::ExecCommandSource::UnifiedExecInteraction
+                    darwin_code_protocol::protocol::ExecCommandSource::UnifiedExecInteraction
                 )
             {
                 // The paired begin event is suppressed above; keep the
@@ -1856,7 +1856,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                                 thread.status = thread_watch_manager
                                     .loaded_status_for_thread(&thread.id)
                                     .await;
-                                match find_thread_name_by_id(codex_home, &conversation_id).await {
+                                match find_thread_name_by_id(darwin_code_home, &conversation_id).await {
                                     Ok(name) => {
                                         thread.name = name;
                                     }
@@ -2140,7 +2140,7 @@ async fn maybe_emit_raw_response_item_completed(
     api_version: ApiVersion,
     conversation_id: ThreadId,
     turn_id: &str,
-    item: codex_protocol::models::ResponseItem,
+    item: darwin_code_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let ApiVersion::V2 = api_version else {
@@ -2161,14 +2161,14 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
     api_version: ApiVersion,
     conversation_id: ThreadId,
     turn_id: &str,
-    item: &codex_protocol::models::ResponseItem,
+    item: &darwin_code_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let ApiVersion::V2 = api_version else {
         return;
     };
 
-    let codex_protocol::models::ResponseItem::Message {
+    let darwin_code_protocol::models::ResponseItem::Message {
         role, content, id, ..
     } = item
     else {
@@ -2191,7 +2191,7 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
             fragments: hook_prompt
                 .fragments
                 .into_iter()
-                .map(codex_app_server_protocol::HookPromptFragment::from)
+                .map(darwin_code_app_server_protocol::HookPromptFragment::from)
                 .collect(),
         },
     };
@@ -2327,7 +2327,7 @@ async fn handle_error(
 async fn on_patch_approval_response(
     call_id: String,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    codex: Arc<CodexThread>,
+    darwin-code: Arc<DarwinCodeThread>,
 ) {
     let response = receiver.await;
     let value = match response {
@@ -2335,7 +2335,7 @@ async fn on_patch_approval_response(
         Ok(Err(err)) if is_turn_transition_server_request_error(&err) => return,
         Ok(Err(err)) => {
             error!("request failed with client error: {err:?}");
-            if let Err(submit_err) = codex
+            if let Err(submit_err) = darwin-code
                 .submit(Op::PatchApproval {
                     id: call_id.clone(),
                     decision: ReviewDecision::Denied,
@@ -2348,7 +2348,7 @@ async fn on_patch_approval_response(
         }
         Err(err) => {
             error!("request failed: {err:?}");
-            if let Err(submit_err) = codex
+            if let Err(submit_err) = darwin-code
                 .submit(Op::PatchApproval {
                     id: call_id.clone(),
                     decision: ReviewDecision::Denied,
@@ -2369,7 +2369,7 @@ async fn on_patch_approval_response(
             }
         });
 
-    if let Err(err) = codex
+    if let Err(err) = darwin-code
         .submit(Op::PatchApproval {
             id: call_id,
             decision: response.decision,
@@ -2384,7 +2384,7 @@ async fn on_exec_approval_response(
     call_id: String,
     turn_id: String,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
 ) {
     let response = receiver.await;
     let value = match response {
@@ -2400,7 +2400,7 @@ async fn on_exec_approval_response(
         }
     };
 
-    // Try to deserialize `value` and then make the appropriate call to `codex`.
+    // Try to deserialize `value` and then make the appropriate call to `darwin-code`.
     let response =
         serde_json::from_value::<ExecCommandApprovalResponse>(value).unwrap_or_else(|err| {
             error!("failed to deserialize ExecCommandApprovalResponse: {err}");
@@ -2427,7 +2427,7 @@ async fn on_request_user_input_response(
     event_turn_id: String,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
     thread_state: Arc<Mutex<ThreadState>>,
     user_input_guard: ThreadWatchActiveGuard,
 ) {
@@ -2506,10 +2506,10 @@ async fn on_request_user_input_response(
 
 async fn on_mcp_server_elicitation_response(
     server_name: String,
-    request_id: codex_protocol::mcp::RequestId,
+    request_id: darwin_code_protocol::mcp::RequestId,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
 ) {
@@ -2576,7 +2576,7 @@ async fn on_request_permissions_response(
     requested_permissions: CoreRequestPermissionProfile,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
     thread_state: Arc<Mutex<ThreadState>>,
     request_permissions_guard: ThreadWatchActiveGuard,
 ) {
@@ -2628,7 +2628,7 @@ fn request_permissions_response_from_client_result(
             error!("failed to deserialize PermissionsRequestApprovalResponse: {err}");
             PermissionsRequestApprovalResponse {
                 permissions: V2GrantedPermissionProfile::default(),
-                scope: codex_app_server_protocol::PermissionGrantScope::Turn,
+                scope: darwin_code_app_server_protocol::PermissionGrantScope::Turn,
             }
         });
     Some(CoreRequestPermissionsResponse {
@@ -2686,7 +2686,7 @@ async fn on_file_change_request_approval_response(
     changes: Vec<FileUpdateChange>,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    codex: Arc<CodexThread>,
+    darwin-code: Arc<DarwinCodeThread>,
     outgoing: ThreadScopedOutgoingMessageSender,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
@@ -2737,7 +2737,7 @@ async fn on_file_change_request_approval_response(
         .await;
     }
 
-    if let Err(err) = codex
+    if let Err(err) = darwin-code
         .submit(Op::PatchApproval {
             id: item_id,
             decision,
@@ -2757,7 +2757,7 @@ async fn on_command_execution_request_approval_response(
     completion_item: Option<CommandExecutionCompletionItem>,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
     outgoing: ThreadScopedOutgoingMessageSender,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
@@ -2874,7 +2874,7 @@ async fn on_command_execution_request_approval_response(
 }
 
 fn collab_resume_begin_item(
-    begin_event: codex_protocol::protocol::CollabResumeBeginEvent,
+    begin_event: darwin_code_protocol::protocol::CollabResumeBeginEvent,
 ) -> ThreadItem {
     ThreadItem::CollabAgentToolCall {
         id: begin_event.call_id,
@@ -2889,10 +2889,10 @@ fn collab_resume_begin_item(
     }
 }
 
-fn collab_resume_end_item(end_event: codex_protocol::protocol::CollabResumeEndEvent) -> ThreadItem {
+fn collab_resume_end_item(end_event: darwin_code_protocol::protocol::CollabResumeEndEvent) -> ThreadItem {
     let status = match &end_event.status {
-        codex_protocol::protocol::AgentStatus::Errored(_)
-        | codex_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+        darwin_code_protocol::protocol::AgentStatus::Errored(_)
+        | darwin_code_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
         _ => V2CollabToolCallStatus::Completed,
     };
     let receiver_id = end_event.receiver_thread_id.to_string();
@@ -2998,32 +2998,32 @@ mod tests {
     use anyhow::Result;
     use anyhow::anyhow;
     use anyhow::bail;
-    use codex_app_server_protocol::AutoReviewDecisionSource;
-    use codex_app_server_protocol::GuardianApprovalReviewStatus;
-    use codex_app_server_protocol::JSONRPCErrorError;
-    use codex_app_server_protocol::TurnPlanStepStatus;
-    use codex_login::AuthManager;
-    use codex_login::CodexAuth;
-    use codex_protocol::items::HookPromptFragment;
-    use codex_protocol::items::build_hook_prompt_message;
-    use codex_protocol::mcp::CallToolResult;
-    use codex_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
-    use codex_protocol::plan_tool::PlanItemArg;
-    use codex_protocol::plan_tool::StepStatus;
-    use codex_protocol::protocol::CollabResumeBeginEvent;
-    use codex_protocol::protocol::CollabResumeEndEvent;
-    use codex_protocol::protocol::CreditsSnapshot;
-    use codex_protocol::protocol::GuardianAssessmentEvent;
-    use codex_protocol::protocol::GuardianAssessmentStatus;
-    use codex_protocol::protocol::McpInvocation;
-    use codex_protocol::protocol::RateLimitSnapshot;
-    use codex_protocol::protocol::RateLimitWindow;
-    use codex_protocol::protocol::TokenUsage;
-    use codex_protocol::protocol::TokenUsageInfo;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_app_server_protocol::AutoReviewDecisionSource;
+    use darwin_code_app_server_protocol::GuardianApprovalReviewStatus;
+    use darwin_code_app_server_protocol::JSONRPCErrorError;
+    use darwin_code_app_server_protocol::TurnPlanStepStatus;
+    use darwin_code_login::AuthManager;
+    use darwin_code_login::DarwinCodeAuth;
+    use darwin_code_protocol::items::HookPromptFragment;
+    use darwin_code_protocol::items::build_hook_prompt_message;
+    use darwin_code_protocol::mcp::CallToolResult;
+    use darwin_code_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions as CoreNetworkPermissions;
+    use darwin_code_protocol::plan_tool::PlanItemArg;
+    use darwin_code_protocol::plan_tool::StepStatus;
+    use darwin_code_protocol::protocol::CollabResumeBeginEvent;
+    use darwin_code_protocol::protocol::CollabResumeEndEvent;
+    use darwin_code_protocol::protocol::CreditsSnapshot;
+    use darwin_code_protocol::protocol::GuardianAssessmentEvent;
+    use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+    use darwin_code_protocol::protocol::McpInvocation;
+    use darwin_code_protocol::protocol::RateLimitSnapshot;
+    use darwin_code_protocol::protocol::RateLimitWindow;
+    use darwin_code_protocol::protocol::TokenUsage;
+    use darwin_code_protocol::protocol::TokenUsageInfo;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use core_test_support::load_default_config_for_test;
     use pretty_assertions::assert_eq;
     use rmcp::model::Content;
@@ -3067,7 +3067,7 @@ mod tests {
     fn turn_aborted_event(turn_id: &str) -> TurnAbortedEvent {
         TurnAbortedEvent {
             turn_id: Some(turn_id.to_string()),
-            reason: codex_protocol::protocol::TurnAbortReason::Interrupted,
+            reason: darwin_code_protocol::protocol::TurnAbortReason::Interrupted,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
         }
@@ -3091,13 +3091,13 @@ mod tests {
         let (risk_level, user_authorization, rationale) = match status {
             GuardianAssessmentStatus::InProgress => (None, None, None),
             GuardianAssessmentStatus::Approved => (
-                Some(codex_protocol::protocol::GuardianRiskLevel::Low),
-                Some(codex_protocol::protocol::GuardianUserAuthorization::High),
+                Some(darwin_code_protocol::protocol::GuardianRiskLevel::Low),
+                Some(darwin_code_protocol::protocol::GuardianUserAuthorization::High),
                 Some("looks safe".to_string()),
             ),
             GuardianAssessmentStatus::Denied => (
-                Some(codex_protocol::protocol::GuardianRiskLevel::High),
-                Some(codex_protocol::protocol::GuardianUserAuthorization::Low),
+                Some(darwin_code_protocol::protocol::GuardianRiskLevel::High),
+                Some(darwin_code_protocol::protocol::GuardianUserAuthorization::Low),
                 Some("too risky".to_string()),
             ),
             GuardianAssessmentStatus::TimedOut => {
@@ -3116,7 +3116,7 @@ mod tests {
             decision_source: if matches!(status, GuardianAssessmentStatus::InProgress) {
                 None
             } else {
-                Some(codex_protocol::protocol::GuardianAssessmentDecisionSource::Agent)
+                Some(darwin_code_protocol::protocol::GuardianAssessmentDecisionSource::Agent)
             },
             action: serde_json::from_value(json!({
                 "type": "command",
@@ -3130,13 +3130,13 @@ mod tests {
 
     struct GuardianAssessmentTestContext {
         conversation_id: ThreadId,
-        conversation: Arc<CodexThread>,
+        conversation: Arc<DarwinCodeThread>,
         thread_manager: Arc<ThreadManager>,
         outgoing: ThreadScopedOutgoingMessageSender,
         thread_state: Arc<Mutex<ThreadState>>,
         thread_watch_manager: ThreadWatchManager,
         analytics_events_client: AnalyticsEventsClient,
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
     }
 
     impl GuardianAssessmentTestContext {
@@ -3156,7 +3156,7 @@ mod tests {
                 self.thread_watch_manager.clone(),
                 ApiVersion::V2,
                 "test-provider".to_string(),
-                &self.codex_home,
+                &self.darwin_code_home,
             )
             .await;
         }
@@ -3165,8 +3165,8 @@ mod tests {
     #[test]
     fn guardian_assessment_started_uses_event_turn_id_fallback() {
         let conversation_id = ThreadId::new();
-        let action = codex_protocol::protocol::GuardianAssessmentAction::Command {
-            source: codex_protocol::protocol::GuardianCommandSource::Shell,
+        let action = darwin_code_protocol::protocol::GuardianAssessmentAction::Command {
+            source: darwin_code_protocol::protocol::GuardianCommandSource::Shell,
             command: "rm -rf /tmp/example.sqlite".to_string(),
             cwd: test_path_buf("/tmp").abs(),
         };
@@ -3177,7 +3177,7 @@ mod tests {
                 id: "review-1".to_string(),
                 target_item_id: Some("item-1".to_string()),
                 turn_id: String::new(),
-                status: codex_protocol::protocol::GuardianAssessmentStatus::InProgress,
+                status: darwin_code_protocol::protocol::GuardianAssessmentStatus::InProgress,
                 risk_level: None,
                 user_authorization: None,
                 rationale: None,
@@ -3208,8 +3208,8 @@ mod tests {
     #[test]
     fn guardian_assessment_completed_emits_review_payload() {
         let conversation_id = ThreadId::new();
-        let action = codex_protocol::protocol::GuardianAssessmentAction::Command {
-            source: codex_protocol::protocol::GuardianCommandSource::Shell,
+        let action = darwin_code_protocol::protocol::GuardianAssessmentAction::Command {
+            source: darwin_code_protocol::protocol::GuardianCommandSource::Shell,
             command: "rm -rf /tmp/example.sqlite".to_string(),
             cwd: test_path_buf("/tmp").abs(),
         };
@@ -3220,12 +3220,12 @@ mod tests {
                 id: "review-2".to_string(),
                 target_item_id: Some("item-2".to_string()),
                 turn_id: "turn-from-assessment".to_string(),
-                status: codex_protocol::protocol::GuardianAssessmentStatus::Denied,
-                risk_level: Some(codex_protocol::protocol::GuardianRiskLevel::High),
-                user_authorization: Some(codex_protocol::protocol::GuardianUserAuthorization::Low),
+                status: darwin_code_protocol::protocol::GuardianAssessmentStatus::Denied,
+                risk_level: Some(darwin_code_protocol::protocol::GuardianRiskLevel::High),
+                user_authorization: Some(darwin_code_protocol::protocol::GuardianUserAuthorization::Low),
                 rationale: Some("too risky".to_string()),
                 decision_source: Some(
-                    codex_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
+                    darwin_code_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
                 ),
                 action: action.clone(),
             },
@@ -3241,11 +3241,11 @@ mod tests {
                 assert_eq!(payload.review.status, GuardianApprovalReviewStatus::Denied);
                 assert_eq!(
                     payload.review.risk_level,
-                    Some(codex_app_server_protocol::GuardianRiskLevel::High)
+                    Some(darwin_code_app_server_protocol::GuardianRiskLevel::High)
                 );
                 assert_eq!(
                     payload.review.user_authorization,
-                    Some(codex_app_server_protocol::GuardianUserAuthorization::Low)
+                    Some(darwin_code_app_server_protocol::GuardianUserAuthorization::Low)
                 );
                 assert_eq!(payload.review.rationale.as_deref(), Some("too risky"));
                 assert_eq!(payload.action, action.into());
@@ -3257,10 +3257,10 @@ mod tests {
     #[test]
     fn guardian_assessment_aborted_emits_completed_review_payload() {
         let conversation_id = ThreadId::new();
-        let action = codex_protocol::protocol::GuardianAssessmentAction::NetworkAccess {
+        let action = darwin_code_protocol::protocol::GuardianAssessmentAction::NetworkAccess {
             target: "api.openai.com:443".to_string(),
             host: "api.openai.com".to_string(),
-            protocol: codex_protocol::protocol::NetworkApprovalProtocol::Https,
+            protocol: darwin_code_protocol::protocol::NetworkApprovalProtocol::Https,
             port: 443,
         };
         let notification = guardian_auto_approval_review_notification(
@@ -3270,12 +3270,12 @@ mod tests {
                 id: "review-3".to_string(),
                 target_item_id: None,
                 turn_id: "turn-from-assessment".to_string(),
-                status: codex_protocol::protocol::GuardianAssessmentStatus::Aborted,
+                status: darwin_code_protocol::protocol::GuardianAssessmentStatus::Aborted,
                 risk_level: None,
                 user_authorization: None,
                 rationale: None,
                 decision_source: Some(
-                    codex_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
+                    darwin_code_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
                 ),
                 action: action.clone(),
             },
@@ -3444,19 +3444,19 @@ mod tests {
 
     #[tokio::test]
     async fn guardian_command_execution_notifications_wrap_review_lifecycle() -> Result<()> {
-        let codex_home = TempDir::new()?;
-        let config = load_default_config_for_test(&codex_home).await;
+        let darwin_code_home = TempDir::new()?;
+        let config = load_default_config_for_test(&darwin_code_home).await;
         let thread_manager = Arc::new(
-            codex_core::test_support::thread_manager_with_models_provider_and_home(
-                CodexAuth::create_dummy_chatgpt_auth_for_testing(),
+            darwin_code_core::test_support::thread_manager_with_models_provider_and_home(
+                DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
                 config.model_provider.clone(),
-                config.codex_home.to_path_buf(),
-                Arc::new(codex_exec_server::EnvironmentManager::new(
+                config.darwin_code_home.to_path_buf(),
+                Arc::new(darwin_code_exec_server::EnvironmentManager::new(
                     /*exec_server_url*/ None,
                 )),
             ),
         );
-        let codex_core::NewThread {
+        let darwin_code_core::NewThread {
             thread_id: conversation_id,
             thread: conversation,
             ..
@@ -3479,12 +3479,12 @@ mod tests {
             thread_watch_manager: thread_watch_manager.clone(),
             analytics_events_client: AnalyticsEventsClient::new(
                 AuthManager::from_auth_for_testing(
-                    CodexAuth::create_dummy_chatgpt_auth_for_testing(),
+                    DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
                 ),
                 "http://localhost".to_string(),
                 Some(false),
             ),
-            codex_home: codex_home.path().to_path_buf(),
+            darwin_code_home: darwin_code_home.path().to_path_buf(),
         };
 
         guardian_context
@@ -3851,7 +3851,7 @@ mod tests {
             receiver_thread_id: ThreadId::new(),
             receiver_agent_nickname: None,
             receiver_agent_role: None,
-            status: codex_protocol::protocol::AgentStatus::NotFound,
+            status: darwin_code_protocol::protocol::AgentStatus::NotFound,
         };
 
         let item = collab_resume_end_item(event.clone());
@@ -3867,7 +3867,7 @@ mod tests {
             reasoning_effort: None,
             agents_states: [(
                 receiver_id,
-                V2CollabAgentStatus::from(codex_protocol::protocol::AgentStatus::NotFound),
+                V2CollabAgentStatus::from(darwin_code_protocol::protocol::AgentStatus::NotFound),
             )]
             .into_iter()
             .collect(),
@@ -3884,7 +3884,7 @@ mod tests {
             conversation_id,
             TurnError {
                 message: "boom".to_string(),
-                codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
+                darwin_code_error_info: Some(V2DarwinCodeErrorInfo::InternalServerError),
                 additional_details: None,
             },
             &thread_state,
@@ -3896,7 +3896,7 @@ mod tests {
             turn_summary.last_error,
             Some(TurnError {
                 message: "boom".to_string(),
-                codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
+                darwin_code_error_info: Some(V2DarwinCodeErrorInfo::InternalServerError),
                 additional_details: None,
             })
         );
@@ -3918,7 +3918,7 @@ mod tests {
         {
             let mut state = thread_state.lock().await;
             state.track_current_turn_event(&EventMsg::TurnStarted(
-                codex_protocol::protocol::TurnStartedEvent {
+                darwin_code_protocol::protocol::TurnStartedEvent {
                     turn_id: event_turn_id.clone(),
                     started_at: Some(42),
                     model_context_window: None,
@@ -3965,7 +3965,7 @@ mod tests {
             conversation_id,
             TurnError {
                 message: "oops".to_string(),
-                codex_error_info: None,
+                darwin_code_error_info: None,
                 additional_details: None,
             },
             &thread_state,
@@ -4013,7 +4013,7 @@ mod tests {
             conversation_id,
             TurnError {
                 message: "bad".to_string(),
-                codex_error_info: Some(V2CodexErrorInfo::Other),
+                darwin_code_error_info: Some(V2DarwinCodeErrorInfo::Other),
                 additional_details: None,
             },
             &thread_state,
@@ -4046,7 +4046,7 @@ mod tests {
                     n.turn.error,
                     Some(TurnError {
                         message: "bad".to_string(),
-                        codex_error_info: Some(V2CodexErrorInfo::Other),
+                        darwin_code_error_info: Some(V2DarwinCodeErrorInfo::Other),
                         additional_details: None,
                     })
                 );
@@ -4141,7 +4141,7 @@ mod tests {
             model_context_window: Some(4096),
         };
         let rate_limits = RateLimitSnapshot {
-            limit_id: Some("codex".to_string()),
+            limit_id: Some("darwin-code".to_string()),
             limit_name: None,
             primary: Some(RateLimitWindow {
                 used_percent: 42.5,
@@ -4190,7 +4190,7 @@ mod tests {
             OutgoingMessage::AppServerNotification(
                 ServerNotification::AccountRateLimitsUpdated(payload),
             ) => {
-                assert_eq!(payload.rate_limits.limit_id.as_deref(), Some("codex"));
+                assert_eq!(payload.rate_limits.limit_id.as_deref(), Some("darwin-code"));
                 assert_eq!(payload.rate_limits.limit_name, None);
                 assert!(payload.rate_limits.primary.is_some());
                 assert!(payload.rate_limits.credits.is_some());
@@ -4235,7 +4235,7 @@ mod tests {
         let begin_event = McpToolCallBeginEvent {
             call_id: "call_123".to_string(),
             invocation: McpInvocation {
-                server: "codex".to_string(),
+                server: "darwin-code".to_string(),
                 tool: "list_mcp_resources".to_string(),
                 arguments: Some(serde_json::json!({"server": ""})),
             },
@@ -4291,7 +4291,7 @@ mod tests {
             conversation_a,
             TurnError {
                 message: "a1".to_string(),
-                codex_error_info: Some(V2CodexErrorInfo::BadRequest),
+                darwin_code_error_info: Some(V2DarwinCodeErrorInfo::BadRequest),
                 additional_details: None,
             },
             &thread_state,
@@ -4313,7 +4313,7 @@ mod tests {
             conversation_b,
             TurnError {
                 message: "b1".to_string(),
-                codex_error_info: None,
+                darwin_code_error_info: None,
                 additional_details: None,
             },
             &thread_state,
@@ -4351,7 +4351,7 @@ mod tests {
                     n.turn.error,
                     Some(TurnError {
                         message: "a1".to_string(),
-                        codex_error_info: Some(V2CodexErrorInfo::BadRequest),
+                        darwin_code_error_info: Some(V2DarwinCodeErrorInfo::BadRequest),
                         additional_details: None,
                     })
                 );
@@ -4369,7 +4369,7 @@ mod tests {
                     n.turn.error,
                     Some(TurnError {
                         message: "b1".to_string(),
-                        codex_error_info: None,
+                        darwin_code_error_info: None,
                         additional_details: None,
                     })
                 );
@@ -4397,7 +4397,7 @@ mod tests {
         let begin_event = McpToolCallBeginEvent {
             call_id: "call_456".to_string(),
             invocation: McpInvocation {
-                server: "codex".to_string(),
+                server: "darwin-code".to_string(),
                 tool: "list_mcp_resources".to_string(),
                 arguments: None,
             },
@@ -4450,7 +4450,7 @@ mod tests {
         let end_event = McpToolCallEndEvent {
             call_id: "call_789".to_string(),
             invocation: McpInvocation {
-                server: "codex".to_string(),
+                server: "darwin-code".to_string(),
                 tool: "list_mcp_resources".to_string(),
                 arguments: Some(serde_json::json!({"server": ""})),
             },
@@ -4498,7 +4498,7 @@ mod tests {
         let end_event = McpToolCallEndEvent {
             call_id: "call_err".to_string(),
             invocation: McpInvocation {
-                server: "codex".to_string(),
+                server: "darwin-code".to_string(),
                 tool: "list_mcp_resources".to_string(),
                 arguments: None,
             },
@@ -4638,11 +4638,11 @@ mod tests {
                     ThreadItem::HookPrompt {
                         id: notification.item.id().to_string(),
                         fragments: vec![
-                            codex_app_server_protocol::HookPromptFragment {
+                            darwin_code_app_server_protocol::HookPromptFragment {
                                 text: "Retry with tests.".into(),
                                 hook_run_id: "hook-run-1".into(),
                             },
-                            codex_app_server_protocol::HookPromptFragment {
+                            darwin_code_app_server_protocol::HookPromptFragment {
                                 text: "Then summarize cleanly.".into(),
                                 hook_run_id: "hook-run-2".into(),
                             },

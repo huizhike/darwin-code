@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppListUpdatedNotification;
-use codex_app_server_protocol::AppsListResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_app_server_protocol::AppListUpdatedNotification;
+use darwin_code_app_server_protocol::AppsListResponse;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::ServerNotification;
 
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::outgoing_message::OutgoingMessageSender;

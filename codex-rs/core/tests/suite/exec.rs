@@ -1,25 +1,25 @@
 #![cfg(target_os = "macos")]
 
-use codex_core::exec::ExecCapturePolicy;
-use codex_core::exec::ExecParams;
-use codex_core::exec::process_exec_tool_call;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_core::spawn::CODEX_SANDBOX_ENV_VAR;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::Result;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::get_platform_sandbox;
+use darwin_code_core::exec::ExecCapturePolicy;
+use darwin_code_core::exec::ExecParams;
+use darwin_code_core::exec::process_exec_tool_call;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_core::spawn::DARWIN_CODE_SANDBOX_ENV_VAR;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::get_platform_sandbox;
 use core_test_support::PathExt;
 use std::collections::HashMap;
 use tempfile::TempDir;
 
 fn skip_test() -> bool {
-    if std::env::var(CODEX_SANDBOX_ENV_VAR) == Ok("seatbelt".to_string()) {
-        eprintln!("{CODEX_SANDBOX_ENV_VAR} is set to 'seatbelt', skipping test.");
+    if std::env::var(DARWIN_CODE_SANDBOX_ENV_VAR) == Ok("seatbelt".to_string()) {
+        eprintln!("{DARWIN_CODE_SANDBOX_ENV_VAR} is set to 'seatbelt', skipping test.");
         return true;
     }
 

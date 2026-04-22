@@ -2,14 +2,14 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use codex_config::types::ToolSuggestDiscoverable;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_config::types::ToolSuggestDiscoverable;
+use darwin_code_config::types::ToolSuggestDiscoverableType;
+use darwin_code_core::config::Config;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -18,7 +18,7 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use serde_json::Value;
 
 const TOOL_SEARCH_TOOL_NAME: &str = "tool_search";
@@ -72,7 +72,7 @@ fn configure_apps_without_search_tool(config: &mut Config, apps_base_url: &str) 
         .enable(Feature::ToolSuggest)
         .expect("test config should allow feature update");
     config.chatgpt_base_url = apps_base_url.to_string();
-    config.model = Some("gpt-5-codex".to_string());
+    config.model = Some("gpt-5-darwin-code".to_string());
     config.tool_suggest.discoverables = vec![ToolSuggestDiscoverable {
         kind: ToolSuggestDiscoverableType::Connector,
         id: DISCOVERABLE_GMAIL_ID.to_string(),
@@ -83,8 +83,8 @@ fn configure_apps_without_search_tool(config: &mut Config, apps_base_url: &str) 
     let model = model_catalog
         .models
         .iter_mut()
-        .find(|model| model.slug == "gpt-5-codex")
-        .expect("gpt-5-codex exists in bundled models.json");
+        .find(|model| model.slug == "gpt-5-darwin-code")
+        .expect("gpt-5-darwin-code exists in bundled models.json");
     model.supports_search_tool = false;
     config.model_catalog = Some(model_catalog);
 }
@@ -105,8 +105,8 @@ async fn tool_suggest_is_available_without_search_tool_after_discovery_attempts(
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             configure_apps_without_search_tool(config, apps_server.chatgpt_base_url.as_str())
         });

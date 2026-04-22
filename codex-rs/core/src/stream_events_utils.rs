@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::items::TurnItem;
-use codex_utils_stream_parser::strip_citations;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_utils_stream_parser::strip_citations;
 use tokio_util::sync::CancellationToken;
 
 use crate::function_tool::FunctionCallError;
@@ -16,17 +16,17 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolRouter;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_rollout::state_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_stream_parser::strip_proposed_plan_blocks;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_rollout::state_db;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_stream_parser::strip_proposed_plan_blocks;
 use futures::Future;
 use tracing::debug;
 use tracing::instrument;
@@ -34,7 +34,7 @@ use tracing::instrument;
 const GENERATED_IMAGE_ARTIFACTS_DIR: &str = "generated_images";
 
 pub(crate) fn image_generation_artifact_path(
-    codex_home: &AbsolutePathBuf,
+    darwin_code_home: &AbsolutePathBuf,
     session_id: &str,
     call_id: &str,
 ) -> AbsolutePathBuf {
@@ -55,7 +55,7 @@ pub(crate) fn image_generation_artifact_path(
         sanitized
     };
 
-    codex_home
+    darwin_code_home
         .join(GENERATED_IMAGE_ARTIFACTS_DIR)
         .join(sanitize(session_id))
         .join(format!("{}.png", sanitize(call_id)))
@@ -75,7 +75,7 @@ fn strip_hidden_assistant_markup_and_parse_memory_citation(
     plan_mode: bool,
 ) -> (
     String,
-    Option<codex_protocol::memory_citation::MemoryCitation>,
+    Option<darwin_code_protocol::memory_citation::MemoryCitation>,
 ) {
     let (without_citations, citations) = strip_citations(text);
     let visible_text = if plan_mode {
@@ -93,7 +93,7 @@ pub(crate) fn raw_assistant_output_text_from_item(item: &ResponseItem) -> Option
         let combined = content
             .iter()
             .filter_map(|ci| match ci {
-                codex_protocol::models::ContentItem::OutputText { text } => Some(text.as_str()),
+                darwin_code_protocol::models::ContentItem::OutputText { text } => Some(text.as_str()),
                 _ => None,
             })
             .collect::<String>();
@@ -103,7 +103,7 @@ pub(crate) fn raw_assistant_output_text_from_item(item: &ResponseItem) -> Option
 }
 
 async fn save_image_generation_result(
-    codex_home: &AbsolutePathBuf,
+    darwin_code_home: &AbsolutePathBuf,
     session_id: &str,
     call_id: &str,
     result: &str,
@@ -111,9 +111,9 @@ async fn save_image_generation_result(
     let bytes = BASE64_STANDARD
         .decode(result.trim().as_bytes())
         .map_err(|err| {
-            CodexErr::InvalidRequest(format!("invalid image generation payload: {err}"))
+            DarwinCodeErr::InvalidRequest(format!("invalid image generation payload: {err}"))
         })?;
-    let path = image_generation_artifact_path(codex_home, session_id, call_id);
+    let path = image_generation_artifact_path(darwin_code_home, session_id, call_id);
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -328,7 +328,7 @@ pub(crate) async fn handle_output_item_done(
         }
         // A fatal error occurred; surface it back into history.
         Err(FunctionCallError::Fatal(message)) => {
-            return Err(CodexErr::Fatal(message));
+            return Err(DarwinCodeErr::Fatal(message));
         }
     }
 
@@ -354,19 +354,19 @@ pub(crate) async fn handle_non_tool_response_item(
                     .content
                     .iter()
                     .map(|entry| match entry {
-                        codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+                        darwin_code_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
                     })
                     .collect::<String>();
                 let (stripped, memory_citation) =
                     strip_hidden_assistant_markup_and_parse_memory_citation(&combined, plan_mode);
                 agent_message.content =
-                    vec![codex_protocol::items::AgentMessageContent::Text { text: stripped }];
+                    vec![darwin_code_protocol::items::AgentMessageContent::Text { text: stripped }];
                 agent_message.memory_citation = memory_citation;
             }
             if let TurnItem::ImageGeneration(image_item) = &mut turn_item {
                 let session_id = sess.conversation_id.to_string();
                 match save_image_generation_result(
-                    &turn_context.config.codex_home,
+                    &turn_context.config.darwin_code_home,
                     &session_id,
                     &image_item.id,
                     &image_item.result,
@@ -376,13 +376,13 @@ pub(crate) async fn handle_non_tool_response_item(
                     Ok(path) => {
                         image_item.saved_path = Some(path);
                         let image_output_path = image_generation_artifact_path(
-                            &turn_context.config.codex_home,
+                            &turn_context.config.darwin_code_home,
                             &session_id,
                             "<image_id>",
                         );
                         let image_output_dir = image_output_path
                             .parent()
-                            .unwrap_or_else(|| turn_context.config.codex_home.clone());
+                            .unwrap_or_else(|| turn_context.config.darwin_code_home.clone());
                         let message: ResponseItem = DeveloperInstructions::new(format!(
                             "Generated images are saved to {} as {} by default.\nIf you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it.",
                             image_output_dir.display(),
@@ -394,13 +394,13 @@ pub(crate) async fn handle_non_tool_response_item(
                     }
                     Err(err) => {
                         let output_path = image_generation_artifact_path(
-                            &turn_context.config.codex_home,
+                            &turn_context.config.darwin_code_home,
                             &session_id,
                             &image_item.id,
                         );
                         let output_dir = output_path
                             .parent()
-                            .unwrap_or_else(|| turn_context.config.codex_home.clone());
+                            .unwrap_or_else(|| turn_context.config.darwin_code_home.clone());
                         tracing::warn!(
                             call_id = %image_item.id,
                             output_dir = %output_dir.display(),

@@ -1,6 +1,6 @@
 use super::*;
 use crate::agent::status::is_final;
-use codex_protocol::error::CodexErr;
+use darwin_code_protocol::error::DarwinCodeErr;
 use futures::FutureExt;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
@@ -93,7 +93,7 @@ impl ToolHandler for Handler {
                     }
                     status_rxs.push((*id, rx));
                 }
-                Err(CodexErr::ThreadNotFound(_)) => {
+                Err(DarwinCodeErr::ThreadNotFound(_)) => {
                     initial_final_statuses.push((*id, AgentStatus::NotFound));
                 }
                 Err(err) => {

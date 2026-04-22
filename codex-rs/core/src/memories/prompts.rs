@@ -4,14 +4,14 @@ use crate::memories::memory_extensions_root;
 use crate::memories::memory_root;
 use crate::memories::phase_one;
 use crate::memories::storage::rollout_summary_file_stem_from_parts;
-use codex_protocol::openai_models::ModelInfo;
-use codex_state::Phase2InputSelection;
-use codex_state::Stage1Output;
-use codex_state::Stage1OutputRef;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
-use codex_utils_template::Template;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_state::Phase2InputSelection;
+use darwin_code_state::Stage1Output;
+use darwin_code_state::Stage1OutputRef;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::truncate_text;
+use darwin_code_utils_template::Template;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -126,7 +126,7 @@ pub(super) fn build_consolidation_prompt(
         .unwrap_or_else(|err| {
             warn!("failed to render memories consolidation prompt template: {err}");
             format!(
-                "## Memory Phase 2 (Consolidation)\nConsolidate Codex memories in: {memory_root}\n\n{phase2_input_selection}"
+                "## Memory Phase 2 (Consolidation)\nConsolidate Darwin-Code memories in: {memory_root}\n\n{phase2_input_selection}"
             )
         })
 }
@@ -263,9 +263,9 @@ pub(super) fn build_stage_one_input_message(
 /// case of large memory files, the `memory_summary.md` is truncated at
 /// [phase_one::MEMORY_TOOL_DEVELOPER_INSTRUCTIONS_SUMMARY_TOKEN_LIMIT].
 pub(crate) async fn build_memory_tool_developer_instructions(
-    codex_home: &AbsolutePathBuf,
+    darwin_code_home: &AbsolutePathBuf,
 ) -> Option<String> {
-    let base_path = memory_root(codex_home);
+    let base_path = memory_root(darwin_code_home);
     let memory_summary_path = base_path.join("memory_summary.md");
     let memory_summary = fs::read_to_string(&memory_summary_path)
         .await

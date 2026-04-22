@@ -1,24 +1,24 @@
 use anyhow::Result;
-use codex_config::types::Personality;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_config::types::Personality;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed_with_tokens;
 use core_test_support::responses::ev_image_generation_call;
 use core_test_support::responses::ev_response_created;
@@ -29,14 +29,14 @@ use core_test_support::responses::sse;
 use core_test_support::responses::sse_completed;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::path::PathBuf;
 use wiremock::MockServer;
 
-fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(darwin_code_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()
@@ -54,7 +54,7 @@ fn image_generation_artifact_path(codex_home: &Path, session_id: &str, call_id: 
         sanitized
     }
 
-    codex_home
+    darwin_code_home
         .join("generated_images")
         .join(sanitize(session_id))
         .join(format!("{}.png", sanitize(call_id)))
@@ -114,11 +114,11 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
     )
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.2-codex");
+    let mut builder = test_darwin_code().with_model("gpt-5.2-darwin-code");
     let test = builder.build(&server).await?;
-    let next_model = "gpt-5.1-codex-max";
+    let next_model = "gpt-5.1-darwin-code-max";
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -137,9 +137,9 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -155,7 +155,7 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "switch models".into(),
@@ -174,7 +174,7 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -204,8 +204,8 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -213,9 +213,9 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
-    let next_model = "exp-codex-personality";
+    let next_model = "exp-darwin-code-personality";
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -234,9 +234,9 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -252,7 +252,7 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "switch model and personality".into(),
@@ -271,7 +271,7 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -305,7 +305,7 @@ async fn service_tier_change_is_applied_on_next_http_turn() -> Result<()> {
     )
     .await;
 
-    let test = test_codex().build(&server).await?;
+    let test = test_darwin_code().build(&server).await?;
 
     test.submit_turn_with_service_tier("fast turn", Some(ServiceTier::Fast))
         .await?;
@@ -331,7 +331,7 @@ async fn flex_service_tier_is_applied_to_http_turn() -> Result<()> {
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
 
-    let test = test_codex().build(&server).await?;
+    let test = test_darwin_code().build(&server).await?;
 
     test.submit_turn_with_service_tier("flex turn", Some(ServiceTier::Flex))
         .await?;
@@ -376,8 +376,8 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config.model = Some(image_model_slug.to_string());
         });
@@ -389,7 +389,7 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
     let image_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
         .to_string();
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![
                 UserInput::Image {
@@ -413,9 +413,9 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "second turn".to_string(),
@@ -434,7 +434,7 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -460,13 +460,13 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
     assert!(
         second_user_texts
             .iter()
-            .any(|text| text == &codex_protocol::models::image_open_tag_text()),
+            .any(|text| text == &darwin_code_protocol::models::image_open_tag_text()),
         "second request should preserve the image open tag text"
     );
     assert!(
         second_user_texts
             .iter()
-            .any(|text| text == &codex_protocol::models::image_close_tag_text()),
+            .any(|text| text == &darwin_code_protocol::models::image_close_tag_text()),
         "second request should preserve the image close tag text"
     );
 
@@ -506,14 +506,14 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config.model = Some(image_model_slug.to_string());
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &test.session_configured.session_id.to_string(),
         "ig_123",
     );
@@ -523,7 +523,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "generate a lobster".to_string(),
@@ -542,9 +542,9 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "describe the generated image".to_string(),
@@ -563,7 +563,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -638,14 +638,14 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config.model = Some(image_model_slug.to_string());
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &test.session_configured.session_id.to_string(),
         "ig_123",
     );
@@ -655,7 +655,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "generate a lobster".to_string(),
@@ -674,9 +674,9 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "describe the generated image".to_string(),
@@ -695,7 +695,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -772,14 +772,14 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config.model = Some(image_model_slug.to_string());
         });
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &test.session_configured.session_id.to_string(),
         "ig_rollback",
     );
@@ -789,7 +789,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "generate a lobster".to_string(),
@@ -808,17 +808,17 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::ThreadRollback { num_turns: 1 })
         .await?;
-    wait_for_event(&test.codex, |ev| {
+    wait_for_event(&test.darwin-code, |ev| {
         matches!(ev, EventMsg::ThreadRolledBack(_))
     })
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "after rollback".to_string(),
@@ -837,7 +837,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -947,8 +947,8 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some(large_model_slug.to_string());
         });
@@ -974,7 +974,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         Some(smaller_context_window)
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "use larger model".into(),
@@ -994,7 +994,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         })
         .await?;
 
-    let large_window_event = wait_for_event(&test.codex, |event| {
+    let large_window_event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::TokenCount(token_count)
@@ -1015,9 +1015,9 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
             .and_then(|info| info.model_context_window),
         Some(large_effective_window)
     );
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -1033,7 +1033,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "switch to smaller model".into(),
@@ -1053,7 +1053,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         })
         .await?;
 
-    let smaller_turn_started_event = wait_for_event(&test.codex, |event| {
+    let smaller_turn_started_event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::TurnStarted(started)
@@ -1069,7 +1069,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         Some(smaller_effective_window)
     );
 
-    let smaller_window_event = wait_for_event(&test.codex, |event| {
+    let smaller_window_event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::TokenCount(token_count)
@@ -1089,7 +1089,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         .and_then(|info| info.model_context_window);
     assert_eq!(smaller_window, Some(smaller_effective_window));
     assert_ne!(smaller_window, Some(large_effective_window));
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(())
 }

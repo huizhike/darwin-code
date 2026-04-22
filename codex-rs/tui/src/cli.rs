@@ -1,7 +1,7 @@
 use clap::Parser;
 use clap::ValueHint;
-use codex_utils_cli::ApprovalModeCliArg;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_utils_cli::ApprovalModeCliArg;
+use darwin_code_utils_cli::CliConfigOverrides;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -15,8 +15,8 @@ pub struct Cli {
     #[arg(long = "image", short = 'i', value_name = "FILE", value_delimiter = ',', num_args = 1..)]
     pub images: Vec<PathBuf>,
 
-    // Internal controls set by the top-level `codex resume` subcommand.
-    // These are not exposed as user flags on the base `codex` command.
+    // Internal controls set by the top-level `darwin-code resume` subcommand.
+    // These are not exposed as user flags on the base `darwin-code` command.
     #[clap(skip)]
     pub resume_picker: bool,
 
@@ -24,7 +24,7 @@ pub struct Cli {
     pub resume_last: bool,
 
     /// Internal: resume a specific recorded session by id (UUID). Set by the
-    /// top-level `codex resume <SESSION_ID>` wrapper; not exposed as a public flag.
+    /// top-level `darwin-code resume <SESSION_ID>` wrapper; not exposed as a public flag.
     #[clap(skip)]
     pub resume_session_id: Option<String>,
 
@@ -36,8 +36,8 @@ pub struct Cli {
     #[clap(skip)]
     pub resume_include_non_interactive: bool,
 
-    // Internal controls set by the top-level `codex fork` subcommand.
-    // These are not exposed as user flags on the base `codex` command.
+    // Internal controls set by the top-level `darwin-code fork` subcommand.
+    // These are not exposed as user flags on the base `darwin-code` command.
     #[clap(skip)]
     pub fork_picker: bool,
 
@@ -45,7 +45,7 @@ pub struct Cli {
     pub fork_last: bool,
 
     /// Internal: fork a specific recorded session by id (UUID). Set by the
-    /// top-level `codex fork <SESSION_ID>` wrapper; not exposed as a public flag.
+    /// top-level `darwin-code fork <SESSION_ID>` wrapper; not exposed as a public flag.
     #[clap(skip)]
     pub fork_session_id: Option<String>,
 
@@ -74,7 +74,7 @@ pub struct Cli {
     /// Select the sandbox policy to use when executing model-generated shell
     /// commands.
     #[arg(long = "sandbox", short = 's')]
-    pub sandbox_mode: Option<codex_utils_cli::SandboxModeCliArg>,
+    pub sandbox_mode: Option<darwin_code_utils_cli::SandboxModeCliArg>,
 
     /// Configure when the model requires human approval before executing a command.
     #[arg(long = "ask-for-approval", short = 'a')]

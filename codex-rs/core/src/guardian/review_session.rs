@@ -5,37 +5,37 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SubAgentSource;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::codex_delegate::run_codex_thread_interactive;
+use crate::darwin_code_delegate::run_darwin_code_thread_interactive;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
 use crate::config::NetworkProxySpec;
 use crate::config::Permissions;
 use crate::rollout::recorder::RolloutRecorder;
-use crate::session::Codex;
+use crate::session::Darwin-Code;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_config::types::McpServerConfig;
-use codex_features::Feature;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_features::Feature;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 use super::GUARDIAN_REVIEW_TIMEOUT;
 use super::GUARDIAN_REVIEWER_NAME;
@@ -88,7 +88,7 @@ struct GuardianReviewSessionState {
 }
 
 struct GuardianReviewSession {
-    codex: Codex,
+    darwin-code: Darwin-Code,
     cancel_token: CancellationToken,
     reuse_key: GuardianReviewSessionReuseKey,
     review_lock: Mutex<()>,
@@ -132,7 +132,7 @@ struct GuardianReviewSessionReuseKey {
     compact_prompt: Option<String>,
     cwd: AbsolutePathBuf,
     mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
-    codex_linux_sandbox_exe: Option<PathBuf>,
+    darwin_code_linux_sandbox_exe: Option<PathBuf>,
     main_execve_wrapper_exe: Option<PathBuf>,
     js_repl_node_path: Option<PathBuf>,
     js_repl_node_module_dirs: Vec<PathBuf>,
@@ -159,7 +159,7 @@ impl GuardianReviewSessionReuseKey {
             compact_prompt: spawn_config.compact_prompt.clone(),
             cwd: spawn_config.cwd.clone(),
             mcp_servers: spawn_config.mcp_servers.clone(),
-            codex_linux_sandbox_exe: spawn_config.codex_linux_sandbox_exe.clone(),
+            darwin_code_linux_sandbox_exe: spawn_config.darwin_code_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: spawn_config.main_execve_wrapper_exe.clone(),
             js_repl_node_path: spawn_config.js_repl_node_path.clone(),
             js_repl_node_module_dirs: spawn_config.js_repl_node_module_dirs.clone(),
@@ -174,7 +174,7 @@ impl GuardianReviewSessionReuseKey {
 impl GuardianReviewSession {
     async fn shutdown(&self) {
         self.cancel_token.cancel();
-        let _ = self.codex.shutdown_and_wait().await;
+        let _ = self.darwin-code.shutdown_and_wait().await;
     }
 
     fn shutdown_in_background(self: &Arc<Self>) {
@@ -189,7 +189,7 @@ impl GuardianReviewSession {
     }
 
     async fn refresh_last_committed_fork_snapshot(&self) {
-        match load_rollout_items_for_fork(&self.codex.session).await {
+        match load_rollout_items_for_fork(&self.darwin-code.session).await {
             Ok(Some(items)) if !items.is_empty() => {
                 let mut state = self.state.lock().await;
                 let prior_review_count = state.prior_review_count;
@@ -367,13 +367,13 @@ impl GuardianReviewSessionManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn cache_for_test(&self, codex: Codex) {
+    pub(crate) async fn cache_for_test(&self, darwin-code: Darwin-Code) {
         let reuse_key = GuardianReviewSessionReuseKey::from_spawn_config(
-            codex.session.get_config().await.as_ref(),
+            darwin-code.session.get_config().await.as_ref(),
         );
         self.state.lock().await.trunk = Some(Arc::new(GuardianReviewSession {
             reuse_key,
-            codex,
+            darwin-code,
             cancel_token: CancellationToken::new(),
             review_lock: Mutex::new(()),
             state: Mutex::new(GuardianReviewState {
@@ -385,9 +385,9 @@ impl GuardianReviewSessionManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn register_ephemeral_for_test(&self, codex: Codex) {
+    pub(crate) async fn register_ephemeral_for_test(&self, darwin-code: Darwin-Code) {
         let reuse_key = GuardianReviewSessionReuseKey::from_spawn_config(
-            codex.session.get_config().await.as_ref(),
+            darwin-code.session.get_config().await.as_ref(),
         );
         self.state
             .lock()
@@ -395,7 +395,7 @@ impl GuardianReviewSessionManager {
             .ephemeral_reviews
             .push(Arc::new(GuardianReviewSession {
                 reuse_key,
-                codex,
+                darwin-code,
                 cancel_token: CancellationToken::new(),
                 review_lock: Mutex::new(()),
                 state: Mutex::new(GuardianReviewState {
@@ -515,7 +515,7 @@ async fn spawn_guardian_review_session(
         ),
         None => (None, 0, None),
     };
-    let codex = Box::pin(run_codex_thread_interactive(
+    let darwin-code = Box::pin(run_darwin_code_thread_interactive(
         spawn_config,
         params.parent_session.services.auth_manager.clone(),
         params.parent_session.services.models_manager.clone(),
@@ -528,7 +528,7 @@ async fn spawn_guardian_review_session(
     .await?;
 
     Ok(GuardianReviewSession {
-        codex,
+        darwin-code,
         cancel_token,
         reuse_key,
         review_lock: Mutex::new(()),
@@ -572,7 +572,7 @@ async fn run_review_on_session(
                 .services
                 .network_approval
                 .sync_session_approved_hosts_to(
-                    &review_session.codex.session.services.network_approval,
+                    &review_session.darwin-code.session.services.network_approval,
                 )
                 .await;
 
@@ -585,7 +585,7 @@ async fn run_review_on_session(
             .await?;
 
             review_session
-                .codex
+                .darwin-code
                 .submit(Op::UserTurn {
                     items: prompt_items.items,
                     cwd: params.parent_turn.cwd.to_path_buf(),
@@ -628,11 +628,11 @@ async fn run_review_on_session(
 }
 
 async fn append_guardian_followup_reminder(review_session: &GuardianReviewSession) {
-    let turn_context = review_session.codex.session.new_default_turn().await;
+    let turn_context = review_session.darwin-code.session.new_default_turn().await;
     let reminder: ResponseItem =
         DeveloperInstructions::new(GUARDIAN_FOLLOWUP_REVIEW_REMINDER).into();
     review_session
-        .codex
+        .darwin-code
         .session
         .record_conversation_items(turn_context.as_ref(), std::slice::from_ref(&reminder))
         .await;
@@ -661,7 +661,7 @@ async fn wait_for_guardian_review(
     loop {
         tokio::select! {
             _ = &mut timeout => {
-                let keep_review_session = interrupt_and_drain_turn(&review_session.codex).await.is_ok();
+                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin-code).await.is_ok();
                 return (GuardianReviewSessionOutcome::TimedOut, keep_review_session);
             }
             _ = async {
@@ -671,10 +671,10 @@ async fn wait_for_guardian_review(
                     std::future::pending::<()>().await;
                 }
             } => {
-                let keep_review_session = interrupt_and_drain_turn(&review_session.codex).await.is_ok();
+                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin-code).await.is_ok();
                 return (GuardianReviewSessionOutcome::Aborted, keep_review_session);
             }
-            event = review_session.codex.next_event() => {
+            event = review_session.darwin-code.next_event() => {
                 match event {
                     Ok(event) => match event.msg {
                         EventMsg::TurnComplete(turn_complete) => {
@@ -713,9 +713,9 @@ async fn wait_for_guardian_review(
 
 pub(crate) fn build_guardian_review_session_config(
     parent_config: &Config,
-    live_network_config: Option<codex_network_proxy::NetworkProxyConfig>,
+    live_network_config: Option<darwin_code_network_proxy::NetworkProxyConfig>,
     active_model: &str,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
 ) -> anyhow::Result<Config> {
     let mut guardian_config = parent_config.clone();
     guardian_config.model = Some(active_model.to_string());
@@ -748,7 +748,7 @@ pub(crate) fn build_guardian_review_session_config(
     for feature in [
         Feature::SpawnCsv,
         Feature::Collab,
-        Feature::CodexHooks,
+        Feature::DarwinCodeHooks,
         Feature::WebSearchRequest,
         Feature::WebSearchCached,
     ] {
@@ -799,12 +799,12 @@ async fn run_before_review_deadline_with_cancel<T>(
     result
 }
 
-async fn interrupt_and_drain_turn(codex: &Codex) -> anyhow::Result<()> {
-    let _ = codex.submit(Op::Interrupt).await;
+async fn interrupt_and_drain_turn(darwin-code: &Darwin-Code) -> anyhow::Result<()> {
+    let _ = darwin-code.submit(Op::Interrupt).await;
 
     tokio::time::timeout(GUARDIAN_INTERRUPT_DRAIN_TIMEOUT, async {
         loop {
-            let event = codex.next_event().await?;
+            let event = darwin-code.next_event().await?;
             if matches!(
                 event.msg,
                 EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_)
@@ -860,7 +860,7 @@ mod tests {
         let mut parent_config = crate::config::test_config().await;
         parent_config
             .features
-            .enable(Feature::CodexHooks)
+            .enable(Feature::DarwinCodeHooks)
             .expect("enable hooks on parent config");
 
         let guardian_config = build_guardian_review_session_config(
@@ -871,7 +871,7 @@ mod tests {
         )
         .expect("guardian config");
 
-        assert!(!guardian_config.features.enabled(Feature::CodexHooks));
+        assert!(!guardian_config.features.enabled(Feature::DarwinCodeHooks));
     }
 
     #[tokio::test(flavor = "current_thread")]

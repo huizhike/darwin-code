@@ -38,17 +38,17 @@ USER node
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
 
-# Install codex
-COPY dist/codex.tgz codex.tgz
-RUN npm install -g codex.tgz \
+# Install darwin-code
+COPY dist/darwin-code.tgz darwin-code.tgz
+RUN npm install -g darwin-code.tgz \
   && npm cache clean --force \
-  && rm -rf /usr/local/share/npm-global/lib/node_modules/codex-cli/node_modules/.cache \
-  && rm -rf /usr/local/share/npm-global/lib/node_modules/codex-cli/tests \
-  && rm -rf /usr/local/share/npm-global/lib/node_modules/codex-cli/docs
+  && rm -rf /usr/local/share/npm-global/lib/node_modules/darwin-code-cli/node_modules/.cache \
+  && rm -rf /usr/local/share/npm-global/lib/node_modules/darwin-code-cli/tests \
+  && rm -rf /usr/local/share/npm-global/lib/node_modules/darwin-code-cli/docs
 
 # Inside the container we consider the environment already sufficiently locked
-# down, therefore instruct Codex CLI to allow running without sandboxing.
-ENV CODEX_UNSAFE_ALLOW_NO_SANDBOX=1
+# down, therefore instruct Darwin-Code CLI to allow running without sandboxing.
+ENV DARWIN_CODE_UNSAFE_ALLOW_NO_SANDBOX=1
 
 # Copy and set up firewall script as root.
 USER root

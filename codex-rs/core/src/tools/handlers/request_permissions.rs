@@ -1,5 +1,5 @@
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_sandboxing::policy_transforms::normalize_additional_permissions;
+use darwin_code_protocol::request_permissions::RequestPermissionsArgs;
+use darwin_code_sandboxing::policy_transforms::normalize_additional_permissions;
 
 use crate::function_tool::FunctionCallError;
 use crate::tools::context::FunctionToolOutput;
@@ -39,7 +39,7 @@ impl ToolHandler for RequestPermissionsHandler {
         let mut args: RequestPermissionsArgs =
             parse_arguments_with_base_path(&arguments, &turn.cwd)?;
         args.permissions = normalize_additional_permissions(args.permissions.into())
-            .map(codex_protocol::request_permissions::RequestPermissionProfile::from)
+            .map(darwin_code_protocol::request_permissions::RequestPermissionProfile::from)
             .map_err(FunctionCallError::RespondToModel)?;
         if args.permissions.is_empty() {
             return Err(FunctionCallError::RespondToModel(

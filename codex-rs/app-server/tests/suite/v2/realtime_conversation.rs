@@ -5,44 +5,44 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioResponse;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextResponse;
-use codex_app_server_protocol::ThreadRealtimeAudioChunk;
-use codex_app_server_protocol::ThreadRealtimeClosedNotification;
-use codex_app_server_protocol::ThreadRealtimeErrorNotification;
-use codex_app_server_protocol::ThreadRealtimeItemAddedNotification;
-use codex_app_server_protocol::ThreadRealtimeListVoicesParams;
-use codex_app_server_protocol::ThreadRealtimeListVoicesResponse;
-use codex_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
-use codex_app_server_protocol::ThreadRealtimeSdpNotification;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStartResponse;
-use codex_app_server_protocol::ThreadRealtimeStartTransport;
-use codex_app_server_protocol::ThreadRealtimeStartedNotification;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadRealtimeStopResponse;
-use codex_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
-use codex_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
+use darwin_code_app_server_protocol::CommandExecutionStatus;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::LoginAccountResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAudioChunk;
+use darwin_code_app_server_protocol::ThreadRealtimeClosedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeErrorNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeItemAddedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeListVoicesParams;
+use darwin_code_app_server_protocol::ThreadRealtimeListVoicesResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeSdpNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeStartParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStartResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeStartTransport;
+use darwin_code_app_server_protocol::ThreadRealtimeStartedNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeStopParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStopResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
+use darwin_code_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnStartedNotification;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::RealtimeConversationVersion;
+use darwin_code_protocol::protocol::RealtimeOutputModality;
+use darwin_code_protocol::protocol::RealtimeVoice;
+use darwin_code_protocol::protocol::RealtimeVoicesList;
 use core_test_support::responses;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::WebSocketRequest;
@@ -73,7 +73,7 @@ use wiremock::matchers::path_regex;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const DELEGATED_SHELL_TOOL_TIMEOUT_MS: u64 = 30_000;
-const STARTUP_CONTEXT_HEADER: &str = "Startup context from Codex.";
+const STARTUP_CONTEXT_HEADER: &str = "Startup context from Darwin-Code.";
 const V2_STEERING_ACKNOWLEDGEMENT: &str =
     "This was sent to steer the previous background agent task.";
 const V2_HANDOFF_COMPLETE_ACKNOWLEDGEMENT: &str =
@@ -192,7 +192,7 @@ struct RealtimeSidebandScript {
 
 struct RealtimeE2eHarness {
     mcp: McpProcess,
-    _codex_home: TempDir,
+    _darwin_code_home: TempDir,
     main_loop_responses_server: MockServer,
     realtime_server: WebSocketTestServer,
     call_capture: RealtimeCallRequestCapture,
@@ -269,9 +269,9 @@ impl RealtimeE2eHarness {
 
         let realtime_server =
             start_websocket_server_with_headers(realtime_sideband.connections).await;
-        let codex_home = TempDir::new()?;
+        let darwin_code_home = TempDir::new()?;
         create_config_toml_with_realtime_version(
-            codex_home.path(),
+            darwin_code_home.path(),
             &main_loop_responses_server.uri(),
             realtime_server.uri(),
             /*realtime_enabled*/ true,
@@ -280,7 +280,7 @@ impl RealtimeE2eHarness {
             sandbox,
         )?;
 
-        let mut mcp = McpProcess::new(codex_home.path()).await?;
+        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
         mcp.initialize().await?;
         login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -296,7 +296,7 @@ impl RealtimeE2eHarness {
 
         Ok(Self {
             mcp,
-            _codex_home: codex_home,
+            _darwin_code_home: darwin_code_home,
             main_loop_responses_server,
             realtime_server,
             call_capture,
@@ -517,16 +517,16 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     ]])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ true,
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -760,16 +760,16 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
     ]]])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ true,
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -862,16 +862,16 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
 
 #[tokio::test]
 async fn realtime_list_voices_returns_supported_names() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         "http://127.0.0.1:1",
         "ws://127.0.0.1:1",
         /*realtime_enabled*/ true,
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
 
     let request_id = mcp
@@ -934,16 +934,16 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
     ]])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ true,
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -1030,16 +1030,16 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     }])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ true,
         StartupContextConfig::Override("startup context"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -1139,7 +1139,7 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
             .headers
             .get("content-type")
             .and_then(|value| value.to_str().ok()),
-        Some("multipart/form-data; boundary=codex-realtime-call-boundary")
+        Some("multipart/form-data; boundary=darwin-code-realtime-call-boundary")
     );
     let body = String::from_utf8(request.body).context("multipart body should be utf-8")?;
     let session = r#"{"tool_choice":"auto","type":"realtime","model":"gpt-realtime-1.5","instructions":"backend prompt\n\nstartup context","output_modalities":["audio"],"audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"noise_reduction":{"type":"near_field"},"turn_detection":{"type":"server_vad","interrupt_response":true,"create_response":true,"silence_duration_ms":500}},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":"marin"}},"tools":[{"type":"function","name":"background_agent","description":"Send a user request to the background agent. Use this as the default action. Do not rephrase the user's ask or rewrite it in your own words; pass along the user's own words. If the background agent is idle, this starts a new task and returns the final result to the user. If the background agent is already working on a task, this sends the request as guidance to steer that previous task. If the user asks to do something next, later, after this, or once current work finishes, call this tool so the work is actually queued instead of merely promising to do it later.","parameters":{"type":"object","properties":{"prompt":{"type":"string","description":"The user request to delegate to the background agent."}},"required":["prompt"],"additionalProperties":false}}]}"#;
@@ -1147,18 +1147,18 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     assert_eq!(
         body,
         format!(
-            "--codex-realtime-call-boundary\r\n\
+            "--darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"sdp\"\r\n\
              Content-Type: application/sdp\r\n\
              \r\n\
              v=offer\r\n\
              \r\n\
-             --codex-realtime-call-boundary\r\n\
+             --darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"session\"\r\n\
              Content-Type: application/json\r\n\
              \r\n\
              {session}\r\n\
-             --codex-realtime-call-boundary--\r\n"
+             --darwin-code-realtime-call-boundary--\r\n"
         )
     );
 
@@ -1644,7 +1644,7 @@ async fn webrtc_v2_background_agent_steering_ack_requests_response_create() -> R
     // acknowledgement so it can surface that acknowledgement to the user.
     assert_v2_response_create(&harness.sideband_outbound_request(/*request_index*/ 2).await);
 
-    // Phase 4: release the gated delegated turn. Codex should then continue
+    // Phase 4: release the gated delegated turn. Darwin-Code should then continue
     // the same run with the steering text included in the follow-up Responses
     // request, proving realtime did not merely acknowledge and drop it.
     let _ = gate_completed_tx.send(());
@@ -1894,16 +1894,16 @@ async fn realtime_webrtc_start_surfaces_backend_error() -> Result<()> {
         .await;
     let realtime_server = start_websocket_server(vec![vec![]]).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ true,
         StartupContextConfig::Override("startup context"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
@@ -1955,16 +1955,16 @@ async fn realtime_conversation_requires_feature_flag() -> Result<()> {
     let responses_server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
     let realtime_server = start_websocket_server(vec![vec![]]).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         realtime_server.uri(),
         /*realtime_enabled*/ false,
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     mcp.initialize().await?;
 
     let thread_start_request_id = mcp
@@ -2202,24 +2202,24 @@ fn assert_call_create_multipart(
             .headers
             .get("content-type")
             .and_then(|value| value.to_str().ok()),
-        Some("multipart/form-data; boundary=codex-realtime-call-boundary")
+        Some("multipart/form-data; boundary=darwin-code-realtime-call-boundary")
     );
     let body = String::from_utf8(request.body).context("multipart body should be utf-8")?;
     let session = normalized_json_string(session)?;
     assert_eq!(
         body,
         format!(
-            "--codex-realtime-call-boundary\r\n\
+            "--darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"sdp\"\r\n\
              Content-Type: application/sdp\r\n\
              \r\n\
              {offer_sdp}\r\n\
-             --codex-realtime-call-boundary\r\n\
+             --darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"session\"\r\n\
              Content-Type: application/json\r\n\
              \r\n\
              {session}\r\n\
-             --codex-realtime-call-boundary--\r\n"
+             --darwin-code-realtime-call-boundary--\r\n"
         )
     );
     Ok(())
@@ -2230,14 +2230,14 @@ fn v1_session_create_json() -> &'static str {
 }
 
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     responses_server_uri: &str,
     realtime_server_uri: &str,
     realtime_enabled: bool,
     startup_context: StartupContextConfig<'_>,
 ) -> std::io::Result<()> {
     create_config_toml_with_realtime_version(
-        codex_home,
+        darwin_code_home,
         responses_server_uri,
         realtime_server_uri,
         realtime_enabled,
@@ -2248,7 +2248,7 @@ fn create_config_toml(
 }
 
 fn create_config_toml_with_realtime_version(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     responses_server_uri: &str,
     realtime_server_uri: &str,
     realtime_enabled: bool,
@@ -2271,7 +2271,7 @@ fn create_config_toml_with_realtime_version(
     };
 
     std::fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

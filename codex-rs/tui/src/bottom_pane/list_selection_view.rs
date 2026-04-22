@@ -1251,14 +1251,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "Read Only".to_string(),
-                description: Some("Codex can read files".to_string()),
+                description: Some("Darwin-Code can read files".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "Full Access".to_string(),
-                description: Some("Codex can edit files".to_string()),
+                description: Some("Darwin-Code can edit files".to_string()),
                 is_current: false,
                 dismiss_on_select: true,
                 ..Default::default()
@@ -1366,7 +1366,7 @@ mod tests {
 
     #[test]
     fn renders_blank_line_between_subtitle_and_items() {
-        let view = make_selection_view(Some("Switch between Codex approval presets"));
+        let view = make_selection_view(Some("Switch between Darwin-Code approval presets"));
         assert_snapshot!("list_selection_spacing_with_subtitle", render_lines(&view));
     }
 
@@ -1375,10 +1375,10 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let home = dirs::home_dir().expect("home directory should be available");
-        let codex_home = home.join(".codex");
+        let darwin_code_home = home.join(".darwin-code");
         let params = crate::theme_picker::build_theme_picker_params(
             /*current_name*/ None,
-            Some(&codex_home),
+            Some(&darwin_code_home),
             Some(94),
         );
         let view = ListSelectionView::new(params, tx);
@@ -1391,7 +1391,7 @@ mod tests {
     fn theme_picker_enables_side_content_background_preservation() {
         let params = crate::theme_picker::build_theme_picker_params(
             /*current_name*/ None,
-            /*codex_home*/ None,
+            /*darwin_code_home*/ None,
             Some(120),
         );
         assert!(
@@ -1449,7 +1449,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Codex can read files".to_string()),
+            description: Some("Darwin-Code can read files".to_string()),
             is_current: true,
             dismiss_on_select: true,
             ..Default::default()
@@ -1481,7 +1481,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Codex can read files".to_string()),
+            description: Some("Darwin-Code can read files".to_string()),
             is_current: false,
             dismiss_on_select: true,
             ..Default::default()
@@ -1876,9 +1876,9 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![
             SelectionItem {
-                name: "gpt-5.1-codex".to_string(),
+                name: "gpt-5.1-darwin-code".to_string(),
                 description: Some(
-                    "Optimized for Codex. Balance of reasoning quality and coding ability."
+                    "Optimized for Darwin-Code. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -1886,15 +1886,15 @@ mod tests {
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-5.1-codex-mini".to_string(),
+                name: "gpt-5.1-darwin-code-mini".to_string(),
                 description: Some(
-                    "Optimized for Codex. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for Darwin-Code. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-4.1-codex".to_string(),
+                name: "gpt-4.1-darwin-code".to_string(),
                 description: Some(
                     "Legacy model. Use when you need compatibility with older automations."
                         .to_string(),
@@ -1958,9 +1958,9 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![
             SelectionItem {
-                name: "gpt-5.1-codex".to_string(),
+                name: "gpt-5.1-darwin-code".to_string(),
                 description: Some(
-                    "Optimized for Codex. Balance of reasoning quality and coding ability."
+                    "Optimized for Darwin-Code. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -1968,15 +1968,15 @@ mod tests {
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-5.1-codex-mini".to_string(),
+                name: "gpt-5.1-darwin-code-mini".to_string(),
                 description: Some(
-                    "Optimized for Codex. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for Darwin-Code. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-4.1-codex".to_string(),
+                name: "gpt-4.1-darwin-code".to_string(),
                 description: Some(
                     "Legacy model. Use when you need compatibility with older automations."
                         .to_string(),

@@ -1,17 +1,17 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_config::ConfigEditsBuilder;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_config::load_global_mcp_servers;
-use codex_login::default_client::is_first_party_originator;
-use codex_login::default_client::originator;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::perform_oauth_login;
+use darwin_code_config::ConfigEditsBuilder;
+use darwin_code_config::McpServerConfig;
+use darwin_code_config::McpServerTransportConfig;
+use darwin_code_config::load_global_mcp_servers;
+use darwin_code_login::default_client::is_first_party_originator;
+use darwin_code_login::default_client::originator;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestionOption;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_rmcp_client::perform_oauth_login;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
@@ -19,11 +19,11 @@ use crate::SkillMetadata;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::skills::model::SkillToolDependency;
-use codex_mcp::McpOAuthLoginSupport;
-use codex_mcp::mcp_permission_prompt_is_auto_approved;
-use codex_mcp::oauth_login_support;
-use codex_mcp::resolve_oauth_scopes;
-use codex_mcp::should_retry_without_scopes;
+use darwin_code_mcp::McpOAuthLoginSupport;
+use darwin_code_mcp::mcp_permission_prompt_is_auto_approved;
+use darwin_code_mcp::oauth_login_support;
+use darwin_code_mcp::resolve_oauth_scopes;
+use darwin_code_mcp::should_retry_without_scopes;
 
 const SKILL_MCP_DEPENDENCY_PROMPT_ID: &str = "skill_mcp_dependency_install";
 const MCP_DEPENDENCY_OPTION_INSTALL: &str = "Install";
@@ -45,7 +45,7 @@ pub(crate) async fn maybe_prompt_and_install_mcp_dependencies(
     if mentioned_skills.is_empty()
         || !config
             .features
-            .enabled(codex_features::Feature::SkillMcpDependencyInstall)
+            .enabled(darwin_code_features::Feature::SkillMcpDependencyInstall)
     {
         return;
     }
@@ -81,19 +81,19 @@ pub(crate) async fn maybe_install_mcp_dependencies(
     if mentioned_skills.is_empty()
         || !config
             .features
-            .enabled(codex_features::Feature::SkillMcpDependencyInstall)
+            .enabled(darwin_code_features::Feature::SkillMcpDependencyInstall)
     {
         return;
     }
 
-    let codex_home = config.codex_home.clone();
+    let darwin_code_home = config.darwin_code_home.clone();
     let installed = sess.services.mcp_manager.configured_servers(config).await;
     let missing = collect_missing_mcp_dependencies(mentioned_skills, &installed);
     if missing.is_empty() {
         return;
     }
 
-    let mut servers = match load_global_mcp_servers(&codex_home).await {
+    let mut servers = match load_global_mcp_servers(&darwin_code_home).await {
         Ok(servers) => servers,
         Err(err) => {
             warn!("failed to load MCP servers while installing skill dependencies: {err}");
@@ -116,7 +116,7 @@ pub(crate) async fn maybe_install_mcp_dependencies(
         return;
     }
 
-    if let Err(err) = ConfigEditsBuilder::new(&codex_home)
+    if let Err(err) = ConfigEditsBuilder::new(&darwin_code_home)
         .replace_mcp_servers(&servers)
         .apply()
         .await

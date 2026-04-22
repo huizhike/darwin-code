@@ -2,19 +2,19 @@ use super::*;
 use crate::session::tests::make_session_and_context;
 use crate::session::tests::make_session_and_context_with_dynamic_tools_and_rx;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
 use pretty_assertions::assert_eq;
@@ -344,7 +344,7 @@ fn validate_emitted_image_url_accepts_case_insensitive_data_scheme() {
 fn validate_emitted_image_url_rejects_non_data_scheme() {
     assert_eq!(
         validate_emitted_image_url("https://example.com/image.png"),
-        Err("codex.emitImage only accepts data URLs".to_string())
+        Err("darwin-code.emitImage only accepts data URLs".to_string())
     );
 }
 
@@ -464,7 +464,7 @@ async fn reset_aborts_inflight_exec_tool_tasks() {
 
 async fn can_run_js_repl_runtime_tests() -> bool {
     // These white-box runtime tests are required on macOS. Linux relies on
-    // the codex-linux-sandbox arg0 dispatch path, which is exercised in
+    // the darwin-code-linux-sandbox arg0 dispatch path, which is exercised in
     // integration tests instead.
     cfg!(target_os = "macos")
 }
@@ -1004,7 +1004,7 @@ async fn js_repl_waits_for_unawaited_tool_calls_before_completion() -> anyhow::R
                     code: format!(
                         r#"
 const marker = {marker_json};
-void codex.tool("shell_command", {{ command: `sleep 0.35; printf js_repl_unawaited_done > "${{marker}}"` }});
+void darwin-code.tool("shell_command", {{ command: `sleep 0.35; printf js_repl_unawaited_done > "${{marker}}"` }});
 console.log("cell-complete");
 "#
                     ),
@@ -1055,7 +1055,7 @@ async fn js_repl_persisted_tool_helpers_work_across_cells() -> anyhow::Result<()
                     r#"
 const globalMarker = {global_marker_json};
 const lexicalMarker = {lexical_marker_json};
-const savedTool = codex.tool;
+const savedTool = darwin-code.tool;
 globalThis.globalToolHelper = {{
   run: () => savedTool("shell_command", {{ command: `printf global_helper > "${{globalMarker}}"` }}),
 }};
@@ -1128,13 +1128,13 @@ async fn js_repl_does_not_auto_attach_image_via_view_image_tool() -> anyhow::Res
     let code = r#"
 const fs = await import("node:fs/promises");
 const path = await import("node:path");
-const imagePath = path.join(codex.tmpDir, "js-repl-view-image.png");
+const imagePath = path.join(darwin-code.tmpDir, "js-repl-view-image.png");
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
 await fs.writeFile(imagePath, png);
-const out = await codex.tool("view_image", { path: imagePath });
+const out = await darwin-code.tool("view_image", { path: imagePath });
 console.log(out.type);
 "#;
 
@@ -1184,14 +1184,14 @@ async fn js_repl_can_emit_image_via_view_image_tool() -> anyhow::Result<()> {
     let code = r#"
 const fs = await import("node:fs/promises");
 const path = await import("node:path");
-const imagePath = path.join(codex.tmpDir, "js-repl-view-image-explicit.png");
+const imagePath = path.join(darwin-code.tmpDir, "js-repl-view-image-explicit.png");
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
 await fs.writeFile(imagePath, png);
-const out = await codex.tool("view_image", { path: imagePath });
-await codex.emitImage(out);
+const out = await darwin-code.tool("view_image", { path: imagePath });
+await darwin-code.emitImage(out);
 console.log(out.type);
 "#;
 
@@ -1248,7 +1248,7 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
-await codex.emitImage({ bytes: png, mimeType: "image/png" });
+await darwin-code.emitImage({ bytes: png, mimeType: "image/png" });
 "#;
 
     let result = manager
@@ -1299,10 +1299,10 @@ async fn js_repl_can_emit_multiple_images_in_one_cell() -> anyhow::Result<()> {
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-await codex.emitImage(
+await darwin-code.emitImage(
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
 );
-await codex.emitImage(
+await darwin-code.emitImage(
   "data:image/gif;base64,R0lGODdhAQABAIAAAP///////ywAAAAAAQABAAACAkQBADs="
 );
 "#;
@@ -1363,7 +1363,7 @@ async fn js_repl_waits_for_unawaited_emit_image_before_completion() -> anyhow::R
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-void codex.emitImage(
+void darwin-code.emitImage(
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
 );
 console.log("cell-complete");
@@ -1428,7 +1428,7 @@ async fn js_repl_persisted_emit_image_helpers_work_across_cells() -> anyhow::Res
                 code: format!(
                     r#"
 const dataUrl = "{data_url}";
-const savedEmitImage = codex.emitImage;
+const savedEmitImage = darwin-code.emitImage;
 globalThis.globalEmitHelper = {{
   run: () => savedEmitImage(dataUrl),
 }};
@@ -1500,7 +1500,7 @@ async fn js_repl_unawaited_emit_image_errors_fail_cell() -> anyhow::Result<()> {
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-void codex.emitImage({ bytes: new Uint8Array(), mimeType: "image/png" });
+void darwin-code.emitImage({ bytes: new Uint8Array(), mimeType: "image/png" });
 console.log("cell-complete");
 "#;
 
@@ -1545,7 +1545,7 @@ async fn js_repl_caught_emit_image_error_does_not_fail_cell() -> anyhow::Result<
     let manager = turn.js_repl.manager().await?;
     let code = r#"
 try {
-  await codex.emitImage({ bytes: new Uint8Array(), mimeType: "image/png" });
+  await darwin-code.emitImage({ bytes: new Uint8Array(), mimeType: "image/png" });
 } catch (error) {
   console.log(error.message);
 }
@@ -1597,7 +1597,7 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
-await codex.emitImage({ bytes: png });
+await darwin-code.emitImage({ bytes: png });
 "#;
 
     let err = manager
@@ -1640,7 +1640,7 @@ async fn js_repl_emit_image_rejects_non_data_url() -> anyhow::Result<()> {
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-await codex.emitImage("https://example.com/image.png");
+await darwin-code.emitImage("https://example.com/image.png");
 "#;
 
     let err = manager
@@ -1683,7 +1683,7 @@ async fn js_repl_emit_image_accepts_case_insensitive_data_url() -> anyhow::Resul
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-await codex.emitImage("DATA:image/png;base64,AAA");
+await darwin-code.emitImage("DATA:image/png;base64,AAA");
 "#;
 
     let result = manager
@@ -1736,7 +1736,7 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
-await codex.emitImage({ bytes: png, mimeType: "image/png", detail: "ultra" });
+await darwin-code.emitImage({ bytes: png, mimeType: "image/png", detail: "ultra" });
 "#;
 
     let err = manager
@@ -1786,7 +1786,7 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
-await codex.emitImage({ bytes: png, mimeType: "image/png", detail: null });
+await darwin-code.emitImage({ bytes: png, mimeType: "image/png", detail: null });
 "#;
 
     let result = manager
@@ -1844,8 +1844,8 @@ async fn js_repl_emit_image_rejects_mixed_content() -> anyhow::Result<()> {
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-const out = await codex.tool("inline_image", {});
-await codex.emitImage(out);
+const out = await darwin-code.tool("inline_image", {});
+await darwin-code.emitImage(out);
 "#;
     let image_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 
@@ -1937,7 +1937,7 @@ async fn js_repl_dynamic_tool_response_preserves_js_line_separator_text() -> any
         let manager = turn.js_repl.manager().await?;
         let code = format!(
             r#"
-const out = await codex.tool("{tool_name}", {{}});
+const out = await darwin-code.tool("{tool_name}", {{}});
 const text = typeof out === "string" ? out : out?.output;
 console.log(text === {literal});
 console.log(text);
@@ -2014,7 +2014,7 @@ async fn js_repl_can_call_hidden_dynamic_tools() -> anyhow::Result<()> {
     let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::default()));
     let manager = turn.js_repl.manager().await?;
     let code = r#"
-const out = await codex.tool("hidden_dynamic_tool", { city: "Paris" });
+const out = await darwin-code.tool("hidden_dynamic_tool", { city: "Paris" });
 console.log(JSON.stringify(out));
 "#;
 
@@ -2074,7 +2074,7 @@ async fn js_repl_prefers_env_node_module_dirs_over_config() -> anyhow::Result<()
 
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy.r#set.insert(
-        "CODEX_JS_REPL_NODE_MODULE_DIRS".to_string(),
+        "DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS".to_string(),
         env_base.path().to_string_lossy().to_string(),
     );
     turn.cwd = cwd_dir.abs();
@@ -2120,7 +2120,7 @@ async fn js_repl_resolves_from_first_config_dir() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2164,7 +2164,7 @@ async fn js_repl_falls_back_to_cwd_node_modules() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2205,7 +2205,7 @@ async fn js_repl_accepts_node_modules_dir_entries() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2259,7 +2259,7 @@ async fn js_repl_supports_relative_file_imports() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2306,7 +2306,7 @@ async fn js_repl_supports_absolute_file_imports() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2342,12 +2342,12 @@ async fn js_repl_imported_local_files_can_access_repl_globals() -> anyhow::Resul
     }
 
     let cwd_dir = tempdir()?;
-    let expected_home_dir = serde_json::to_string("/tmp/codex-home")?;
+    let expected_home_dir = serde_json::to_string("/tmp/darwin-code-home")?;
     write_js_repl_test_module(
         cwd_dir.path(),
         "globals.js",
         &format!(
-            "const expectedHomeDir = {expected_home_dir};\nconsole.log(`tmp:${{codex.tmpDir === tmpDir}}`);\nconsole.log(`cwd:${{typeof codex.cwd}}:${{codex.cwd.length > 0}}`);\nconsole.log(`home:${{codex.homeDir === expectedHomeDir}}`);\nconsole.log(`tool:${{typeof codex.tool}}`);\nconsole.log(\"local-file-console-ok\");\n"
+            "const expectedHomeDir = {expected_home_dir};\nconsole.log(`tmp:${{darwin-code.tmpDir === tmpDir}}`);\nconsole.log(`cwd:${{typeof darwin-code.cwd}}:${{darwin-code.cwd.length > 0}}`);\nconsole.log(`home:${{darwin-code.homeDir === expectedHomeDir}}`);\nconsole.log(`tool:${{typeof darwin-code.tool}}`);\nconsole.log(\"local-file-console-ok\");\n"
         ),
     )?;
 
@@ -2355,12 +2355,12 @@ async fn js_repl_imported_local_files_can_access_repl_globals() -> anyhow::Resul
     session
         .set_dependency_env(HashMap::from([(
             "HOME".to_string(),
-            "/tmp/codex-home".to_string(),
+            "/tmp/darwin-code-home".to_string(),
         )]))
         .await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2404,7 +2404,7 @@ async fn js_repl_reimports_local_files_after_edit() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2460,7 +2460,7 @@ async fn js_repl_reimports_local_files_after_fixing_failure() -> anyhow::Result<
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2538,7 +2538,7 @@ async fn js_repl_local_files_expose_node_like_import_meta() -> anyhow::Result<()
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2623,7 +2623,7 @@ async fn js_repl_local_files_reject_static_bare_imports() -> anyhow::Result<()> 
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2668,7 +2668,7 @@ async fn js_repl_rejects_unsupported_file_specifiers() -> anyhow::Result<()> {
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2770,7 +2770,7 @@ async fn js_repl_blocks_sensitive_builtin_imports_from_local_files() -> anyhow::
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),
@@ -2820,7 +2820,7 @@ async fn js_repl_local_files_do_not_escape_node_module_search_roots() -> anyhow:
     let (session, mut turn) = make_session_and_context().await;
     turn.shell_environment_policy
         .r#set
-        .remove("CODEX_JS_REPL_NODE_MODULE_DIRS");
+        .remove("DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS");
     turn.cwd = cwd_dir.abs();
     turn.js_repl = Arc::new(JsReplHandle::with_node_path(
         turn.config.js_repl_node_path.clone(),

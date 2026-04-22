@@ -1,8 +1,8 @@
 //! Session-wide mutable state.
 
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_sandboxing::policy_transforms::merge_permission_profiles;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -11,11 +11,11 @@ use crate::context_manager::ContextManager;
 use crate::session::PreviousTurnSettings;
 use crate::session::session::SessionConfiguration;
 use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_output_truncation::TruncationPolicy;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_utils_output_truncation::TruncationPolicy;
 
 /// Persistent, session-scoped state previously stored directly on `Session`.
 pub(crate) struct SessionState {
@@ -33,7 +33,7 @@ pub(crate) struct SessionState {
     pub(crate) startup_prewarm: Option<SessionStartupPrewarmHandle>,
     pub(crate) agent_task: Option<RegisteredAgentTask>,
     pub(crate) active_connector_selection: HashSet<String>,
-    pub(crate) pending_session_start_source: Option<codex_hooks::SessionStartSource>,
+    pub(crate) pending_session_start_source: Option<darwin_code_hooks::SessionStartSource>,
     granted_permissions: Option<PermissionProfile>,
     next_turn_is_first: bool,
 }
@@ -222,14 +222,14 @@ impl SessionState {
 
     pub(crate) fn set_pending_session_start_source(
         &mut self,
-        value: Option<codex_hooks::SessionStartSource>,
+        value: Option<darwin_code_hooks::SessionStartSource>,
     ) {
         self.pending_session_start_source = value;
     }
 
     pub(crate) fn take_pending_session_start_source(
         &mut self,
-    ) -> Option<codex_hooks::SessionStartSource> {
+    ) -> Option<darwin_code_hooks::SessionStartSource> {
         self.pending_session_start_source.take()
     }
 
@@ -245,13 +245,13 @@ impl SessionState {
 
 // Sometimes new snapshots don't include credits or plan information.
 // Preserve those from the previous snapshot when missing. For `limit_id`, treat
-// missing values as the default `"codex"` bucket.
+// missing values as the default `"darwin-code"` bucket.
 fn merge_rate_limit_fields(
     previous: Option<&RateLimitSnapshot>,
     mut snapshot: RateLimitSnapshot,
 ) -> RateLimitSnapshot {
     if snapshot.limit_id.is_none() {
-        snapshot.limit_id = Some("codex".to_string());
+        snapshot.limit_id = Some("darwin-code".to_string());
     }
     if snapshot.credits.is_none() {
         snapshot.credits = previous.and_then(|prior| prior.credits.clone());

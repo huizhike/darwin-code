@@ -11,83 +11,83 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_app_server_protocol::AppsListParams;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::CollaborationModeListParams;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FsCopyParams;
-use codex_app_server_protocol::FsCreateDirectoryParams;
-use codex_app_server_protocol::FsGetMetadataParams;
-use codex_app_server_protocol::FsReadDirectoryParams;
-use codex_app_server_protocol::FsReadFileParams;
-use codex_app_server_protocol::FsRemoveParams;
-use codex_app_server_protocol::FsUnwatchParams;
-use codex_app_server_protocol::FsWatchParams;
-use codex_app_server_protocol::FsWriteFileParams;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetConversationSummaryParams;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::MockExperimentalMethodParams;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeListVoicesParams;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::WindowsSandboxSetupStartParams;
-use codex_login::default_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
+use darwin_code_app_server_protocol::AppsListParams;
+use darwin_code_app_server_protocol::CancelLoginAccountParams;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::ClientNotification;
+use darwin_code_app_server_protocol::CollaborationModeListParams;
+use darwin_code_app_server_protocol::CommandExecParams;
+use darwin_code_app_server_protocol::CommandExecResizeParams;
+use darwin_code_app_server_protocol::CommandExecTerminateParams;
+use darwin_code_app_server_protocol::CommandExecWriteParams;
+use darwin_code_app_server_protocol::ConfigBatchWriteParams;
+use darwin_code_app_server_protocol::ConfigReadParams;
+use darwin_code_app_server_protocol::ConfigValueWriteParams;
+use darwin_code_app_server_protocol::ExperimentalFeatureListParams;
+use darwin_code_app_server_protocol::FeedbackUploadParams;
+use darwin_code_app_server_protocol::FsCopyParams;
+use darwin_code_app_server_protocol::FsCreateDirectoryParams;
+use darwin_code_app_server_protocol::FsGetMetadataParams;
+use darwin_code_app_server_protocol::FsReadDirectoryParams;
+use darwin_code_app_server_protocol::FsReadFileParams;
+use darwin_code_app_server_protocol::FsRemoveParams;
+use darwin_code_app_server_protocol::FsUnwatchParams;
+use darwin_code_app_server_protocol::FsWatchParams;
+use darwin_code_app_server_protocol::FsWriteFileParams;
+use darwin_code_app_server_protocol::GetAccountParams;
+use darwin_code_app_server_protocol::GetAuthStatusParams;
+use darwin_code_app_server_protocol::GetConversationSummaryParams;
+use darwin_code_app_server_protocol::InitializeCapabilities;
+use darwin_code_app_server_protocol::InitializeParams;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCRequest;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::ListMcpServerStatusParams;
+use darwin_code_app_server_protocol::LoginAccountParams;
+use darwin_code_app_server_protocol::MarketplaceAddParams;
+use darwin_code_app_server_protocol::McpResourceReadParams;
+use darwin_code_app_server_protocol::McpServerToolCallParams;
+use darwin_code_app_server_protocol::MockExperimentalMethodParams;
+use darwin_code_app_server_protocol::ModelListParams;
+use darwin_code_app_server_protocol::PluginInstallParams;
+use darwin_code_app_server_protocol::PluginListParams;
+use darwin_code_app_server_protocol::PluginReadParams;
+use darwin_code_app_server_protocol::PluginUninstallParams;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ReviewStartParams;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::SkillsListParams;
+use darwin_code_app_server_protocol::ThreadArchiveParams;
+use darwin_code_app_server_protocol::ThreadCompactStartParams;
+use darwin_code_app_server_protocol::ThreadForkParams;
+use darwin_code_app_server_protocol::ThreadInjectItemsParams;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadLoadedListParams;
+use darwin_code_app_server_protocol::ThreadMemoryModeSetParams;
+use darwin_code_app_server_protocol::ThreadMetadataUpdateParams;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextParams;
+use darwin_code_app_server_protocol::ThreadRealtimeListVoicesParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStartParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStopParams;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadRollbackParams;
+use darwin_code_app_server_protocol::ThreadSetNameParams;
+use darwin_code_app_server_protocol::ThreadShellCommandParams;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadTurnsListParams;
+use darwin_code_app_server_protocol::ThreadUnarchiveParams;
+use darwin_code_app_server_protocol::ThreadUnsubscribeParams;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnInterruptParams;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnSteerParams;
+use darwin_code_app_server_protocol::WindowsSandboxSetupStartParams;
+use darwin_code_login::default_client::DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
 use tokio::process::Command;
 
 pub struct McpProcess {
@@ -102,20 +102,20 @@ pub struct McpProcess {
     pending_messages: VecDeque<JSONRPCMessage>,
 }
 
-pub const DEFAULT_CLIENT_NAME: &str = "codex-app-server-tests";
-const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG";
+pub const DEFAULT_CLIENT_NAME: &str = "darwin-code-app-server-tests";
+const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "DARWIN_CODE_APP_SERVER_DISABLE_MANAGED_CONFIG";
 
 impl McpProcess {
-    pub async fn new(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, &[], &[]).await
+    pub async fn new(darwin_code_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env_and_args(darwin_code_home, &[], &[]).await
     }
 
-    pub async fn new_without_managed_config(codex_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env(codex_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
+    pub async fn new_without_managed_config(darwin_code_home: &Path) -> anyhow::Result<Self> {
+        Self::new_with_env(darwin_code_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
     }
 
-    pub async fn new_with_args(codex_home: &Path, args: &[&str]) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, &[], args).await
+    pub async fn new_with_args(darwin_code_home: &Path, args: &[&str]) -> anyhow::Result<Self> {
+        Self::new_with_env_and_args(darwin_code_home, &[], args).await
     }
 
     /// Creates a new MCP process, allowing tests to override or remove
@@ -124,33 +124,33 @@ impl McpProcess {
     /// Pass a tuple of (key, Some(value)) to set/override, or (key, None) to
     /// remove a variable from the child's environment.
     pub async fn new_with_env(
-        codex_home: &Path,
+        darwin_code_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
-        Self::new_with_env_and_args(codex_home, env_overrides, &[]).await
+        Self::new_with_env_and_args(darwin_code_home, env_overrides, &[]).await
     }
 
     async fn new_with_env_and_args(
-        codex_home: &Path,
+        darwin_code_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
         args: &[&str],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-app-server")
-            .context("should find binary for codex-app-server")?;
+        let program = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-app-server")
+            .context("should find binary for darwin-code-app-server")?;
         let mut cmd = Command::new(program);
 
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        cmd.current_dir(codex_home);
-        cmd.env("CODEX_HOME", codex_home);
+        cmd.current_dir(darwin_code_home);
+        cmd.env("DARWIN_CODE_HOME", darwin_code_home);
         cmd.env("RUST_LOG", "info");
         // Keep integration tests isolated from host managed configuration.
         cmd.env(
-            "CODEX_APP_SERVER_MANAGED_CONFIG_PATH",
-            codex_home.join("managed_config.toml"),
+            "DARWIN_CODE_APP_SERVER_MANAGED_CONFIG_PATH",
+            darwin_code_home.join("managed_config.toml"),
         );
-        cmd.env_remove(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
+        cmd.env_remove(DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
         cmd.args(args);
 
         for (k, v) in env_overrides {
@@ -167,7 +167,7 @@ impl McpProcess {
         let mut process = cmd
             .kill_on_drop(true)
             .spawn()
-            .context("codex-mcp-server proc should start")?;
+            .context("darwin-code-mcp-server proc should start")?;
         let stdin = process
             .stdin
             .take()
@@ -495,7 +495,7 @@ impl McpProcess {
     /// Send an `experimentalFeature/enablement/set` JSON-RPC request.
     pub async fn send_experimental_feature_enablement_set_request(
         &mut self,
-        params: codex_app_server_protocol::ExperimentalFeatureEnablementSetParams,
+        params: darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
         self.send_request("experimentalFeature/enablement/set", params)
@@ -1284,7 +1284,7 @@ impl McpProcess {
 
 impl Drop for McpProcess {
     fn drop(&mut self) {
-        // These tests spawn a `codex-app-server` child process.
+        // These tests spawn a `darwin-code-app-server` child process.
         //
         // We keep that child alive for the test and rely on Tokio's `kill_on_drop(true)` when this
         // helper is dropped. Tokio documents kill-on-drop as best-effort: dropping requests

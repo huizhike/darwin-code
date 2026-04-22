@@ -65,7 +65,7 @@ impl ToolHandler for CodeModeWaitHandler {
                     .session
                     .services
                     .code_mode_service
-                    .wait(codex_code_mode::WaitRequest {
+                    .wait(darwin_code_code_mode::WaitRequest {
                         cell_id: args.cell_id,
                         yield_time_ms: args.yield_time_ms,
                         terminate: args.terminate,

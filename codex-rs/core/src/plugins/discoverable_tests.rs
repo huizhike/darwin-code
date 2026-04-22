@@ -6,8 +6,8 @@ use crate::plugins::test_support::write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_openai_curated_marketplace;
 use crate::plugins::test_support::write_plugins_feature_config;
-use codex_tools::DiscoverablePluginInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_tools::DiscoverablePluginInfo;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 use tracing::Level;
@@ -16,12 +16,12 @@ use tracing_test::internal::MockWriter;
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_returns_uninstalled_curated_plugins() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample", "slack"]);
-    write_plugins_feature_config(codex_home.path());
+    write_plugins_feature_config(darwin_code_home.path());
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -43,7 +43,7 @@ async fn list_tool_suggest_discoverable_plugins_returns_uninstalled_curated_plug
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_deduplicates_allowlisted_configured_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
     let plugin_id = TOOL_SUGGEST_DISCOVERABLE_PLUGIN_ALLOWLIST
         .iter()
         .copied()
@@ -58,7 +58,7 @@ async fn list_tool_suggest_discoverable_plugins_deduplicates_allowlisted_configu
     let (plugin_name, marketplace_name) = plugin_id
         .rsplit_once('@')
         .expect("plugin id should include a marketplace");
-    let marketplace_root = codex_home
+    let marketplace_root = darwin_code_home
         .path()
         .join(format!(".tmp/marketplaces/{marketplace_name}"));
     write_file(
@@ -75,7 +75,7 @@ async fn list_tool_suggest_discoverable_plugins_deduplicates_allowlisted_configu
     );
     write_curated_plugin(&marketplace_root, plugin_name);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -90,7 +90,7 @@ discoverables = [{{ type = "plugin", id = "{plugin_id}" }}]
         ),
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -101,8 +101,8 @@ discoverables = [{{ type = "plugin", id = "{plugin_id}" }}]
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_ignores_missing_allowlisted_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     let marketplace_name = TOOL_SUGGEST_DISCOVERABLE_PLUGIN_ALLOWLIST
         .iter()
@@ -113,7 +113,7 @@ async fn list_tool_suggest_discoverable_plugins_ignores_missing_allowlisted_plug
         })
         .map(|(_plugin_name, marketplace_name)| marketplace_name)
         .expect("allowlist should include a bundled plugin");
-    let marketplace_root = codex_home
+    let marketplace_root = darwin_code_home
         .path()
         .join(format!(".tmp/marketplaces/{marketplace_name}"));
     write_file(
@@ -129,7 +129,7 @@ async fn list_tool_suggest_discoverable_plugins_ignores_missing_allowlisted_plug
         ),
     );
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -141,7 +141,7 @@ source = "/tmp/{marketplace_name}"
         ),
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -152,17 +152,17 @@ source = "/tmp/{marketplace_name}"
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_returns_empty_when_plugins_feature_disabled() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = false
 "#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -172,19 +172,19 @@ plugins = false
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
-    write_plugins_feature_config(codex_home.path());
+    write_plugins_feature_config(darwin_code_home.path());
     write_file(
-        &curated_root.join("plugins/slack/.codex-plugin/plugin.json"),
+        &curated_root.join("plugins/slack/.darwin-code-plugin/plugin.json"),
         r#"{
   "name": "slack",
   "description": "  Plugin\n   with   extra   spacing  "
 }"#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -204,13 +204,13 @@ async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_omits_installed_curated_plugins() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
-    write_curated_plugin_sha(codex_home.path());
-    write_plugins_feature_config(codex_home.path());
+    write_curated_plugin_sha(darwin_code_home.path());
+    write_plugins_feature_config(darwin_code_home.path());
 
-    PluginsManager::new(codex_home.path().to_path_buf())
+    PluginsManager::new(darwin_code_home.path().to_path_buf())
         .install_plugin(PluginInstallRequest {
             plugin_name: "slack".to_string(),
             marketplace_path: AbsolutePathBuf::try_from(
@@ -221,7 +221,7 @@ async fn list_tool_suggest_discoverable_plugins_omits_installed_curated_plugins(
         .await
         .expect("plugin should install");
 
-    let refreshed_config = load_plugins_config(codex_home.path()).await;
+    let refreshed_config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&refreshed_config)
         .await
         .unwrap();
@@ -231,11 +231,11 @@ async fn list_tool_suggest_discoverable_plugins_omits_installed_curated_plugins(
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_includes_configured_plugin_ids() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample"]);
     write_file(
-        &codex_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
@@ -244,7 +244,7 @@ discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
 "#,
     );
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let discoverable_plugins = list_tool_suggest_discoverable_plugins(&config)
         .await
         .unwrap();
@@ -266,18 +266,18 @@ discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_plugin() {
-    let codex_home = tempdir().expect("tempdir should succeed");
-    let curated_root = crate::plugins::curated_plugins_repo_path(codex_home.path());
+    let darwin_code_home = tempdir().expect("tempdir should succeed");
+    let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(
         &curated_root,
         &["slack", "build-ios-apps", "life-science-research"],
     );
-    write_plugins_feature_config(codex_home.path());
+    write_plugins_feature_config(darwin_code_home.path());
 
     let too_long_prompt = "x".repeat(129);
     for plugin_name in ["build-ios-apps", "life-science-research"] {
         write_file(
-            &curated_root.join(format!("plugins/{plugin_name}/.codex-plugin/plugin.json")),
+            &curated_root.join(format!("plugins/{plugin_name}/.darwin-code-plugin/plugin.json")),
             &format!(
                 r#"{{
   "name": "{plugin_name}",
@@ -290,7 +290,7 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
         );
     }
 
-    let config = load_plugins_config(codex_home.path()).await;
+    let config = load_plugins_config(darwin_code_home.path()).await;
     let buffer: &'static std::sync::Mutex<Vec<u8>> =
         Box::leak(Box::new(std::sync::Mutex::new(Vec::new())));
     let subscriber = tracing_subscriber::fmt()
@@ -316,13 +316,13 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
     let normalized_logs = logs.replace('\\', "/");
     assert_eq!(
         normalized_logs
-            .matches("build-ios-apps/.codex-plugin/plugin.json")
+            .matches("build-ios-apps/.darwin-code-plugin/plugin.json")
             .count(),
         1
     );
     assert_eq!(
         normalized_logs
-            .matches("life-science-research/.codex-plugin/plugin.json")
+            .matches("life-science-research/.darwin-code-plugin/plugin.json")
             .count(),
         1
     );

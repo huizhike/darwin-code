@@ -15,24 +15,24 @@ use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::with_cached_approval;
-use codex_apply_patch::ApplyPatchAction;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_apply_patch::ApplyPatchAction;
+use darwin_code_exec_server::FileSystemSandboxContext;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
+use darwin_code_protocol::protocol::ExecOutputStream;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::future::BoxFuture;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -215,7 +215,7 @@ impl ToolRuntime<ApplyPatchRequest, ExecToolCallOutput> for ApplyPatchRuntime {
         let sandbox = Self::file_system_sandbox_context_for_attempt(req, attempt);
         let mut stdout = Vec::new();
         let mut stderr = Vec::new();
-        let result = codex_apply_patch::apply_patch(
+        let result = darwin_code_apply_patch::apply_patch(
             &req.action.patch,
             &req.action.cwd,
             &mut stdout,
@@ -238,7 +238,7 @@ impl ToolRuntime<ApplyPatchRequest, ExecToolCallOutput> for ApplyPatchRuntime {
             timed_out: false,
         };
         if result.is_err() && is_likely_sandbox_denied(attempt.sandbox, &output) {
-            return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+            return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                 output: Box::new(output),
                 network_policy_decision: None,
             })));

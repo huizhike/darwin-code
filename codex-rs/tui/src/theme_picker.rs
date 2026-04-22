@@ -1,7 +1,7 @@
 //! Builds the `/theme` picker dialog for the TUI.
 //!
 //! The picker lists all bundled themes plus any custom `.tmTheme` files found
-//! under `{CODEX_HOME}/themes/`.  It provides:
+//! under `{DARWIN_CODE_HOME}/themes/`.  It provides:
 //!
 //! - **Live preview:** the `on_selection_changed` callback swaps the runtime
 //!   syntax theme as the user navigates, giving instant visual feedback in both
@@ -282,8 +282,8 @@ fn subtitle_available_width(terminal_width: Option<u16>) -> usize {
     }
 }
 
-fn theme_picker_subtitle(codex_home: Option<&Path>, terminal_width: Option<u16>) -> String {
-    let themes_dir = codex_home.map(|home| home.join("themes"));
+fn theme_picker_subtitle(darwin_code_home: Option<&Path>, terminal_width: Option<u16>) -> String {
+    let themes_dir = darwin_code_home.map(|home| home.join("themes"));
     let themes_dir_display = themes_dir
         .as_deref()
         .map(|path| format_directory_display(path, /*max_width*/ None));
@@ -313,14 +313,14 @@ fn theme_picker_subtitle(codex_home: Option<&Path>, terminal_width: Option<u16>)
 /// highlights the most likely intended entry.
 pub(crate) fn build_theme_picker_params(
     current_name: Option<&str>,
-    codex_home: Option<&Path>,
+    darwin_code_home: Option<&Path>,
     terminal_width: Option<u16>,
 ) -> SelectionViewParams {
     // Snapshot the current theme so we can restore on cancel.
     let original_theme = highlight::current_syntax_theme();
 
-    let entries = highlight::list_available_themes(codex_home);
-    let codex_home_owned = codex_home.map(Path::to_path_buf);
+    let entries = highlight::list_available_themes(darwin_code_home);
+    let darwin_code_home_owned = darwin_code_home.map(Path::to_path_buf);
 
     // Resolve the effective theme name: honor explicit config only when it is
     // currently available; otherwise fall back to configured/default selection
@@ -369,7 +369,7 @@ pub(crate) fn build_theme_picker_params(
     // so preview ordering stays aligned if item construction/sorting changes.
     let preview_theme_names: Vec<Option<String>> =
         items.iter().map(|item| item.search_value.clone()).collect();
-    let preview_home = codex_home_owned.clone();
+    let preview_home = darwin_code_home_owned.clone();
     let on_selection_changed = Some(Box::new(move |idx: usize, _tx: &_| {
         if let Some(Some(name)) = preview_theme_names.get(idx)
             && let Some(theme) = highlight::resolve_theme_by_name(name, preview_home.as_deref())
@@ -387,7 +387,7 @@ pub(crate) fn build_theme_picker_params(
     SelectionViewParams {
         title: Some("Select Syntax Theme".to_string()),
         subtitle: Some(theme_picker_subtitle(
-            codex_home_owned.as_deref(),
+            darwin_code_home_owned.as_deref(),
             terminal_width,
         )),
         footer_hint: Some(standard_popup_hint_line()),
@@ -477,7 +477,7 @@ mod tests {
     #[test]
     fn theme_picker_uses_half_width_with_stacked_fallback_preview() {
         let params = build_theme_picker_params(
-            /*current_name*/ None, /*codex_home*/ None, /*terminal_width*/ None,
+            /*current_name*/ None, /*darwin_code_home*/ None, /*terminal_width*/ None,
         );
         assert_eq!(params.side_content_width, SideContentWidth::Half);
         assert_eq!(params.side_content_min_width, WIDE_PREVIEW_MIN_WIDTH);
@@ -487,7 +487,7 @@ mod tests {
     #[test]
     fn theme_picker_items_include_search_values_for_preview_mapping() {
         let params = build_theme_picker_params(
-            /*current_name*/ None, /*codex_home*/ None, /*terminal_width*/ None,
+            /*current_name*/ None, /*darwin_code_home*/ None, /*terminal_width*/ None,
         );
         assert!(
             params.items.iter().all(|item| item.search_value.is_some()),
@@ -595,11 +595,11 @@ mod tests {
     }
 
     #[test]
-    fn subtitle_uses_tilde_path_when_codex_home_under_home_directory() {
+    fn subtitle_uses_tilde_path_when_darwin_code_home_under_home_directory() {
         let home = dirs::home_dir().expect("home directory should be available");
-        let codex_home = home.join(".codex");
+        let darwin_code_home = home.join(".darwin-code");
 
-        let subtitle = theme_picker_subtitle(Some(&codex_home), Some(200));
+        let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(200));
 
         assert!(subtitle.contains("~"));
         assert!(subtitle.contains("directory"));
@@ -609,9 +609,9 @@ mod tests {
     fn subtitle_falls_back_when_tilde_path_subtitle_is_too_wide() {
         let home = dirs::home_dir().expect("home directory should be available");
         let long_segment = "a".repeat(120);
-        let codex_home = home.join(long_segment).join(".codex");
+        let darwin_code_home = home.join(long_segment).join(".darwin-code");
 
-        let subtitle = theme_picker_subtitle(Some(&codex_home), Some(140));
+        let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(140));
 
         assert_eq!(subtitle, PREVIEW_FALLBACK_SUBTITLE);
     }
@@ -619,16 +619,16 @@ mod tests {
     #[test]
     fn subtitle_falls_back_to_preview_instructions_without_tilde_path() {
         let subtitle =
-            theme_picker_subtitle(/*codex_home*/ None, /*terminal_width*/ None);
+            theme_picker_subtitle(/*darwin_code_home*/ None, /*terminal_width*/ None);
         assert_eq!(subtitle, PREVIEW_FALLBACK_SUBTITLE);
     }
 
     #[test]
     fn subtitle_falls_back_for_94_column_terminal_side_by_side_layout() {
         let home = dirs::home_dir().expect("home directory should be available");
-        let codex_home = home.join(".codex");
+        let darwin_code_home = home.join(".darwin-code");
 
-        let subtitle = theme_picker_subtitle(Some(&codex_home), Some(94));
+        let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(94));
 
         assert_eq!(subtitle, PREVIEW_FALLBACK_SUBTITLE);
     }
@@ -638,7 +638,7 @@ mod tests {
         let configured_or_default_theme = highlight::configured_theme_name();
         let params = build_theme_picker_params(
             Some("not-a-real-theme"),
-            /*codex_home*/ None,
+            /*darwin_code_home*/ None,
             Some(120),
         );
         let selected_idx = params

@@ -5,26 +5,26 @@ use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::turn_context::TurnContext;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_cache::BlockingLruCache;
-use codex_utils_cache::sha1_digest;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::approx_bytes_for_tokens;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::approx_tokens_from_byte_count_i64;
-use codex_utils_output_truncation::truncate_function_output_items_with_policy;
-use codex_utils_output_truncation::truncate_text;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_utils_cache::BlockingLruCache;
+use darwin_code_utils_cache::sha1_digest;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::approx_bytes_for_tokens;
+use darwin_code_utils_output_truncation::approx_token_count;
+use darwin_code_utils_output_truncation::approx_tokens_from_byte_count_i64;
+use darwin_code_utils_output_truncation::truncate_function_output_items_with_policy;
+use darwin_code_utils_output_truncation::truncate_text;
 use std::num::NonZeroUsize;
 use std::ops::Deref;
 use std::sync::LazyLock;
@@ -691,7 +691,7 @@ fn is_model_generated_item(item: &ResponseItem) -> bool {
     }
 }
 
-pub(crate) fn is_codex_generated_item(item: &ResponseItem) -> bool {
+pub(crate) fn is_darwin_code_generated_item(item: &ResponseItem) -> bool {
     matches!(
         item,
         ResponseItem::FunctionCallOutput { .. }

@@ -1,6 +1,6 @@
 use crate::config::Config;
-use codex_core_plugins::marketplace::find_marketplace_manifest_path;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_core_plugins::marketplace::find_marketplace_manifest_path;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::warn;
@@ -9,13 +9,13 @@ use super::validate_plugin_segment;
 
 pub const INSTALLED_MARKETPLACES_DIR: &str = ".tmp/marketplaces";
 
-pub fn marketplace_install_root(codex_home: &Path) -> PathBuf {
-    codex_home.join(INSTALLED_MARKETPLACES_DIR)
+pub fn marketplace_install_root(darwin_code_home: &Path) -> PathBuf {
+    darwin_code_home.join(INSTALLED_MARKETPLACES_DIR)
 }
 
 pub(crate) fn installed_marketplace_roots_from_config(
     config: &Config,
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) -> Vec<AbsolutePathBuf> {
     let Some(user_layer) = config.config_layer_stack.get_user_layer() else {
         return Vec::new();
@@ -27,7 +27,7 @@ pub(crate) fn installed_marketplace_roots_from_config(
         warn!("invalid marketplaces config: expected table");
         return Vec::new();
     };
-    let default_install_root = marketplace_install_root(codex_home);
+    let default_install_root = marketplace_install_root(darwin_code_home);
     let mut roots = marketplaces
         .iter()
         .filter_map(|(marketplace_name, marketplace)| {

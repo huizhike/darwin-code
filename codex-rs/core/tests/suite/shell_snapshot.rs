@@ -1,20 +1,20 @@
 use anyhow::Result;
-use codex_features::Feature;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
-use core_test_support::test_codex::TestCodexHarness;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCodeHarness;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
@@ -33,12 +33,12 @@ struct SnapshotRun {
     end: ExecCommandEndEvent,
     snapshot_path: PathBuf,
     snapshot_content: String,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
 }
 
-const POLICY_PATH_FOR_TEST: &str = "/codex/policy/path";
-const SNAPSHOT_PATH_FOR_TEST: &str = "/codex/snapshot/path";
-const SNAPSHOT_MARKER_VAR: &str = "CODEX_SNAPSHOT_POLICY_MARKER";
+const POLICY_PATH_FOR_TEST: &str = "/darwin-code/policy/path";
+const SNAPSHOT_PATH_FOR_TEST: &str = "/darwin-code/snapshot/path";
+const SNAPSHOT_MARKER_VAR: &str = "DARWIN_CODE_SNAPSHOT_POLICY_MARKER";
 const SNAPSHOT_MARKER_VALUE: &str = "from_snapshot";
 const POLICY_SUCCESS_OUTPUT: &str = "policy-after-snapshot";
 
@@ -47,8 +47,8 @@ struct SnapshotRunOptions {
     shell_environment_set: HashMap<String, String>,
 }
 
-async fn wait_for_snapshot(codex_home: &Path) -> Result<PathBuf> {
-    let snapshot_dir = codex_home.join("shell_snapshots");
+async fn wait_for_snapshot(darwin_code_home: &Path) -> Result<PathBuf> {
+    let snapshot_dir = darwin_code_home.join("shell_snapshots");
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         if let Ok(mut entries) = fs::read_dir(&snapshot_dir).await {
@@ -117,7 +117,7 @@ async fn run_snapshot_command_with_options(
     let SnapshotRunOptions {
         shell_environment_set,
     } = options;
-    let builder = test_codex().with_config(move |config| {
+    let builder = test_darwin_code().with_config(move |config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -129,7 +129,7 @@ async fn run_snapshot_command_with_options(
             .expect("test config should allow feature update");
         config.permissions.shell_environment_policy.r#set = shell_environment_set;
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
     let args = json!({
         "cmd": command,
         "yield_time_ms": 1000,
@@ -150,12 +150,12 @@ async fn run_snapshot_command_with_options(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let codex = test.codex.clone();
-    let codex_home = test.home.path().to_path_buf();
+    let darwin-code = test.darwin-code.clone();
+    let darwin_code_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run unified exec with shell snapshot".into(),
@@ -175,28 +175,28 @@ async fn run_snapshot_command_with_options(
         })
         .await?;
 
-    let begin = wait_for_event_match(&codex, |ev| match ev {
+    let begin = wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
-    let end = wait_for_event_match(&codex, |ev| match ev {
+    let end = wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
         end,
         snapshot_path,
         snapshot_content,
-        codex_home,
+        darwin_code_home,
     })
 }
 
@@ -213,14 +213,14 @@ async fn run_shell_command_snapshot_with_options(
     let SnapshotRunOptions {
         shell_environment_set,
     } = options;
-    let builder = test_codex().with_config(move |config| {
+    let builder = test_darwin_code().with_config(move |config| {
         config
             .features
             .enable(Feature::ShellSnapshot)
             .expect("test config should allow feature update");
         config.permissions.shell_environment_policy.r#set = shell_environment_set;
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
     let args = json!({
         "command": command,
         "timeout_ms": 1000,
@@ -241,12 +241,12 @@ async fn run_shell_command_snapshot_with_options(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let codex = test.codex.clone();
-    let codex_home = test.home.path().to_path_buf();
+    let darwin-code = test.darwin-code.clone();
+    let darwin_code_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run shell_command with shell snapshot".into(),
@@ -266,34 +266,34 @@ async fn run_shell_command_snapshot_with_options(
         })
         .await?;
 
-    let begin = wait_for_event_match(&codex, |ev| match ev {
+    let begin = wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
-    let end = wait_for_event_match(&codex, |ev| match ev {
+    let end = wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
         end,
         snapshot_path,
         snapshot_content,
-        codex_home,
+        darwin_code_home,
     })
 }
 
 #[allow(clippy::expect_used)]
 async fn run_tool_turn_on_harness(
-    harness: &TestCodexHarness,
+    harness: &TestDarwinCodeHarness,
     prompt: &str,
     call_id: &str,
     tool_name: &str,
@@ -314,10 +314,10 @@ async fn run_tool_turn_on_harness(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let codex = test.codex.clone();
+    let darwin-code = test.darwin-code.clone();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -337,17 +337,17 @@ async fn run_tool_turn_on_harness(
         })
         .await?;
 
-    wait_for_event_match(&codex, |ev| match ev {
+    wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    let end = wait_for_event_match(&codex, |ev| match ev {
+    let end = wait_for_event_match(&darwin-code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     Ok(end)
 }
 
@@ -376,7 +376,7 @@ async fn linux_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(1).map(String::as_str), Some("-lc"));
     assert_eq!(run.begin.command.get(2).map(String::as_str), Some(command));
     assert_eq!(run.begin.command.len(), 3);
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.darwin_code_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(run.end.exit_code, 0);
     assert!(
@@ -396,7 +396,7 @@ async fn linux_shell_command_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(1).map(String::as_str), Some("-lc"));
     assert_eq!(run.begin.command.get(2).map(String::as_str), Some(command));
     assert_eq!(run.begin.command.len(), 3);
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.darwin_code_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(
         normalize_newlines(&run.end.stdout).trim(),
@@ -410,15 +410,15 @@ async fn linux_shell_command_uses_shell_snapshot() -> Result<()> {
 #[cfg_attr(target_os = "windows", ignore)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Result<()> {
-    let builder = test_codex().with_config(|config| {
+    let builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ShellSnapshot)
             .expect("test config should allow feature update");
         config.permissions.shell_environment_policy.r#set = policy_set_path_for_test();
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
-    let codex_home = harness.test().home.path().to_path_buf();
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
+    let darwin_code_home = harness.test().home.path().to_path_buf();
     run_tool_turn_on_harness(
         &harness,
         "warm up shell snapshot",
@@ -430,7 +430,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
         }),
     )
     .await?;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     fs::write(&snapshot_path, snapshot_override_content_for_policy_test()).await?;
 
     let command = command_asserting_policy_after_snapshot();
@@ -451,7 +451,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
         POLICY_SUCCESS_OUTPUT
     );
     assert_eq!(end.exit_code, 0);
-    assert!(snapshot_path.starts_with(codex_home));
+    assert!(snapshot_path.starts_with(darwin_code_home));
 
     Ok(())
 }
@@ -459,7 +459,7 @@ async fn shell_command_snapshot_preserves_shell_environment_policy_set() -> Resu
 #[cfg_attr(not(target_os = "linux"), ignore)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() -> Result<()> {
-    let builder = test_codex().with_config(|config| {
+    let builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -471,8 +471,8 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
             .expect("test config should allow feature update");
         config.permissions.shell_environment_policy.r#set = policy_set_path_for_test();
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
-    let codex_home = harness.test().home.path().to_path_buf();
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
+    let darwin_code_home = harness.test().home.path().to_path_buf();
     run_tool_turn_on_harness(
         &harness,
         "warm up unified exec shell snapshot",
@@ -484,7 +484,7 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
         }),
     )
     .await?;
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     fs::write(&snapshot_path, snapshot_override_content_for_policy_test()).await?;
 
     let command = command_asserting_policy_after_snapshot();
@@ -505,7 +505,7 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
         POLICY_SUCCESS_OUTPUT
     );
     assert_eq!(end.exit_code, 0);
-    assert!(snapshot_path.starts_with(codex_home));
+    assert!(snapshot_path.starts_with(darwin_code_home));
 
     Ok(())
 }
@@ -513,19 +513,19 @@ async fn linux_unified_exec_snapshot_preserves_shell_environment_policy_set() ->
 #[cfg_attr(target_os = "windows", ignore)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
-    let builder = test_codex().with_config(|config| {
+    let builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ShellSnapshot)
             .expect("test config should allow feature update");
         config.include_apply_patch_tool = true;
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
 
     let test = harness.test();
-    let codex = test.codex.clone();
+    let darwin-code = test.darwin-code.clone();
     let cwd = test.cwd_path().to_path_buf();
-    let codex_home = test.home.path().to_path_buf();
+    let darwin_code_home = test.home.path().to_path_buf();
     let target = cwd.join("snapshot-apply.txt");
 
     let script = "apply_patch <<'EOF'\n*** Begin Patch\n*** Add File: snapshot-apply.txt\n+hello from snapshot\n*** End Patch\nEOF\n";
@@ -552,7 +552,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
     mount_sse_sequence(harness.server(), responses).await;
 
     let model = test.session_configured.model.clone();
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply patch via shell_command with snapshot".into(),
@@ -572,13 +572,13 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
         })
         .await?;
 
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
     assert_posix_snapshot_sections(&snapshot_content);
 
     let mut saw_patch_begin = false;
     let mut patch_end = None;
-    wait_for_event(&codex, |ev| match ev {
+    wait_for_event(&darwin-code, |ev| match ev {
         EventMsg::PatchApplyBegin(begin) if begin.call_id == call_id => {
             saw_patch_begin = true;
             false
@@ -614,24 +614,24 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
 #[cfg_attr(target_os = "windows", ignore)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_snapshot_deleted_after_shutdown_with_skills() -> Result<()> {
-    let builder = test_codex().with_config(|config| {
+    let builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ShellSnapshot)
             .expect("test config should allow feature update");
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
     let home = harness.test().home.clone();
-    let codex_home = home.path().to_path_buf();
-    let codex = harness.test().codex.clone();
+    let darwin_code_home = home.path().to_path_buf();
+    let darwin-code = harness.test().darwin-code.clone();
 
-    let snapshot_path = wait_for_snapshot(&codex_home).await?;
+    let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     assert!(snapshot_path.exists());
 
-    codex.submit(Op::Shutdown {}).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    darwin-code.submit(Op::Shutdown {}).await?;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    drop(codex);
+    drop(darwin-code);
     drop(harness);
     sleep(Duration::from_millis(150)).await;
 
@@ -669,7 +669,7 @@ async fn macos_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert_eq!(run.begin.command.get(5).map(String::as_str), Some("-c"));
     assert_eq!(run.begin.command.last(), Some(&command.to_string()));
 
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.darwin_code_home));
     assert_posix_snapshot_sections(&run.snapshot_content);
     assert_eq!(normalize_newlines(&run.end.stdout).trim(), "snapshot-macos");
     assert_eq!(run.end.exit_code, 0);
@@ -700,7 +700,7 @@ async fn windows_unified_exec_uses_shell_snapshot() -> Result<()> {
     assert!(snapshot_index > 0);
     assert_eq!(run.begin.command.last(), Some(&command.to_string()));
 
-    assert!(run.snapshot_path.starts_with(&run.codex_home));
+    assert!(run.snapshot_path.starts_with(&run.darwin_code_home));
     assert!(run.snapshot_content.contains("# Snapshot file"));
     assert!(run.snapshot_content.contains("# aliases "));
     assert!(run.snapshot_content.contains("# exports "));

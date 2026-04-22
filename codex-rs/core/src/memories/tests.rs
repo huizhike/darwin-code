@@ -7,10 +7,10 @@ use crate::memories::raw_memories_file;
 use crate::memories::rollout_summaries_dir;
 use chrono::TimeZone;
 use chrono::Utc;
-use codex_config::types::DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION;
-use codex_protocol::ThreadId;
-use codex_state::Stage1Output;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::types::DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION;
+use darwin_code_protocol::ThreadId;
+use darwin_code_state::Stage1Output;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -18,8 +18,8 @@ use tempfile::tempdir;
 
 #[test]
 fn memory_root_uses_shared_global_path() {
-    let codex_home = AbsolutePathBuf::current_dir().expect("cwd").join("codex");
-    assert_eq!(memory_root(&codex_home), codex_home.join("memories"));
+    let darwin_code_home = AbsolutePathBuf::current_dir().expect("cwd").join("darwin-code");
+    assert_eq!(memory_root(&darwin_code_home), darwin_code_home.join("memories"));
 }
 
 #[test]
@@ -346,17 +346,17 @@ async fn rebuild_raw_memories_file_adds_canonical_rollout_summary_file_header() 
         raw_memory: "\
 ---
 description: Added a migration test
-keywords: codex-state, migrations
+keywords: darwin-code-state, migrations
 ---
 ### Task 1: migration-test
 task: add-migration-test
-task_group: codex-state
+task_group: darwin-code-state
 task_outcome: success
 - Added regression coverage for migration uniqueness.
 
 ### Task 2: validate-migration
 task: validate-migration-ordering
-task_group: codex-state
+task_group: darwin-code-state
 task_outcome: success
 - Confirmed no ordering regressions."
             .to_string(),
@@ -409,7 +409,7 @@ task_outcome: success
     assert!(raw_memories.contains("description: Added a migration test"));
     assert!(raw_memories.contains("### Task 1: migration-test"));
     assert!(raw_memories.contains("task: add-migration-test"));
-    assert!(raw_memories.contains("task_group: codex-state"));
+    assert!(raw_memories.contains("task_group: darwin-code-state"));
     assert!(raw_memories.contains("task_outcome: success"));
 }
 
@@ -426,19 +426,19 @@ mod phase2 {
     use crate::session::tests::make_session_and_context;
     use chrono::Duration as ChronoDuration;
     use chrono::Utc;
-    use codex_config::Constrained;
-    use codex_features::Feature;
-    use codex_login::CodexAuth;
-    use codex_protocol::ThreadId;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::Op;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionSource;
-    use codex_state::Phase2JobClaimOutcome;
-    use codex_state::Stage1Output;
-    use codex_state::ThreadMetadataBuilder;
+    use darwin_code_config::Constrained;
+    use darwin_code_features::Feature;
+    use darwin_code_login::DarwinCodeAuth;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+    use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::Op;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_state::Phase2JobClaimOutcome;
+    use darwin_code_state::Stage1Output;
+    use darwin_code_state::ThreadMetadataBuilder;
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
@@ -460,37 +460,37 @@ mod phase2 {
     }
 
     struct DispatchHarness {
-        _codex_home: TempDir,
+        _darwin_code_home: TempDir,
         config: Arc<Config>,
         session: Arc<Session>,
         manager: ThreadManager,
-        state_db: Arc<codex_state::StateRuntime>,
+        state_db: Arc<darwin_code_state::StateRuntime>,
     }
 
     impl DispatchHarness {
         async fn new() -> Self {
-            let codex_home = tempfile::tempdir().expect("create temp codex home");
+            let darwin_code_home = tempfile::tempdir().expect("create temp darwin-code home");
             let mut config = test_config().await;
-            config.codex_home =
-                codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(codex_home.path())
-                    .expect("codex home is absolute");
-            config.cwd = config.codex_home.clone();
+            config.darwin_code_home =
+                darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
+                    .expect("darwin-code home is absolute");
+            config.cwd = config.darwin_code_home.clone();
             config.permissions.file_system_sandbox_policy = FileSystemSandboxPolicy::unrestricted();
             config.permissions.network_sandbox_policy = NetworkSandboxPolicy::Enabled;
             let config = Arc::new(config);
 
-            let state_db = codex_state::StateRuntime::init(
-                config.codex_home.to_path_buf(),
+            let state_db = darwin_code_state::StateRuntime::init(
+                config.darwin_code_home.to_path_buf(),
                 config.model_provider_id.clone(),
             )
             .await
             .expect("initialize state db");
 
             let manager = ThreadManager::with_models_provider_and_home_for_tests(
-                CodexAuth::from_api_key("dummy"),
+                DarwinCodeAuth::from_api_key("dummy"),
                 config.model_provider.clone(),
-                config.codex_home.to_path_buf(),
-                std::sync::Arc::new(codex_exec_server::EnvironmentManager::new(
+                config.darwin_code_home.to_path_buf(),
+                std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
                     /*exec_server_url*/ None,
                 )),
             );
@@ -499,7 +499,7 @@ mod phase2 {
             session.services.agent_control = manager.agent_control();
 
             Self {
-                _codex_home: codex_home,
+                _darwin_code_home: darwin_code_home,
                 config,
                 session: Arc::new(session),
                 manager,
@@ -512,7 +512,7 @@ mod phase2 {
             let mut metadata_builder = ThreadMetadataBuilder::new(
                 thread_id,
                 self.config
-                    .codex_home
+                    .darwin_code_home
                     .join(format!("rollout-{thread_id}.jsonl"))
                     .to_path_buf(),
                 Utc::now(),
@@ -539,7 +539,7 @@ mod phase2 {
                 .await
                 .expect("claim stage-1 job");
             let ownership_token = match claim {
-                codex_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+                darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
                 other => panic!("unexpected stage-1 claim outcome: {other:?}"),
             };
             assert!(
@@ -686,7 +686,7 @@ mod phase2 {
         assert!(config_snapshot.ephemeral);
         pretty_assertions::assert_eq!(
             config_snapshot.cwd.as_path(),
-            memory_root(&harness.config.codex_home).as_path()
+            memory_root(&harness.config.darwin_code_home).as_path()
         );
         match &config_snapshot.sandbox_policy {
             SandboxPolicy::WorkspaceWrite {
@@ -697,13 +697,13 @@ mod phase2 {
                 assert!(!*network_access);
                 pretty_assertions::assert_eq!(
                     writable_roots.as_slice(),
-                    [memory_root(&harness.config.codex_home)],
+                    [memory_root(&harness.config.darwin_code_home)],
                     "consolidation subagent should only be able to write the memory root"
                 );
             }
             other => panic!("unexpected sandbox policy: {other:?}"),
         }
-        let turn_context = subagent.codex.session.new_default_turn().await;
+        let turn_context = subagent.darwin-code.session.new_default_turn().await;
         pretty_assertions::assert_eq!(
             turn_context.file_system_sandbox_policy,
             FileSystemSandboxPolicy::from_legacy_sandbox_policy(
@@ -716,7 +716,7 @@ mod phase2 {
             turn_context
                 .file_system_sandbox_policy
                 .can_write_path_with_cwd(
-                    memory_root(&harness.config.codex_home).as_path(),
+                    memory_root(&harness.config.darwin_code_home).as_path(),
                     config_snapshot.cwd.as_path(),
                 ),
             "consolidation subagent should be able to write the memory root"
@@ -725,10 +725,10 @@ mod phase2 {
             !turn_context
                 .file_system_sandbox_policy
                 .can_write_path_with_cwd(
-                    harness.config.codex_home.join("config.toml").as_path(),
+                    harness.config.darwin_code_home.join("config.toml").as_path(),
                     config_snapshot.cwd.as_path(),
                 ),
-            "consolidation subagent should not inherit codex_home write access"
+            "consolidation subagent should not inherit darwin_code_home write access"
         );
         pretty_assertions::assert_eq!(
             turn_context.network_sandbox_policy,
@@ -764,7 +764,7 @@ mod phase2 {
     #[tokio::test]
     async fn dispatch_with_empty_stage1_outputs_rebuilds_local_artifacts() {
         let harness = DispatchHarness::new().await;
-        let root = memory_root(&harness.config.codex_home);
+        let root = memory_root(&harness.config.darwin_code_home);
         let summaries_dir = rollout_summaries_dir(&root);
         tokio::fs::create_dir_all(&summaries_dir)
             .await
@@ -882,7 +882,7 @@ mod phase2 {
     async fn dispatch_marks_job_for_retry_when_syncing_artifacts_fails() {
         let harness = DispatchHarness::new().await;
         harness.seed_stage1_output(/*source_updated_at*/ 100).await;
-        let root = memory_root(&harness.config.codex_home);
+        let root = memory_root(&harness.config.darwin_code_home);
         tokio::fs::write(&root, "not a directory")
             .await
             .expect("create file at memory root");
@@ -904,7 +904,7 @@ mod phase2 {
     async fn dispatch_marks_job_for_retry_when_rebuilding_raw_memories_fails() {
         let harness = DispatchHarness::new().await;
         harness.seed_stage1_output(/*source_updated_at*/ 100).await;
-        let root = memory_root(&harness.config.codex_home);
+        let root = memory_root(&harness.config.darwin_code_home);
         tokio::fs::create_dir_all(raw_memories_file(&root))
             .await
             .expect("create raw_memories.md as a directory");
@@ -924,16 +924,16 @@ mod phase2 {
 
     #[tokio::test]
     async fn dispatch_marks_job_for_retry_when_spawn_agent_fails() {
-        let codex_home = tempfile::tempdir().expect("create temp codex home");
+        let darwin_code_home = tempfile::tempdir().expect("create temp darwin-code home");
         let mut config = test_config().await;
-        config.codex_home =
-            codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(codex_home.path())
-                .expect("codex home is absolute");
-        config.cwd = config.codex_home.clone();
+        config.darwin_code_home =
+            darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
+                .expect("darwin-code home is absolute");
+        config.cwd = config.darwin_code_home.clone();
         let config = Arc::new(config);
 
-        let state_db = codex_state::StateRuntime::init(
-            config.codex_home.to_path_buf(),
+        let state_db = darwin_code_state::StateRuntime::init(
+            config.darwin_code_home.to_path_buf(),
             config.model_provider_id.clone(),
         )
         .await
@@ -948,7 +948,7 @@ mod phase2 {
         let mut metadata_builder = ThreadMetadataBuilder::new(
             thread_id,
             config
-                .codex_home
+                .darwin_code_home
                 .join(format!("rollout-{thread_id}.jsonl"))
                 .to_path_buf(),
             Utc::now(),
@@ -973,7 +973,7 @@ mod phase2 {
             .await
             .expect("claim stage-1 job");
         let ownership_token = match claim {
-            codex_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+            darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
             other => panic!("unexpected stage-1 claim outcome: {other:?}"),
         };
         assert!(
@@ -992,14 +992,14 @@ mod phase2 {
         );
 
         let telepathy_resources = config
-            .codex_home
+            .darwin_code_home
             .join("memories_extensions/telepathy/resources");
         tokio::fs::create_dir_all(&telepathy_resources)
             .await
             .expect("create telepathy resources");
         tokio::fs::write(
             config
-                .codex_home
+                .darwin_code_home
                 .join("memories_extensions/telepathy/instructions.md"),
             "instructions",
         )

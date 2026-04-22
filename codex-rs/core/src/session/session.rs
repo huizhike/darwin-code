@@ -65,8 +65,8 @@ pub(crate) struct SessionConfiguration {
     /// execution sandbox are resolved against this directory **instead** of
     /// the process-wide current working directory.
     pub(super) cwd: AbsolutePathBuf,
-    /// Directory containing all Codex state for this session.
-    pub(super) codex_home: AbsolutePathBuf,
+    /// Directory containing all Darwin-Code state for this session.
+    pub(super) darwin_code_home: AbsolutePathBuf,
     /// Optional user-facing name for the thread, updated during the session.
     pub(super) thread_name: Option<String>,
 
@@ -85,8 +85,8 @@ pub(crate) struct SessionConfiguration {
 }
 
 impl SessionConfiguration {
-    pub(crate) fn codex_home(&self) -> &AbsolutePathBuf {
-        &self.codex_home
+    pub(crate) fn darwin_code_home(&self) -> &AbsolutePathBuf {
+        &self.darwin_code_home
     }
 
     pub(super) fn thread_config_snapshot(&self) -> ThreadConfigSnapshot {
@@ -393,7 +393,7 @@ impl Session {
                 }),
             });
         }
-        let config_path = config.codex_home.join(CONFIG_TOML_FILE);
+        let config_path = config.darwin_code_home.join(CONFIG_TOML_FILE);
         if let Some(event) = unstable_features_warning_event(
             config
                 .config_layer_stack
@@ -416,15 +416,15 @@ impl Session {
         }
 
         let auth = auth.as_ref();
-        let auth_mode = auth.map(CodexAuth::auth_mode).map(TelemetryAuthMode::from);
-        let account_id = auth.and_then(CodexAuth::get_account_id);
-        let account_email = auth.and_then(CodexAuth::get_account_email);
+        let auth_mode = auth.map(DarwinCodeAuth::auth_mode).map(TelemetryAuthMode::from);
+        let account_id = auth.and_then(DarwinCodeAuth::get_account_id);
+        let account_email = auth.and_then(DarwinCodeAuth::get_account_email);
         let originator = originator().value;
         let terminal_type = user_agent();
         let session_model = session_configuration.collaboration_mode.model().to_string();
         let auth_env_telemetry = collect_auth_env_telemetry(
             &session_configuration.provider,
-            auth_manager.codex_api_key_env_enabled(),
+            auth_manager.darwin_code_api_key_env_enabled(),
         );
         let mut session_telemetry = SessionTelemetry::new(
             conversation_id,
@@ -510,7 +510,7 @@ impl Session {
                 tx
             } else {
                 ShellSnapshot::start_snapshotting(
-                    config.codex_home.clone(),
+                    config.darwin_code_home.clone(),
                     conversation_id,
                     session_configuration.cwd.clone(),
                     &mut default_shell,
@@ -523,7 +523,7 @@ impl Session {
             tx
         };
         let thread_name =
-            thread_title_from_state_db(state_db_ctx.as_ref(), &config.codex_home, conversation_id)
+            thread_title_from_state_db(state_db_ctx.as_ref(), &config.darwin_code_home, conversation_id)
                 .instrument(info_span!(
                     "session_init.thread_name_lookup",
                     otel.name = "session_init.thread_name_lookup",
@@ -596,7 +596,7 @@ impl Session {
         let _ = hook_shell_argv.pop();
         let hooks = Hooks::new(HooksConfig {
             legacy_notify_argv: config.notify.clone(),
-            feature_enabled: config.features.enabled(Feature::CodexHooks),
+            feature_enabled: config.features.enabled(Feature::DarwinCodeHooks),
             config_layer_stack: Some(config.config_layer_stack.clone()),
             shell_program: Some(hook_shell_program),
             shell_args: hook_shell_argv,
@@ -610,7 +610,7 @@ impl Session {
             });
         }
 
-        let installation_id = resolve_installation_id(&config.codex_home).await?;
+        let installation_id = resolve_installation_id(&config.darwin_code_home).await?;
         let analytics_events_client = analytics_events_client.unwrap_or_else(|| {
             AnalyticsEventsClient::new(
                 Arc::clone(&auth_manager),
@@ -770,8 +770,8 @@ impl Session {
             INITIAL_SUBMIT_ID.to_owned(),
             tx_event.clone(),
             session_configuration.sandbox_policy.get().clone(),
-            config.codex_home.to_path_buf(),
-            codex_apps_tools_cache_key(auth),
+            config.darwin_code_home.to_path_buf(),
+            darwin_code_apps_tools_cache_key(auth),
             tool_plugin_provenance,
         )
         .instrument(info_span!(
@@ -819,11 +819,11 @@ impl Session {
         sess.schedule_startup_prewarm(session_configuration.base_instructions.clone())
             .await;
         let session_start_source = match &initial_history {
-            InitialHistory::Resumed(_) => codex_hooks::SessionStartSource::Resume,
+            InitialHistory::Resumed(_) => darwin_code_hooks::SessionStartSource::Resume,
             InitialHistory::New | InitialHistory::Forked(_) => {
-                codex_hooks::SessionStartSource::Startup
+                darwin_code_hooks::SessionStartSource::Startup
             }
-            InitialHistory::Cleared => codex_hooks::SessionStartSource::Clear,
+            InitialHistory::Cleared => darwin_code_hooks::SessionStartSource::Clear,
         };
 
         // record_initial_history can emit events. We record only after the SessionConfiguredEvent is emitted.

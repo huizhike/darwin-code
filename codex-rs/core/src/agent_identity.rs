@@ -8,12 +8,12 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_features::Feature;
-use codex_login::AgentIdentityAuthRecord;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::default_client::create_client;
-use codex_protocol::protocol::SessionSource;
+use darwin_code_features::Feature;
+use darwin_code_login::AgentIdentityAuthRecord;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::default_client::create_client;
+use darwin_code_protocol::protocol::SessionSource;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::VerifyingKey;
 use ed25519_dalek::pkcs8::DecodePrivateKey;
@@ -134,7 +134,7 @@ impl AgentIdentityManager {
 
     async fn ensure_registered_identity_for_binding(
         &self,
-        auth: &CodexAuth,
+        auth: &DarwinCodeAuth,
         binding: &AgentIdentityBinding,
     ) -> Result<StoredAgentIdentity> {
         let _guard = self.ensure_lock.lock().await;
@@ -163,7 +163,7 @@ impl AgentIdentityManager {
             .is_some_and(|(_, binding)| task.matches_binding(&binding))
     }
 
-    async fn current_auth_binding(&self) -> Option<(CodexAuth, AgentIdentityBinding)> {
+    async fn current_auth_binding(&self) -> Option<(DarwinCodeAuth, AgentIdentityBinding)> {
         let Some(auth) = self.auth_manager.auth().await else {
             debug!("skipping agent identity flow because no auth is available");
             return None;
@@ -274,7 +274,7 @@ impl AgentIdentityManager {
 
     fn load_stored_identity(
         &self,
-        auth: &CodexAuth,
+        auth: &DarwinCodeAuth,
         binding: &AgentIdentityBinding,
     ) -> Result<Option<StoredAgentIdentity>> {
         let Some(record) = auth.get_agent_identity(&binding.chatgpt_account_id) else {
@@ -320,7 +320,7 @@ impl AgentIdentityManager {
 
     fn store_identity(
         &self,
-        auth: &CodexAuth,
+        auth: &DarwinCodeAuth,
         stored_identity: &StoredAgentIdentity,
     ) -> Result<()> {
         auth.set_agent_identity(stored_identity.to_auth_record())?;
@@ -418,7 +418,7 @@ impl AgentIdentityBinding {
             }
     }
 
-    fn from_auth(auth: &CodexAuth, forced_workspace_id: Option<String>) -> Option<Self> {
+    fn from_auth(auth: &DarwinCodeAuth, forced_workspace_id: Option<String>) -> Option<Self> {
         if !auth.is_chatgpt_auth() {
             return None;
         }
@@ -448,13 +448,13 @@ fn build_abom(session_source: SessionSource) -> AgentBillOfMaterials {
     AgentBillOfMaterials {
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
         agent_harness_id: match &session_source {
-            SessionSource::VSCode => "codex-app".to_string(),
+            SessionSource::VSCode => "darwin-code-app".to_string(),
             SessionSource::Cli
             | SessionSource::Exec
             | SessionSource::Mcp
             | SessionSource::Custom(_)
             | SessionSource::SubAgent(_)
-            | SessionSource::Unknown => "codex-cli".to_string(),
+            | SessionSource::Unknown => "darwin-code-cli".to_string(),
         },
         running_location: format!("{}-{}", session_source, std::env::consts::OS),
     }
@@ -512,7 +512,7 @@ fn agent_identity_request_id() -> Result<String> {
         .try_fill_bytes(&mut request_id_bytes)
         .context("failed to generate agent identity request id")?;
     Ok(format!(
-        "codex-agent-identity-{}",
+        "darwin-code-agent-identity-{}",
         URL_SAFE_NO_PAD.encode(request_id_bytes)
     ))
 }
@@ -522,12 +522,12 @@ mod tests {
     use super::*;
 
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use codex_app_server_protocol::AuthMode as ApiAuthMode;
-    use codex_login::AuthCredentialsStoreMode;
-    use codex_login::AuthDotJson;
-    use codex_login::save_auth;
-    use codex_login::token_data::IdTokenInfo;
-    use codex_login::token_data::TokenData;
+    use darwin_code_app_server_protocol::AuthMode as ApiAuthMode;
+    use darwin_code_login::AuthCredentialsStoreMode;
+    use darwin_code_login::AuthDotJson;
+    use darwin_code_login::save_auth;
+    use darwin_code_login::token_data::IdTokenInfo;
+    use darwin_code_login::token_data::TokenData;
     use pretty_assertions::assert_eq;
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -552,7 +552,7 @@ mod tests {
 
     #[tokio::test]
     async fn ensure_registered_identity_skips_for_api_key_auth() {
-        let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("test-key"));
+        let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("test-key"));
         let manager = AgentIdentityManager::new_for_tests(
             auth_manager,
             /*feature_enabled*/ true,
@@ -600,7 +600,7 @@ mod tests {
 
         assert_eq!(first.agent_runtime_id, "agent_123");
         assert_eq!(first, second);
-        assert_eq!(first.abom.agent_harness_id, "codex-cli");
+        assert_eq!(first.abom.agent_harness_id, "darwin-code-cli");
         assert_eq!(first.chatgpt_account_id, "account-123");
         assert_eq!(first.chatgpt_user_id.as_deref(), Some("user-123"));
     }
@@ -769,7 +769,7 @@ mod tests {
         assert_eq!(decoded.len(), 51);
     }
 
-    fn make_chatgpt_auth(account_id: &str, user_id: Option<&str>) -> CodexAuth {
+    fn make_chatgpt_auth(account_id: &str, user_id: Option<&str>) -> DarwinCodeAuth {
         let tempdir = tempfile::tempdir().expect("tempdir");
         let auth_json = AuthDotJson {
             auth_mode: Some(ApiAuthMode::Chatgpt),
@@ -791,7 +791,7 @@ mod tests {
             agent_identity: None,
         };
         save_auth(tempdir.path(), &auth_json, AuthCredentialsStoreMode::File).expect("save auth");
-        CodexAuth::from_auth_storage(tempdir.path(), AuthCredentialsStoreMode::File)
+        DarwinCodeAuth::from_auth_storage(tempdir.path(), AuthCredentialsStoreMode::File)
             .expect("load auth")
             .expect("auth")
     }

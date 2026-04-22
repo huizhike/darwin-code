@@ -27,9 +27,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use rand::Rng;
 use rand::rng;
 use tokio::sync::Mutex;

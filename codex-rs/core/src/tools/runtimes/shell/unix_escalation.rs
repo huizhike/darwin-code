@@ -18,46 +18,46 @@ use crate::tools::sandboxing::PermissionRequestPayload;
 use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::MatchOptions;
-use codex_execpolicy::Policy;
-use codex_execpolicy::RuleMatch;
-use codex_features::Feature;
-use codex_hooks::PermissionRequestDecision;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_shell_command::bash::parse_shell_lc_plain_commands;
-use codex_shell_command::bash::parse_shell_lc_single_command_prefix;
-use codex_shell_escalation::EscalateServer;
-use codex_shell_escalation::EscalationDecision;
-use codex_shell_escalation::EscalationExecution;
-use codex_shell_escalation::EscalationPermissions;
-use codex_shell_escalation::EscalationPolicy;
-use codex_shell_escalation::EscalationSession;
-use codex_shell_escalation::ExecParams;
-use codex_shell_escalation::ExecResult;
-use codex_shell_escalation::Permissions as EscalatedPermissions;
-use codex_shell_escalation::PreparedExec;
-use codex_shell_escalation::ShellCommandExecutor;
-use codex_shell_escalation::Stopwatch;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::Evaluation;
+use darwin_code_execpolicy::MatchOptions;
+use darwin_code_execpolicy::Policy;
+use darwin_code_execpolicy::RuleMatch;
+use darwin_code_features::Feature;
+use darwin_code_hooks::PermissionRequestDecision;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GuardianCommandSource;
+use darwin_code_protocol::protocol::NetworkPolicyRuleAction;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxTransformRequest;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_shell_command::bash::parse_shell_lc_plain_commands;
+use darwin_code_shell_command::bash::parse_shell_lc_single_command_prefix;
+use darwin_code_shell_escalation::EscalateServer;
+use darwin_code_shell_escalation::EscalationDecision;
+use darwin_code_shell_escalation::EscalationExecution;
+use darwin_code_shell_escalation::EscalationPermissions;
+use darwin_code_shell_escalation::EscalationPolicy;
+use darwin_code_shell_escalation::EscalationSession;
+use darwin_code_shell_escalation::ExecParams;
+use darwin_code_shell_escalation::ExecResult;
+use darwin_code_shell_escalation::Permissions as EscalatedPermissions;
+use darwin_code_shell_escalation::PreparedExec;
+use darwin_code_shell_escalation::ShellCommandExecutor;
+use darwin_code_shell_escalation::Stopwatch;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -124,7 +124,7 @@ pub(super) async fn try_run_zsh_fork(
     };
     let sandbox_exec_request = attempt
         .env_for(command, options, req.network.as_ref())
-        .map_err(|err| ToolError::Codex(err.into()))?;
+        .map_err(|err| ToolError::Darwin-Code(err.into()))?;
     let crate::sandboxing::ExecRequest {
         command,
         cwd: sandbox_cwd,
@@ -162,7 +162,7 @@ pub(super) async fn try_run_zsh_fork(
         windows_sandbox_level,
         arg0,
         sandbox_policy_cwd: ctx.turn.cwd.clone(),
-        codex_linux_sandbox_exe: ctx.turn.codex_linux_sandbox_exe.clone(),
+        darwin_code_linux_sandbox_exe: ctx.turn.darwin_code_linux_sandbox_exe.clone(),
         use_legacy_landlock: ctx.turn.features.use_legacy_landlock(),
     };
     let main_execve_wrapper_exe = ctx
@@ -260,7 +260,7 @@ pub(crate) async fn prepare_unified_exec_zsh_fork(
         windows_sandbox_level: exec_request.windows_sandbox_level,
         arg0: exec_request.arg0.clone(),
         sandbox_policy_cwd: ctx.turn.cwd.clone(),
-        codex_linux_sandbox_exe: ctx.turn.codex_linux_sandbox_exe.clone(),
+        darwin_code_linux_sandbox_exe: ctx.turn.darwin_code_linux_sandbox_exe.clone(),
         use_legacy_landlock: ctx.turn.features.use_legacy_landlock(),
     };
     let escalation_policy = CoreShellActionProvider {
@@ -402,7 +402,7 @@ impl CoreShellActionProvider {
                 // 1) Run PermissionRequest hooks
                 let permission_request = PermissionRequestPayload {
                     tool_name: "Bash".to_string(),
-                    command: codex_shell_command::parse_command::shlex_join(&command),
+                    command: darwin_code_shell_command::parse_command::shlex_join(&command),
                     description: None,
                 };
                 let effective_approval_id = approval_id.clone().unwrap_or_else(|| call_id.clone());
@@ -738,11 +738,11 @@ struct CoreShellCommandExecutor {
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox: SandboxType,
     env: HashMap<String, String>,
-    network: Option<codex_network_proxy::NetworkProxy>,
+    network: Option<darwin_code_network_proxy::NetworkProxy>,
     windows_sandbox_level: WindowsSandboxLevel,
     arg0: Option<String>,
     sandbox_policy_cwd: AbsolutePathBuf,
-    codex_linux_sandbox_exe: Option<PathBuf>,
+    darwin_code_linux_sandbox_exe: Option<PathBuf>,
     use_legacy_landlock: bool,
 }
 
@@ -769,7 +769,7 @@ impl ShellCommandExecutor for CoreShellCommandExecutor {
         let mut exec_env = self.env.clone();
         // `env_overlay` comes from `EscalationSession::env()`, so merge only the
         // wrapper/socket variables into the base shell environment.
-        for var in ["CODEX_ESCALATE_SOCKET", "EXEC_WRAPPER"] {
+        for var in ["DARWIN_CODE_ESCALATE_SOCKET", "EXEC_WRAPPER"] {
             if let Some(value) = env_overlay.get(var) {
                 exec_env.insert(var.to_string(), value.clone());
             }
@@ -919,7 +919,7 @@ impl CoreShellCommandExecutor {
             enforce_managed_network: self.network.is_some(),
             network: self.network.as_ref(),
             sandbox_policy_cwd: &self.sandbox_policy_cwd,
-            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.as_deref(),
+            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.as_deref(),
             use_legacy_landlock: self.use_legacy_landlock,
             windows_sandbox_level: self.windows_sandbox_level,
             windows_sandbox_private_desktop: false,
@@ -985,13 +985,13 @@ fn map_exec_result(
     };
 
     if result.timed_out {
-        return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Timeout {
+        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Timeout {
             output: Box::new(output),
         })));
     }
 
     if is_likely_sandbox_denied(sandbox, &output) {
-        return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
             output: Box::new(output),
             network_policy_decision: None,
         })));

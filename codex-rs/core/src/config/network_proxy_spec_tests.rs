@@ -1,7 +1,7 @@
 use super::*;
 use crate::config_loader::NetworkDomainPermissionToml;
 use crate::config_loader::NetworkDomainPermissionsToml;
-use codex_network_proxy::NetworkDomainPermission;
+use darwin_code_network_proxy::NetworkDomainPermission;
 use pretty_assertions::assert_eq;
 
 fn domain_permissions(

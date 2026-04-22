@@ -11,8 +11,8 @@
 //! recent killed span.
 
 use crate::key_hint::is_altgr;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement as UserTextElement;
+use darwin_code_protocol::user_input::ByteRange;
+use darwin_code_protocol::user_input::TextElement as UserTextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;

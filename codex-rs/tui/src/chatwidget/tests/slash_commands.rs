@@ -31,7 +31,7 @@ async fn slash_compact_eagerly_queues_follow_up_before_turn_start() {
 
     assert!(chat.bottom_pane.is_task_running());
     match rx.try_recv() {
-        Ok(AppEvent::CodexOp(Op::Compact)) => {}
+        Ok(AppEvent::DarwinCodeOp(Op::Compact)) => {}
         other => panic!("expected compact op to be submitted, got {other:?}"),
     }
 
@@ -81,7 +81,7 @@ async fn slash_init_skips_when_project_doc_exists() {
 
     match op_rx.try_recv() {
         Err(TryRecvError::Empty) => {}
-        other => panic!("expected no Codex op to be sent, got {other:?}"),
+        other => panic!("expected no Darwin-Code op to be sent, got {other:?}"),
     }
 
     let cells = drain_insert_history(&mut rx);
@@ -138,7 +138,7 @@ async fn slash_rename_prefills_existing_thread_name() {
 
     assert_matches!(
         rx.try_recv(),
-        Ok(AppEvent::CodexOp(Op::SetThreadName { name })) if name == "Current project title"
+        Ok(AppEvent::DarwinCodeOp(Op::SetThreadName { name })) if name == "Current project title"
     );
 }
 
@@ -159,7 +159,7 @@ async fn slash_rename_without_existing_thread_name_starts_empty() {
 
 #[tokio::test]
 async fn usage_error_slash_command_is_available_from_local_recall() {
-    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     submit_composer_text(&mut chat, "/fast maybe");
@@ -260,7 +260,7 @@ async fn slash_logout_requests_app_server_logout() {
 async fn slash_copy_state_tracks_turn_complete_final_reply() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -281,7 +281,7 @@ async fn slash_copy_state_tracks_plan_item_completion() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let plan_text = "## Plan\n\n1. Build it\n2. Test it".to_string();
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "item-plan".into(),
         msg: EventMsg::ItemCompleted(ItemCompletedEvent {
             thread_id: ThreadId::new(),
@@ -292,7 +292,7 @@ async fn slash_copy_state_tracks_plan_item_completion() {
             }),
         }),
     });
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -378,7 +378,7 @@ async fn slash_copy_stores_clipboard_lease_and_preserves_it_on_failure() {
 async fn slash_copy_state_is_preserved_during_running_task() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -399,7 +399,7 @@ async fn slash_copy_state_is_preserved_during_running_task() {
 async fn slash_copy_tracks_replayed_legacy_agent_message_when_turn_complete_omits_text() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "turn-1".into(),
         msg: EventMsg::AgentMessage(AgentMessageEvent {
             message: "Legacy final message".into(),
@@ -408,7 +408,7 @@ async fn slash_copy_tracks_replayed_legacy_agent_message_when_turn_complete_omit
         }),
     });
     let _ = drain_insert_history(&mut rx);
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -429,7 +429,7 @@ async fn slash_copy_tracks_replayed_legacy_agent_message_when_turn_complete_omit
 async fn slash_copy_uses_agent_message_item_when_turn_complete_omits_final_text() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -445,7 +445,7 @@ async fn slash_copy_uses_agent_message_item_when_turn_complete_omits_final_text(
         /*phase*/ None,
     );
     let _ = drain_insert_history(&mut rx);
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -470,13 +470,13 @@ async fn slash_copy_uses_agent_message_item_when_turn_complete_omits_final_text(
 async fn agent_turn_complete_notification_does_not_reuse_stale_copy_source() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(turn_complete_event("turn-1", Some("Previous reply"))),
     });
     chat.pending_notification = None;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-2".into(),
         msg: EventMsg::TurnComplete(turn_complete_event(
             "turn-2", /*last_agent_message*/ None,
@@ -646,7 +646,7 @@ async fn slash_fork_requests_current_fork() {
 #[tokio::test]
 async fn slash_rollout_displays_current_path() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let rollout_path = PathBuf::from("/tmp/codex-test-rollout.jsonl");
+    let rollout_path = PathBuf::from("/tmp/darwin-code-test-rollout.jsonl");
     chat.current_rollout_path = Some(rollout_path.clone());
 
     chat.dispatch_command(SlashCommand::Rollout);
@@ -683,7 +683,7 @@ async fn slash_rollout_handles_missing_path() {
 async fn undo_success_events_render_info_messages() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".to_string(),
         msg: EventMsg::UndoStarted(UndoStartedEvent {
             message: Some("Undo requested for the last turn...".to_string()),
@@ -694,7 +694,7 @@ async fn undo_success_events_render_info_messages() {
         "status indicator should be visible during undo"
     );
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".to_string(),
         msg: EventMsg::UndoCompleted(UndoCompletedEvent {
             success: true,
@@ -720,7 +720,7 @@ async fn undo_success_events_render_info_messages() {
 async fn undo_failure_events_render_error_message() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-2".to_string(),
         msg: EventMsg::UndoStarted(UndoStartedEvent { message: None }),
     });
@@ -729,7 +729,7 @@ async fn undo_failure_events_render_error_message() {
         "status indicator should be visible during undo"
     );
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-2".to_string(),
         msg: EventMsg::UndoCompleted(UndoCompletedEvent {
             success: false,
@@ -755,7 +755,7 @@ async fn undo_failure_events_render_error_message() {
 async fn undo_started_hides_interrupt_hint() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-hint".to_string(),
         msg: EventMsg::UndoStarted(UndoStartedEvent { message: None }),
     });
@@ -772,7 +772,7 @@ async fn undo_started_hides_interrupt_hint() {
 
 #[tokio::test]
 async fn fast_slash_command_updates_and_persists_local_service_tier() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     chat.dispatch_command(SlashCommand::Fast);
@@ -781,7 +781,7 @@ async fn fast_slash_command_updates_and_persists_local_service_tier() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::DarwinCodeOp(Op::OverrideTurnContext {
                 service_tier: Some(Some(ServiceTier::Fast)),
                 ..
             })
@@ -803,7 +803,7 @@ async fn fast_slash_command_updates_and_persists_local_service_tier() {
 
 #[tokio::test]
 async fn user_turn_carries_service_tier_after_fast_toggle() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
@@ -827,7 +827,7 @@ async fn user_turn_carries_service_tier_after_fast_toggle() {
 
 #[tokio::test]
 async fn user_turn_clears_service_tier_after_fast_is_turned_off() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
     chat.thread_id = Some(ThreadId::new());
     set_chatgpt_auth(&mut chat);
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
@@ -855,7 +855,7 @@ async fn user_turn_clears_service_tier_after_fast_is_turned_off() {
 async fn compact_queues_user_messages_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-start".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -868,11 +868,11 @@ async fn compact_queues_user_messages_snapshot() {
     chat.submit_user_message(UserMessage::from(
         "Steer submitted while /compact was running.".to_string(),
     ));
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "steer-rejected".into(),
         msg: EventMsg::Error(ErrorEvent {
             message: "cannot steer a compact turn".to_string(),
-            codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Compact,
             }),
         }),

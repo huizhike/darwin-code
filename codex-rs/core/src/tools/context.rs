@@ -6,19 +6,19 @@ use crate::tools::TELEMETRY_PREVIEW_MAX_LINES;
 use crate::tools::TELEMETRY_PREVIEW_TRUNCATION_NOTICE;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use crate::unified_exec::resolve_max_tokens;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::SearchToolCallParams;
-use codex_protocol::models::ShellToolCallParams;
-use codex_protocol::models::function_call_output_content_items_to_text;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchOutputTool;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text;
-use codex_utils_string::take_bytes_at_char_boundary;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::SearchToolCallParams;
+use darwin_code_protocol::models::ShellToolCallParams;
+use darwin_code_protocol::models::function_call_output_content_items_to_text;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolSearchOutputTool;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::formatted_truncate_text;
+use darwin_code_utils_string::take_bytes_at_char_boundary;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::borrow::Cow;
@@ -459,11 +459,11 @@ pub(crate) fn response_input_to_code_mode_result(response: ResponseInputItem) ->
             &content
                 .into_iter()
                 .map(|item| match item {
-                    codex_protocol::models::ContentItem::InputText { text }
-                    | codex_protocol::models::ContentItem::OutputText { text } => {
+                    darwin_code_protocol::models::ContentItem::InputText { text }
+                    | darwin_code_protocol::models::ContentItem::OutputText { text } => {
                         FunctionCallOutputContentItem::InputText { text }
                     }
-                    codex_protocol::models::ContentItem::InputImage { image_url } => {
+                    darwin_code_protocol::models::ContentItem::InputImage { image_url } => {
                         FunctionCallOutputContentItem::InputImage {
                             image_url,
                             detail: None,

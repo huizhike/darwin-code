@@ -15,22 +15,22 @@ use crate::path_utils;
 use crate::path_utils::SymlinkWritePaths;
 use crate::path_utils::resolve_symlink_write_paths;
 use crate::path_utils::write_atomically;
-use codex_app_server_protocol::Config as ApiConfig;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigLayerMetadata;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteErrorCode;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::OverriddenMetadata;
-use codex_app_server_protocol::WriteStatus;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::config_toml::ConfigToml;
-use codex_exec_server::LOCAL_FS;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::Config as ApiConfig;
+use darwin_code_app_server_protocol::ConfigBatchWriteParams;
+use darwin_code_app_server_protocol::ConfigLayerMetadata;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::ConfigReadParams;
+use darwin_code_app_server_protocol::ConfigReadResponse;
+use darwin_code_app_server_protocol::ConfigValueWriteParams;
+use darwin_code_app_server_protocol::ConfigWriteErrorCode;
+use darwin_code_app_server_protocol::ConfigWriteResponse;
+use darwin_code_app_server_protocol::MergeStrategy;
+use darwin_code_app_server_protocol::OverriddenMetadata;
+use darwin_code_app_server_protocol::WriteStatus;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value as JsonValue;
 use std::borrow::Cow;
 use std::path::Path;
@@ -111,7 +111,7 @@ impl ConfigServiceError {
 
 #[derive(Clone)]
 pub struct ConfigService {
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     cli_overrides: Vec<(String, TomlValue)>,
     loader_overrides: LoaderOverrides,
     cloud_requirements: CloudRequirementsLoader,
@@ -119,22 +119,22 @@ pub struct ConfigService {
 
 impl ConfigService {
     pub fn new(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
         loader_overrides: LoaderOverrides,
         cloud_requirements: CloudRequirementsLoader,
     ) -> Self {
         Self {
-            codex_home,
+            darwin_code_home,
             cli_overrides,
             loader_overrides,
             cloud_requirements,
         }
     }
 
-    pub fn new_with_defaults(codex_home: PathBuf) -> Self {
+    pub fn new_with_defaults(darwin_code_home: PathBuf) -> Self {
         Self {
-            codex_home,
+            darwin_code_home,
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
             cloud_requirements: CloudRequirementsLoader::default(),
@@ -142,9 +142,9 @@ impl ConfigService {
     }
 
     #[cfg(test)]
-    pub(crate) fn without_managed_config_for_tests(codex_home: PathBuf) -> Self {
+    pub(crate) fn without_managed_config_for_tests(darwin_code_home: PathBuf) -> Self {
         Self::new(
-            codex_home,
+            darwin_code_home,
             Vec::new(),
             LoaderOverrides::without_managed_config_for_tests(),
             CloudRequirementsLoader::default(),
@@ -161,7 +161,7 @@ impl ConfigService {
                     ConfigServiceError::io("failed to resolve config cwd to an absolute path", err)
                 })?;
                 crate::config::ConfigBuilder::default()
-                    .codex_home(self.codex_home.clone())
+                    .darwin_code_home(self.darwin_code_home.clone())
                     .cli_overrides(self.cli_overrides.clone())
                     .loader_overrides(self.loader_overrides.clone())
                     .fallback_cwd(Some(cwd.to_path_buf()))
@@ -246,7 +246,7 @@ impl ConfigService {
 
     pub async fn load_user_saved_config(
         &self,
-    ) -> Result<codex_app_server_protocol::UserSavedConfig, ConfigServiceError> {
+    ) -> Result<darwin_code_app_server_protocol::UserSavedConfig, ConfigServiceError> {
         let layers = self
             .load_thread_agnostic_config()
             .await
@@ -266,7 +266,7 @@ impl ConfigService {
         edits: Vec<(String, JsonValue, MergeStrategy)>,
     ) -> Result<ConfigWriteResponse, ConfigServiceError> {
         let allowed_path =
-            AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, &self.codex_home);
+            AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, &self.darwin_code_home);
         let provided_path = match file_path {
             Some(path) => AbsolutePathBuf::from_absolute_path(PathBuf::from(path))
                 .map_err(|err| ConfigServiceError::io("failed to resolve user config path", err))?,
@@ -350,7 +350,7 @@ impl ConfigService {
             )
         })?;
         let user_config_toml =
-            deserialize_config_toml_with_base(user_config.clone(), &self.codex_home).map_err(
+            deserialize_config_toml_with_base(user_config.clone(), &self.darwin_code_home).map_err(
                 |err| {
                     ConfigServiceError::write(
                         ConfigWriteErrorCode::ConfigValidationError,
@@ -389,7 +389,7 @@ impl ConfigService {
         })?;
 
         if !config_edits.is_empty() {
-            ConfigEditsBuilder::new(&self.codex_home)
+            ConfigEditsBuilder::new(&self.darwin_code_home)
                 .with_edits(config_edits)
                 .apply()
                 .await
@@ -420,13 +420,13 @@ impl ConfigService {
     }
 
     /// Loads a "thread-agnostic" config, which means the config layers do not
-    /// include any in-repo .codex/ folders because there is no cwd/project root
+    /// include any in-repo .darwin-code/ folders because there is no cwd/project root
     /// associated with this query.
     async fn load_thread_agnostic_config(&self) -> std::io::Result<ConfigLayerStack> {
         let cwd: Option<AbsolutePathBuf> = None;
         load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &self.codex_home,
+            &self.darwin_code_home,
             cwd,
             &self.cli_overrides,
             self.loader_overrides.clone(),
@@ -660,9 +660,9 @@ fn override_message(layer: &ConfigLayerSource) -> String {
         ConfigLayerSource::System { file } => {
             format!("Overridden by managed config (system): {}", file.display())
         }
-        ConfigLayerSource::Project { dot_codex_folder } => format!(
+        ConfigLayerSource::Project { dot_darwin_code_folder } => format!(
             "Overridden by project config: {}/{CONFIG_TOML_FILE}",
-            dot_codex_folder.display(),
+            dot_darwin_code_folder.display(),
         ),
         ConfigLayerSource::SessionFlags => "Overridden by session flags".to_string(),
         ConfigLayerSource::User { file } => {

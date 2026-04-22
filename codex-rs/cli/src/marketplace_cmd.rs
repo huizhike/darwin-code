@@ -2,13 +2,13 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use codex_core::config::Config;
-use codex_core::config::find_codex_home;
-use codex_core::plugins::MarketplaceAddRequest;
-use codex_core::plugins::PluginMarketplaceUpgradeOutcome;
-use codex_core::plugins::PluginsManager;
-use codex_core::plugins::add_marketplace;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_core::config::Config;
+use darwin_code_core::config::find_darwin_code_home;
+use darwin_code_core::plugins::MarketplaceAddRequest;
+use darwin_code_core::plugins::PluginMarketplaceUpgradeOutcome;
+use darwin_code_core::plugins::PluginsManager;
+use darwin_code_core::plugins::add_marketplace;
+use darwin_code_utils_cli::CliConfigOverrides;
 
 #[derive(Debug, Parser)]
 pub struct MarketplaceCli {
@@ -74,9 +74,9 @@ async fn run_add(args: AddMarketplaceArgs) -> Result<()> {
         sparse_paths,
     } = args;
 
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let darwin_code_home = find_darwin_code_home().context("failed to resolve DARWIN_CODE_HOME")?;
     let outcome = add_marketplace(
-        codex_home.to_path_buf(),
+        darwin_code_home.to_path_buf(),
         MarketplaceAddRequest {
             source,
             ref_name,
@@ -112,8 +112,8 @@ async fn run_upgrade(
     let config = Config::load_with_cli_overrides(overrides)
         .await
         .context("failed to load configuration")?;
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
-    let manager = PluginsManager::new(codex_home.to_path_buf());
+    let darwin_code_home = find_darwin_code_home().context("failed to resolve DARWIN_CODE_HOME")?;
+    let manager = PluginsManager::new(darwin_code_home.to_path_buf());
     let outcome = manager
         .upgrade_configured_marketplaces_for_config(&config, marketplace_name.as_deref())
         .map_err(anyhow::Error::msg)?;

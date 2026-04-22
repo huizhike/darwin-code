@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use codex_app_server_protocol::McpServerOauthLoginCompletedNotification;
-use codex_app_server_protocol::ServerNotification;
-use codex_config::types::McpServerConfig;
-use codex_core::config::Config;
-use codex_mcp::McpOAuthLoginSupport;
-use codex_mcp::oauth_login_support;
-use codex_mcp::resolve_oauth_scopes;
-use codex_mcp::should_retry_without_scopes;
-use codex_rmcp_client::perform_oauth_login_silent;
+use darwin_code_app_server_protocol::McpServerOauthLoginCompletedNotification;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_core::config::Config;
+use darwin_code_mcp::McpOAuthLoginSupport;
+use darwin_code_mcp::oauth_login_support;
+use darwin_code_mcp::resolve_oauth_scopes;
+use darwin_code_mcp::should_retry_without_scopes;
+use darwin_code_rmcp_client::perform_oauth_login_silent;
 use tracing::warn;
 
-use super::CodexMessageProcessor;
+use super::DarwinCodeMessageProcessor;
 
-impl CodexMessageProcessor {
+impl DarwinCodeMessageProcessor {
     pub(super) async fn start_plugin_mcp_oauth_logins(
         &self,
         config: &Config,

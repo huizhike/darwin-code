@@ -10,10 +10,10 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ListMcpServerStatusParams;
+use darwin_code_app_server_protocol::ListMcpServerStatusResponse;
+use darwin_code_app_server_protocol::McpServerStatusDetail;
+use darwin_code_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::JsonObject;
@@ -41,9 +41,9 @@ const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(10);
 async fn mcp_server_status_list_returns_raw_server_and_tool_names() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server("look-up.raw").await?;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -52,7 +52,7 @@ async fn mcp_server_status_list_returns_raw_server_and_tool_names() -> Result<()
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -62,7 +62,7 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -212,9 +212,9 @@ impl ServerHandler for SlowInventoryServer {
 async fn mcp_server_status_list_tools_and_auth_only_skips_slow_inventory_calls() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
     let (mcp_server_url, mcp_server_handle) = start_slow_inventory_mcp_server("lookup").await?;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -223,7 +223,7 @@ async fn mcp_server_status_list_tools_and_auth_only_skips_slow_inventory_calls()
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -233,7 +233,7 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -273,9 +273,9 @@ async fn mcp_server_status_list_keeps_tools_for_sanitized_name_collisions() -> R
     let (dash_server_url, dash_server_handle) = start_mcp_server("dash_lookup").await?;
     let (underscore_server_url, underscore_server_handle) =
         start_mcp_server("underscore_lookup").await?;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -284,7 +284,7 @@ async fn mcp_server_status_list_keeps_tools_for_sanitized_name_collisions() -> R
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -297,7 +297,7 @@ url = "{underscore_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

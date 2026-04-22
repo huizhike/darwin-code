@@ -18,7 +18,7 @@ mod review_session;
 
 use std::time::Duration;
 
-use codex_protocol::protocol::GuardianAssessmentDecisionSource;
+use darwin_code_protocol::protocol::GuardianAssessmentDecisionSource;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -34,7 +34,7 @@ pub(crate) use review::review_approval_request_with_cancel;
 pub(crate) use review::routes_approval_to_guardian;
 pub(crate) use review_session::GuardianReviewSessionManager;
 
-const GUARDIAN_PREFERRED_MODEL: &str = "codex-auto-review";
+const GUARDIAN_PREFERRED_MODEL: &str = "darwin-code-auto-review";
 pub(crate) const GUARDIAN_REVIEW_TIMEOUT: Duration = Duration::from_secs(90);
 pub(crate) const GUARDIAN_REVIEWER_NAME: &str = "guardian";
 const GUARDIAN_MAX_MESSAGE_TRANSCRIPT_TOKENS: usize = 10_000;
@@ -56,8 +56,8 @@ pub(crate) enum GuardianAssessmentOutcome {
 /// Structured output contract that the guardian reviewer must satisfy.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct GuardianAssessment {
-    pub(crate) risk_level: codex_protocol::protocol::GuardianRiskLevel,
-    pub(crate) user_authorization: codex_protocol::protocol::GuardianUserAuthorization,
+    pub(crate) risk_level: darwin_code_protocol::protocol::GuardianRiskLevel,
+    pub(crate) user_authorization: darwin_code_protocol::protocol::GuardianUserAuthorization,
     pub(crate) outcome: GuardianAssessmentOutcome,
     pub(crate) rationale: String,
 }

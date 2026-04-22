@@ -1,14 +1,14 @@
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::ConnectionRequestId;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnError;
-use codex_core::CodexThread;
-use codex_core::ThreadConfigSnapshot;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadHistoryBuilder;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnError;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::ThreadConfigSnapshot;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ use tracing::error;
 
 type PendingInterruptQueue = Vec<(
     ConnectionRequestId,
-    crate::codex_message_processor::ApiVersion,
+    crate::darwin_code_message_processor::ApiVersion,
 )>;
 
 pub(crate) struct PendingThreadResumeRequest {
@@ -30,7 +30,7 @@ pub(crate) struct PendingThreadResumeRequest {
     pub(crate) rollout_path: PathBuf,
     pub(crate) config_snapshot: ThreadConfigSnapshot,
     pub(crate) instruction_sources: Vec<AbsolutePathBuf>,
-    pub(crate) thread_summary: codex_app_server_protocol::Thread,
+    pub(crate) thread_summary: darwin_code_app_server_protocol::Thread,
 }
 
 // ThreadListenerCommand is used to perform operations in the context of the thread listener, for serialization purposes.
@@ -64,11 +64,11 @@ pub(crate) struct ThreadState {
     pub(crate) listener_generation: u64,
     listener_command_tx: Option<mpsc::UnboundedSender<ThreadListenerCommand>>,
     current_turn_history: ThreadHistoryBuilder,
-    listener_thread: Option<Weak<CodexThread>>,
+    listener_thread: Option<Weak<DarwinCodeThread>>,
 }
 
 impl ThreadState {
-    pub(crate) fn listener_matches(&self, conversation: &Arc<CodexThread>) -> bool {
+    pub(crate) fn listener_matches(&self, conversation: &Arc<DarwinCodeThread>) -> bool {
         self.listener_thread
             .as_ref()
             .and_then(Weak::upgrade)
@@ -78,7 +78,7 @@ impl ThreadState {
     pub(crate) fn set_listener(
         &mut self,
         cancel_tx: oneshot::Sender<()>,
-        conversation: &Arc<CodexThread>,
+        conversation: &Arc<DarwinCodeThread>,
     ) -> (mpsc::UnboundedReceiver<ThreadListenerCommand>, u64) {
         if let Some(previous) = self.cancel_tx.replace(cancel_tx) {
             let _ = previous.send(());

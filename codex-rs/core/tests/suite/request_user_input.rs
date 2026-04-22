@@ -2,17 +2,17 @@
 
 use std::collections::HashMap;
 
-use codex_features::Feature;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_protocol::user_input::UserInput;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -22,8 +22,8 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
@@ -78,10 +78,10 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
 
     let server = start_mock_server().await;
 
-    let builder = test_codex();
+    let builder = test_darwin_code();
     #[allow(clippy::expect_used)]
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -129,7 +129,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
 
     let session_model = session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please confirm".into(),
@@ -156,7 +156,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
         })
         .await?;
 
-    let request = wait_for_event_match(&codex, |event| match event {
+    let request = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::RequestUserInput(request) => Some(request.clone()),
         _ => None,
     })
@@ -173,14 +173,14 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
         },
     );
     let response = RequestUserInputResponse { answers };
-    codex
+    darwin-code
         .submit(Op::UserInputAnswer {
             id: request.turn_id.clone(),
             response,
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let req = second_mock.single_request();
     let output_text = call_output(&req, call_id);
@@ -205,9 +205,9 @@ where
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex();
-    let TestCodex {
-        codex,
+    let mut builder = test_darwin_code();
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -247,7 +247,7 @@ where
     let session_model = session_configured.model.clone();
     let collaboration_mode = build_mode(session_model.clone());
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please confirm".into(),
@@ -267,7 +267,7 @@ where
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let req = second_mock.single_request();
     let (output, success) = call_output_content_and_success(&req, &call_id);

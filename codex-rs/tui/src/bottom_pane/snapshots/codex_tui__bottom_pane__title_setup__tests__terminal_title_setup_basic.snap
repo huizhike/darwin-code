@@ -12,7 +12,7 @@ expression: "render_lines(&view, 84)"
   [x] spinner        Animated task spinner (omitted while idle or when animations…  
   [x] status         Compact session status text (Ready, Working, Thinking)         
   [x] thread         Current thread title (omitted until available)                 
-  [ ] app-name       Codex app name                                                 
+  [ ] app-name       Darwin-Code app name                                                 
   [ ] git-branch     Current Git branch (omitted when unavailable)                  
   [ ] model          Current model name                                             
   [ ] task-progress  Latest task progress from update_plan (omitted until availab…  

@@ -1,18 +1,18 @@
-//! Registry of model providers supported by Codex.
+//! Registry of model providers supported by Darwin-Code.
 //!
 //! Providers can be defined in two places:
-//!   1. Built-in defaults compiled into the binary so Codex works out-of-the-box.
-//!   2. User-defined entries inside `~/.codex/config.toml` under the `model_providers`
+//!   1. Built-in defaults compiled into the binary so Darwin-Code works out-of-the-box.
+//!   2. User-defined entries inside `~/.darwin-code/config.toml` under the `model_providers`
 //!      key. These override or extend the defaults at runtime.
 
-use codex_api::Provider as ApiProvider;
-use codex_api::RetryConfig as ApiRetryConfig;
-use codex_api::is_azure_responses_provider;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::EnvVarError;
-use codex_protocol::error::Result as CodexResult;
+use darwin_code_api::Provider as ApiProvider;
+use darwin_code_api::RetryConfig as ApiRetryConfig;
+use darwin_code_api::is_azure_responses_provider;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_protocol::config_types::ModelProviderAuthInfo;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::EnvVarError;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;
@@ -34,9 +34,9 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
 pub const OPENAI_PROVIDER_ID: &str = "openai";
-const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is no longer supported.\nHow to fix: set `wire_api = \"responses\"` in your provider config.\nMore info: https://github.com/openai/codex/discussions/7782";
+const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is no longer supported.\nHow to fix: set `wire_api = \"responses\"` in your provider config.\nMore info: https://github.com/openai/darwin-code/discussions/7782";
 pub const LEGACY_OLLAMA_CHAT_PROVIDER_ID: &str = "ollama-chat";
-pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer supported.\nHow to fix: replace `ollama-chat` with `ollama` in `model_provider`, `oss_provider`, or `--local-provider`.\nMore info: https://github.com/openai/codex/discussions/7782";
+pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer supported.\nHow to fix: replace `ollama-chat` with `ollama` in `model_provider`, `oss_provider`, or `--local-provider`.\nMore info: https://github.com/openai/darwin-code/discussions/7782";
 
 /// Wire protocol that the provider speaks.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
@@ -155,7 +155,7 @@ impl ModelProviderInfo {
         }
     }
 
-    fn build_header_map(&self) -> CodexResult<HeaderMap> {
+    fn build_header_map(&self) -> DarwinCodeResult<HeaderMap> {
         let capacity = self.http_headers.as_ref().map_or(0, HashMap::len)
             + self.env_http_headers.as_ref().map_or(0, HashMap::len);
         let mut headers = HeaderMap::with_capacity(capacity);
@@ -182,7 +182,7 @@ impl ModelProviderInfo {
         Ok(headers)
     }
 
-    pub fn to_api_provider(&self, auth_mode: Option<AuthMode>) -> CodexResult<ApiProvider> {
+    pub fn to_api_provider(&self, auth_mode: Option<AuthMode>) -> DarwinCodeResult<ApiProvider> {
         let default_base_url = if matches!(auth_mode, Some(AuthMode::Chatgpt)) {
             "https://chatgpt.com/backend-api/codex"
         } else {
@@ -215,14 +215,14 @@ impl ModelProviderInfo {
     /// If `env_key` is Some, returns the API key for this provider if present
     /// (and non-empty) in the environment. If `env_key` is required but
     /// cannot be found, returns an error.
-    pub fn api_key(&self) -> CodexResult<Option<String>> {
+    pub fn api_key(&self) -> DarwinCodeResult<Option<String>> {
         match &self.env_key {
             Some(env_key) => {
                 let api_key = std::env::var(env_key)
                     .ok()
                     .filter(|v| !v.trim().is_empty())
                     .ok_or_else(|| {
-                        CodexErr::EnvVar(EnvVarError {
+                        DarwinCodeErr::EnvVar(EnvVarError {
                             var: env_key.clone(),
                             instructions: self.env_key_instructions.clone(),
                         })
@@ -324,7 +324,7 @@ pub fn built_in_model_providers(
     let openai_provider = P::create_openai_provider(openai_base_url);
 
     // We do not want to be in the business of adjucating which third-party
-    // providers are bundled with Codex CLI, so we only include the OpenAI and
+    // providers are bundled with Darwin-Code CLI, so we only include the OpenAI and
     // open source ("oss") providers by default. Users are encouraged to add to
     // `model_providers` in config.toml to add their own providers.
     [
@@ -344,22 +344,22 @@ pub fn built_in_model_providers(
 }
 
 pub fn create_oss_provider(default_provider_port: u16, wire_api: WireApi) -> ModelProviderInfo {
-    // These CODEX_OSS_ environment variables are experimental: we may
+    // These DARWIN_CODE_OSS_ environment variables are experimental: we may
     // switch to reading values from config.toml instead.
-    let default_codex_oss_base_url = format!(
-        "http://localhost:{codex_oss_port}/v1",
-        codex_oss_port = std::env::var("CODEX_OSS_PORT")
+    let default_darwin_code_oss_base_url = format!(
+        "http://localhost:{darwin_code_oss_port}/v1",
+        darwin_code_oss_port = std::env::var("DARWIN_CODE_OSS_PORT")
             .ok()
             .filter(|value| !value.trim().is_empty())
             .and_then(|value| value.parse::<u16>().ok())
             .unwrap_or(default_provider_port)
     );
 
-    let codex_oss_base_url = std::env::var("CODEX_OSS_BASE_URL")
+    let darwin_code_oss_base_url = std::env::var("DARWIN_CODE_OSS_BASE_URL")
         .ok()
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or(default_codex_oss_base_url);
-    create_oss_provider_with_base_url(&codex_oss_base_url, wire_api)
+        .unwrap_or(default_darwin_code_oss_base_url);
+    create_oss_provider_with_base_url(&darwin_code_oss_base_url, wire_api)
 }
 
 pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> ModelProviderInfo {

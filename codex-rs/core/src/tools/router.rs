@@ -9,18 +9,18 @@ use crate::tools::registry::AnyToolResult;
 use crate::tools::registry::ToolArgumentDiffConsumer;
 use crate::tools::registry::ToolRegistry;
 use crate::tools::spec::build_specs_with_discoverable_tools;
-use codex_mcp::ToolInfo;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::SearchToolCallParams;
-use codex_protocol::models::ShellToolCallParams;
-use codex_tools::ConfiguredToolSpec;
-use codex_tools::DiscoverableTool;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::ToolsConfig;
+use darwin_code_mcp::ToolInfo;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::LocalShellAction;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::models::SearchToolCallParams;
+use darwin_code_protocol::models::ShellToolCallParams;
+use darwin_code_tools::ConfiguredToolSpec;
+use darwin_code_tools::DiscoverableTool;
+use darwin_code_tools::ResponsesApiNamespaceTool;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolSpec;
+use darwin_code_tools::ToolsConfig;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -74,7 +74,7 @@ impl ToolRouter {
             specs
                 .iter()
                 .filter_map(|configured_tool| {
-                    if !codex_code_mode::is_code_mode_nested_tool(configured_tool.name()) {
+                    if !darwin_code_code_mode::is_code_mode_nested_tool(configured_tool.name()) {
                         Some(configured_tool.spec.clone())
                     } else {
                         None
@@ -284,7 +284,7 @@ impl ToolRouter {
             && !direct_js_repl_call
         {
             return Err(FunctionCallError::RespondToModel(
-                "direct tool calls are disabled; use js_repl and codex.tool(...) instead"
+                "direct tool calls are disabled; use js_repl and darwin-code.tool(...) instead"
                     .to_string(),
             ));
         }

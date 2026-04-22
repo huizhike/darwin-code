@@ -5,16 +5,16 @@ pub mod manager;
 pub mod model_info;
 pub mod model_presets;
 
-pub use codex_app_server_protocol::AuthMode;
-pub use codex_login::AuthManager;
-pub use codex_login::CodexAuth;
-pub use codex_model_provider_info::ModelProviderInfo;
-pub use codex_model_provider_info::WireApi;
+pub use darwin_code_app_server_protocol::AuthMode;
+pub use darwin_code_login::AuthManager;
+pub use darwin_code_login::DarwinCodeAuth;
+pub use darwin_code_model_provider_info::ModelProviderInfo;
+pub use darwin_code_model_provider_info::WireApi;
 pub use config::ModelsManagerConfig;
 
-/// Load the bundled model catalog shipped with `codex-models-manager`.
+/// Load the bundled model catalog shipped with `darwin-code-models-manager`.
 pub fn bundled_models_response()
--> std::result::Result<codex_protocol::openai_models::ModelsResponse, serde_json::Error> {
+-> std::result::Result<darwin_code_protocol::openai_models::ModelsResponse, serde_json::Error> {
     serde_json::from_str(include_str!("../models.json"))
 }
 

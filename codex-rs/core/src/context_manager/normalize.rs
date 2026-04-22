@@ -1,8 +1,8 @@
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::InputModality;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::InputModality;
 use std::collections::HashSet;
 
 use crate::util::error_or_panic;

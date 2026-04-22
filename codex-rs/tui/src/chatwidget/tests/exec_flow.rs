@@ -22,7 +22,7 @@ async fn exec_approval_emits_proposed_command_and_decision_history() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-short".into(),
         msg: EventMsg::ExecApprovalRequest(ev),
     });
@@ -89,7 +89,7 @@ fn app_server_exec_approval_request_splits_shell_wrapped_command() {
 async fn exec_approval_uses_approval_id_when_present() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-short".into(),
         msg: EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
             call_id: "call-parent".into(),
@@ -119,7 +119,7 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, codex_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
             found = true;
             break;
         }
@@ -148,7 +148,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-multi".into(),
         msg: EventMsg::ExecApprovalRequest(ev_multi),
     });
@@ -203,7 +203,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-long".into(),
         msg: EventMsg::ExecApprovalRequest(ev_long),
     });
@@ -356,9 +356,9 @@ async fn exec_end_without_begin_uses_event_command() {
         "-lc".to_string(),
         "echo orphaned".to_string(),
     ];
-    let parsed_cmd = codex_shell_command::parse_command::parse_command(&command);
+    let parsed_cmd = darwin_code_shell_command::parse_command::parse_command(&command);
     let cwd = AbsolutePathBuf::current_dir().expect("current dir");
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "call-orphan".to_string(),
         msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
             call_id: "call-orphan".to_string(),
@@ -614,7 +614,7 @@ async fn unified_exec_interaction_after_task_complete_is_suppressed() {
     chat.on_task_started();
     chat.on_task_complete(/*last_agent_message*/ None, /*from_replay*/ false);
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "call-1".to_string(),
         msg: EventMsg::TerminalInteraction(TerminalInteractionEvent {
             call_id: "call-1".to_string(),
@@ -633,7 +633,7 @@ async fn unified_exec_interaction_after_task_complete_is_suppressed() {
 #[tokio::test]
 async fn unified_exec_wait_after_final_agent_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -643,11 +643,11 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
         }),
     });
 
-    begin_unified_exec_startup(&mut chat, "call-wait", "proc-1", "cargo test -p codex-core");
+    begin_unified_exec_startup(&mut chat, "call-wait", "proc-1", "cargo test -p darwin-code-core");
     terminal_interaction(&mut chat, "call-wait-stdin", "proc-1", "");
 
     complete_assistant_message(&mut chat, "msg-1", "Final response.", /*phase*/ None);
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -668,7 +668,7 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
 #[tokio::test]
 async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -682,17 +682,17 @@ async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
         &mut chat,
         "call-wait-stream",
         "proc-1",
-        "cargo test -p codex-core",
+        "cargo test -p darwin-code-core",
     );
     terminal_interaction(&mut chat, "call-wait-stream-stdin", "proc-1", "");
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
             delta: "Streaming response.".into(),
         }),
     });
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -759,7 +759,7 @@ async fn unified_exec_waiting_multiple_empty_snapshots() {
     assert_eq!(status.header(), "Waiting for background terminal");
     assert_eq!(status.details(), Some("just fix"));
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-wait-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -785,7 +785,7 @@ async fn unified_exec_wait_status_renders_command_in_single_details_row_snapshot
         &mut chat,
         "call-wait-ui",
         "proc-ui",
-        "cargo test -p codex-core -- --exact some::very::long::test::name",
+        "cargo test -p darwin-code-core -- --exact some::very::long::test::name",
     );
 
     terminal_interaction(&mut chat, "call-wait-ui-stdin", "proc-ui", "");
@@ -839,7 +839,7 @@ async fn unified_exec_non_empty_then_empty_snapshots() {
         .collect::<String>();
     assert_chatwidget_snapshot!("unified_exec_non_empty_then_empty_active", active_combined);
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-wait-3".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -870,7 +870,7 @@ async fn view_image_tool_call_adds_history_cell() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let image_path = chat.config.cwd.join("example.png");
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-image".into(),
         msg: EventMsg::ViewImageToolCall(ViewImageToolCallEvent {
             call_id: "call-image".into(),
@@ -888,7 +888,7 @@ async fn view_image_tool_call_adds_history_cell() {
 async fn image_generation_call_adds_history_cell() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-image-generation".into(),
         msg: EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
             call_id: "call-image-generation".into(),
@@ -991,7 +991,7 @@ async fn bang_shell_command_submits_run_user_shell_command_in_app_server_tui() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -1009,7 +1009,7 @@ async fn bang_shell_command_submits_run_user_shell_command_in_app_server_tui() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -1049,7 +1049,7 @@ async fn disabled_slash_command_while_task_running_snapshot() {
 //
 // Snapshot test: command approval modal
 //
-// Synthesizes a Codex ExecApprovalRequest event to trigger the approval modal
+// Synthesizes a Darwin-Code ExecApprovalRequest event to trigger the approval modal
 // and snapshots the visual output using the ratatui TestBackend.
 #[tokio::test]
 async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
@@ -1081,7 +1081,7 @@ async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-approve".into(),
         msg: EventMsg::ExecApprovalRequest(ev),
     });
@@ -1142,7 +1142,7 @@ async fn approval_modal_exec_without_reason_snapshot() -> anyhow::Result<()> {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-approve-noreason".into(),
         msg: EventMsg::ExecApprovalRequest(ev),
     });
@@ -1190,7 +1190,7 @@ async fn approval_modal_exec_multiline_prefix_hides_execpolicy_option_snapshot()
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-approve-multiline-trunc".into(),
         msg: EventMsg::ExecApprovalRequest(ev),
     });
@@ -1237,7 +1237,7 @@ async fn approval_modal_patch_snapshot() -> anyhow::Result<()> {
         reason: Some("The model wants to apply changes".into()),
         grant_root: Some(PathBuf::from("/tmp")),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-approve-patch".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ev),
     });
@@ -1266,9 +1266,9 @@ async fn interrupt_preserves_unified_exec_processes() {
     begin_unified_exec_startup(&mut chat, "call-2", "process-2", "sleep 6");
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(codex_protocol::protocol::TurnAbortedEvent {
+        msg: EventMsg::TurnAborted(darwin_code_protocol::protocol::TurnAbortedEvent {
             turn_id: Some("turn-1".to_string()),
             reason: TurnAbortReason::Interrupted,
             completed_at: None,
@@ -1301,7 +1301,7 @@ async fn interrupt_preserves_unified_exec_processes() {
 async fn interrupt_preserves_unified_exec_wait_streak_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -1314,9 +1314,9 @@ async fn interrupt_preserves_unified_exec_wait_streak_snapshot() {
     let begin = begin_unified_exec_startup(&mut chat, "call-1", "process-1", "just fix");
     terminal_interaction(&mut chat, "call-1a", "process-1", "");
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(codex_protocol::protocol::TurnAbortedEvent {
+        msg: EventMsg::TurnAborted(darwin_code_protocol::protocol::TurnAbortedEvent {
             turn_id: Some("turn-1".to_string()),
             reason: TurnAbortReason::Interrupted,
             completed_at: None,
@@ -1343,7 +1343,7 @@ async fn turn_complete_keeps_unified_exec_processes() {
     begin_unified_exec_startup(&mut chat, "call-2", "process-2", "sleep 6");
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnComplete(TurnCompleteEvent {
             turn_id: "turn-1".to_string(),
@@ -1393,7 +1393,7 @@ async fn apply_patch_events_emit_history_cells() {
         reason: None,
         grant_root: None,
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ev),
     });
@@ -1433,7 +1433,7 @@ async fn apply_patch_events_emit_history_cells() {
         auto_approved: true,
         changes: changes2,
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::PatchApplyBegin(begin),
     });
@@ -1462,7 +1462,7 @@ async fn apply_patch_events_emit_history_cells() {
         changes: end_changes,
         status: CorePatchApplyStatus::Completed,
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::PatchApplyEnd(end),
     });
@@ -1484,7 +1484,7 @@ async fn apply_patch_manual_approval_adjusts_header() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
@@ -1503,7 +1503,7 @@ async fn apply_patch_manual_approval_adjusts_header() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
             call_id: "c1".into(),
@@ -1533,7 +1533,7 @@ async fn apply_patch_manual_flow_snapshot() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
@@ -1556,7 +1556,7 @@ async fn apply_patch_manual_flow_snapshot() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "s1".into(),
         msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
             call_id: "c1".into(),
@@ -1593,7 +1593,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
         reason: None,
         grant_root: None,
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-123".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ev),
     });
@@ -1610,7 +1610,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
         } = app_ev
         {
             assert_eq!(id, "call-999");
-            assert_matches!(decision, codex_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
             found = true;
             break;
         }
@@ -1628,7 +1628,7 @@ async fn apply_patch_full_flow_integration_like() {
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-xyz".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
@@ -1650,15 +1650,15 @@ async fn apply_patch_full_flow_integration_like() {
     }
     let op = maybe_op.expect("expected thread-scoped op after key press");
 
-    // 3) App forwards to widget.submit_op, which pushes onto codex_op_tx
+    // 3) App forwards to widget.submit_op, which pushes onto darwin_code_op_tx
     chat.submit_op(op);
     let forwarded = op_rx
         .try_recv()
-        .expect("expected op forwarded to codex channel");
+        .expect("expected op forwarded to darwin-code channel");
     match forwarded {
         Op::PatchApproval { id, decision } => {
             assert_eq!(id, "call-1");
-            assert_matches!(decision, codex_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
         }
         other => panic!("unexpected op forwarded: {other:?}"),
     }
@@ -1669,7 +1669,7 @@ async fn apply_patch_full_flow_integration_like() {
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-xyz".into(),
         msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
             call_id: "call-1".into(),
@@ -1683,7 +1683,7 @@ async fn apply_patch_full_flow_integration_like() {
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-xyz".into(),
         msg: EventMsg::PatchApplyEnd(PatchApplyEndEvent {
             call_id: "call-1".into(),
@@ -1712,7 +1712,7 @@ async fn apply_patch_untrusted_shows_approval_modal() -> anyhow::Result<()> {
         PathBuf::from("a.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-1".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
@@ -1766,7 +1766,7 @@ async fn apply_patch_request_shows_diff_summary() -> anyhow::Result<()> {
             content: "line one\nline two\n".into(),
         },
     );
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-apply".into(),
         msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id: "call-apply".into(),

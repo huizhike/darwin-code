@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use codex_app_server_protocol::Model;
-use codex_app_server_protocol::ModelUpgradeInfo;
-use codex_app_server_protocol::ReasoningEffortOption;
-use codex_core::ThreadManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_app_server_protocol::Model;
+use darwin_code_app_server_protocol::ModelUpgradeInfo;
+use darwin_code_app_server_protocol::ReasoningEffortOption;
+use darwin_code_core::ThreadManager;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
 
 pub async fn supported_models(
     thread_manager: Arc<ThreadManager>,

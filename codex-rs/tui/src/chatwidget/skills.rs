@@ -15,12 +15,12 @@ use crate::legacy_core::skills::model::SkillMetadata;
 use crate::legacy_core::skills::model::SkillToolDependency;
 use crate::skills_helpers::skill_description;
 use crate::skills_helpers::skill_display_name;
-use codex_app_server_protocol::AppInfo;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::ListSkillsResponseEvent;
-use codex_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
-use codex_protocol::protocol::SkillsListEntry;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_protocol::protocol::ListSkillsResponseEvent;
+use darwin_code_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
+use darwin_code_protocol::protocol::SkillsListEntry;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 impl ChatWidget {
     pub(crate) fn open_skills_list(&mut self) {

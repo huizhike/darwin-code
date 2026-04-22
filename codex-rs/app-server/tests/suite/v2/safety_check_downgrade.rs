@@ -1,19 +1,19 @@
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ModelRerouteReason;
-use codex_app_server_protocol::ModelReroutedNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::ModelRerouteReason;
+use darwin_code_app_server_protocol::ModelReroutedNotification;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -21,8 +21,8 @@ use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const REQUESTED_MODEL: &str = "gpt-5.1-codex-max";
-const SERVER_MODEL: &str = "gpt-5.2-codex";
+const REQUESTED_MODEL: &str = "gpt-5.1-darwin-code-max";
+const SERVER_MODEL: &str = "gpt-5.2-darwin-code";
 
 #[tokio::test]
 async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> Result<()> {
@@ -37,10 +37,10 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
     let response = responses::sse_response(body).insert_header("OpenAI-Model", SERVER_MODEL);
     let _response_mock = responses::mount_response_once(&server, response).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -110,10 +110,10 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
     let response = responses::sse_response(body).insert_header("OpenAI-Model", REQUESTED_MODEL);
     let _response_mock = responses::mount_response_once(&server, response).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -218,8 +218,8 @@ fn is_warning_user_message_item(item: &ThreadItem) -> bool {
     warning_text_from_item(item).is_some()
 }
 
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

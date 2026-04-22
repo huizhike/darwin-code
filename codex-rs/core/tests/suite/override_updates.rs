@@ -1,21 +1,21 @@
 use anyhow::Result;
-use codex_core::config::Constrained;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
-use codex_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
+use darwin_code_core::config::Constrained;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
+use darwin_code_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -107,12 +107,12 @@ async fn override_turn_context_without_user_turn_does_not_record_permissions_upd
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -128,10 +128,10 @@ async fn override_turn_context_without_user_turn_does_not_record_permissions_upd
         })
         .await?;
 
-    test.codex.submit(Op::Shutdown).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    test.darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    let rollout_path = test.codex.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
     let developer_texts = rollout_developer_texts(&rollout_text);
     let approval_texts: Vec<&String> = developer_texts
@@ -151,10 +151,10 @@ async fn override_turn_context_without_user_turn_does_not_record_environment_upd
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let test = test_codex().build(&server).await?;
+    let test = test_darwin_code().build(&server).await?;
     let new_cwd = TempDir::new()?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: Some(new_cwd.path().to_path_buf()),
             approval_policy: None,
@@ -170,10 +170,10 @@ async fn override_turn_context_without_user_turn_does_not_record_environment_upd
         })
         .await?;
 
-    test.codex.submit(Op::Shutdown).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    test.darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    let rollout_path = test.codex.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
     let env_texts = rollout_environment_texts(&rollout_text);
     assert!(
@@ -189,11 +189,11 @@ async fn override_turn_context_without_user_turn_does_not_record_collaboration_u
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let test = test_codex().build(&server).await?;
+    let test = test_darwin_code().build(&server).await?;
     let collab_text = "override collaboration instructions";
     let collaboration_mode = collab_mode_with_instructions(Some(collab_text));
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -209,10 +209,10 @@ async fn override_turn_context_without_user_turn_does_not_record_collaboration_u
         })
         .await?;
 
-    test.codex.submit(Op::Shutdown).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    test.darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    let rollout_path = test.codex.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
     let developer_texts = rollout_developer_texts(&rollout_text);
     let collab_text = collab_xml(collab_text);

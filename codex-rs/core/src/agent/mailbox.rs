@@ -1,4 +1,4 @@
-use codex_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::InterAgentCommunication;
 use std::collections::VecDeque;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use tokio::sync::watch;
 
 #[cfg(test)]
-use codex_protocol::AgentPath;
+use darwin_code_protocol::AgentPath;
 
 pub(crate) struct Mailbox {
     tx: mpsc::UnboundedSender<InterAgentCommunication>,

@@ -5,7 +5,7 @@
 
 use super::*;
 use crate::tools::context::FunctionToolOutput;
-use codex_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::InterAgentCommunication;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MessageDeliveryMode {

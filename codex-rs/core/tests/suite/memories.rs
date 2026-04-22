@@ -1,11 +1,11 @@
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
-use codex_features::Feature;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
+use darwin_code_features::Feature;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SessionSource;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -16,8 +16,8 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -53,7 +53,7 @@ async fn memories_startup_phase2_tracks_added_and_removed_inputs_across_runs() -
     )
     .await;
 
-    let first = build_test_codex(&server, home.clone()).await?;
+    let first = build_test_darwin_code(&server, home.clone()).await?;
     let first_request = wait_for_single_request(&first_phase2).await;
     let first_prompt = phase2_prompt_text(&first_request);
     assert!(
@@ -87,7 +87,7 @@ async fn memories_startup_phase2_tracks_added_and_removed_inputs_across_runs() -
     assert!(rollout_summaries[0].contains("rollout summary A"));
     assert!(rollout_summaries[0].contains("git_branch: branch-rollout-a"));
 
-    shutdown_test_codex(&first).await?;
+    shutdown_test_darwin_code(&first).await?;
 
     let thread_b = seed_stage1_output(
         db.as_ref(),
@@ -109,7 +109,7 @@ async fn memories_startup_phase2_tracks_added_and_removed_inputs_across_runs() -
     )
     .await;
 
-    let second = build_test_codex(&server, home.clone()).await?;
+    let second = build_test_darwin_code(&server, home.clone()).await?;
     let second_request = wait_for_single_request(&second_phase2).await;
     let second_prompt = phase2_prompt_text(&second_request);
     assert!(
@@ -155,7 +155,7 @@ async fn memories_startup_phase2_tracks_added_and_removed_inputs_across_runs() -
             .any(|summary| summary.contains("rollout summary A"))
     );
 
-    shutdown_test_codex(&second).await?;
+    shutdown_test_darwin_code(&second).await?;
     Ok(())
 }
 
@@ -205,7 +205,7 @@ async fn memories_startup_phase2_prunes_old_extension_resources_and_reports_them
     )
     .await;
 
-    let codex = build_test_codex(&server, home.clone()).await?;
+    let darwin-code = build_test_darwin_code(&server, home.clone()).await?;
     let request = wait_for_single_request(&phase2).await;
     let prompt = phase2_prompt_text(&request);
 
@@ -237,7 +237,7 @@ async fn memories_startup_phase2_prunes_old_extension_resources_and_reports_them
         "recent extension resource should be retained"
     );
 
-    shutdown_test_codex(&codex).await?;
+    shutdown_test_darwin_code(&darwin-code).await?;
     Ok(())
 }
 
@@ -276,7 +276,7 @@ async fn memories_startup_phase2_processes_old_extension_resources_without_stage
     )
     .await;
 
-    let codex = build_test_codex(&server, home.clone()).await?;
+    let darwin-code = build_test_darwin_code(&server, home.clone()).await?;
     let request = wait_for_single_request(&phase2).await;
     let prompt = phase2_prompt_text(&request);
 
@@ -294,7 +294,7 @@ async fn memories_startup_phase2_processes_old_extension_resources_without_stage
     );
     wait_for_file_removed(&old_file).await?;
 
-    shutdown_test_codex(&codex).await?;
+    shutdown_test_darwin_code(&darwin-code).await?;
     Ok(())
 }
 
@@ -304,7 +304,7 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     let home = Arc::new(TempDir::new()?);
     let db = init_state_db(&home).await?;
 
-    let mut initial_builder = test_codex().with_home(home.clone()).with_config(|config| {
+    let mut initial_builder = test_darwin_code().with_home(home.clone()).with_config(|config| {
         config
             .features
             .enable(Feature::Sqlite)
@@ -357,7 +357,7 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     )
     .await?;
 
-    shutdown_test_codex(&initial).await?;
+    shutdown_test_darwin_code(&initial).await?;
 
     let responses = mount_sse_sequence(
         &server,
@@ -376,7 +376,7 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     )
     .await;
 
-    let mut resumed_builder = test_codex().with_home(home.clone()).with_config(|config| {
+    let mut resumed_builder = test_darwin_code().with_home(home.clone()).with_config(|config| {
         config
             .features
             .enable(Feature::Sqlite)
@@ -460,13 +460,13 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     assert_eq!(selection.removed.len(), 1);
     assert_eq!(selection.removed[0].thread_id, thread_id);
 
-    shutdown_test_codex(&resumed).await?;
+    shutdown_test_darwin_code(&resumed).await?;
     Ok(())
 }
 
-async fn build_test_codex(server: &wiremock::MockServer, home: Arc<TempDir>) -> Result<TestCodex> {
+async fn build_test_darwin_code(server: &wiremock::MockServer, home: Arc<TempDir>) -> Result<TestDarwinCode> {
     #[allow(clippy::expect_used)]
-    let mut builder = test_codex().with_home(home).with_config(|config| {
+    let mut builder = test_darwin_code().with_home(home).with_config(|config| {
         config
             .features
             .enable(Feature::Sqlite)
@@ -480,29 +480,29 @@ async fn build_test_codex(server: &wiremock::MockServer, home: Arc<TempDir>) -> 
     builder.build(server).await
 }
 
-async fn init_state_db(home: &Arc<TempDir>) -> Result<Arc<codex_state::StateRuntime>> {
+async fn init_state_db(home: &Arc<TempDir>) -> Result<Arc<darwin_code_state::StateRuntime>> {
     let db =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+        darwin_code_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
 
 async fn seed_stage1_output(
-    db: &codex_state::StateRuntime,
-    codex_home: &Path,
+    db: &darwin_code_state::StateRuntime,
+    darwin_code_home: &Path,
     updated_at: chrono::DateTime<Utc>,
     raw_memory: &str,
     rollout_summary: &str,
     rollout_slug: &str,
 ) -> Result<ThreadId> {
     let thread_id = ThreadId::new();
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = darwin_code_state::ThreadMetadataBuilder::new(
         thread_id,
-        codex_home.join(format!("rollout-{thread_id}.jsonl")),
+        darwin_code_home.join(format!("rollout-{thread_id}.jsonl")),
         updated_at,
         SessionSource::Cli,
     );
-    metadata_builder.cwd = codex_home.join(format!("workspace-{rollout_slug}"));
+    metadata_builder.cwd = darwin_code_home.join(format!("workspace-{rollout_slug}"));
     metadata_builder.model_provider = Some("test-provider".to_string());
     metadata_builder.git_branch = Some(format!("branch-{rollout_slug}"));
     let metadata = metadata_builder.build("test-provider");
@@ -565,7 +565,7 @@ fn phase2_prompt_text(request: &ResponsesRequest) -> String {
 }
 
 async fn wait_for_phase2_success(
-    db: &codex_state::StateRuntime,
+    db: &darwin_code_state::StateRuntime,
     expected_thread_id: ThreadId,
 ) -> Result<()> {
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -590,7 +590,7 @@ async fn wait_for_phase2_success(
 }
 
 async fn seed_stage1_output_for_existing_thread(
-    db: &codex_state::StateRuntime,
+    db: &darwin_code_state::StateRuntime,
     thread_id: ThreadId,
     updated_at: i64,
     raw_memory: &str,
@@ -605,7 +605,7 @@ async fn seed_stage1_output_for_existing_thread(
         )
         .await?;
     let ownership_token = match claim {
-        codex_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+        darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
         other => panic!("unexpected stage-1 claim outcome: {other:?}"),
     };
 
@@ -635,8 +635,8 @@ async fn read_rollout_summary_bodies(memory_root: &Path) -> Result<Vec<String>> 
     Ok(summaries)
 }
 
-async fn shutdown_test_codex(test: &TestCodex) -> Result<()> {
-    test.codex.submit(Op::Shutdown {}).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+async fn shutdown_test_darwin_code(test: &TestDarwinCode) -> Result<()> {
+    test.darwin-code.submit(Op::Shutdown {}).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
     Ok(())
 }

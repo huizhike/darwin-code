@@ -3,9 +3,9 @@ source: tui/src/chatwidget/tests/exec_flow.rs
 expression: normalize_snapshot_paths(rendered)
 ---
 • Waiting for background terminal (0s • esc to …
-  └ cargo test -p codex-core -- --exact…
+  └ cargo test -p darwin-code-core -- --exact…
 
 
-› Ask Codex to do anything
+› Ask Darwin-Code to do anything
 
-  gpt-5.3-codex default · /tmp/project
+  gpt-5.3-darwin-code default · /tmp/project

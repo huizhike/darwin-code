@@ -7,9 +7,9 @@ use crate::legacy_core::config::ConfigOverrides;
 use crate::legacy_core::config::edit::ConfigEdit;
 use crate::legacy_core::config::edit::ConfigEditsBuilder;
 use crate::tui;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_features::Feature;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+use darwin_code_features::Feature;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use std::collections::BTreeSet;
@@ -103,7 +103,7 @@ fn external_agent_config_migration_success_message(
     items: &[ExternalAgentConfigMigrationItem],
 ) -> String {
     if items.iter().any(|item| {
-        item.item_type == codex_app_server_protocol::ExternalAgentConfigMigrationItemType::Plugins
+        item.item_type == darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType::Plugins
     }) {
         "External config migration completed. Plugin migration is still in progress and may take a few minutes."
             .to_string()
@@ -148,7 +148,7 @@ async fn persist_external_agent_config_migration_prompt_shown(
         return Ok(());
     }
 
-    ConfigEditsBuilder::new(&config.codex_home)
+    ConfigEditsBuilder::new(&config.darwin_code_home)
         .with_edits(edits)
         .apply()
         .await
@@ -221,7 +221,7 @@ async fn persist_external_agent_config_migration_prompt_dismissal(
         return Ok(());
     }
 
-    ConfigEditsBuilder::new(&config.codex_home)
+    ConfigEditsBuilder::new(&config.darwin_code_home)
         .with_edits(edits)
         .apply()
         .await
@@ -318,7 +318,7 @@ pub(crate) async fn handle_external_agent_config_migration_prompt_if_needed(
                         let success_message =
                             external_agent_config_migration_success_message(&selected_items);
                         *config = ConfigBuilder::default()
-                            .codex_home(config.codex_home.to_path_buf())
+                            .darwin_code_home(config.darwin_code_home.to_path_buf())
                             .cli_overrides(cli_kv_overrides.to_vec())
                             .harness_overrides(harness_overrides.clone())
                             .build()
@@ -375,16 +375,16 @@ pub(crate) async fn handle_external_agent_config_migration_prompt_if_needed(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
+    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[tokio::test]
     async fn visible_external_agent_config_migration_items_omits_hidden_scopes() {
-        let codex_home = tempdir().expect("temp codex home");
+        let darwin_code_home = tempdir().expect("temp darwin-code home");
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
             .await
             .expect("config");
@@ -433,9 +433,9 @@ mod tests {
 
     #[tokio::test]
     async fn visible_external_agent_config_migration_items_omits_recently_prompted_scopes() {
-        let codex_home = tempdir().expect("temp codex home");
+        let darwin_code_home = tempdir().expect("temp darwin-code home");
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
             .await
             .expect("config");
@@ -488,9 +488,9 @@ mod tests {
 
     #[tokio::test]
     async fn external_config_migration_scope_cooldown_expires_after_five_days() {
-        let codex_home = tempdir().expect("temp codex home");
+        let darwin_code_home = tempdir().expect("temp darwin-code home");
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
             .await
             .expect("config");
@@ -549,9 +549,9 @@ mod tests {
 
     #[tokio::test]
     async fn external_agent_config_migration_prompt_requires_trust_nux_entry() {
-        let codex_home = tempdir().expect("temp codex home");
+        let darwin_code_home = tempdir().expect("temp darwin-code home");
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
             .await
             .expect("config");

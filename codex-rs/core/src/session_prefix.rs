@@ -1,4 +1,4 @@
-use codex_protocol::protocol::AgentStatus;
+use darwin_code_protocol::protocol::AgentStatus;
 
 /// Helpers for model-visible session state markers that are stored in user-role
 /// messages but are not user intent.

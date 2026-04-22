@@ -3,20 +3,20 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ExperimentalFeature;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetParams;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::ExperimentalFeatureListResponse;
-use codex_app_server_protocol::ExperimentalFeatureStage;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_core::config::ConfigBuilder;
-use codex_features::FEATURES;
-use codex_features::Stage;
+use darwin_code_app_server_protocol::ConfigReadParams;
+use darwin_code_app_server_protocol::ConfigReadResponse;
+use darwin_code_app_server_protocol::ExperimentalFeature;
+use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetParams;
+use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
+use darwin_code_app_server_protocol::ExperimentalFeatureListParams;
+use darwin_code_app_server_protocol::ExperimentalFeatureListResponse;
+use darwin_code_app_server_protocol::ExperimentalFeatureStage;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_core::config::ConfigBuilder;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Stage;
 use pretty_assertions::assert_eq;
 use serde::de::DeserializeOwned;
 use serde_json::json;
@@ -28,13 +28,13 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[tokio::test]
 async fn experimental_feature_list_returns_feature_metadata_with_stage() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
-        .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
+        .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
         .build()
         .await?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -88,11 +88,11 @@ async fn experimental_feature_list_returns_feature_metadata_with_stage() -> Resu
 #[tokio::test]
 async fn experimental_feature_enablement_set_applies_to_global_and_thread_config_reads()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let project_cwd = codex_home.path().join("project");
+    let darwin_code_home = TempDir::new()?;
+    let project_cwd = darwin_code_home.path().join("project");
     std::fs::create_dir_all(&project_cwd)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let actual =
@@ -122,12 +122,12 @@ async fn experimental_feature_enablement_set_applies_to_global_and_thread_config
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_does_not_override_user_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        darwin_code_home.path().join("config.toml"),
         "[features]\napps = false\n",
     )?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let actual =
@@ -155,8 +155,8 @@ async fn experimental_feature_enablement_set_does_not_override_user_config() -> 
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_only_updates_named_features() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     set_experimental_feature_enablement(&mut mcp, BTreeMap::from([("apps".to_string(), true)]))
@@ -227,8 +227,8 @@ async fn experimental_feature_enablement_set_only_updates_named_features() -> Re
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_empty_map_is_no_op() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     set_experimental_feature_enablement(&mut mcp, BTreeMap::from([("apps".to_string(), true)]))
@@ -257,8 +257,8 @@ async fn experimental_feature_enablement_set_empty_map_is_no_op() -> Result<()> 
 
 #[tokio::test]
 async fn experimental_feature_enablement_set_rejects_non_allowlisted_feature() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

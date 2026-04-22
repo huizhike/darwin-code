@@ -4,7 +4,7 @@ use crate::agent::registry::AgentRegistry;
 use crate::agent::role::DEFAULT_ROLE_NAME;
 use crate::agent::role::resolve_role_config;
 use crate::agent::status::is_final;
-use crate::codex_thread::ThreadConfigSnapshot;
+use crate::darwin_code_thread::ThreadConfigSnapshot;
 use crate::find_archived_thread_path_by_id_str;
 use crate::find_thread_path_by_id_str;
 use crate::rollout::RolloutRecorder;
@@ -14,23 +14,23 @@ use crate::session_prefix::format_subagent_notification_message;
 use crate::shell_snapshot::ShellSnapshot;
 use crate::thread_manager::ThreadManagerState;
 use crate::thread_rollout_truncation::truncate_rollout_to_last_n_fork_turns;
-use codex_features::Feature;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::user_input::UserInput;
-use codex_rollout::state_db;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
+use darwin_code_features::Feature;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_rollout::state_db;
+use darwin_code_state::DirectionalThreadSpawnEdgeStatus;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -133,7 +133,7 @@ fn keep_forked_rollout_item(item: &RolloutItem) -> bool {
 pub(crate) struct AgentControl {
     /// Weak handle back to the global thread registry/state.
     /// This is `Weak` to avoid reference cycles and shadow persistence of the form
-    /// `ThreadManagerState -> CodexThread -> Session -> SessionServices -> ThreadManagerState`.
+    /// `ThreadManagerState -> DarwinCodeThread -> Session -> SessionServices -> ThreadManagerState`.
     manager: Weak<ThreadManagerState>,
     state: Arc<AgentRegistry>,
 }
@@ -153,7 +153,7 @@ impl AgentControl {
         config: crate::config::Config,
         initial_operation: Op,
         session_source: Option<SessionSource>,
-    ) -> CodexResult<ThreadId> {
+    ) -> DarwinCodeResult<ThreadId> {
         Ok(self
             .spawn_agent_internal(
                 config,
@@ -172,7 +172,7 @@ impl AgentControl {
         initial_operation: Op,
         session_source: Option<SessionSource>,
         options: SpawnAgentOptions, // TODO(jif) drop with new fork.
-    ) -> CodexResult<LiveAgent> {
+    ) -> DarwinCodeResult<LiveAgent> {
         self.spawn_agent_internal(config, initial_operation, session_source, options)
             .await
     }
@@ -183,7 +183,7 @@ impl AgentControl {
         initial_operation: Op,
         session_source: Option<SessionSource>,
         options: SpawnAgentOptions,
-    ) -> CodexResult<LiveAgent> {
+    ) -> DarwinCodeResult<LiveAgent> {
         let state = self.upgrade()?;
         let mut reservation = self.state.reserve_spawn_slot(config.agent_max_threads)?;
         let inherited_shell_snapshot = self
@@ -256,7 +256,7 @@ impl AgentControl {
             let client_metadata = match state.get_thread(*parent_thread_id).await {
                 Ok(parent_thread) => {
                     parent_thread
-                        .codex
+                        .darwin-code
                         .session
                         .app_server_client_metadata()
                         .await
@@ -273,11 +273,11 @@ impl AgentControl {
                     }
                 }
             };
-            let thread_config = new_thread.thread.codex.thread_config_snapshot().await;
+            let thread_config = new_thread.thread.darwin-code.thread_config_snapshot().await;
             emit_subagent_session_started(
                 &new_thread
                     .thread
-                    .codex
+                    .darwin-code
                     .session
                     .services
                     .analytics_events_client,
@@ -332,14 +332,14 @@ impl AgentControl {
         options: &SpawnAgentOptions,
         inherited_shell_snapshot: Option<Arc<ShellSnapshot>>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
-    ) -> CodexResult<crate::thread_manager::NewThread> {
+    ) -> DarwinCodeResult<crate::thread_manager::NewThread> {
         if options.fork_parent_spawn_call_id.is_none() {
-            return Err(CodexErr::Fatal(
+            return Err(DarwinCodeErr::Fatal(
                 "spawn_agent fork requires a parent spawn call id".to_string(),
             ));
         }
         let Some(fork_mode) = options.fork_mode.as_ref() else {
-            return Err(CodexErr::Fatal(
+            return Err(DarwinCodeErr::Fatal(
                 "spawn_agent fork requires a fork mode".to_string(),
             ));
         };
@@ -347,7 +347,7 @@ impl AgentControl {
             parent_thread_id, ..
         }) = &session_source
         else {
-            return Err(CodexErr::Fatal(
+            return Err(DarwinCodeErr::Fatal(
                 "spawn_agent fork requires a thread-spawn session source".to_string(),
             ));
         };
@@ -358,23 +358,23 @@ impl AgentControl {
             // `record_conversation_items` only queues rollout writes asynchronously.
             // Flush/materialize the live parent before snapshotting JSONL for a fork.
             parent_thread
-                .codex
+                .darwin-code
                 .session
                 .ensure_rollout_materialized()
                 .await;
-            parent_thread.codex.session.flush_rollout().await?;
+            parent_thread.darwin-code.session.flush_rollout().await?;
         }
 
         let rollout_path = parent_thread
             .as_ref()
             .and_then(|parent_thread| parent_thread.rollout_path())
             .or(find_thread_path_by_id_str(
-                config.codex_home.as_path(),
+                config.darwin_code_home.as_path(),
                 &parent_thread_id.to_string(),
             )
             .await?)
             .ok_or_else(|| {
-                CodexErr::Fatal(format!(
+                DarwinCodeErr::Fatal(format!(
                     "parent thread rollout unavailable for fork: {parent_thread_id}"
                 ))
             })?;
@@ -407,7 +407,7 @@ impl AgentControl {
         config: crate::config::Config,
         thread_id: ThreadId,
         session_source: SessionSource,
-    ) -> CodexResult<ThreadId> {
+    ) -> DarwinCodeResult<ThreadId> {
         let root_depth = thread_spawn_depth(&session_source).unwrap_or(0);
         let resumed_thread_id = self
             .resume_single_agent_from_rollout(config.clone(), thread_id, session_source)
@@ -480,7 +480,7 @@ impl AgentControl {
         mut config: crate::config::Config,
         thread_id: ThreadId,
         session_source: SessionSource,
-    ) -> CodexResult<ThreadId> {
+    ) -> DarwinCodeResult<ThreadId> {
         if let SessionSource::SubAgent(SubAgentSource::ThreadSpawn { depth, .. }) = &session_source
             && *depth >= config.agent_max_depth
         {
@@ -526,16 +526,16 @@ impl AgentControl {
             .inherited_exec_policy_for_source(&state, Some(&session_source), &config)
             .await;
         let rollout_path =
-            match find_thread_path_by_id_str(config.codex_home.as_path(), &thread_id.to_string())
+            match find_thread_path_by_id_str(config.darwin_code_home.as_path(), &thread_id.to_string())
                 .await?
             {
                 Some(rollout_path) => rollout_path,
                 None => find_archived_thread_path_by_id_str(
-                    config.codex_home.as_path(),
+                    config.darwin_code_home.as_path(),
                     &thread_id.to_string(),
                 )
                 .await?
-                .ok_or_else(|| CodexErr::ThreadNotFound(thread_id))?,
+                .ok_or_else(|| DarwinCodeErr::ThreadNotFound(thread_id))?,
             };
 
         let resumed_thread = state
@@ -582,7 +582,7 @@ impl AgentControl {
         &self,
         agent_id: ThreadId,
         initial_operation: Op,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         let last_task_message = render_input_preview(&initial_operation);
         let state = self.upgrade()?;
         let result = self
@@ -605,7 +605,7 @@ impl AgentControl {
         &self,
         agent_id: ThreadId,
         message: ResponseItem,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         let state = self.upgrade()?;
         self.handle_thread_request_result(
             agent_id,
@@ -619,7 +619,7 @@ impl AgentControl {
         &self,
         agent_id: ThreadId,
         communication: InterAgentCommunication,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         let last_task_message = communication.content.clone();
         let state = self.upgrade()?;
         let result = self
@@ -639,7 +639,7 @@ impl AgentControl {
     }
 
     /// Interrupt the current task for an existing agent thread.
-    pub(crate) async fn interrupt_agent(&self, agent_id: ThreadId) -> CodexResult<String> {
+    pub(crate) async fn interrupt_agent(&self, agent_id: ThreadId) -> DarwinCodeResult<String> {
         let state = self.upgrade()?;
         state.send_op(agent_id, Op::Interrupt).await
     }
@@ -648,9 +648,9 @@ impl AgentControl {
         &self,
         agent_id: ThreadId,
         state: &Arc<ThreadManagerState>,
-        result: CodexResult<String>,
-    ) -> CodexResult<String> {
-        if matches!(result, Err(CodexErr::InternalAgentDied)) {
+        result: DarwinCodeResult<String>,
+    ) -> DarwinCodeResult<String> {
+        if matches!(result, Err(DarwinCodeErr::InternalAgentDied)) {
             let _ = state.remove_thread(&agent_id).await;
             self.state.release_spawned_thread(agent_id);
         }
@@ -659,11 +659,11 @@ impl AgentControl {
 
     /// Submit a shutdown request for a live agent without marking it explicitly closed in
     /// persisted spawn-edge state.
-    pub(crate) async fn shutdown_live_agent(&self, agent_id: ThreadId) -> CodexResult<String> {
+    pub(crate) async fn shutdown_live_agent(&self, agent_id: ThreadId) -> DarwinCodeResult<String> {
         let state = self.upgrade()?;
         let result = if let Ok(thread) = state.get_thread(agent_id).await {
-            thread.codex.session.ensure_rollout_materialized().await;
-            thread.codex.session.flush_rollout().await?;
+            thread.darwin-code.session.ensure_rollout_materialized().await;
+            thread.darwin-code.session.flush_rollout().await?;
             if matches!(thread.agent_status().await, AgentStatus::Shutdown) {
                 Ok(String::new())
             } else {
@@ -679,7 +679,7 @@ impl AgentControl {
 
     /// Mark `agent_id` as explicitly closed in persisted spawn-edge state, then shut down the
     /// agent and any live descendants reached from the in-memory tree.
-    pub(crate) async fn close_agent(&self, agent_id: ThreadId) -> CodexResult<String> {
+    pub(crate) async fn close_agent(&self, agent_id: ThreadId) -> DarwinCodeResult<String> {
         let state = self.upgrade()?;
         if let Ok(thread) = state.get_thread(agent_id).await
             && let Some(state_db_ctx) = thread.state_db()
@@ -693,12 +693,12 @@ impl AgentControl {
     }
 
     /// Shut down `agent_id` and any live descendants reachable from the in-memory spawn tree.
-    async fn shutdown_agent_tree(&self, agent_id: ThreadId) -> CodexResult<String> {
+    async fn shutdown_agent_tree(&self, agent_id: ThreadId) -> DarwinCodeResult<String> {
         let descendant_ids = self.live_thread_spawn_descendants(agent_id).await?;
         let result = self.shutdown_live_agent(agent_id).await;
         for descendant_id in descendant_ids {
             match self.shutdown_live_agent(descendant_id).await {
-                Ok(_) | Err(CodexErr::ThreadNotFound(_)) | Err(CodexErr::InternalAgentDied) => {}
+                Ok(_) | Err(DarwinCodeErr::ThreadNotFound(_)) | Err(DarwinCodeErr::InternalAgentDied) => {}
                 Err(err) => return Err(err),
             }
         }
@@ -734,7 +734,7 @@ impl AgentControl {
     pub(crate) async fn list_live_agent_subtree_thread_ids(
         &self,
         agent_id: ThreadId,
-    ) -> CodexResult<Vec<ThreadId>> {
+    ) -> DarwinCodeResult<Vec<ThreadId>> {
         let mut thread_ids = vec![agent_id];
         thread_ids.extend(self.live_thread_spawn_descendants(agent_id).await?);
         Ok(thread_ids)
@@ -758,17 +758,17 @@ impl AgentControl {
         _current_thread_id: ThreadId,
         current_session_source: &SessionSource,
         agent_reference: &str,
-    ) -> CodexResult<ThreadId> {
+    ) -> DarwinCodeResult<ThreadId> {
         let current_agent_path = current_session_source
             .get_agent_path()
             .unwrap_or_else(AgentPath::root);
         let agent_path = current_agent_path
             .resolve(agent_reference)
-            .map_err(CodexErr::UnsupportedOperation)?;
+            .map_err(DarwinCodeErr::UnsupportedOperation)?;
         if let Some(thread_id) = self.state.agent_id_for_path(&agent_path) {
             return Ok(thread_id);
         }
-        Err(CodexErr::UnsupportedOperation(format!(
+        Err(DarwinCodeErr::UnsupportedOperation(format!(
             "live agent path `{}` not found",
             agent_path.as_str()
         )))
@@ -778,7 +778,7 @@ impl AgentControl {
     pub(crate) async fn subscribe_status(
         &self,
         agent_id: ThreadId,
-    ) -> CodexResult<watch::Receiver<AgentStatus>> {
+    ) -> DarwinCodeResult<watch::Receiver<AgentStatus>> {
         let state = self.upgrade()?;
         let thread = state.get_thread(agent_id).await?;
         Ok(thread.subscribe_status())
@@ -820,7 +820,7 @@ impl AgentControl {
         &self,
         current_session_source: &SessionSource,
         path_prefix: Option<&str>,
-    ) -> CodexResult<Vec<ListedAgent>> {
+    ) -> DarwinCodeResult<Vec<ListedAgent>> {
         let state = self.upgrade()?;
         let resolved_prefix = path_prefix
             .map(|prefix| {
@@ -828,7 +828,7 @@ impl AgentControl {
                     .get_agent_path()
                     .unwrap_or_else(AgentPath::root)
                     .resolve(prefix)
-                    .map_err(CodexErr::UnsupportedOperation)
+                    .map_err(DarwinCodeErr::UnsupportedOperation)
             })
             .transpose()?;
 
@@ -980,7 +980,7 @@ impl AgentControl {
         agent_path: Option<AgentPath>,
         agent_role: Option<String>,
         preferred_agent_nickname: Option<String>,
-    ) -> CodexResult<(SessionSource, AgentMetadata)> {
+    ) -> DarwinCodeResult<(SessionSource, AgentMetadata)> {
         if depth == 1 {
             self.state.register_root_thread(parent_thread_id);
         }
@@ -1010,10 +1010,10 @@ impl AgentControl {
         Ok((session_source, agent_metadata))
     }
 
-    fn upgrade(&self) -> CodexResult<Arc<ThreadManagerState>> {
+    fn upgrade(&self) -> DarwinCodeResult<Arc<ThreadManagerState>> {
         self.manager
             .upgrade()
-            .ok_or_else(|| CodexErr::UnsupportedOperation("thread manager dropped".to_string()))
+            .ok_or_else(|| DarwinCodeErr::UnsupportedOperation("thread manager dropped".to_string()))
     }
 
     async fn inherited_shell_snapshot_for_source(
@@ -1029,7 +1029,7 @@ impl AgentControl {
         };
 
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
-        parent_thread.codex.session.user_shell().shell_snapshot()
+        parent_thread.darwin-code.session.user_shell().shell_snapshot()
     }
 
     async fn inherited_exec_policy_for_source(
@@ -1046,20 +1046,20 @@ impl AgentControl {
         };
 
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
-        let parent_config = parent_thread.codex.session.get_config().await;
+        let parent_config = parent_thread.darwin-code.session.get_config().await;
         if !crate::exec_policy::child_uses_parent_exec_policy(&parent_config, child_config) {
             return None;
         }
 
         Some(Arc::clone(
-            &parent_thread.codex.session.services.exec_policy,
+            &parent_thread.darwin-code.session.services.exec_policy,
         ))
     }
 
     async fn open_thread_spawn_children(
         &self,
         parent_thread_id: ThreadId,
-    ) -> CodexResult<Vec<(ThreadId, AgentMetadata)>> {
+    ) -> DarwinCodeResult<Vec<(ThreadId, AgentMetadata)>> {
         let mut children_by_parent = self.live_thread_spawn_children().await?;
         Ok(children_by_parent
             .remove(&parent_thread_id)
@@ -1068,7 +1068,7 @@ impl AgentControl {
 
     async fn live_thread_spawn_children(
         &self,
-    ) -> CodexResult<HashMap<ThreadId, Vec<(ThreadId, AgentMetadata)>>> {
+    ) -> DarwinCodeResult<HashMap<ThreadId, Vec<(ThreadId, AgentMetadata)>>> {
         let state = self.upgrade()?;
         let mut children_by_parent = HashMap::<ThreadId, Vec<(ThreadId, AgentMetadata)>>::new();
 
@@ -1111,7 +1111,7 @@ impl AgentControl {
 
     async fn persist_thread_spawn_edge_for_source(
         &self,
-        thread: &crate::CodexThread,
+        thread: &crate::DarwinCodeThread,
         child_thread_id: ThreadId,
         session_source: Option<&SessionSource>,
     ) {
@@ -1136,7 +1136,7 @@ impl AgentControl {
     async fn live_thread_spawn_descendants(
         &self,
         root_thread_id: ThreadId,
-    ) -> CodexResult<Vec<ThreadId>> {
+    ) -> DarwinCodeResult<Vec<ThreadId>> {
         let mut children_by_parent = self.live_thread_spawn_children().await?;
         let mut descendants = Vec::new();
         let mut stack = children_by_parent

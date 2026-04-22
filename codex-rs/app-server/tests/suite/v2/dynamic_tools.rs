@@ -4,26 +4,26 @@ use app_test_support::McpProcess;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
-use codex_app_server_protocol::DynamicToolCallOutputContentItem;
-use codex_app_server_protocol::DynamicToolCallParams;
-use codex_app_server_protocol::DynamicToolCallResponse;
-use codex_app_server_protocol::DynamicToolCallStatus;
-use codex_app_server_protocol::DynamicToolSpec;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
+use darwin_code_app_server_protocol::DynamicToolCallOutputContentItem;
+use darwin_code_app_server_protocol::DynamicToolCallParams;
+use darwin_code_app_server_protocol::DynamicToolCallResponse;
+use darwin_code_app_server_protocol::DynamicToolCallStatus;
+use darwin_code_app_server_protocol::DynamicToolSpec;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -47,10 +47,10 @@ async fn thread_start_injects_dynamic_tools_into_model_requests() -> Result<()> 
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Use a minimal JSON schema so we can assert the tool payload round-trips.
@@ -129,10 +129,10 @@ async fn thread_start_keeps_hidden_dynamic_tools_out_of_model_requests() -> Resu
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let dynamic_tool = DynamicToolSpec {
@@ -215,10 +215,10 @@ async fn dynamic_tool_call_round_trip_sends_text_content_items_to_model() -> Res
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let dynamic_tool = DynamicToolSpec {
@@ -384,10 +384,10 @@ async fn dynamic_tool_call_round_trip_sends_content_items_to_model() -> Result<(
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let dynamic_tool = DynamicToolSpec {
@@ -641,8 +641,8 @@ async fn wait_for_dynamic_tool_completed(
     }
 }
 
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

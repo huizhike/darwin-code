@@ -12,15 +12,15 @@ use crate::plugins::test_support::TEST_CURATED_PLUGIN_SHA;
 use crate::plugins::test_support::write_curated_plugin_sha_with as write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_openai_curated_marketplace;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core_plugins::loader::refresh_non_curated_plugin_cache;
-use codex_core_plugins::loader::refresh_non_curated_plugin_cache_force_reinstall;
-use codex_core_plugins::marketplace::MarketplacePluginInstallPolicy;
-use codex_login::CodexAuth;
-use codex_protocol::protocol::Product;
-use codex_utils_absolute_path::test_support::PathBufExt;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_core_plugins::loader::refresh_non_curated_plugin_cache;
+use darwin_code_core_plugins::loader::refresh_non_curated_plugin_cache_force_reinstall;
+use darwin_code_core_plugins::marketplace::MarketplacePluginInstallPolicy;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_protocol::protocol::Product;
+use darwin_code_utils_absolute_path::test_support::PathBufExt;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -43,13 +43,13 @@ fn write_plugin_with_version(
     manifest_version: Option<&str>,
 ) {
     let plugin_root = root.join(dir_name);
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).unwrap();
     fs::create_dir_all(plugin_root.join("skills")).unwrap();
     let version = manifest_version
         .map(|manifest_version| format!(r#","version":"{manifest_version}""#))
         .unwrap_or_default();
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         format!(r#"{{"name":"{manifest_name}"{version}}}"#),
     )
     .unwrap();
@@ -68,8 +68,8 @@ fn write_plugin(root: &Path, dir_name: &str, manifest_name: &str) {
 
 fn init_git_repo(repo: &Path) {
     run_git(repo, &["init"]);
-    run_git(repo, &["config", "user.email", "codex-test@example.com"]);
-    run_git(repo, &["config", "user.name", "Codex Test"]);
+    run_git(repo, &["config", "user.email", "darwin-code-test@example.com"]);
+    run_git(repo, &["config", "user.name", "Darwin-Code Test"]);
     run_git(repo, &["add", "."]);
     run_git(repo, &["commit", "-m", "initial"]);
 }
@@ -111,17 +111,17 @@ fn plugin_config_toml(enabled: bool, plugins_feature_enabled: bool) -> String {
     toml::to_string(&Value::Table(root)).expect("plugin test config should serialize")
 }
 
-async fn load_plugins_from_config(config_toml: &str, codex_home: &Path) -> PluginLoadOutcome {
-    write_file(&codex_home.join(CONFIG_TOML_FILE), config_toml);
-    let config = load_config(codex_home, codex_home).await;
-    PluginsManager::new(codex_home.to_path_buf())
+async fn load_plugins_from_config(config_toml: &str, darwin_code_home: &Path) -> PluginLoadOutcome {
+    write_file(&darwin_code_home.join(CONFIG_TOML_FILE), config_toml);
+    let config = load_config(darwin_code_home, darwin_code_home).await;
+    PluginsManager::new(darwin_code_home.to_path_buf())
         .plugins_for_config(&config)
         .await
 }
 
-async fn load_config(codex_home: &Path, cwd: &Path) -> crate::config::Config {
+async fn load_config(darwin_code_home: &Path, cwd: &Path) -> crate::config::Config {
     ConfigBuilder::default()
-        .codex_home(codex_home.to_path_buf())
+        .darwin_code_home(darwin_code_home.to_path_buf())
         .fallback_cwd(Some(cwd.to_path_buf()))
         .build()
         .await
@@ -130,14 +130,14 @@ async fn load_config(codex_home: &Path, cwd: &Path) -> crate::config::Config {
 
 #[tokio::test]
 async fn load_plugins_loads_default_skills_and_mcp_servers() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "sample",
   "description": "Plugin that includes the sample MCP server and Skills"
@@ -175,7 +175,7 @@ async fn load_plugins_loads_default_skills_and_mcp_servers() {
 
     let outcome = load_plugins_from_config(
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -244,15 +244,15 @@ async fn load_plugins_loads_default_skills_and_mcp_servers() {
 
 #[tokio::test]
 async fn load_plugins_resolves_disabled_skill_names_against_loaded_plugin_skills() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
     let skill_path = plugin_root.join("skills/sample-search/SKILL.md");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
     write_file(
@@ -270,7 +270,7 @@ enabled = false
 [plugins."sample@test"]
 enabled = true
 "#;
-    let outcome = load_plugins_from_config(config_toml, codex_home.path()).await;
+    let outcome = load_plugins_from_config(config_toml, darwin_code_home.path()).await;
     let skill_path = dunce::canonicalize(skill_path)
         .expect("skill path should canonicalize")
         .abs();
@@ -285,14 +285,14 @@ enabled = true
 
 #[tokio::test]
 async fn load_plugins_ignores_unknown_disabled_skill_names() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
     write_file(
@@ -310,7 +310,7 @@ enabled = false
 [plugins."sample@test"]
 enabled = true
 "#;
-    let outcome = load_plugins_from_config(config_toml, codex_home.path()).await;
+    let outcome = load_plugins_from_config(config_toml, darwin_code_home.path()).await;
 
     assert!(outcome.plugins()[0].disabled_skill_paths.is_empty());
     assert!(outcome.plugins()[0].has_enabled_skills);
@@ -329,14 +329,14 @@ enabled = true
 
 #[tokio::test]
 async fn plugin_telemetry_metadata_uses_default_mcp_config_path() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "sample"
 }"#,
@@ -374,14 +374,14 @@ async fn plugin_telemetry_metadata_uses_default_mcp_config_path() {
 
 #[tokio::test]
 async fn capability_summary_sanitizes_plugin_descriptions_to_one_line() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "sample",
   "description": "Plugin that\n includes   the sample\tserver"
@@ -394,7 +394,7 @@ async fn capability_summary_sanitizes_plugin_descriptions_to_one_line() {
 
     let outcome = load_plugins_from_config(
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -410,15 +410,15 @@ async fn capability_summary_sanitizes_plugin_descriptions_to_one_line() {
 
 #[tokio::test]
 async fn capability_summary_truncates_overlong_plugin_descriptions() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
     let too_long = "x".repeat(MAX_CAPABILITY_SUMMARY_DESCRIPTION_LEN + 1);
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         &format!(
             r#"{{
   "name": "sample",
@@ -433,7 +433,7 @@ async fn capability_summary_truncates_overlong_plugin_descriptions() {
 
     let outcome = load_plugins_from_config(
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -449,14 +449,14 @@ async fn capability_summary_truncates_overlong_plugin_descriptions() {
 
 #[tokio::test]
 async fn load_plugins_uses_manifest_configured_component_paths() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "sample",
   "skills": "./custom-skills/",
@@ -517,7 +517,7 @@ async fn load_plugins_uses_manifest_configured_component_paths() {
 
     let outcome = load_plugins_from_config(
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -563,14 +563,14 @@ async fn load_plugins_uses_manifest_configured_component_paths() {
 
 #[tokio::test]
 async fn load_plugins_ignores_manifest_component_paths_without_dot_slash() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "sample",
   "skills": "custom-skills",
@@ -631,7 +631,7 @@ async fn load_plugins_ignores_manifest_component_paths_without_dot_slash() {
 
     let outcome = load_plugins_from_config(
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -674,14 +674,14 @@ async fn load_plugins_ignores_manifest_component_paths_without_dot_slash() {
 
 #[tokio::test]
 async fn load_plugins_preserves_disabled_plugins_without_effective_contributions() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
     write_file(
@@ -700,7 +700,7 @@ async fn load_plugins_preserves_disabled_plugins_without_effective_contributions
         &plugin_config_toml(
             /*enabled*/ false, /*plugins_feature_enabled*/ true,
         ),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -726,18 +726,18 @@ async fn load_plugins_preserves_disabled_plugins_without_effective_contributions
 
 #[tokio::test]
 async fn effective_apps_dedupes_connector_ids_across_plugins() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_a_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_a_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/plugin-a/local");
-    let plugin_b_root = codex_home
+    let plugin_b_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/plugin-b/local");
 
     write_file(
-        &plugin_a_root.join(".codex-plugin/plugin.json"),
+        &plugin_a_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"plugin-a"}"#,
     );
     write_file(
@@ -751,7 +751,7 @@ async fn effective_apps_dedupes_connector_ids_across_plugins() {
 }"#,
     );
     write_file(
-        &plugin_b_root.join(".codex-plugin/plugin.json"),
+        &plugin_b_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"plugin-b"}"#,
     );
     write_file(
@@ -787,7 +787,7 @@ async fn effective_apps_dedupes_connector_ids_across_plugins() {
     let config_toml =
         toml::to_string(&Value::Table(root)).expect("plugin test config should serialize");
 
-    let outcome = load_plugins_from_config(&config_toml, codex_home.path()).await;
+    let outcome = load_plugins_from_config(&config_toml, darwin_code_home.path()).await;
 
     assert_eq!(
         outcome.effective_apps(),
@@ -800,7 +800,7 @@ async fn effective_apps_dedupes_connector_ids_across_plugins() {
 
 #[test]
 fn capability_index_filters_inactive_and_zero_capability_plugins() {
-    let codex_home = TempDir::new().unwrap();
+    let darwin_code_home = TempDir::new().unwrap();
     let connector = |id: &str| AppConnectorId(id.to_string());
     let http_server = |url: &str| McpServerConfig {
         transport: McpServerTransportConfig::StreamableHttp {
@@ -827,7 +827,7 @@ fn capability_index_filters_inactive_and_zero_capability_plugins() {
         config_name: config_name.to_string(),
         manifest_name: Some(manifest_name.to_string()),
         manifest_description: None,
-        root: AbsolutePathBuf::try_from(codex_home.path().join(dir_name)).unwrap(),
+        root: AbsolutePathBuf::try_from(darwin_code_home.path().join(dir_name)).unwrap(),
         enabled: true,
         skill_roots: Vec::new(),
         disabled_skill_paths: HashSet::new(),
@@ -844,7 +844,7 @@ fn capability_index_filters_inactive_and_zero_capability_plugins() {
     };
     let outcome = PluginLoadOutcome::from_plugins(vec![
         LoadedPlugin {
-            skill_roots: vec![codex_home.path().join("skills-plugin/skills").abs()],
+            skill_roots: vec![darwin_code_home.path().join("skills-plugin/skills").abs()],
             has_enabled_skills: true,
             ..plugin("skills@test", "skills-plugin", "skills-plugin")
         },
@@ -861,7 +861,7 @@ fn capability_index_filters_inactive_and_zero_capability_plugins() {
         plugin("empty@test", "empty-plugin", "empty-plugin"),
         LoadedPlugin {
             enabled: false,
-            skill_roots: vec![codex_home.path().join("disabled-plugin/skills").abs()],
+            skill_roots: vec![darwin_code_home.path().join("disabled-plugin/skills").abs()],
             apps: vec![connector("connector_hidden")],
             ..plugin("disabled@test", "disabled-plugin", "disabled-plugin")
         },
@@ -898,14 +898,14 @@ fn capability_index_filters_inactive_and_zero_capability_plugins() {
 
 #[tokio::test]
 async fn load_plugins_returns_empty_when_feature_disabled() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
     write_file(
@@ -913,14 +913,14 @@ async fn load_plugins_returns_empty_when_feature_disabled() {
         "---\nname: sample-search\ndescription: search sample data\n---\n",
     );
     write_file(
-        &codex_home.path().join(CONFIG_TOML_FILE),
+        &darwin_code_home.path().join(CONFIG_TOML_FILE),
         &plugin_config_toml(
             /*enabled*/ true, /*plugins_feature_enabled*/ false,
         ),
     );
 
-    let config = load_config(codex_home.path(), codex_home.path()).await;
-    let outcome = PluginsManager::new(codex_home.path().to_path_buf())
+    let config = load_config(darwin_code_home.path(), darwin_code_home.path()).await;
+    let outcome = PluginsManager::new(darwin_code_home.path().to_path_buf())
         .plugins_for_config(&config)
         .await;
 
@@ -929,14 +929,14 @@ async fn load_plugins_returns_empty_when_feature_disabled() {
 
 #[tokio::test]
 async fn load_plugins_rejects_invalid_plugin_keys() {
-    let codex_home = TempDir::new().unwrap();
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
 
@@ -954,7 +954,7 @@ async fn load_plugins_rejects_invalid_plugin_keys() {
 
     let outcome = load_plugins_from_config(
         &toml::to_string(&Value::Table(root)).expect("plugin test config should serialize"),
-        codex_home.path(),
+        darwin_code_home.path(),
     )
     .await;
 
@@ -1128,7 +1128,7 @@ async fn install_plugin_supports_git_subdir_marketplace_sources() {
             auth_policy: MarketplacePluginAuthPolicy::OnInstall,
         }
     );
-    assert!(installed_path.join(".codex-plugin/plugin.json").is_file());
+    assert!(installed_path.join(".darwin-code-plugin/plugin.json").is_file());
 }
 
 #[tokio::test]
@@ -1179,7 +1179,7 @@ async fn install_plugin_supports_relative_git_subdir_marketplace_sources() {
             auth_policy: MarketplacePluginAuthPolicy::OnInstall,
         }
     );
-    assert!(installed_path.join(".codex-plugin/plugin.json").is_file());
+    assert!(installed_path.join(".darwin-code-plugin/plugin.json").is_file());
 }
 
 #[tokio::test]
@@ -1523,7 +1523,7 @@ async fn read_plugin_for_config_uses_user_layer_skill_settings_only() {
 }"#,
     );
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"enabled-plugin"}"#,
     );
     write_file(
@@ -1540,7 +1540,7 @@ enabled = true
 "#,
     );
     write_file(
-        &repo_root.join(".codex/config.toml"),
+        &repo_root.join(".darwin-code/config.toml"),
         r#"[[skills.config]]
 name = "enabled-plugin:sample-search"
 enabled = false
@@ -1670,7 +1670,7 @@ async fn read_plugin_for_config_installed_git_source_reads_from_cache_without_cl
     );
     let cached_plugin_root = tmp.path().join("plugins/cache/debug/toolkit/local");
     write_file(
-        &cached_plugin_root.join(".codex-plugin/plugin.json"),
+        &cached_plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{
   "name": "toolkit",
   "description": "Cached toolkit plugin",
@@ -1776,7 +1776,7 @@ plugins = true
 "#,
     );
     fs::create_dir_all(curated_root.join(".agents/plugins")).unwrap();
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).unwrap();
     fs::write(
         curated_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -1797,7 +1797,7 @@ plugins = true
     )
     .unwrap();
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"linear"}"#,
     )
     .unwrap();
@@ -1859,7 +1859,7 @@ source = "/tmp/debug"
 "#,
     );
     fs::create_dir_all(marketplace_root.join(".agents/plugins")).unwrap();
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).unwrap();
     fs::write(
         marketplace_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -1877,7 +1877,7 @@ source = "/tmp/debug"
     )
     .unwrap();
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     )
     .unwrap();
@@ -1932,7 +1932,7 @@ source = "/tmp/debug"
 "#,
     );
     fs::create_dir_all(marketplace_root.join(".agents/plugins")).unwrap();
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).unwrap();
     fs::write(
         marketplace_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -1950,7 +1950,7 @@ source = "/tmp/debug"
     )
     .unwrap();
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     )
     .unwrap();
@@ -1990,7 +1990,7 @@ plugins = true
 "#,
     );
     fs::create_dir_all(marketplace_root.join(".agents/plugins")).unwrap();
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).unwrap();
     fs::write(
         marketplace_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -2008,7 +2008,7 @@ plugins = true
     )
     .unwrap();
     fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     )
     .unwrap();
@@ -2303,7 +2303,7 @@ enabled = true
     let result = manager
         .sync_plugins_from_remote(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
             /*additive_only*/ false,
         )
         .await
@@ -2423,7 +2423,7 @@ enabled = true
     let result = manager
         .sync_plugins_from_remote(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
             /*additive_only*/ true,
         )
         .await
@@ -2495,7 +2495,7 @@ enabled = false
     let result = manager
         .sync_plugins_from_remote(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
             /*additive_only*/ false,
         )
         .await
@@ -2558,7 +2558,7 @@ enabled = false
     let err = manager
         .sync_plugins_from_remote(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
             /*additive_only*/ false,
         )
         .await
@@ -2647,7 +2647,7 @@ plugins = true
     let result = manager
         .sync_plugins_from_remote(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
             /*additive_only*/ false,
         )
         .await
@@ -2701,7 +2701,7 @@ plugins = true
     let featured_plugin_ids = manager
         .featured_plugin_ids_for_config(
             &config,
-            Some(&CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+            Some(&DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
         )
         .await
         .unwrap();
@@ -2710,7 +2710,7 @@ plugins = true
 }
 
 #[tokio::test]
-async fn featured_plugin_ids_for_config_defaults_query_param_to_codex() {
+async fn featured_plugin_ids_for_config_defaults_query_param_to_darwin_code() {
     let tmp = tempfile::tempdir().unwrap();
     write_file(
         &tmp.path().join(CONFIG_TOML_FILE),
@@ -2722,8 +2722,8 @@ plugins = true
     let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "codex"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["codex-plugin"]"#))
+        .and(query_param("platform", "darwin-code"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["darwin-code-plugin"]"#))
         .mount(&server)
         .await;
 
@@ -2739,7 +2739,7 @@ plugins = true
         .await
         .unwrap();
 
-    assert_eq!(featured_plugin_ids, vec!["codex-plugin".to_string()]);
+    assert_eq!(featured_plugin_ids, vec!["darwin-code-plugin".to_string()]);
 }
 
 #[test]
@@ -2805,7 +2805,7 @@ fn refresh_curated_plugin_cache_reinstalls_missing_configured_plugin_with_curren
 }
 
 #[test]
-fn curated_plugin_ids_from_config_keys_reads_latest_codex_home_user_config() {
+fn curated_plugin_ids_from_config_keys_reads_latest_darwin_code_home_user_config() {
     let tmp = tempfile::tempdir().unwrap();
     write_file(
         &tmp.path().join(CONFIG_TOML_FILE),
@@ -2821,7 +2821,7 @@ enabled = true
     );
 
     assert_eq!(
-        configured_curated_plugin_ids_from_codex_home(tmp.path())
+        configured_curated_plugin_ids_from_darwin_code_home(tmp.path())
             .into_iter()
             .map(|plugin_id| plugin_id.as_key())
             .collect::<Vec<_>>(),
@@ -2836,7 +2836,7 @@ plugins = true
     );
 
     assert_eq!(
-        configured_curated_plugin_ids_from_codex_home(tmp.path()),
+        configured_curated_plugin_ids_from_darwin_code_home(tmp.path()),
         Vec::<PluginId>::new()
     );
 }
@@ -3192,26 +3192,26 @@ enabled = true
 
 #[tokio::test]
 async fn load_plugins_ignores_project_config_files() {
-    let codex_home = TempDir::new().unwrap();
-    let project_root = codex_home.path().join("project");
-    let plugin_root = codex_home
+    let darwin_code_home = TempDir::new().unwrap();
+    let project_root = darwin_code_home.path().join("project");
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join("test/sample/local");
 
     write_file(
-        &plugin_root.join(".codex-plugin/plugin.json"),
+        &plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     );
     write_file(
-        &project_root.join(".codex/config.toml"),
+        &project_root.join(".darwin-code/config.toml"),
         &plugin_config_toml(/*enabled*/ true, /*plugins_feature_enabled*/ true),
     );
 
     let stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_codex_folder: AbsolutePathBuf::try_from(project_root.join(".codex")).unwrap(),
+                dot_darwin_code_folder: AbsolutePathBuf::try_from(project_root.join(".darwin-code")).unwrap(),
             },
             toml::from_str(&plugin_config_toml(
                 /*enabled*/ true, /*plugins_feature_enabled*/ true,
@@ -3225,8 +3225,8 @@ async fn load_plugins_ignores_project_config_files() {
 
     let outcome = load_plugins_from_layer_stack(
         &stack,
-        &PluginStore::new(codex_home.path().to_path_buf()),
-        Some(Product::Codex),
+        &PluginStore::new(darwin_code_home.path().to_path_buf()),
+        Some(Product::Darwin-Code),
     )
     .await;
 

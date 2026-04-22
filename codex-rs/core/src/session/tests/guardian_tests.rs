@@ -10,24 +10,24 @@ use crate::guardian::GUARDIAN_REVIEWER_NAME;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::context::FunctionToolOutput;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_exec_server::EnvironmentManager;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::RuleMatch;
-use codex_features::Feature;
-use codex_model_provider::create_model_provider;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::function_call_output_content_items_to_text;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::Evaluation;
+use darwin_code_execpolicy::RuleMatch;
+use darwin_code_features::Feature;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::NetworkPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::models::function_call_output_content_items_to_text;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
 use core_test_support::PathExt;
 use core_test_support::TempDirExt;
-use core_test_support::codex_linux_sandbox_exe_or_skip;
+use core_test_support::darwin_code_linux_sandbox_exe_or_skip;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -68,7 +68,7 @@ async fn guardian_allows_shell_additional_permissions_requests_past_policy_valid
     .await;
 
     let (mut session, mut turn_context_raw) = make_session_and_context().await;
-    turn_context_raw.codex_linux_sandbox_exe = codex_linux_sandbox_exe_or_skip!();
+    turn_context_raw.darwin_code_linux_sandbox_exe = darwin_code_linux_sandbox_exe_or_skip!();
     turn_context_raw
         .approval_policy
         .set(AskForApproval::OnRequest)
@@ -96,7 +96,7 @@ async fn guardian_allows_shell_additional_permissions_requests_past_policy_valid
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     let config = Arc::new(config);
     let models_manager = Arc::new(crate::test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
@@ -148,7 +148,7 @@ async fn guardian_allows_shell_additional_permissions_requests_past_policy_valid
             turn: Arc::clone(&turn_context),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "test-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell"),
+            tool_name: darwin_code_tools::ToolName::plain("shell"),
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
                     "command": params.command.clone(),
@@ -214,7 +214,7 @@ async fn guardian_allows_unified_exec_additional_permissions_requests_past_polic
             turn: Arc::clone(&turn_context),
             tracker: Arc::clone(&tracker),
             call_id: "exec-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: darwin_code_tools::ToolName::plain("exec_command"),
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
                     "cmd": "echo hi",
@@ -327,7 +327,7 @@ async fn shell_handler_allows_sticky_turn_permissions_without_inline_request_per
             turn: Arc::clone(&turn_context),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "sticky-turn-grant".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell"),
+            tool_name: darwin_code_tools::ToolName::plain("shell"),
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
                     "command": [
@@ -376,7 +376,7 @@ async fn shell_handler_allows_sticky_turn_permissions_without_inline_request_per
 
 #[tokio::test]
 async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
-    let codex_home = tempdir().expect("create codex home");
+    let darwin_code_home = tempdir().expect("create darwin-code home");
     let project_dir = tempdir().expect("create project dir");
     let rules_dir = project_dir.path().join("rules");
     fs::create_dir_all(&rules_dir).expect("create rules dir");
@@ -386,12 +386,12 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
     )
     .expect("write policy file");
 
-    let mut config = build_test_config(codex_home.path()).await;
+    let mut config = build_test_config(darwin_code_home.path()).await;
     config.cwd = project_dir.abs();
     config.config_layer_stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_codex_folder: project_dir.path().abs(),
+                dot_darwin_code_folder: project_dir.path().abs(),
             },
             toml::Value::Table(Default::default()),
         )],
@@ -419,22 +419,22 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         }
     );
 
-    let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
+    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.darwin_code_home.to_path_buf()));
     let skills_manager = Arc::new(SkillsManager::new(
-        config.codex_home.clone(),
+        config.darwin_code_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_watcher = Arc::new(SkillsWatcher::noop());
 
-    let CodexSpawnOk { codex, .. } = Codex::spawn(CodexSpawnArgs {
+    let DarwinCodeSpawnOk { darwin-code, .. } = Darwin-Code::spawn(DarwinCodeSpawnArgs {
         config,
         auth_manager,
         models_manager,
@@ -461,7 +461,7 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
     .expect("spawn guardian subagent");
 
     assert_eq!(
-        codex
+        darwin-code
             .session
             .services
             .exec_policy
@@ -476,5 +476,5 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         }
     );
 
-    drop(codex);
+    drop(darwin-code);
 }

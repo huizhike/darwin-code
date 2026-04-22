@@ -4,23 +4,23 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use codex_core::compact::SUMMARY_PREFIX;
-use codex_login::CodexAuth;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::compact::SUMMARY_PREFIX;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::ConversationStartParams;
+use darwin_code_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ItemCompletedEvent;
+use darwin_code_protocol::protocol::ItemStartedEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeOutputModality;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -29,9 +29,9 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_websocket_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodexBuilder;
-use core_test_support::test_codex::TestCodexHarness;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
+use core_test_support::test_darwin_code::TestDarwinCodeHarness;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_event_with_timeout;
@@ -86,12 +86,12 @@ fn compacted_summary_only_output(summary: &str) -> Vec<ResponseItem> {
     }]
 }
 
-fn remote_realtime_test_codex_builder(
+fn remote_realtime_test_darwin_code_builder(
     realtime_server: &responses::WebSocketTestServer,
-) -> TestCodexBuilder {
+) -> TestDarwinCodeBuilder {
     let realtime_base_url = realtime_server.uri().to_string();
-    test_codex()
-        .with_auth(CodexAuth::from_api_key("dummy"))
+    test_darwin_code()
+        .with_auth(DarwinCodeAuth::from_api_key("dummy"))
         .with_config(move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
         })
@@ -117,8 +117,8 @@ async fn start_remote_realtime_server() -> responses::WebSocketTestServer {
     .await
 }
 
-async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
-    codex
+async fn start_realtime_conversation(darwin-code: &darwin_code_core::DarwinCodeThread) -> Result<()> {
+    darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -128,7 +128,7 @@ async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<
         }))
         .await?;
 
-    wait_for_event_match(codex, |msg| match msg {
+    wait_for_event_match(darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationStarted(started) => Some(Ok(started.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -136,7 +136,7 @@ async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<
     .await
     .unwrap_or_else(|err: ErrorEvent| panic!("conversation start failed: {err:?}"));
 
-    wait_for_event_match(codex, |msg| match msg {
+    wait_for_event_match(darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -147,9 +147,9 @@ async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<
     Ok(())
 }
 
-async fn close_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
-    codex.submit(Op::RealtimeConversationClose).await?;
-    wait_for_event_match(codex, |msg| match msg {
+async fn close_realtime_conversation(darwin-code: &darwin_code_core::DarwinCodeThread) -> Result<()> {
+    darwin-code.submit(Op::RealtimeConversationClose).await?;
+    wait_for_event_match(darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
         _ => None,
     })
@@ -200,9 +200,9 @@ fn assert_request_contains_realtime_end(request: &responses::ResponsesRequest) {
     );
 }
 
-async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
+async fn wait_for_turn_complete(darwin-code: &darwin_code_core::DarwinCodeThread) {
     wait_for_event_with_timeout(
-        codex,
+        darwin-code,
         |ev| matches!(ev, EventMsg::TurnComplete(_)),
         REMOTE_COMPACT_TURN_COMPLETE_TIMEOUT,
     )
@@ -213,11 +213,11 @@ async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
 async fn remote_compact_replaces_history_for_followups() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
 
     let responses_mock = responses::mount_sse_sequence(
@@ -244,7 +244,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello remote compact".into(),
@@ -254,12 +254,12 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_turn_complete(&codex).await;
+    wait_for_turn_complete(&darwin-code).await;
 
-    codex.submit(Op::Compact).await?;
-    wait_for_turn_complete(&codex).await;
+    darwin-code.submit(Op::Compact).await?;
+    wait_for_turn_complete(&darwin-code).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after compact".into(),
@@ -269,7 +269,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_turn_complete(&codex).await;
+    wait_for_turn_complete(&darwin-code).await;
 
     let compact_request = compact_mock.single_request();
     assert_eq!(compact_request.path(), "/v1/responses/compact");
@@ -360,11 +360,11 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
 async fn remote_compact_runs_automatically() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
 
     mount_sse_once(
@@ -390,7 +390,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello remote compact".into(),
@@ -401,12 +401,12 @@ async fn remote_compact_runs_automatically() -> Result<()> {
         })
         .await?;
 
-    let message = wait_for_event_match(&codex, |event| match event {
+    let message = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::ContextCompacted(_) => Some(true),
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
     assert!(message);
     assert_eq!(compact_mock.requests().len(), 1);
     assert_eq!(
@@ -435,16 +435,16 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
     let retained_command = "echo retained-shell-output";
     let trimmed_command = "yes x | head -n 3000";
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_context_window = Some(2_000);
                 config.model_auto_compact_token_limit = Some(200_000);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     responses::mount_sse_sequence(
         harness.server(),
@@ -465,7 +465,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
@@ -475,9 +475,9 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
@@ -487,7 +487,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -495,8 +495,8 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
     )
     .await;
 
-    codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let compact_request = compact_mock.single_request();
     let user_messages = compact_request.message_input_texts("user");
@@ -553,16 +553,16 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
     let trimmed_call_id = "trimmed-call";
     let retained_command = "echo retained-shell-output";
     let trimmed_command = "yes x | head -n 3000";
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_context_window = Some(2_000);
                 config.model_auto_compact_token_limit = Some(200_000);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     responses::mount_sse_sequence(
         harness.server(),
@@ -593,7 +593,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
@@ -603,9 +603,9 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
@@ -615,7 +615,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -623,7 +623,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "turn that triggers auto compact".into(),
@@ -633,7 +633,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
     assert_eq!(
         compact_mock.requests().len(),
         1,
@@ -688,15 +688,15 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
 async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(120);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     mount_sse_once(
         harness.server(),
@@ -721,7 +721,7 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "turn that exceeds token threshold".into(),
@@ -731,9 +731,9 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "turn that triggers auto compact".into(),
@@ -744,12 +744,12 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
         })
         .await?;
 
-    let error_message = wait_for_event_match(&codex, |event| match event {
+    let error_message = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::Error(err) => Some(err.message.clone()),
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     assert!(
         error_message.contains("Error running remote compact task"),
@@ -793,15 +793,15 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
     let retained_command = "printf retained-shell-output";
     let trailing_command = "printf trailing-shell-output";
 
-    let baseline_harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let baseline_harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_context_window = Some(200_000);
             }),
     )
     .await?;
-    let baseline_codex = baseline_harness.test().codex.clone();
+    let baseline_darwin_code = baseline_harness.test().darwin-code.clone();
 
     responses::mount_sse_sequence(
         baseline_harness.server(),
@@ -825,7 +825,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
     )
     .await;
 
-    baseline_codex
+    baseline_darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
@@ -835,12 +835,12 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&baseline_codex, |event| {
+    wait_for_event(&baseline_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    baseline_codex
+    baseline_darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
@@ -850,7 +850,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&baseline_codex, |event| {
+    wait_for_event(&baseline_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -861,8 +861,8 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
     )
     .await;
 
-    baseline_codex.submit(Op::Compact).await?;
-    wait_for_event(&baseline_codex, |event| {
+    baseline_darwin_code.submit(Op::Compact).await?;
+    wait_for_event(&baseline_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -890,9 +890,9 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
         "expected override instructions to push pre-trim estimate past the context window"
     );
 
-    let override_harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let override_harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config({
                 let override_base_instructions = override_base_instructions.clone();
                 move |config| {
@@ -902,7 +902,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             }),
     )
     .await?;
-    let override_codex = override_harness.test().codex.clone();
+    let override_darwin_code = override_harness.test().darwin-code.clone();
 
     responses::mount_sse_sequence(
         override_harness.server(),
@@ -926,7 +926,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
     )
     .await;
 
-    override_codex
+    override_darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
@@ -936,12 +936,12 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&override_codex, |event| {
+    wait_for_event(&override_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    override_codex
+    override_darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
@@ -951,7 +951,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&override_codex, |event| {
+    wait_for_event(&override_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -962,8 +962,8 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
     )
     .await;
 
-    override_codex.submit(Op::Compact).await?;
-    wait_for_event(&override_codex, |event| {
+    override_darwin_code.submit(Op::Compact).await?;
+    wait_for_event(&override_darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -989,11 +989,11 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
 async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     mount_sse_once(
         harness.server(),
@@ -1010,7 +1010,7 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "manual remote compact".into(),
@@ -1020,9 +1020,9 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
-    codex.submit(Op::Compact).await?;
+    darwin-code.submit(Op::Compact).await?;
 
     let mut started_item = None;
     let mut completed_item = None;
@@ -1031,7 +1031,7 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
 
     while !saw_turn_complete || started_item.is_none() || completed_item.is_none() || !legacy_event
     {
-        let event = codex.next_event().await.unwrap();
+        let event = darwin-code.next_event().await.unwrap();
         match event.msg {
             EventMsg::ItemStarted(ItemStartedEvent {
                 item: TurnItem::ContextCompaction(item),
@@ -1068,11 +1068,11 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
 async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     mount_sse_once(
         harness.server(),
@@ -1089,7 +1089,7 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "manual remote compact".into(),
@@ -1099,11 +1099,11 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
-    codex.submit(Op::Compact).await?;
+    darwin-code.submit(Op::Compact).await?;
 
-    let error_message = wait_for_event_match(&codex, |event| match event {
+    let error_message = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::Error(err) => Some(err.message.clone()),
         _ => None,
     })
@@ -1117,7 +1117,7 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             || error_message.contains("invalid type: string"),
         "expected invalid compact payload details, got {error_message}"
     );
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
 
@@ -1131,11 +1131,11 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
 async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
     let rollout_path = harness
         .test()
         .session_configured
@@ -1172,7 +1172,7 @@ async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> 
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "needs compaction".into(),
@@ -1182,13 +1182,13 @@ async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex.submit(Op::Shutdown).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
     assert_eq!(responses_mock.requests().len(), 1);
     assert_eq!(compact_mock.requests().len(), 1);
@@ -1265,7 +1265,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
     let stale_developer_message = "STALE_DEVELOPER_INSTRUCTIONS_SHOULD_BE_REMOVED";
 
     let mut start_builder =
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let initial = start_builder.build(&server).await?;
     let home = initial.home.clone();
     let rollout_path = initial
@@ -1314,7 +1314,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
     .await;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "start remote compact flow".into(),
@@ -1324,13 +1324,13 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    initial.codex.submit(Op::Compact).await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    initial.darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after compact in same session".into(),
@@ -1340,20 +1340,20 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    initial.codex.submit(Op::Shutdown).await?;
-    wait_for_event(&initial.codex, |ev| {
+    initial.darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&initial.darwin-code, |ev| {
         matches!(ev, EventMsg::ShutdownComplete)
     })
     .await;
 
     let mut resume_builder =
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
 
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -1363,7 +1363,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1410,7 +1410,7 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
     let server = wiremock::MockServer::start().await;
     let stale_developer_message = "STALE_DEVELOPER_INSTRUCTIONS_SHOULD_BE_REMOVED";
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -1448,7 +1448,7 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
     )
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "start remote compact flow".into(),
@@ -1458,12 +1458,12 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex.submit(Op::Compact).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    test.darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after compact in same session".into(),
@@ -1473,7 +1473,7 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1502,7 +1502,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -1531,9 +1531,9 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
     )
     .await;
 
-    start_realtime_conversation(test.codex.as_ref()).await?;
+    start_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -1543,9 +1543,9 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -1555,7 +1555,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1579,7 +1579,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
         )
     );
 
-    close_realtime_conversation(test.codex.as_ref()).await?;
+    close_realtime_conversation(test.darwin-code.as_ref()).await?;
     realtime_server.shutdown().await;
     Ok(())
 }
@@ -1591,7 +1591,7 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
     let custom_instructions = "custom realtime start instructions";
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config({
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server).with_config({
         let custom_instructions = custom_instructions.to_string();
         move |config| {
             config.experimental_realtime_start_instructions = Some(custom_instructions);
@@ -1608,9 +1608,9 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
     )
     .await;
 
-    start_realtime_conversation(test.codex.as_ref()).await?;
+    start_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -1620,14 +1620,14 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_request_contains_custom_realtime_start(
         &responses_mock.single_request(),
         custom_instructions,
     );
 
-    close_realtime_conversation(test.codex.as_ref()).await?;
+    close_realtime_conversation(test.darwin-code.as_ref()).await?;
     realtime_server.shutdown().await;
     Ok(())
 }
@@ -1638,7 +1638,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -1667,9 +1667,9 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
     )
     .await;
 
-    start_realtime_conversation(test.codex.as_ref()).await?;
+    start_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -1679,11 +1679,11 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    close_realtime_conversation(test.codex.as_ref()).await?;
+    close_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -1693,7 +1693,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1727,7 +1727,7 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server);
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server);
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -1754,9 +1754,9 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
     )
     .await;
 
-    start_realtime_conversation(test.codex.as_ref()).await?;
+    start_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -1766,12 +1766,12 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex.submit(Op::Compact).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    test.darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -1781,7 +1781,7 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1805,7 +1805,7 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
         )
     );
 
-    close_realtime_conversation(test.codex.as_ref()).await?;
+    close_realtime_conversation(test.darwin-code.as_ref()).await?;
     realtime_server.shutdown().await;
     Ok(())
 }
@@ -1817,7 +1817,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server).with_config(|config| {
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server).with_config(|config| {
         config.model_auto_compact_token_limit = Some(200);
     });
     let test = builder.build(&server).await?;
@@ -1850,9 +1850,9 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
     )
     .await;
 
-    start_realtime_conversation(test.codex.as_ref()).await?;
+    start_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "SETUP_USER".to_string(),
@@ -1862,11 +1862,11 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    close_realtime_conversation(test.codex.as_ref()).await?;
+    close_realtime_conversation(test.darwin-code.as_ref()).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -1876,7 +1876,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1919,7 +1919,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_codex_builder(&realtime_server);
+    let mut builder = remote_realtime_test_darwin_code_builder(&realtime_server);
     let initial = builder.build(&server).await?;
     let home = initial.home.clone();
     let rollout_path = initial
@@ -1952,10 +1952,10 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
     )
     .await;
 
-    start_realtime_conversation(initial.codex.as_ref()).await?;
+    start_realtime_conversation(initial.darwin-code.as_ref()).await?;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -1965,25 +1965,25 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    close_realtime_conversation(initial.codex.as_ref()).await?;
+    close_realtime_conversation(initial.darwin-code.as_ref()).await?;
 
-    initial.codex.submit(Op::Compact).await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    initial.darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    initial.codex.submit(Op::Shutdown).await?;
-    wait_for_event(&initial.codex, |ev| {
+    initial.darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&initial.darwin-code, |ev| {
         matches!(ev, EventMsg::ShutdownComplete)
     })
     .await;
 
     let mut resume_builder =
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
 
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -1993,7 +1993,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2024,15 +2024,15 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
 -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -2061,7 +2061,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
 
     for user in ["USER_ONE", "USER_TWO", "USER_THREE"] {
         if user == "USER_THREE" {
-            codex
+            darwin-code
                 .submit(Op::OverrideTurnContext {
                     cwd: Some(PathBuf::from(PRETURN_CONTEXT_DIFF_CWD)),
                     approval_policy: None,
@@ -2077,7 +2077,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
                 })
                 .await?;
         }
-        codex
+        darwin-code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: user.to_string(),
@@ -2087,7 +2087,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
                 responsesapi_client_metadata: None,
             })
             .await?;
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     }
 
     assert_eq!(compact_mock.requests().len(), 1);
@@ -2127,18 +2127,18 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
 -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let previous_model = "gpt-5.1-codex-max";
-    let next_model = "gpt-5.2-codex";
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let previous_model = "gpt-5.1-darwin-code-max";
+    let next_model = "gpt-5.2-darwin-code";
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_model(previous_model)
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let initial_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -2162,7 +2162,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "BEFORE_SWITCH_USER".to_string(),
@@ -2172,9 +2172,9 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -2189,7 +2189,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             personality: None,
         })
         .await?;
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "AFTER_SWITCH_USER".to_string(),
@@ -2199,7 +2199,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(
         compact_mock.requests().len(),
@@ -2268,15 +2268,15 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
 async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceeded() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -2306,7 +2306,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -2316,9 +2316,9 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -2328,12 +2328,12 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
             responsesapi_client_metadata: None,
         })
         .await?;
-    let error_message = wait_for_event_match(&codex, |event| match event {
+    let error_message = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::Error(err) => Some(err.message.clone()),
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2370,15 +2370,15 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
 async fn snapshot_request_shape_remote_mid_turn_continuation_compaction() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -2401,7 +2401,7 @@ async fn snapshot_request_shape_remote_mid_turn_continuation_compaction() -> Res
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -2411,7 +2411,7 @@ async fn snapshot_request_shape_remote_mid_turn_continuation_compaction() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2441,15 +2441,15 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_summary_only_reinject
 -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let initial_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -2477,7 +2477,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_summary_only_reinject
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -2487,7 +2487,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_summary_only_reinject
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     assert_eq!(
@@ -2525,15 +2525,15 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
 -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex()
-            .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code()
+            .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
             .with_config(|config| {
                 config.model_auto_compact_token_limit = Some(200);
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let setup_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -2561,7 +2561,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -2571,12 +2571,12 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -2586,7 +2586,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 2);
     assert_eq!(
@@ -2634,11 +2634,11 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
 {
     skip_if_no_network!(Ok(()));
 
-    let harness = TestCodexHarness::with_builder(
-        test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
+    let harness = TestDarwinCodeHarness::with_builder(
+        test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let darwin-code = harness.test().darwin-code.clone();
 
     let responses_mock = responses::mount_sse_once(
         harness.server(),
@@ -2653,10 +2653,10 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
         responses::mount_compact_json_once(harness.server(), serde_json::json!({ "output": [] }))
             .await;
 
-    codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin-code.submit(Op::Compact).await?;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -2666,7 +2666,7 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(
         compact_mock.requests().len(),

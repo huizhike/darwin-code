@@ -34,15 +34,15 @@ use crate::unified_exec::NoopSpawnLifecycle;
 use crate::unified_exec::UnifiedExecError;
 use crate::unified_exec::UnifiedExecProcess;
 use crate::unified_exec::UnifiedExecProcessManager;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxablePreference;
-use codex_shell_command::powershell::prefix_powershell_script_with_utf8;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_shell_command::powershell::prefix_powershell_script_with_utf8;
+use darwin_code_tools::UnifiedExecShellMode;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::future::BoxFuture;
 use std::collections::HashMap;
 
@@ -255,7 +255,7 @@ impl<'a> ToolRuntime<UnifiedExecRequest, UnifiedExecProcess> for UnifiedExecRunt
             };
             let mut exec_env = attempt
                 .env_for(command, options, req.network.as_ref())
-                .map_err(|err| ToolError::Codex(err.into()))?;
+                .map_err(|err| ToolError::Darwin-Code(err.into()))?;
             exec_env.exec_server_env_config = req.exec_server_env_config.clone();
             match zsh_fork_backend::maybe_prepare_unified_exec(
                 req,
@@ -289,7 +289,7 @@ impl<'a> ToolRuntime<UnifiedExecRequest, UnifiedExecProcess> for UnifiedExecRunt
                         .await
                         .map_err(|err| match err {
                             UnifiedExecError::SandboxDenied { output, .. } => {
-                                ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+                                ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                                     output: Box::new(output),
                                     network_policy_decision: None,
                                 }))
@@ -313,7 +313,7 @@ impl<'a> ToolRuntime<UnifiedExecRequest, UnifiedExecProcess> for UnifiedExecRunt
         };
         let mut exec_env = attempt
             .env_for(command, options, req.network.as_ref())
-            .map_err(|err| ToolError::Codex(err.into()))?;
+            .map_err(|err| ToolError::Darwin-Code(err.into()))?;
         exec_env.exec_server_env_config = req.exec_server_env_config.clone();
         let Some(environment) = ctx.turn.environment.as_ref() else {
             return Err(ToolError::Rejected(
@@ -331,7 +331,7 @@ impl<'a> ToolRuntime<UnifiedExecRequest, UnifiedExecProcess> for UnifiedExecRunt
             .await
             .map_err(|err| match err {
                 UnifiedExecError::SandboxDenied { output, .. } => {
-                    ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+                    ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                         output: Box::new(output),
                         network_policy_decision: None,
                     }))

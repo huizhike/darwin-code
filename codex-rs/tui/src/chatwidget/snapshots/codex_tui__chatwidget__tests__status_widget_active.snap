@@ -6,6 +6,6 @@ expression: normalized_backend_snapshot(terminal.backend())
 "• Analyzing (0s • esc to interrupt)                                             "
 "                                                                                "
 "                                                                                "
-"› Ask Codex to do anything                                                      "
+"› Ask Darwin-Code to do anything                                                      "
 "                                                                                "
-"  gpt-5.3-codex default · /tmp/project                                          "
+"  gpt-5.3-darwin-code default · /tmp/project                                          "

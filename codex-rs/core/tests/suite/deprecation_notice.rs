@@ -1,19 +1,19 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_core::config_loader::ConfigLayerEntry;
-use codex_core::config_loader::ConfigLayerStack;
-use codex_core::config_loader::ConfigRequirements;
-use codex_core::config_loader::ConfigRequirementsToml;
-use codex_features::Feature;
-use codex_protocol::protocol::DeprecationNoticeEvent;
-use codex_protocol::protocol::EventMsg;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_core::config_loader::ConfigLayerEntry;
+use darwin_code_core::config_loader::ConfigLayerStack;
+use darwin_code_core::config_loader::ConfigRequirements;
+use darwin_code_core::config_loader::ConfigRequirementsToml;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::DeprecationNoticeEvent;
+use darwin_code_protocol::protocol::EventMsg;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_absolute_path;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
@@ -25,7 +25,7 @@ async fn emits_deprecation_notice_for_legacy_feature_flag() -> anyhow::Result<()
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         let mut features = config.features.get().clone();
         features.enable(Feature::UnifiedExec);
         features
@@ -37,9 +37,9 @@ async fn emits_deprecation_notice_for_legacy_feature_flag() -> anyhow::Result<()
         config.use_experimental_unified_exec_tool = true;
     });
 
-    let TestCodex { codex, .. } = builder.build(&server).await?;
+    let TestDarwinCode { darwin-code, .. } = builder.build(&server).await?;
 
-    let notice = wait_for_event_match(&codex, |event| match event {
+    let notice = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::DeprecationNotice(ev) => Some(ev.clone()),
         _ => None,
     })
@@ -53,7 +53,7 @@ async fn emits_deprecation_notice_for_legacy_feature_flag() -> anyhow::Result<()
     assert_eq!(
         details.as_deref(),
         Some(
-            "Enable it with `--enable unified_exec` or `[features].unified_exec` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details."
+            "Enable it with `--enable unified_exec` or `[features].unified_exec` in config.toml. See https://developers.openai.com/darwin-code/config-basic#feature-flags for details."
         ),
     );
 
@@ -66,7 +66,7 @@ async fn emits_deprecation_notice_for_experimental_instructions_file() -> anyhow
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         let mut table = toml::map::Map::new();
         table.insert(
             "experimental_instructions_file".to_string(),
@@ -87,9 +87,9 @@ async fn emits_deprecation_notice_for_experimental_instructions_file() -> anyhow
         config.config_layer_stack = config_layer_stack;
     });
 
-    let TestCodex { codex, .. } = builder.build(&server).await?;
+    let TestDarwinCode { darwin-code, .. } = builder.build(&server).await?;
 
-    let notice = wait_for_event_match(&codex, |event| match event {
+    let notice = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::DeprecationNotice(ev)
             if ev.summary.contains("experimental_instructions_file") =>
         {
@@ -122,7 +122,7 @@ async fn emits_deprecation_notice_for_web_search_feature_flag_values() -> anyhow
     for enabled in [true, false] {
         let server = start_mock_server().await;
 
-        let mut builder = test_codex().with_config(move |config| {
+        let mut builder = test_darwin_code().with_config(move |config| {
             let mut entries = BTreeMap::new();
             entries.insert("web_search_request".to_string(), enabled);
             let mut features = config.features.get().clone();
@@ -133,9 +133,9 @@ async fn emits_deprecation_notice_for_web_search_feature_flag_values() -> anyhow
                 .expect("test config should allow managed feature map updates");
         });
 
-        let TestCodex { codex, .. } = builder.build(&server).await?;
+        let TestDarwinCode { darwin-code, .. } = builder.build(&server).await?;
 
-        let notice = wait_for_event_match(&codex, |event| match event {
+        let notice = wait_for_event_match(&darwin-code, |event| match event {
             EventMsg::DeprecationNotice(ev)
                 if ev.summary.contains("[features].web_search_request") =>
             {
@@ -168,7 +168,7 @@ async fn emits_deprecation_notice_for_use_legacy_landlock() -> anyhow::Result<()
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         let mut entries = BTreeMap::new();
         entries.insert("use_legacy_landlock".to_string(), true);
         let mut features = config.features.get().clone();
@@ -179,9 +179,9 @@ async fn emits_deprecation_notice_for_use_legacy_landlock() -> anyhow::Result<()
             .expect("test config should allow managed feature map updates");
     });
 
-    let TestCodex { codex, .. } = builder.build(&server).await?;
+    let TestDarwinCode { darwin-code, .. } = builder.build(&server).await?;
 
-    let notice = wait_for_event_match(&codex, |event| match event {
+    let notice = wait_for_event_match(&darwin-code, |event| match event {
         EventMsg::DeprecationNotice(ev)
             if ev.summary.contains("[features].use_legacy_landlock") =>
         {

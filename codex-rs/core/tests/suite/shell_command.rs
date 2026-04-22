@@ -10,9 +10,9 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
 use core_test_support::skip_if_windows;
-use core_test_support::test_codex::TestCodexBuilder;
-use core_test_support::test_codex::TestCodexHarness;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
+use core_test_support::test_darwin_code::TestDarwinCodeHarness;
+use core_test_support::test_darwin_code::test_darwin_code;
 use serde_json::json;
 use test_case::test_case;
 
@@ -59,16 +59,16 @@ fn shell_responses(call_id: &str, command: &str, login: Option<bool>) -> Vec<Str
 }
 
 async fn shell_command_harness_with(
-    configure: impl FnOnce(TestCodexBuilder) -> TestCodexBuilder,
-) -> Result<TestCodexHarness> {
-    let builder = configure(test_codex()).with_config(|config| {
+    configure: impl FnOnce(TestDarwinCodeBuilder) -> TestDarwinCodeBuilder,
+) -> Result<TestDarwinCodeHarness> {
+    let builder = configure(test_darwin_code()).with_config(|config| {
         config.include_apply_patch_tool = true;
     });
-    TestCodexHarness::with_builder(builder).await
+    TestDarwinCodeHarness::with_builder(builder).await
 }
 
 async fn mount_shell_responses(
-    harness: &TestCodexHarness,
+    harness: &TestDarwinCodeHarness,
     call_id: &str,
     command: &str,
     login: Option<bool>,
@@ -77,7 +77,7 @@ async fn mount_shell_responses(
 }
 
 async fn mount_shell_responses_with_timeout(
-    harness: &TestCodexHarness,
+    harness: &TestDarwinCodeHarness,
     call_id: &str,
     command: &str,
     login: Option<bool>,
@@ -258,7 +258,7 @@ async fn shell_command_times_out_with_timeout_ms() -> anyhow::Result<()> {
 
 /// This test verifies that a shell, particularly PowerShell, can correctly
 /// handle unicode output when the UTF-8 BOM is used. See
-/// https://github.com/openai/codex/pull/7902 for more context.
+/// https://github.com/openai/darwin-code/pull/7902 for more context.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[test_case(true ; "with_login")]
 #[test_case(false ; "without_login")]

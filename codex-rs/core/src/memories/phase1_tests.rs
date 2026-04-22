@@ -2,12 +2,12 @@ use super::JobOutcome;
 use super::JobResult;
 use super::aggregate_stats;
 use super::job::serialize_filtered_rollout_response_items;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::TokenUsage;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::TokenUsage;
 use pretty_assertions::assert_eq;
 
 #[test]

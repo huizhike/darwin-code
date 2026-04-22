@@ -3,17 +3,17 @@ use super::LoaderOverrides;
 use super::macos::ManagedAdminConfigLayer;
 #[cfg(target_os = "macos")]
 use super::macos::load_managed_admin_config_layer;
-use codex_config::config_error_from_toml;
-use codex_config::io_error_from_config_error;
-use codex_exec_server::ExecutorFileSystem;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::config_error_from_toml;
+use darwin_code_config::io_error_from_config_error;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 #[cfg(unix)]
-const CODEX_MANAGED_CONFIG_SYSTEM_PATH: &str = "/etc/codex/managed_config.toml";
+const DARWIN_CODE_MANAGED_CONFIG_SYSTEM_PATH: &str = "/etc/darwin-code/managed_config.toml";
 
 #[derive(Debug, Clone)]
 pub(super) struct MangedConfigFromFile {
@@ -29,7 +29,7 @@ pub(super) struct ManagedConfigFromMdm {
 
 #[derive(Debug, Clone)]
 pub(super) struct LoadedConfigLayers {
-    /// If present, data read from a file such as `/etc/codex/managed_config.toml`.
+    /// If present, data read from a file such as `/etc/darwin-code/managed_config.toml`.
     pub managed_config: Option<MangedConfigFromFile>,
     /// If present, data read from managed preferences (macOS only).
     pub managed_config_from_mdm: Option<ManagedConfigFromMdm>,
@@ -37,7 +37,7 @@ pub(super) struct LoadedConfigLayers {
 
 pub(super) async fn load_config_layers_internal(
     fs: &dyn ExecutorFileSystem,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     overrides: LoaderOverrides,
 ) -> io::Result<LoadedConfigLayers> {
     #[cfg(target_os = "macos")]
@@ -54,7 +54,7 @@ pub(super) async fn load_config_layers_internal(
     } = overrides;
 
     let managed_config_path = AbsolutePathBuf::from_absolute_path(
-        managed_config_path.unwrap_or_else(|| managed_config_default_path(codex_home)),
+        managed_config_path.unwrap_or_else(|| managed_config_default_path(darwin_code_home)),
     )?;
 
     let managed_config =
@@ -123,15 +123,15 @@ pub(super) async fn read_config_from_path(
 }
 
 /// Return the default managed config path.
-pub(super) fn managed_config_default_path(codex_home: &Path) -> PathBuf {
+pub(super) fn managed_config_default_path(darwin_code_home: &Path) -> PathBuf {
     #[cfg(unix)]
     {
-        let _ = codex_home;
-        PathBuf::from(CODEX_MANAGED_CONFIG_SYSTEM_PATH)
+        let _ = darwin_code_home;
+        PathBuf::from(DARWIN_CODE_MANAGED_CONFIG_SYSTEM_PATH)
     }
 
     #[cfg(not(unix))]
     {
-        codex_home.join("managed_config.toml")
+        darwin_code_home.join("managed_config.toml")
     }
 }

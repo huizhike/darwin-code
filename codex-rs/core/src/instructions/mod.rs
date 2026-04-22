@@ -1,1 +1,1 @@
-pub(crate) use codex_instructions::UserInstructions;
+pub(crate) use darwin_code_instructions::UserInstructions;

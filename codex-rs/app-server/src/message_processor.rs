@@ -7,8 +7,8 @@ use std::sync::RwLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use crate::codex_message_processor::CodexMessageProcessor;
-use crate::codex_message_processor::CodexMessageProcessorArgs;
+use crate::darwin_code_message_processor::DarwinCodeMessageProcessor;
+use crate::darwin_code_message_processor::DarwinCodeMessageProcessorArgs;
 use crate::config_api::ConfigApi;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::external_agent_config_api::ExternalAgentConfigApi;
@@ -22,65 +22,65 @@ use crate::transport::AppServerTransport;
 use crate::transport::RemoteControlHandle;
 use async_trait::async_trait;
 use axum::http::HeaderValue;
-use codex_app_server_protocol::AppListUpdatedNotification;
-use codex_app_server_protocol::AuthMode as LoginAuthMode;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshParams;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshReason;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshResponse;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::ExperimentalApi;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetParams;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
-use codex_app_server_protocol::ExternalAgentConfigImportParams;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-use codex_app_server_protocol::FsCopyParams;
-use codex_app_server_protocol::FsCreateDirectoryParams;
-use codex_app_server_protocol::FsGetMetadataParams;
-use codex_app_server_protocol::FsReadDirectoryParams;
-use codex_app_server_protocol::FsReadFileParams;
-use codex_app_server_protocol::FsRemoveParams;
-use codex_app_server_protocol::FsUnwatchParams;
-use codex_app_server_protocol::FsWatchParams;
-use codex_app_server_protocol::FsWriteFileParams;
-use codex_app_server_protocol::InitializeResponse;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_app_server_protocol::experimental_required_message;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::LoaderOverrides;
-use codex_exec_server::EnvironmentManager;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::auth::ExternalAuth;
-use codex_login::auth::ExternalAuthRefreshContext;
-use codex_login::auth::ExternalAuthRefreshReason;
-use codex_login::auth::ExternalAuthTokens;
-use codex_login::default_client::SetOriginatorError;
-use codex_login::default_client::USER_AGENT_SUFFIX;
-use codex_login::default_client::get_codex_user_agent;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::default_client::set_default_originator;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_state::log_db::LogDbLayer;
+use darwin_code_app_server_protocol::AppListUpdatedNotification;
+use darwin_code_app_server_protocol::AuthMode as LoginAuthMode;
+use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshParams;
+use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshReason;
+use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshResponse;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::ClientNotification;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::ConfigBatchWriteParams;
+use darwin_code_app_server_protocol::ConfigReadParams;
+use darwin_code_app_server_protocol::ConfigValueWriteParams;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::ExperimentalApi;
+use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportResponse;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
+use darwin_code_app_server_protocol::FsCopyParams;
+use darwin_code_app_server_protocol::FsCreateDirectoryParams;
+use darwin_code_app_server_protocol::FsGetMetadataParams;
+use darwin_code_app_server_protocol::FsReadDirectoryParams;
+use darwin_code_app_server_protocol::FsReadFileParams;
+use darwin_code_app_server_protocol::FsRemoveParams;
+use darwin_code_app_server_protocol::FsUnwatchParams;
+use darwin_code_app_server_protocol::FsWatchParams;
+use darwin_code_app_server_protocol::FsWriteFileParams;
+use darwin_code_app_server_protocol::InitializeResponse;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCRequest;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequestPayload;
+use darwin_code_app_server_protocol::experimental_required_message;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::config::Config;
+use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::LoaderOverrides;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_features::Feature;
+use darwin_code_login::AuthManager;
+use darwin_code_login::auth::ExternalAuth;
+use darwin_code_login::auth::ExternalAuthRefreshContext;
+use darwin_code_login::auth::ExternalAuthRefreshReason;
+use darwin_code_login::auth::ExternalAuthTokens;
+use darwin_code_login::default_client::SetOriginatorError;
+use darwin_code_login::default_client::USER_AGENT_SUFFIX;
+use darwin_code_login::default_client::get_darwin_code_user_agent;
+use darwin_code_login::default_client::set_default_client_residency_requirement;
+use darwin_code_login::default_client::set_default_originator;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_state::log_db::LogDbLayer;
 use futures::FutureExt;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
@@ -161,7 +161,7 @@ impl ExternalAuth for ExternalAuthRefreshBridge {
 
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
-    codex_message_processor: CodexMessageProcessor,
+    darwin_code_message_processor: DarwinCodeMessageProcessor,
     thread_manager: Arc<ThreadManager>,
     config_api: ConfigApi,
     external_agent_config_api: ExternalAgentConfigApi,
@@ -231,7 +231,7 @@ pub(crate) struct MessageProcessorArgs {
     pub(crate) cli_overrides: Vec<(String, TomlValue)>,
     pub(crate) loader_overrides: LoaderOverrides,
     pub(crate) cloud_requirements: CloudRequirementsLoader,
-    pub(crate) feedback: CodexFeedback,
+    pub(crate) feedback: DarwinCodeFeedback,
     pub(crate) log_db: Option<LogDbLayer>,
     pub(crate) config_warnings: Vec<ConfigWarningNotification>,
     pub(crate) session_source: SessionSource,
@@ -287,7 +287,7 @@ impl MessageProcessor {
         let cli_overrides = Arc::new(RwLock::new(cli_overrides));
         let runtime_feature_enablement = Arc::new(RwLock::new(BTreeMap::new()));
         let cloud_requirements = Arc::new(RwLock::new(cloud_requirements));
-        let codex_message_processor = CodexMessageProcessor::new(CodexMessageProcessorArgs {
+        let darwin_code_message_processor = DarwinCodeMessageProcessor::new(DarwinCodeMessageProcessorArgs {
             auth_manager: auth_manager.clone(),
             thread_manager: Arc::clone(&thread_manager),
             outgoing: outgoing.clone(),
@@ -306,7 +306,7 @@ impl MessageProcessor {
             .plugins_manager()
             .maybe_start_plugin_startup_tasks_for_config(&config, auth_manager.clone());
         let config_api = ConfigApi::new(
-            config.codex_home.to_path_buf(),
+            config.darwin_code_home.to_path_buf(),
             cli_overrides,
             runtime_feature_enablement,
             loader_overrides,
@@ -315,13 +315,13 @@ impl MessageProcessor {
             analytics_events_client.clone(),
         );
         let external_agent_config_api =
-            ExternalAgentConfigApi::new(config.codex_home.to_path_buf());
+            ExternalAgentConfigApi::new(config.darwin_code_home.to_path_buf());
         let fs_api = FsApi::default();
         let fs_watch_manager = FsWatchManager::new(outgoing.clone());
 
         Self {
             outgoing,
-            codex_message_processor,
+            darwin_code_message_processor,
             thread_manager: Arc::clone(&thread_manager),
             config_api,
             external_agent_config_api,
@@ -381,8 +381,8 @@ impl MessageProcessor {
                     }
                 };
 
-                let codex_request = match serde_json::from_value::<ClientRequest>(request_json) {
-                    Ok(codex_request) => codex_request,
+                let darwin_code_request = match serde_json::from_value::<ClientRequest>(request_json) {
+                    Ok(darwin_code_request) => darwin_code_request,
                     Err(err) => {
                         let error = JSONRPCErrorError {
                             code: INVALID_REQUEST_ERROR_CODE,
@@ -399,7 +399,7 @@ impl MessageProcessor {
                 // ready too early from inside the shared request handler.
                 self.handle_client_request(
                     request_id.clone(),
-                    codex_request,
+                    darwin_code_request,
                     Arc::clone(&session),
                     /*outbound_initialized*/ None,
                     request_context.clone(),
@@ -481,7 +481,7 @@ impl MessageProcessor {
     }
 
     pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ThreadId> {
-        self.codex_message_processor.thread_created_receiver()
+        self.darwin_code_message_processor.thread_created_receiver()
     }
 
     pub(crate) async fn send_initialize_notifications_to_connection(
@@ -499,7 +499,7 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn connection_initialized(&self, connection_id: ConnectionId) {
-        self.codex_message_processor
+        self.darwin_code_message_processor
             .connection_initialized(connection_id)
             .await;
     }
@@ -517,39 +517,39 @@ impl MessageProcessor {
         thread_id: ThreadId,
         connection_ids: Vec<ConnectionId>,
     ) {
-        self.codex_message_processor
+        self.darwin_code_message_processor
             .try_attach_thread_listener(thread_id, connection_ids)
             .await;
     }
 
     pub(crate) async fn drain_background_tasks(&self) {
-        self.codex_message_processor.drain_background_tasks().await;
+        self.darwin_code_message_processor.drain_background_tasks().await;
     }
 
     pub(crate) async fn cancel_active_login(&self) {
-        self.codex_message_processor.cancel_active_login().await;
+        self.darwin_code_message_processor.cancel_active_login().await;
     }
 
     pub(crate) async fn clear_all_thread_listeners(&self) {
-        self.codex_message_processor
+        self.darwin_code_message_processor
             .clear_all_thread_listeners()
             .await;
     }
 
     pub(crate) async fn shutdown_threads(&self) {
-        self.codex_message_processor.shutdown_threads().await;
+        self.darwin_code_message_processor.shutdown_threads().await;
     }
 
     pub(crate) async fn connection_closed(&self, connection_id: ConnectionId) {
         self.outgoing.connection_closed(connection_id).await;
         self.fs_watch_manager.connection_closed(connection_id).await;
-        self.codex_message_processor
+        self.darwin_code_message_processor
             .connection_closed(connection_id)
             .await;
     }
 
     pub(crate) fn subscribe_running_assistant_turn_count(&self) -> watch::Receiver<usize> {
-        self.codex_message_processor
+        self.darwin_code_message_processor
             .subscribe_running_assistant_turn_count()
     }
 
@@ -569,7 +569,7 @@ impl MessageProcessor {
     async fn handle_client_request(
         self: &Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        darwin_code_request: ClientRequest,
         session: Arc<ConnectionSessionState>,
         // `Some(...)` means the caller wants initialize to immediately mark the
         // connection outbound-ready. Websocket JSON-RPC calls pass `None` so
@@ -578,8 +578,8 @@ impl MessageProcessor {
         request_context: RequestContext,
     ) {
         let connection_id = connection_request_id.connection_id;
-        if let ClientRequest::Initialize { request_id, params } = codex_request {
-            // Handle Initialize internally so CodexMessageProcessor does not have to concern
+        if let ClientRequest::Initialize { request_id, params } = darwin_code_request {
+            // Handle Initialize internally so DarwinCodeMessageProcessor does not have to concern
             // itself with the `initialized` bool.
             let connection_request_id = ConnectionRequestId {
                 connection_id,
@@ -634,7 +634,7 @@ impl MessageProcessor {
             }
             let originator = name.clone();
             let user_agent_suffix = format!("{name}; {version}");
-            let codex_home = self.config.codex_home.clone();
+            let darwin_code_home = self.config.darwin_code_home.clone();
             if session
                 .initialize(InitializedConnectionSessionState {
                     experimental_api_enabled,
@@ -667,7 +667,7 @@ impl MessageProcessor {
                     }
                     SetOriginatorError::AlreadyInitialized => {
                         // No-op. This is expected to happen if the originator is already set via env var.
-                        // TODO(owen): Once we remove support for CODEX_INTERNAL_ORIGINATOR_OVERRIDE,
+                        // TODO(owen): Once we remove support for DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE,
                         // this will be an unexpected state and we can return a JSON-RPC error indicating
                         // internal server error.
                     }
@@ -686,10 +686,10 @@ impl MessageProcessor {
                 *suffix = Some(user_agent_suffix);
             }
 
-            let user_agent = get_codex_user_agent();
+            let user_agent = get_darwin_code_user_agent();
             let response = InitializeResponse {
                 user_agent,
-                codex_home,
+                darwin_code_home,
                 platform_family: std::env::consts::FAMILY.to_string(),
                 platform_os: std::env::consts::OS.to_string(),
             };
@@ -703,7 +703,7 @@ impl MessageProcessor {
                 // websocket path defers this until lib.rs finishes transport-layer
                 // initialize handling for the specific connection.
                 outbound_initialized.store(true, Ordering::Release);
-                self.codex_message_processor
+                self.darwin_code_message_processor
                     .connection_initialized(connection_id)
                     .await;
             }
@@ -712,7 +712,7 @@ impl MessageProcessor {
 
         self.dispatch_initialized_client_request(
             connection_request_id,
-            codex_request,
+            darwin_code_request,
             session,
             request_context,
         )
@@ -722,7 +722,7 @@ impl MessageProcessor {
     async fn dispatch_initialized_client_request(
         self: &Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        darwin_code_request: ClientRequest,
         session: Arc<ConnectionSessionState>,
         request_context: RequestContext,
     ) {
@@ -736,7 +736,7 @@ impl MessageProcessor {
             return;
         }
 
-        if let Some(reason) = codex_request.experimental_reason()
+        if let Some(reason) = darwin_code_request.experimental_reason()
             && !session.experimental_api_enabled()
         {
             let error = JSONRPCErrorError {
@@ -750,12 +750,12 @@ impl MessageProcessor {
         let connection_id = connection_request_id.connection_id;
         if self.config.features.enabled(Feature::GeneralAnalytics)
             && let ClientRequest::TurnStart { request_id, .. }
-            | ClientRequest::TurnSteer { request_id, .. } = &codex_request
+            | ClientRequest::TurnSteer { request_id, .. } = &darwin_code_request
         {
             self.analytics_events_client.track_request(
                 connection_id.0,
                 request_id.clone(),
-                codex_request.clone(),
+                darwin_code_request.clone(),
             );
         }
 
@@ -764,7 +764,7 @@ impl MessageProcessor {
         Arc::clone(self)
             .handle_initialized_client_request(
                 connection_request_id,
-                codex_request,
+                darwin_code_request,
                 request_context,
                 app_server_client_name,
                 client_version,
@@ -775,14 +775,14 @@ impl MessageProcessor {
     async fn handle_initialized_client_request(
         self: Arc<Self>,
         connection_request_id: ConnectionRequestId,
-        codex_request: ClientRequest,
+        darwin_code_request: ClientRequest,
         request_context: RequestContext,
         app_server_client_name: Option<String>,
         client_version: Option<String>,
     ) {
         let connection_id = connection_request_id.connection_id;
 
-        match codex_request {
+        match darwin_code_request {
             ClientRequest::ConfigRead { request_id, params } => {
                 self.handle_config_read(
                     ConnectionRequestId {
@@ -947,9 +947,9 @@ impl MessageProcessor {
             }
             other => {
                 // Box the delegated future so this wrapper's async state machine does not
-                // inline the full `CodexMessageProcessor::process_request` future, which
+                // inline the full `DarwinCodeMessageProcessor::process_request` future, which
                 // can otherwise push worker-thread stack usage over the edge.
-                self.codex_message_processor
+                self.darwin_code_message_processor
                     .process_request(
                         connection_id,
                         other,
@@ -1024,7 +1024,7 @@ impl MessageProcessor {
         let auth = self.auth_manager.auth().await;
         if !config.features.apps_enabled_for_auth(
             auth.as_ref()
-                .is_some_and(codex_login::CodexAuth::is_chatgpt_auth),
+                .is_some_and(darwin_code_login::DarwinCodeAuth::is_chatgpt_auth),
         ) {
             return;
         }
@@ -1087,7 +1087,7 @@ impl MessageProcessor {
     }
 
     async fn handle_config_mutation(&self) {
-        self.codex_message_processor.handle_config_mutation();
+        self.darwin_code_message_processor.handle_config_mutation();
         let Some(remote_control_handle) = &self.remote_control_handle else {
             return;
         };

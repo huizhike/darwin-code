@@ -3,11 +3,11 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportResponse;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::PluginListParams;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -17,11 +17,11 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 #[tokio::test]
 async fn external_agent_config_import_sends_completion_notification_for_local_plugins() -> Result<()>
 {
-    let codex_home = TempDir::new()?;
-    let marketplace_root = codex_home.path().join("marketplace");
+    let darwin_code_home = TempDir::new()?;
+    let marketplace_root = darwin_code_home.path().join("marketplace");
     let plugin_root = marketplace_root.join("plugins").join("sample");
     std::fs::create_dir_all(marketplace_root.join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
+    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
     std::fs::write(
         marketplace_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -38,10 +38,10 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r#"{"name":"sample","version":"0.1.0"}"#,
     )?;
-    std::fs::create_dir_all(codex_home.path().join(".claude"))?;
+    std::fs::create_dir_all(darwin_code_home.path().join(".claude"))?;
     let settings = serde_json::json!({
         "enabledPlugins": {
             "sample@debug": true
@@ -54,13 +54,13 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
         }
     });
     std::fs::write(
-        codex_home.path().join(".claude").join("settings.json"),
+        darwin_code_home.path().join(".claude").join("settings.json"),
         serde_json::to_string_pretty(&settings)?,
     )?;
 
-    let home_dir = codex_home.path().display().to_string();
+    let home_dir = darwin_code_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(codex_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(darwin_code_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -125,10 +125,10 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
 #[tokio::test]
 async fn external_agent_config_import_sends_completion_notification_after_pending_plugins_finish()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
-    std::fs::create_dir_all(codex_home.path().join(".claude"))?;
+    let darwin_code_home = TempDir::new()?;
+    std::fs::create_dir_all(darwin_code_home.path().join(".claude"))?;
     std::fs::write(
-        codex_home.path().join(".claude").join("settings.json"),
+        darwin_code_home.path().join(".claude").join("settings.json"),
         r#"{
   "enabledPlugins": {
     "formatter@acme-tools": true
@@ -141,9 +141,9 @@ async fn external_agent_config_import_sends_completion_notification_after_pendin
 }"#,
     )?;
 
-    let home_dir = codex_home.path().display().to_string();
+    let home_dir = darwin_code_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(codex_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(darwin_code_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

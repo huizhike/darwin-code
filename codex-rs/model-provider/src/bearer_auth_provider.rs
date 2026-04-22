@@ -1,4 +1,4 @@
-use codex_api::AuthProvider;
+use darwin_code_api::AuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
 
@@ -52,8 +52,8 @@ mod tests {
         };
 
         assert_eq!(
-            codex_api::auth_header_telemetry(&auth),
-            codex_api::AuthHeaderTelemetry {
+            darwin_code_api::auth_header_telemetry(&auth),
+            darwin_code_api::AuthHeaderTelemetry {
                 attached: true,
                 name: Some("authorization"),
             }

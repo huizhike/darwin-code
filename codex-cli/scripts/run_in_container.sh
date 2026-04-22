@@ -26,7 +26,7 @@ fi
 WORK_DIR=$(realpath "$WORK_DIR")
 
 # Generate a unique container name based on the normalized work directory
-CONTAINER_NAME="codex_$(echo "$WORK_DIR" | sed 's/\//_/g' | sed 's/[^a-zA-Z0-9_-]//g')"
+CONTAINER_NAME="darwin_code_$(echo "$WORK_DIR" | sed 's/\//_/g' | sed 's/[^a-zA-Z0-9_-]//g')"
 
 # Define cleanup to remove the container on script exit, ensuring no leftover containers
 cleanup() {
@@ -62,22 +62,22 @@ docker run --name "$CONTAINER_NAME" -d \
   --cap-add=NET_ADMIN \
   --cap-add=NET_RAW \
   -v "$WORK_DIR:/app$WORK_DIR" \
-  codex \
+  darwin-code \
   sleep infinity
 
 # Write the allowed domains to a file in the container
-docker exec --user root "$CONTAINER_NAME" bash -c "mkdir -p /etc/codex"
+docker exec --user root "$CONTAINER_NAME" bash -c "mkdir -p /etc/darwin-code"
 for domain in $OPENAI_ALLOWED_DOMAINS; do
   # Validate domain format to prevent injection
   if [[ ! "$domain" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
     echo "Error: Invalid domain format: $domain"
     exit 1
   fi
-  echo "$domain" | docker exec --user root -i "$CONTAINER_NAME" bash -c "cat >> /etc/codex/allowed_domains.txt"
+  echo "$domain" | docker exec --user root -i "$CONTAINER_NAME" bash -c "cat >> /etc/darwin-code/allowed_domains.txt"
 done
 
 # Set proper permissions on the domains file
-docker exec --user root "$CONTAINER_NAME" bash -c "chmod 444 /etc/codex/allowed_domains.txt && chown root:root /etc/codex/allowed_domains.txt"
+docker exec --user root "$CONTAINER_NAME" bash -c "chmod 444 /etc/darwin-code/allowed_domains.txt && chown root:root /etc/darwin-code/allowed_domains.txt"
 
 # Initialize the firewall inside the container as root user
 docker exec --user root "$CONTAINER_NAME" bash -c "/usr/local/bin/init_firewall.sh"
@@ -92,4 +92,4 @@ quoted_args=""
 for arg in "$@"; do
   quoted_args+=" $(printf '%q' "$arg")"
 done
-docker exec -it "$CONTAINER_NAME" bash -c "cd \"/app$WORK_DIR\" && codex --full-auto ${quoted_args}"
+docker exec -it "$CONTAINER_NAME" bash -c "cd \"/app$WORK_DIR\" && darwin-code --full-auto ${quoted_args}"

@@ -7,11 +7,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_code_mode::CodeModeTurnHost;
-use codex_code_mode::RuntimeResponse;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
+use darwin_code_code_mode::CodeModeTurnHost;
+use darwin_code_code_mode::RuntimeResponse;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseInputItem;
 use serde_json::Value as JsonValue;
 use tokio_util::sync::CancellationToken;
 
@@ -29,21 +29,21 @@ use crate::tools::router::ToolCall;
 use crate::tools::router::ToolCallSource;
 use crate::tools::router::ToolRouterParams;
 use crate::unified_exec::resolve_max_tokens;
-use codex_features::Feature;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::collect_code_mode_tool_definitions;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text_content_items_with_policy;
-use codex_utils_output_truncation::truncate_function_output_items_with_policy;
+use darwin_code_features::Feature;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolSpec;
+use darwin_code_tools::collect_code_mode_tool_definitions;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::formatted_truncate_text_content_items_with_policy;
+use darwin_code_utils_output_truncation::truncate_function_output_items_with_policy;
 
 pub(crate) use execute_handler::CodeModeExecuteHandler;
 use response_adapter::into_function_call_output_content_items;
 pub(crate) use wait_handler::CodeModeWaitHandler;
 
-pub(crate) const PUBLIC_TOOL_NAME: &str = codex_code_mode::PUBLIC_TOOL_NAME;
-pub(crate) const WAIT_TOOL_NAME: &str = codex_code_mode::WAIT_TOOL_NAME;
-pub(crate) const DEFAULT_WAIT_YIELD_TIME_MS: u64 = codex_code_mode::DEFAULT_WAIT_YIELD_TIME_MS;
+pub(crate) const PUBLIC_TOOL_NAME: &str = darwin_code_code_mode::PUBLIC_TOOL_NAME;
+pub(crate) const WAIT_TOOL_NAME: &str = darwin_code_code_mode::WAIT_TOOL_NAME;
+pub(crate) const DEFAULT_WAIT_YIELD_TIME_MS: u64 = darwin_code_code_mode::DEFAULT_WAIT_YIELD_TIME_MS;
 
 #[derive(Clone)]
 pub(crate) struct ExecContext {
@@ -52,13 +52,13 @@ pub(crate) struct ExecContext {
 }
 
 pub(crate) struct CodeModeService {
-    inner: codex_code_mode::CodeModeService,
+    inner: darwin_code_code_mode::CodeModeService,
 }
 
 impl CodeModeService {
     pub(crate) fn new(_js_repl_node_path: Option<PathBuf>) -> Self {
         Self {
-            inner: codex_code_mode::CodeModeService::new(),
+            inner: darwin_code_code_mode::CodeModeService::new(),
         }
     }
 
@@ -75,14 +75,14 @@ impl CodeModeService {
 
     pub(crate) async fn execute(
         &self,
-        request: codex_code_mode::ExecuteRequest,
+        request: darwin_code_code_mode::ExecuteRequest,
     ) -> Result<RuntimeResponse, String> {
         self.inner.execute(request).await
     }
 
     pub(crate) async fn wait(
         &self,
-        request: codex_code_mode::WaitRequest,
+        request: darwin_code_code_mode::WaitRequest,
     ) -> Result<RuntimeResponse, String> {
         self.inner.wait(request).await
     }
@@ -93,7 +93,7 @@ impl CodeModeService {
         turn: &Arc<TurnContext>,
         router: Arc<ToolRouter>,
         tracker: SharedTurnDiffTracker,
-    ) -> Option<codex_code_mode::CodeModeTurnWorker> {
+    ) -> Option<darwin_code_code_mode::CodeModeTurnWorker> {
         if !turn.features.enabled(Feature::CodeMode) {
             return None;
         }
@@ -253,7 +253,7 @@ fn truncate_code_mode_result(
 
 pub(super) async fn build_enabled_tools(
     exec: &ExecContext,
-) -> Vec<codex_code_mode::ToolDefinition> {
+) -> Vec<darwin_code_code_mode::ToolDefinition> {
     let router = build_nested_router(exec).await;
     let specs = router.specs();
     collect_code_mode_tool_definitions(&specs)
@@ -340,18 +340,18 @@ async fn call_nested_tool(
     Ok(result.code_mode_result())
 }
 
-fn tool_kind_for_spec(spec: &ToolSpec) -> codex_code_mode::CodeModeToolKind {
+fn tool_kind_for_spec(spec: &ToolSpec) -> darwin_code_code_mode::CodeModeToolKind {
     if matches!(spec, ToolSpec::Freeform(_)) {
-        codex_code_mode::CodeModeToolKind::Freeform
+        darwin_code_code_mode::CodeModeToolKind::Freeform
     } else {
-        codex_code_mode::CodeModeToolKind::Function
+        darwin_code_code_mode::CodeModeToolKind::Function
     }
 }
 
 fn tool_kind_for_name(
     spec: Option<ToolSpec>,
     tool_name: &ToolName,
-) -> Result<codex_code_mode::CodeModeToolKind, String> {
+) -> Result<darwin_code_code_mode::CodeModeToolKind, String> {
     spec.as_ref()
         .map(tool_kind_for_spec)
         .ok_or_else(|| format!("tool `{tool_name}` is not enabled in {PUBLIC_TOOL_NAME}"))
@@ -364,10 +364,10 @@ fn build_nested_tool_payload(
 ) -> Result<ToolPayload, String> {
     let actual_kind = tool_kind_for_name(spec, tool_name)?;
     match actual_kind {
-        codex_code_mode::CodeModeToolKind::Function => {
+        darwin_code_code_mode::CodeModeToolKind::Function => {
             build_function_tool_payload(tool_name, input)
         }
-        codex_code_mode::CodeModeToolKind::Freeform => {
+        darwin_code_code_mode::CodeModeToolKind::Freeform => {
             build_freeform_tool_payload(tool_name, input)
         }
     }

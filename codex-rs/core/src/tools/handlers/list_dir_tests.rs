@@ -1,9 +1,9 @@
 use super::*;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::ReadDenyMatcher;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::ReadDenyMatcher;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 

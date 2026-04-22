@@ -1,10 +1,10 @@
-# codex-core
+# darwin-code-core
 
-This crate implements the business logic for Codex. It is designed to be used by the various Codex UIs written in Rust.
+This crate implements the business logic for Darwin-Code. It is designed to be used by the various Darwin-Code UIs written in Rust.
 
 ## Dependencies
 
-Note that `codex-core` makes some assumptions about certain helper utilities being available in the environment. Currently, this support matrix is:
+Note that `darwin-code-core` makes some assumptions about certain helper utilities being available in the environment. Currently, this support matrix is:
 
 ### macOS
 
@@ -12,7 +12,7 @@ Expects `/usr/bin/sandbox-exec` to be present.
 
 When using the workspace-write sandbox policy, the Seatbelt profile allows
 writes under the configured writable roots while keeping `.git` (directory or
-pointer file), the resolved `gitdir:` target, and `.codex` read-only.
+pointer file), the resolved `gitdir:` target, and `.darwin-code` read-only.
 
 Network access and filesystem read/write roots are controlled by
 `SandboxPolicy`. Seatbelt consumes the resolved policy and enforces it.
@@ -22,7 +22,7 @@ Seatbelt also keeps the legacy default preferences read access
 
 ### Linux
 
-Expects the binary containing `codex-core` to run the equivalent of `codex sandbox linux` (legacy alias: `codex debug landlock`) when `arg0` is `codex-linux-sandbox`. See the `codex-arg0` crate for details.
+Expects the binary containing `darwin-code-core` to run the equivalent of `darwin-code sandbox linux` (legacy alias: `darwin-code debug landlock`) when `arg0` is `darwin-code-linux-sandbox`. See the `darwin-code-arg0` crate for details.
 
 Legacy `SandboxPolicy` / `sandbox_mode` configs are still supported on Linux.
 They can continue to use the legacy Landlock path when the split filesystem
@@ -40,11 +40,11 @@ current working directory whenever it is available. If `bwrap` is present but
 too old to support `--argv0`, the helper keeps using system bubblewrap and
 switches to a no-`--argv0` compatibility path for the inner re-exec. If
 `bwrap` is missing, it falls back to the vendored bubblewrap path compiled into
-the binary and Codex surfaces a startup warning through its normal notification
-path instead of printing directly from the sandbox helper. Codex also surfaces
+the binary and Darwin-Code surfaces a startup warning through its normal notification
+path instead of printing directly from the sandbox helper. Darwin-Code also surfaces
 a startup warning when bubblewrap cannot create user namespaces. WSL2 uses the
 normal Linux bubblewrap path. WSL1 is not supported for bubblewrap sandboxing
-because it cannot create the required user namespaces, so Codex rejects
+because it cannot create the required user namespaces, so Darwin-Code rejects
 sandboxed shell commands that would enter the bubblewrap path before invoking
 `bwrap`.
 
@@ -84,6 +84,6 @@ instead of running with weaker enforcement.
 
 ### All Platforms
 
-Expects the binary containing `codex-core` to simulate the virtual
-`apply_patch` CLI when `arg1` is `--codex-run-as-apply-patch`. See the
-`codex-arg0` crate for details.
+Expects the binary containing `darwin-code-core` to simulate the virtual
+`apply_patch` CLI when `arg1` is `--darwin-code-run-as-apply-patch`. See the
+`darwin-code-arg0` crate for details.

@@ -12,52 +12,52 @@ use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
 use app_test_support::write_models_cache;
-use codex_app_server::INPUT_TOO_LARGE_ERROR_CODE;
-use codex_app_server::INVALID_PARAMS_ERROR_CODE;
-use codex_app_server_protocol::ByteRange;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeOutputDeltaNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::TextElement;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_app_server_protocol::WarningNotification;
-use codex_config::config_toml::ConfigToml;
-use codex_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::Settings;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+use darwin_code_app_server::INPUT_TOO_LARGE_ERROR_CODE;
+use darwin_code_app_server::INVALID_PARAMS_ERROR_CODE;
+use darwin_code_app_server_protocol::ByteRange;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::CollabAgentStatus;
+use darwin_code_app_server_protocol::CollabAgentTool;
+use darwin_code_app_server_protocol::CollabAgentToolCallStatus;
+use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::CommandExecutionStatus;
+use darwin_code_app_server_protocol::FileChangeApprovalDecision;
+use darwin_code_app_server_protocol::FileChangeOutputDeltaNotification;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalResponse;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::PatchApplyStatus;
+use darwin_code_app_server_protocol::PatchChangeKind;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ServerRequestResolvedNotification;
+use darwin_code_app_server_protocol::TextElement;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnStartedNotification;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_app_server_protocol::WarningNotification;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -76,7 +76,7 @@ use super::analytics::wait_for_analytics_event;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const TEST_ORIGINATOR: &str = "codex_vscode";
+const TEST_ORIGINATOR: &str = "darwin_code_vscode";
 const LOCAL_PRAGMATIC_TEMPLATE: &str = "You are a deeply pragmatic, effective software engineer.";
 
 fn body_contains(req: &wiremock::Request, text: &str) -> bool {
@@ -90,20 +90,20 @@ async fn turn_start_sends_originator_header() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
             name: TEST_ORIGINATOR.to_string(),
-            title: Some("Codex VS Code Extension".to_string()),
+            title: Some("Darwin-Code VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -165,15 +165,15 @@ async fn turn_start_emits_user_message_item_with_text_elements() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -251,15 +251,15 @@ async fn turn_start_emits_thread_scoped_warning_notification_for_trimmed_skills(
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
-    write_models_cache(codex_home.path())?;
-    let cache_path = codex_home.path().join("models_cache.json");
+    write_models_cache(darwin_code_home.path())?;
+    let cache_path = darwin_code_home.path().join("models_cache.json");
     let mut cache: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&cache_path)?)?;
     let models = cache["models"]
@@ -274,16 +274,16 @@ async fn turn_start_emits_thread_scoped_warning_notification_for_trimmed_skills(
         .to_string();
     entry["context_window"] = serde_json::Value::from(100);
     std::fs::write(&cache_path, serde_json::to_string_pretty(&cache)?)?;
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         config.replace("model = \"mock-model\"", &format!("model = \"{model}\"")),
     )?;
-    write_test_skill(codex_home.path(), "alpha-skill")?;
-    write_test_skill(codex_home.path(), "beta-skill")?;
+    write_test_skill(darwin_code_home.path(), "alpha-skill")?;
+    write_test_skill(darwin_code_home.path(), "beta-skill")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -361,15 +361,15 @@ async fn thread_start_omits_empty_instruction_overrides_from_model_request() -> 
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -446,15 +446,15 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
     )?;
-    enable_analytics_capture(&server, codex_home.path()).await?;
+    enable_analytics_capture(&server, darwin_code_home.path()).await?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -492,7 +492,7 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
     )
     .await??;
 
-    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codex_turn_event").await?;
+    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "darwin_code_turn_event").await?;
     assert_eq!(event["event_params"]["thread_id"], thread.id);
     assert_eq!(event["event_params"]["turn_id"], turn.id);
     assert_eq!(
@@ -532,21 +532,21 @@ async fn turn_start_does_not_track_turn_event_analytics_without_feature() -> Res
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
     )?;
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let config_toml = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
         format!("{config_toml}\n[features]\ngeneral_analytics = false\n"),
     )?;
-    mount_analytics_capture(&server, codex_home.path()).await?;
+    mount_analytics_capture(&server, darwin_code_home.path()).await?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -588,7 +588,7 @@ async fn turn_start_does_not_track_turn_event_analytics_without_feature() -> Res
     let turn_event = wait_for_analytics_event(
         &server,
         std::time::Duration::from_millis(250),
-        "codex_turn_event",
+        "darwin_code_turn_event",
     )
     .await;
     assert!(
@@ -603,15 +603,15 @@ async fn turn_start_accepts_text_at_limit_with_mention_item() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -662,15 +662,15 @@ async fn turn_start_accepts_text_at_limit_with_mention_item() -> Result<()> {
 
 #[tokio::test]
 async fn turn_start_rejects_combined_oversized_text_input() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         "http://localhost/unused",
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -738,7 +738,7 @@ async fn turn_start_rejects_combined_oversized_text_input() -> Result<()> {
 #[tokio::test]
 async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<()> {
     // Provide a mock server and config so model wiring is valid.
-    // Three Codex turns hit the mock model (session start + two turn/start calls).
+    // Three Darwin-Code turns hit the mock model (session start + two turn/start calls).
     let responses = vec![
         create_final_assistant_message_sse_response("Done")?,
         create_final_assistant_message_sse_response("Done")?,
@@ -746,15 +746,15 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a thread (v2) and capture its id.
@@ -801,7 +801,7 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
     assert_eq!(started.thread_id, thread.id);
     assert_eq!(
         started.turn.status,
-        codex_app_server_protocol::TurnStatus::InProgress
+        darwin_code_app_server_protocol::TurnStatus::InProgress
     );
     assert_eq!(started.turn.id, turn.id);
 
@@ -881,20 +881,20 @@ async fn turn_start_accepts_collaboration_mode_override_v2() -> Result<()> {
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::DefaultModeRequestUserInput, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -964,20 +964,20 @@ async fn turn_start_uses_thread_feature_overrides_for_collaboration_mode_instruc
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             config: Some(HashMap::from([(
                 "features.default_mode_request_user_input".to_string(),
                 json!(true),
@@ -1048,20 +1048,20 @@ async fn turn_start_accepts_personality_override_v2() -> Result<()> {
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("exp-codex-personality".to_string()),
+            model: Some("exp-darwin-code-personality".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1129,20 +1129,20 @@ async fn turn_start_change_personality_mid_thread_v2() -> Result<()> {
     ]);
     let response_mock = responses::mount_sse_sequence(&server, vec![sse1, sse2]).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("exp-codex-personality".to_string()),
+            model: Some("exp-darwin-code-personality".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1235,15 +1235,15 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
     )?;
     create_fake_rollout(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-01T00-00-00",
         "2025-01-01T00:00:00Z",
         "history user message",
@@ -1251,15 +1251,15 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
         /*git_info*/ None,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let persisted_toml: ConfigToml = toml::from_str(&std::fs::read_to_string(
-        codex_home.path().join("config.toml"),
+        darwin_code_home.path().join("config.toml"),
     )?)?;
     assert_eq!(persisted_toml.personality, Some(Personality::Pragmatic));
     assert!(
-        codex_home
+        darwin_code_home
             .path()
             .join(PERSONALITY_MIGRATION_FILENAME)
             .exists(),
@@ -1268,7 +1268,7 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1315,7 +1315,7 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
 
 #[tokio::test]
 async fn turn_start_accepts_local_image_input() -> Result<()> {
-    // Two Codex turns hit the mock model (session start + turn/start).
+    // Two Darwin-Code turns hit the mock model (session start + turn/start).
     let responses = vec![
         create_final_assistant_message_sse_response("Done")?,
         create_final_assistant_message_sse_response("Done")?,
@@ -1324,15 +1324,15 @@ async fn turn_start_accepts_local_image_input() -> Result<()> {
     // which the strict matcher does not currently cover.
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -1348,7 +1348,7 @@ async fn turn_start_accepts_local_image_input() -> Result<()> {
     .await??;
     let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
 
-    let image_path = codex_home.path().join("image.png");
+    let image_path = darwin_code_home.path().join("image.png");
     // No need to actually write the file; we just exercise the input path.
 
     let turn_req = mcp
@@ -1380,7 +1380,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().to_path_buf();
+    let darwin_code_home = tmp.path().to_path_buf();
 
     // Mock server: first turn requests a shell call (elicitation), then completes.
     // Second turn same, but we'll set approval_policy=never to avoid elicitation.
@@ -1411,13 +1411,13 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     let server = create_mock_responses_server_sequence(responses).await;
     // Default approval is untrusted to force elicitation on first turn.
     create_config_toml(
-        codex_home.as_path(),
+        darwin_code_home.as_path(),
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.as_path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.as_path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // thread/start
@@ -1506,8 +1506,8 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
                 text: "run python again".to_string(),
                 text_elements: Vec::new(),
             }],
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::Never),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::DangerFullAccess),
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
             summary: Some(ReasoningSummary::Auto),
@@ -1535,7 +1535,7 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().to_path_buf();
+    let darwin_code_home = tmp.path().to_path_buf();
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -1554,13 +1554,13 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        codex_home.as_path(),
+        darwin_code_home.as_path(),
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.as_path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.as_path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -1679,8 +1679,8 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace_root = tmp.path().join("workspace");
     std::fs::create_dir(&workspace_root)?;
     let first_cwd = workspace_root.join("turn1");
@@ -1706,13 +1706,13 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(&codex_home).await?;
+    let mut mcp = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // thread/start
@@ -1739,11 +1739,11 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             cwd: Some(first_cwd.clone()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
+            approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots: vec![first_cwd.try_into()?],
-                read_only_access: codex_app_server_protocol::ReadOnlyAccess::FullAccess,
+                read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
                 network_access: false,
                 exclude_tmpdir_env_var: false,
                 exclude_slash_tmp: false,
@@ -1779,9 +1779,9 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             cwd: Some(second_cwd.clone()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
+            approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::DangerFullAccess),
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
             summary: Some(ReasoningSummary::Auto),
@@ -1842,8 +1842,8 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -1858,13 +1858,13 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(&codex_home).await?;
+    let mut mcp = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_req = mcp
@@ -1940,7 +1940,7 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
     let expected_readme_path = expected_readme_path.to_string_lossy().into_owned();
     pretty_assertions::assert_eq!(
         started_changes,
-        vec![codex_app_server_protocol::FileUpdateChange {
+        vec![darwin_code_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.clone(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -2075,20 +2075,20 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Collab, true)]),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -2229,7 +2229,7 @@ async fn turn_start_emits_spawn_agent_item_with_effective_role_model_metadata_v2
     const SPAWN_CALL_ID: &str = "spawn-call-1";
     const REQUESTED_MODEL: &str = "gpt-5.1";
     const REQUESTED_REASONING_EFFORT: ReasoningEffort = ReasoningEffort::Low;
-    const ROLE_MODEL: &str = "gpt-5.1-codex-max";
+    const ROLE_MODEL: &str = "gpt-5.1-darwin-code-max";
     const ROLE_REASONING_EFFORT: ReasoningEffort = ReasoningEffort::High;
 
     let server = responses::start_mock_server().await;
@@ -2272,18 +2272,18 @@ async fn turn_start_emits_spawn_agent_item_with_effective_role_model_metadata_v2
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Collab, true)]),
     )?;
     std::fs::write(
-        codex_home.path().join("custom-role.toml"),
+        darwin_code_home.path().join("custom-role.toml"),
         format!("model = \"{ROLE_MODEL}\"\nmodel_reasoning_effort = \"{ROLE_REASONING_EFFORT}\"\n",),
     )?;
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let base_config = std::fs::read_to_string(&config_path)?;
     std::fs::write(
         &config_path,
@@ -2297,12 +2297,12 @@ config_file = "./custom-role.toml"
         ),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -2408,8 +2408,8 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -2434,13 +2434,13 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(&codex_home).await?;
+    let mut mcp = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_req = mcp
@@ -2599,8 +2599,8 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -2615,13 +2615,13 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(&codex_home).await?;
+    let mut mcp = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_req = mcp
@@ -2696,7 +2696,7 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
     let expected_readme_path_str = expected_readme_path.to_string_lossy().into_owned();
     pretty_assertions::assert_eq!(
         started_changes,
-        vec![codex_app_server_protocol::FileUpdateChange {
+        vec![darwin_code_app_server_protocol::FileUpdateChange {
             path: expected_readme_path_str.clone(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -2758,16 +2758,16 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence(responses).await;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml_with_sandbox(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::UnifiedExec, true)]),
         "danger-full-access",
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -2790,7 +2790,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
                 text: "run a command".to_string(),
                 text_elements: Vec::new(),
             }],
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::DangerFullAccess),
             ..Default::default()
         })
         .await?;
@@ -2890,9 +2890,9 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &BTreeMap::from([(Feature::Personality, true)]),
@@ -2900,7 +2900,7 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
 
     let workspace = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_request = mcp
@@ -2920,7 +2920,7 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id,
             cwd: Some(workspace.path().to_path_buf()),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::DangerFullAccess),
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
@@ -2939,7 +2939,7 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
     )
     .await??;
 
-    let config_toml = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_toml = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     assert!(!config_toml.contains("trust_level = \"trusted\""));
     assert!(!config_toml.contains(&workspace.path().display().to_string()));
 
@@ -2948,13 +2948,13 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
 
 // Helper to create a config.toml pointing at the mock model server.
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
     feature_flags: &BTreeMap<Feature, bool>,
 ) -> std::io::Result<()> {
     create_config_toml_with_sandbox(
-        codex_home,
+        darwin_code_home,
         server_uri,
         approval_policy,
         feature_flags,
@@ -2963,7 +2963,7 @@ fn create_config_toml(
 }
 
 fn create_config_toml_with_sandbox(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
     feature_flags: &BTreeMap<Feature, bool>,
@@ -2985,7 +2985,7 @@ fn create_config_toml_with_sandbox(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -3010,8 +3010,8 @@ stream_max_retries = 0
     )
 }
 
-fn write_test_skill(codex_home: &Path, name: &str) -> std::io::Result<()> {
-    let skill_dir = codex_home.join("skills").join(name);
+fn write_test_skill(darwin_code_home: &Path, name: &str) -> std::io::Result<()> {
+    let skill_dir = darwin_code_home.join("skills").join(name);
     std::fs::create_dir_all(&skill_dir)?;
     std::fs::write(
         skill_dir.join("SKILL.md"),

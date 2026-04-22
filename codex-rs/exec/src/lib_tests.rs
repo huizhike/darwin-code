@@ -1,8 +1,8 @@
 use super::*;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use darwin_code_otel::set_parent_from_w3c_trace_context;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_utils_absolute_path::test_support::PathBufExt;
+use darwin_code_utils_absolute_path::test_support::test_path_buf;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::trace::TraceId;
 use opentelemetry::trace::TracerProvider as _;
@@ -13,7 +13,7 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 fn test_tracing_subscriber() -> impl tracing::Subscriber + Send + Sync {
     let provider = SdkTracerProvider::builder().build();
-    let tracer = provider.tracer("codex-exec-tests");
+    let tracer = provider.tracer("darwin-code-exec-tests");
     tracing_subscriber::registry().with(tracing_opentelemetry::layer().with_tracer(tracer))
 }
 
@@ -27,7 +27,7 @@ fn exec_root_span_can_be_parented_from_trace_context() {
     let subscriber = test_tracing_subscriber();
     let _guard = tracing::subscriber::set_default(subscriber);
 
-    let parent = codex_protocol::protocol::W3cTraceContext {
+    let parent = darwin_code_protocol::protocol::W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000077-0000000000000088-01".into()),
         tracestate: Some("vendor=value".into()),
     };
@@ -208,10 +208,10 @@ fn lagged_event_warning_message_is_explicit() {
 
 #[tokio::test]
 async fn resume_lookup_model_providers_filters_only_last_lookup() {
-    let codex_home = tempdir().expect("create temp codex home");
+    let darwin_code_home = tempdir().expect("create temp darwin-code home");
     let cwd = tempdir().expect("create temp cwd");
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(cwd.path().to_path_buf()))
         .build()
         .await
@@ -250,17 +250,17 @@ fn turn_items_for_thread_returns_matching_turn_items() {
         model_provider: "openai".to_string(),
         created_at: 0,
         updated_at: 0,
-        status: codex_app_server_protocol::ThreadStatus::Idle,
+        status: darwin_code_app_server_protocol::ThreadStatus::Idle,
         path: None,
         cwd: test_path_buf("/tmp/project").abs(),
         cli_version: "0.0.0-test".to_string(),
-        source: codex_app_server_protocol::SessionSource::Exec,
+        source: darwin_code_app_server_protocol::SessionSource::Exec,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
         name: None,
         turns: vec![
-            codex_app_server_protocol::Turn {
+            darwin_code_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
                 items: vec![AppServerThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
@@ -268,19 +268,19 @@ fn turn_items_for_thread_returns_matching_turn_items() {
                     phase: None,
                     memory_citation: None,
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: darwin_code_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
             },
-            codex_app_server_protocol::Turn {
+            darwin_code_app_server_protocol::Turn {
                 id: "turn-2".to_string(),
                 items: vec![AppServerThreadItem::Plan {
                     id: "plan-1".to_string(),
                     text: "ship it".to_string(),
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: darwin_code_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -304,12 +304,12 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 #[test]
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
     let notification =
-        ServerNotification::TurnCompleted(codex_app_server_protocol::TurnCompletedNotification {
+        ServerNotification::TurnCompleted(darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: codex_app_server_protocol::Turn {
+            turn: darwin_code_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
                 items: Vec::new(),
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: darwin_code_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -342,10 +342,10 @@ fn canceled_mcp_server_elicitation_response_uses_cancel_action() {
 
 #[tokio::test]
 async fn thread_start_params_include_review_policy_when_review_policy_is_manual_only() {
-    let codex_home = tempdir().expect("create temp codex home");
+    let darwin_code_home = tempdir().expect("create temp darwin-code home");
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             approvals_reviewer: Some(ApprovalsReviewer::User),
             ..Default::default()
@@ -359,16 +359,16 @@ async fn thread_start_params_include_review_policy_when_review_policy_is_manual_
 
     assert_eq!(
         params.approvals_reviewer,
-        Some(codex_app_server_protocol::ApprovalsReviewer::User)
+        Some(darwin_code_app_server_protocol::ApprovalsReviewer::User)
     );
 }
 
 #[tokio::test]
 async fn thread_start_params_include_review_policy_when_auto_review_is_enabled() {
-    let codex_home = tempdir().expect("create temp codex home");
+    let darwin_code_home = tempdir().expect("create temp darwin-code home");
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             approvals_reviewer: Some(ApprovalsReviewer::GuardianSubagent),
             ..Default::default()
@@ -382,14 +382,14 @@ async fn thread_start_params_include_review_policy_when_auto_review_is_enabled()
 
     assert_eq!(
         params.approvals_reviewer,
-        Some(codex_app_server_protocol::ApprovalsReviewer::GuardianSubagent)
+        Some(darwin_code_app_server_protocol::ApprovalsReviewer::GuardianSubagent)
     );
 }
 
 #[test]
 fn session_configured_from_thread_response_uses_review_policy_from_response() {
     let response = ThreadStartResponse {
-        thread: codex_app_server_protocol::Thread {
+        thread: darwin_code_app_server_protocol::Thread {
             id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
             forked_from_id: None,
             preview: String::new(),
@@ -397,11 +397,11 @@ fn session_configured_from_thread_response_uses_review_policy_from_response() {
             model_provider: "openai".to_string(),
             created_at: 0,
             updated_at: 0,
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: darwin_code_app_server_protocol::ThreadStatus::Idle,
             path: Some(PathBuf::from("/tmp/rollout.jsonl")),
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "0.0.0".to_string(),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: darwin_code_app_server_protocol::SessionSource::Cli,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
@@ -413,11 +413,11 @@ fn session_configured_from_thread_response_uses_review_policy_from_response() {
         service_tier: None,
         cwd: test_path_buf("/tmp").abs(),
         instruction_sources: Vec::new(),
-        approval_policy: codex_app_server_protocol::AskForApproval::OnRequest,
-        approvals_reviewer: codex_app_server_protocol::ApprovalsReviewer::GuardianSubagent,
-        sandbox: codex_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+        approval_policy: darwin_code_app_server_protocol::AskForApproval::OnRequest,
+        approvals_reviewer: darwin_code_app_server_protocol::ApprovalsReviewer::GuardianSubagent,
+        sandbox: darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
-            read_only_access: codex_app_server_protocol::ReadOnlyAccess::FullAccess,
+            read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
             network_access: false,
             exclude_tmpdir_env_var: false,
             exclude_slash_tmp: false,

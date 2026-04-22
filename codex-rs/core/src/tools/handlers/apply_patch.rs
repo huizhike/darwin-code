@@ -26,23 +26,23 @@ use crate::tools::registry::ToolKind;
 use crate::tools::runtimes::apply_patch::ApplyPatchRequest;
 use crate::tools::runtimes::apply_patch::ApplyPatchRuntime;
 use crate::tools::sandboxing::ToolCtx;
-use codex_apply_patch::ApplyPatchAction;
-use codex_apply_patch::ApplyPatchArgs;
-use codex_apply_patch::ApplyPatchFileChange;
-use codex_apply_patch::Hunk;
-use codex_apply_patch::parse_patch_streaming;
-use codex_exec_server::ExecutorFileSystem;
-use codex_features::Feature;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::PatchApplyUpdatedEvent;
-use codex_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
-use codex_sandboxing::policy_transforms::normalize_additional_permissions;
-use codex_tools::ApplyPatchToolArgs;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_apply_patch::ApplyPatchAction;
+use darwin_code_apply_patch::ApplyPatchArgs;
+use darwin_code_apply_patch::ApplyPatchFileChange;
+use darwin_code_apply_patch::Hunk;
+use darwin_code_apply_patch::parse_patch_streaming;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_features::Feature;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::PatchApplyUpdatedEvent;
+use darwin_code_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
+use darwin_code_sandboxing::policy_transforms::merge_permission_profiles;
+use darwin_code_sandboxing::policy_transforms::normalize_additional_permissions;
+use darwin_code_tools::ApplyPatchToolArgs;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 pub struct ApplyPatchHandler;
 
@@ -118,7 +118,7 @@ fn hunk_source_path(hunk: &Hunk) -> &Path {
     }
 }
 
-fn format_update_chunks_for_progress(chunks: &[codex_apply_patch::UpdateFileChunk]) -> String {
+fn format_update_chunks_for_progress(chunks: &[darwin_code_apply_patch::UpdateFileChunk]) -> String {
     let mut unified_diff = String::new();
     for chunk in chunks {
         match &chunk.change_context {
@@ -176,7 +176,7 @@ fn to_abs_path(cwd: &AbsolutePathBuf, path: &Path) -> Option<AbsolutePathBuf> {
 
 fn write_permissions_for_paths(
     file_paths: &[AbsolutePathBuf],
-    file_system_sandbox_policy: &codex_protocol::permissions::FileSystemSandboxPolicy,
+    file_system_sandbox_policy: &darwin_code_protocol::permissions::FileSystemSandboxPolicy,
     cwd: &AbsolutePathBuf,
 ) -> Option<PermissionProfile> {
     let write_paths = file_paths
@@ -213,7 +213,7 @@ async fn effective_patch_permissions(
 ) -> (
     Vec<AbsolutePathBuf>,
     crate::tools::handlers::EffectiveAdditionalPermissions,
-    codex_protocol::permissions::FileSystemSandboxPolicy,
+    darwin_code_protocol::permissions::FileSystemSandboxPolicy,
 ) {
     let file_paths = file_paths_for_action(action);
     let granted_permissions = merge_permission_profiles(
@@ -297,7 +297,7 @@ impl ToolHandler for ApplyPatchHandler {
         let sandbox = environment
             .is_remote()
             .then(|| turn.file_system_sandbox_context(/*additional_permissions*/ None));
-        match codex_apply_patch::maybe_parse_apply_patch_verified(
+        match darwin_code_apply_patch::maybe_parse_apply_patch_verified(
             &command,
             &cwd,
             fs.as_ref(),
@@ -305,7 +305,7 @@ impl ToolHandler for ApplyPatchHandler {
         )
         .await
         {
-            codex_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
+            darwin_code_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
                 let (file_paths, effective_additional_permissions, file_system_sandbox_policy) =
                     effective_patch_permissions(session.as_ref(), turn.as_ref(), &changes).await;
                 match apply_patch::apply_patch(turn.as_ref(), &file_system_sandbox_policy, changes)
@@ -367,18 +367,18 @@ impl ToolHandler for ApplyPatchHandler {
                     }
                 }
             }
-            codex_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
+            darwin_code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
                 Err(FunctionCallError::RespondToModel(format!(
                     "apply_patch verification failed: {parse_error}"
                 )))
             }
-            codex_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
+            darwin_code_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
                 tracing::trace!("Failed to parse apply_patch input, {error:?}");
                 Err(FunctionCallError::RespondToModel(
                     "apply_patch handler received invalid patch input".to_string(),
                 ))
             }
-            codex_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {
+            darwin_code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => {
                 Err(FunctionCallError::RespondToModel(
                     "apply_patch handler received non-apply_patch input".to_string(),
                 ))
@@ -403,10 +403,10 @@ pub(crate) async fn intercept_apply_patch(
         .as_ref()
         .filter(|env| env.is_remote())
         .map(|_| turn.file_system_sandbox_context(/*additional_permissions*/ None));
-    match codex_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, sandbox.as_ref())
+    match darwin_code_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, sandbox.as_ref())
         .await
     {
-        codex_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
+        darwin_code_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
             session
                 .record_model_warning(
                     format!(
@@ -475,16 +475,16 @@ pub(crate) async fn intercept_apply_patch(
                 }
             }
         }
-        codex_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
+        darwin_code_apply_patch::MaybeApplyPatchVerified::CorrectnessError(parse_error) => {
             Err(FunctionCallError::RespondToModel(format!(
                 "apply_patch verification failed: {parse_error}"
             )))
         }
-        codex_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
+        darwin_code_apply_patch::MaybeApplyPatchVerified::ShellParseError(error) => {
             tracing::trace!("Failed to parse apply_patch input, {error:?}");
             Ok(None)
         }
-        codex_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => Ok(None),
+        darwin_code_apply_patch::MaybeApplyPatchVerified::NotApplyPatch => Ok(None),
     }
 }
 

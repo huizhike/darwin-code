@@ -6,7 +6,7 @@ async fn mcp_startup_header_booting_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "mcp-1".into(),
         msg: EventMsg::McpStartupUpdate(McpStartupUpdateEvent {
             server: "alpha".into(),
@@ -30,7 +30,7 @@ async fn mcp_startup_header_booting_snapshot() {
 async fn mcp_startup_complete_does_not_clear_running_task() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "task-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -43,7 +43,7 @@ async fn mcp_startup_complete_does_not_clear_running_task() {
     assert!(chat.bottom_pane.is_task_running());
     assert!(chat.bottom_pane.status_indicator_visible());
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "mcp-1".into(),
         msg: EventMsg::McpStartupComplete(McpStartupCompleteEvent {
             ready: vec!["schaltwerk".into()],

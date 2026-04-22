@@ -3,19 +3,19 @@ use app_test_support::McpProcess;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeResponse;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cargo_bin::cargo_bin;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::InitializeCapabilities;
+use darwin_code_app_server_protocol::InitializeResponse;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_cargo_bin::cargo_bin;
 use core_test_support::fs_wait;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -30,16 +30,16 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    let expected_codex_home = AbsolutePathBuf::try_from(codex_home.path().canonicalize()?)?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let expected_darwin_code_home = AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
 
     let message = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
-            name: "codex_vscode".to_string(),
-            title: Some("Codex VS Code Extension".to_string()),
+            name: "darwin_code_vscode".to_string(),
+            title: Some("Darwin-Code VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -50,13 +50,13 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     };
     let InitializeResponse {
         user_agent,
-        codex_home: response_codex_home,
+        darwin_code_home: response_darwin_code_home,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;
 
-    assert!(user_agent.starts_with("codex_vscode/"));
-    assert_eq!(response_codex_home, expected_codex_home);
+    assert!(user_agent.starts_with("darwin_code_vscode/"));
+    assert_eq!(response_darwin_code_home, expected_darwin_code_home);
     assert_eq!(platform_family, std::env::consts::FAMILY);
     assert_eq!(platform_os, std::env::consts::OS);
     Ok(())
@@ -66,14 +66,14 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
 async fn initialize_respects_originator_override_env_var() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    let expected_codex_home = AbsolutePathBuf::try_from(codex_home.path().canonicalize()?)?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let darwin_code_home = TempDir::new()?;
+    let expected_darwin_code_home = AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[(
-            "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
-            Some("codex_originator_via_env_var"),
+            "DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE",
+            Some("darwin_code_originator_via_env_var"),
         )],
     )
     .await?;
@@ -81,8 +81,8 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     let message = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
-            name: "codex_vscode".to_string(),
-            title: Some("Codex VS Code Extension".to_string()),
+            name: "darwin_code_vscode".to_string(),
+            title: Some("Darwin-Code VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -93,13 +93,13 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     };
     let InitializeResponse {
         user_agent,
-        codex_home: response_codex_home,
+        darwin_code_home: response_darwin_code_home,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;
 
-    assert!(user_agent.starts_with("codex_originator_via_env_var/"));
-    assert_eq!(response_codex_home, expected_codex_home);
+    assert!(user_agent.starts_with("darwin_code_originator_via_env_var/"));
+    assert_eq!(response_darwin_code_home, expected_darwin_code_home);
     assert_eq!(platform_family, std::env::consts::FAMILY);
     assert_eq!(platform_os, std::env::consts::OS);
     Ok(())
@@ -109,11 +109,11 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
 async fn initialize_rejects_invalid_client_name() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
-        &[("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", None)],
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE", None)],
     )
     .await?;
 
@@ -144,16 +144,16 @@ async fn initialize_rejects_invalid_client_name() -> Result<()> {
 async fn initialize_opt_out_notification_methods_filters_notifications() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
 
     let message = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_capabilities(
             ClientInfo {
-                name: "codex_vscode".to_string(),
-                title: Some("Codex VS Code Extension".to_string()),
+                name: "darwin_code_vscode".to_string(),
+                title: Some("Darwin-Code VS Code Extension".to_string()),
                 version: "0.1.0".to_string(),
             },
             Some(InitializeCapabilities {
@@ -207,9 +207,9 @@ async fn initialize_opt_out_notification_methods_filters_notifications() -> Resu
 async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    let notify_file = codex_home.path().join("notify.json");
-    let notify_capture = cargo_bin("codex-app-server-test-notify-capture")?;
+    let darwin_code_home = TempDir::new()?;
+    let notify_file = darwin_code_home.path().join("notify.json");
+    let notify_capture = cargo_bin("darwin-code-app-server-test-notify-capture")?;
     let notify_capture = notify_capture
         .to_str()
         .expect("notify capture path should be valid UTF-8");
@@ -217,7 +217,7 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
         .to_str()
         .expect("notify file path should be valid UTF-8");
     create_config_toml_with_extra(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         "never",
         &format!(
@@ -227,7 +227,7 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
         ),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
@@ -281,20 +281,20 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
 
 // Helper to create a config.toml pointing at the mock model server.
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
 ) -> std::io::Result<()> {
-    create_config_toml_with_extra(codex_home, server_uri, approval_policy, "")
+    create_config_toml_with_extra(darwin_code_home, server_uri, approval_policy, "")
 }
 
 fn create_config_toml_with_extra(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
     extra: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

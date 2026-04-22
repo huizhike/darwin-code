@@ -1,14 +1,14 @@
 #![cfg(not(target_os = "windows"))]
 
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use responses::ev_assistant_message;
@@ -29,16 +29,16 @@ const SCHEMA: &str = r#"
 "#;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_returns_json_result_for_gpt5() -> anyhow::Result<()> {
-    codex_returns_json_result("gpt-5.1".to_string()).await
+async fn darwin_code_returns_json_result_for_gpt5() -> anyhow::Result<()> {
+    darwin_code_returns_json_result("gpt-5.1".to_string()).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_returns_json_result_for_gpt5_codex() -> anyhow::Result<()> {
-    codex_returns_json_result("gpt-5.1-codex".to_string()).await
+async fn darwin_code_returns_json_result_for_gpt5_darwin_code() -> anyhow::Result<()> {
+    darwin_code_returns_json_result("gpt-5.1-darwin-code".to_string()).await
 }
 
-async fn codex_returns_json_result(model: String) -> anyhow::Result<()> {
+async fn darwin_code_returns_json_result(model: String) -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
@@ -61,17 +61,17 @@ async fn codex_returns_json_result(model: String) -> anyhow::Result<()> {
             return false;
         };
 
-        format.get("name") == Some(&serde_json::Value::String("codex_output_schema".into()))
+        format.get("name") == Some(&serde_json::Value::String("darwin_code_output_schema".into()))
             && format.get("type") == Some(&serde_json::Value::String("json_schema".into()))
             && format.get("strict") == Some(&serde_json::Value::Bool(true))
             && format.get("schema") == Some(&expected_schema)
     };
     responses::mount_sse_once_match(&server, match_json_text_param, sse1).await;
 
-    let TestCodex { codex, cwd, .. } = test_codex().build(&server).await?;
+    let TestDarwinCode { darwin-code, cwd, .. } = test_darwin_code().build(&server).await?;
 
     // 1) Normal user input – should hit server once.
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello world".into(),
@@ -91,7 +91,7 @@ async fn codex_returns_json_result(model: String) -> anyhow::Result<()> {
         })
         .await?;
 
-    let message = wait_for_event(&codex, |ev| matches!(ev, EventMsg::AgentMessage(_))).await;
+    let message = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::AgentMessage(_))).await;
     if let EventMsg::AgentMessage(message) = message {
         let json: serde_json::Value = serde_json::from_str(&message.message)?;
         assert_eq!(

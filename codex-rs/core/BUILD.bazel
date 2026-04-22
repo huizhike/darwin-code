@@ -1,4 +1,4 @@
-load("//:defs.bzl", "codex_rust_crate")
+load("//:defs.bzl", "darwin_code_rust_crate")
 
 filegroup(
     name = "model_availability_nux_fixtures",
@@ -8,9 +8,9 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-codex_rust_crate(
+darwin_code_rust_crate(
     name = "core",
-    crate_name = "codex_core",
+    crate_name = "darwin_code_core",
     compile_data = glob(
         include = ["**"],
         exclude = [
@@ -20,15 +20,15 @@ codex_rust_crate(
         ],
         allow_empty = True,
     ) + [
-        "//codex-rs:node-version.txt",
+        "//darwin-code-rs:node-version.txt",
     ],
     rustc_env = {
         # Keep manifest-root path lookups inside the Bazel execroot for code
         # that relies on env!("CARGO_MANIFEST_DIR").
-        "CARGO_MANIFEST_DIR": "codex-rs/core",
+        "CARGO_MANIFEST_DIR": "darwin-code-rs/core",
     },
     integration_compile_data_extra = [
-        "//codex-rs/apply-patch:apply_patch_tool_instructions.md",
+        "//darwin-code-rs/apply-patch:apply_patch_tool_instructions.md",
         "templates/realtime/backend_prompt.md",
     ],
     integration_test_timeout = "long",
@@ -54,10 +54,10 @@ codex_rust_crate(
     test_tags = ["no-sandbox"],
     unit_test_timeout = "long",
     extra_binaries = [
-        "//codex-rs/linux-sandbox:codex-linux-sandbox",
-        "//codex-rs/rmcp-client:test_stdio_server",
-        "//codex-rs/rmcp-client:test_streamable_http_server",
-        "//codex-rs/responses-api-proxy:codex-responses-api-proxy",
-        "//codex-rs/cli:codex",
+        "//darwin-code-rs/linux-sandbox:darwin-code-linux-sandbox",
+        "//darwin-code-rs/rmcp-client:test_stdio_server",
+        "//darwin-code-rs/rmcp-client:test_streamable_http_server",
+        "//darwin-code-rs/responses-api-proxy:darwin-code-responses-api-proxy",
+        "//darwin-code-rs/cli:darwin-code",
     ],
 )

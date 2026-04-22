@@ -7,9 +7,9 @@ use super::OPENAI_CURATED_MARKETPLACE_NAME;
 use super::PluginCapabilitySummary;
 use super::PluginsManager;
 use crate::config::Config;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_features::Feature;
-use codex_tools::DiscoverablePluginInfo;
+use darwin_code_config::types::ToolSuggestDiscoverableType;
+use darwin_code_features::Feature;
+use darwin_code_tools::DiscoverablePluginInfo;
 
 const TOOL_SUGGEST_DISCOVERABLE_PLUGIN_ALLOWLIST: &[&str] = &[
     "github@openai-curated",
@@ -35,7 +35,7 @@ pub(crate) async fn list_tool_suggest_discoverable_plugins(
         return Ok(Vec::new());
     }
 
-    let plugins_manager = PluginsManager::new(config.codex_home.to_path_buf());
+    let plugins_manager = PluginsManager::new(config.darwin_code_home.to_path_buf());
     let configured_plugin_ids = config
         .tool_suggest
         .discoverables

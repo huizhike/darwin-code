@@ -14,19 +14,19 @@ use anyhow::Result;
 use app_test_support::create_fake_rollout_with_text_elements;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ThreadNameUpdatedNotification;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_core::find_thread_name_by_id;
-use codex_core::find_thread_path_by_id_str;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::ThreadNameUpdatedNotification;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadSetNameParams;
+use darwin_code_app_server_protocol::ThreadSetNameResponse;
+use darwin_code_core::find_thread_name_by_id;
+use darwin_code_core::find_thread_path_by_id_str;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -36,11 +36,11 @@ use tokio::time::timeout;
 #[tokio::test]
 async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let conversation_id = create_rollout(codex_home.path(), "2025-01-05T12-00-00")?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let conversation_id = create_rollout(darwin_code_home.path(), "2025-01-05T12-00-00")?;
 
-    let (mut process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (mut process, bind_addr) = spawn_websocket_server(darwin_code_home.path()).await?;
 
     let result = async {
         let mut ws1 = connect_websocket(bind_addr).await?;
@@ -84,9 +84,9 @@ async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
         let ws2_notification =
             read_notification_for_method(&mut ws2, "thread/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
-        assert_legacy_thread_name(codex_home.path(), &conversation_id, renamed).await?;
+        assert_legacy_thread_name(darwin_code_home.path(), &conversation_id, renamed).await?;
         assert_eq!(
-            thread_name_update_rollout_count(codex_home.path(), &conversation_id).await?,
+            thread_name_update_rollout_count(darwin_code_home.path(), &conversation_id).await?,
             1
         );
 
@@ -106,11 +106,11 @@ async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
 #[tokio::test]
 async fn thread_name_updated_broadcasts_for_not_loaded_threads() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let conversation_id = create_rollout(codex_home.path(), "2025-01-05T12-05-00")?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let conversation_id = create_rollout(darwin_code_home.path(), "2025-01-05T12-05-00")?;
 
-    let (mut process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (mut process, bind_addr) = spawn_websocket_server(darwin_code_home.path()).await?;
 
     let result = async {
         let mut ws1 = connect_websocket(bind_addr).await?;
@@ -140,9 +140,9 @@ async fn thread_name_updated_broadcasts_for_not_loaded_threads() -> Result<()> {
         let ws2_notification =
             read_notification_for_method(&mut ws2, "thread/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
-        assert_legacy_thread_name(codex_home.path(), &conversation_id, renamed).await?;
+        assert_legacy_thread_name(darwin_code_home.path(), &conversation_id, renamed).await?;
         assert_eq!(
-            thread_name_update_rollout_count(codex_home.path(), &conversation_id).await?,
+            thread_name_update_rollout_count(darwin_code_home.path(), &conversation_id).await?,
             1
         );
 
@@ -168,9 +168,9 @@ async fn initialize_both_clients(ws1: &mut WsClient, ws2: &mut WsClient) -> Resu
     Ok(())
 }
 
-fn create_rollout(codex_home: &std::path::Path, filename_ts: &str) -> Result<String> {
+fn create_rollout(darwin_code_home: &std::path::Path, filename_ts: &str) -> Result<String> {
     create_fake_rollout_with_text_elements(
-        codex_home,
+        darwin_code_home,
         filename_ts,
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -193,13 +193,13 @@ fn assert_thread_name_updated(
 }
 
 async fn assert_legacy_thread_name(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     conversation_id: &str,
     expected_name: &str,
 ) -> Result<()> {
     let thread_id = ThreadId::from_string(conversation_id)?;
     assert_eq!(
-        find_thread_name_by_id(codex_home, &thread_id)
+        find_thread_name_by_id(darwin_code_home, &thread_id)
             .await?
             .as_deref(),
         Some(expected_name)
@@ -208,10 +208,10 @@ async fn assert_legacy_thread_name(
 }
 
 async fn thread_name_update_rollout_count(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     conversation_id: &str,
 ) -> Result<usize> {
-    let rollout_path = find_thread_path_by_id_str(codex_home, conversation_id)
+    let rollout_path = find_thread_path_by_id_str(darwin_code_home, conversation_id)
         .await?
         .context("rollout path")?;
     let contents = tokio::fs::read_to_string(rollout_path).await?;

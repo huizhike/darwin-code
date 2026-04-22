@@ -1,6 +1,6 @@
 use super::*;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
+use darwin_code_model_provider::SharedModelProvider;
+use darwin_code_model_provider::create_model_provider;
 
 pub(super) fn image_generation_tool_auth_allowed(auth_manager: Option<&AuthManager>) -> bool {
     matches!(
@@ -62,8 +62,8 @@ pub(crate) struct TurnContext {
     pub(crate) features: ManagedFeatures,
     pub(crate) ghost_snapshot: GhostSnapshotConfig,
     pub(crate) final_output_json_schema: Option<Value>,
-    pub(crate) codex_self_exe: Option<PathBuf>,
-    pub(crate) codex_linux_sandbox_exe: Option<PathBuf>,
+    pub(crate) darwin_code_self_exe: Option<PathBuf>,
+    pub(crate) darwin_code_linux_sandbox_exe: Option<PathBuf>,
     pub(crate) tool_call_gate: Arc<ReadinessFlag>,
     pub(crate) truncation_policy: TruncationPolicy,
     pub(crate) js_repl: Arc<JsReplHandle>,
@@ -86,7 +86,7 @@ impl TurnContext {
             .as_deref()
             .and_then(AuthManager::auth_cached)
             .as_ref()
-            .is_some_and(CodexAuth::is_chatgpt_auth);
+            .is_some_and(DarwinCodeAuth::is_chatgpt_auth);
         self.features.apps_enabled_for_auth(is_chatgpt_auth)
     }
 
@@ -186,8 +186,8 @@ impl TurnContext {
             features,
             ghost_snapshot: self.ghost_snapshot.clone(),
             final_output_json_schema: self.final_output_json_schema.clone(),
-            codex_self_exe: self.codex_self_exe.clone(),
-            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.clone(),
+            darwin_code_self_exe: self.darwin_code_self_exe.clone(),
+            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.clone(),
             tool_call_gate: Arc::new(ReadinessFlag::new()),
             truncation_policy,
             js_repl: Arc::clone(&self.js_repl),
@@ -275,12 +275,12 @@ impl TurnContext {
             allowed_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+                .and_then(darwin_code_config::NetworkDomainPermissionsToml::allowed_domains)
                 .unwrap_or_default(),
             denied_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::denied_domains)
+                .and_then(darwin_code_config::NetworkDomainPermissionsToml::denied_domains)
                 .unwrap_or_default(),
         })
     }
@@ -432,8 +432,8 @@ impl Session {
             features: per_turn_config.features.clone(),
             ghost_snapshot: per_turn_config.ghost_snapshot.clone(),
             final_output_json_schema: None,
-            codex_self_exe: per_turn_config.codex_self_exe.clone(),
-            codex_linux_sandbox_exe: per_turn_config.codex_linux_sandbox_exe.clone(),
+            darwin_code_self_exe: per_turn_config.darwin_code_self_exe.clone(),
+            darwin_code_linux_sandbox_exe: per_turn_config.darwin_code_linux_sandbox_exe.clone(),
             tool_call_gate: Arc::new(ReadinessFlag::new()),
             truncation_policy: model_info.truncation_policy.into(),
             js_repl,
@@ -456,14 +456,14 @@ impl Session {
                     let previous_cwd = state.session_configuration.cwd.clone();
                     let sandbox_policy_changed =
                         state.session_configuration.sandbox_policy != next.sandbox_policy;
-                    let codex_home = next.codex_home.clone();
+                    let darwin_code_home = next.darwin_code_home.clone();
                     let session_source = next.session_source.clone();
                     state.session_configuration = next.clone();
                     Ok((
                         next,
                         sandbox_policy_changed,
                         previous_cwd,
-                        codex_home,
+                        darwin_code_home,
                         session_source,
                     ))
                 }
@@ -475,7 +475,7 @@ impl Session {
             session_configuration,
             sandbox_policy_changed,
             previous_cwd,
-            codex_home,
+            darwin_code_home,
             session_source,
         ) = match update_result {
             Ok(update) => update,
@@ -484,7 +484,7 @@ impl Session {
                     id: sub_id.clone(),
                     msg: EventMsg::Error(ErrorEvent {
                         message: err.to_string(),
-                        codex_error_info: Some(CodexErrorInfo::BadRequest),
+                        darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
                     }),
                 })
                 .await;
@@ -495,7 +495,7 @@ impl Session {
         self.maybe_refresh_shell_snapshot_for_cwd(
             &previous_cwd,
             &session_configuration.cwd,
-            &codex_home,
+            &darwin_code_home,
             &session_source,
         );
 

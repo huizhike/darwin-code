@@ -1,6 +1,6 @@
 use super::*;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
 use pretty_assertions::assert_eq;
 use std::num::NonZeroU64;
 use tempfile::tempdir;
@@ -231,4 +231,18 @@ refresh_interval_ms = 0
     let auth = provider.auth.expect("auth config should deserialize");
     assert_eq!(auth.refresh_interval_ms, 0);
     assert_eq!(auth.refresh_interval(), None);
+}
+
+#[test]
+fn test_chatgpt_auth_uses_official_codex_backend_path_by_default() {
+    let provider = ModelProviderInfo::create_openai_provider(None);
+
+    let api_provider = provider
+        .to_api_provider(Some(AuthMode::Chatgpt))
+        .expect("chatgpt auth should produce an api provider");
+
+    assert_eq!(
+        api_provider.base_url,
+        "https://chatgpt.com/backend-api/codex"
+    );
 }

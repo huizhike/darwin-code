@@ -1,19 +1,19 @@
 use crate::fs_api::invalid_request;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
-use codex_app_server_protocol::FsChangedNotification;
-use codex_app_server_protocol::FsUnwatchParams;
-use codex_app_server_protocol::FsUnwatchResponse;
-use codex_app_server_protocol::FsWatchParams;
-use codex_app_server_protocol::FsWatchResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::ServerNotification;
-use codex_core::file_watcher::FileWatcher;
-use codex_core::file_watcher::FileWatcherEvent;
-use codex_core::file_watcher::FileWatcherSubscriber;
-use codex_core::file_watcher::Receiver;
-use codex_core::file_watcher::WatchPath;
-use codex_core::file_watcher::WatchRegistration;
+use darwin_code_app_server_protocol::FsChangedNotification;
+use darwin_code_app_server_protocol::FsUnwatchParams;
+use darwin_code_app_server_protocol::FsUnwatchResponse;
+use darwin_code_app_server_protocol::FsWatchParams;
+use darwin_code_app_server_protocol::FsWatchResponse;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_core::file_watcher::FileWatcher;
+use darwin_code_core::file_watcher::FileWatcherEvent;
+use darwin_code_core::file_watcher::FileWatcherSubscriber;
+use darwin_code_core::file_watcher::Receiver;
+use darwin_code_core::file_watcher::WatchPath;
+use darwin_code_core::file_watcher::WatchRegistration;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
@@ -217,7 +217,7 @@ impl FsWatchManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 

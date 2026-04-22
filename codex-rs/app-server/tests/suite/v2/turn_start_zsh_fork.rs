@@ -13,25 +13,25 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use codex_app_server_protocol::CommandAction;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_features::FEATURES;
-use codex_features::Feature;
+use darwin_code_app_server_protocol::CommandAction;
+use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::CommandExecutionStatus;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -50,8 +50,8 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
     let release_marker = workspace.join("interrupt-release");
@@ -86,7 +86,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
     let server =
         create_mock_responses_server_sequence_unchecked(vec![response, no_op_response]).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "never",
         &BTreeMap::from([
@@ -97,7 +97,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         &zsh_path,
     )?;
 
-    let mut mcp = create_zsh_test_mcp_process(&codex_home, &workspace).await?;
+    let mut mcp = create_zsh_test_mcp_process(&darwin_code_home, &workspace).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -122,11 +122,11 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
                 text_elements: Vec::new(),
             }],
             cwd: Some(workspace.clone()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::Never),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::DangerFullAccess),
             model: Some("mock-model".to_string()),
-            effort: Some(codex_protocol::openai_models::ReasoningEffort::Medium),
-            summary: Some(codex_protocol::config_types::ReasoningSummary::Auto),
+            effort: Some(darwin_code_protocol::openai_models::ReasoningEffort::Medium),
+            summary: Some(darwin_code_protocol::config_types::ReasoningSummary::Auto),
             ..Default::default()
         })
         .await?;
@@ -179,8 +179,8 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -205,7 +205,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::from([
@@ -216,7 +216,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         &zsh_path,
     )?;
 
-    let mut mcp = create_zsh_test_mcp_process(&codex_home, &workspace).await?;
+    let mut mcp = create_zsh_test_mcp_process(&darwin_code_home, &workspace).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -315,8 +315,8 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -338,7 +338,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     )?];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::from([
@@ -349,7 +349,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
         &zsh_path,
     )?;
 
-    let mut mcp = create_zsh_test_mcp_process(&codex_home, &workspace).await?;
+    let mut mcp = create_zsh_test_mcp_process(&darwin_code_home, &workspace).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -446,8 +446,8 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     skip_if_no_network!(Ok(()));
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -497,7 +497,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     let server =
         create_mock_responses_server_sequence_unchecked(vec![response, no_op_response]).await;
     create_config_toml(
-        &codex_home,
+        &darwin_code_home,
         &server.uri(),
         "untrusted",
         &BTreeMap::from([
@@ -508,7 +508,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         &zsh_path,
     )?;
 
-    let mut mcp = create_zsh_test_mcp_process(&codex_home, &workspace).await?;
+    let mut mcp = create_zsh_test_mcp_process(&darwin_code_home, &workspace).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -533,17 +533,17 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
                 text_elements: Vec::new(),
             }],
             cwd: Some(workspace.clone()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+            approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::UnlessTrusted),
+            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots: vec![workspace.clone().try_into()?],
-                read_only_access: codex_app_server_protocol::ReadOnlyAccess::FullAccess,
+                read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
                 network_access: false,
                 exclude_tmpdir_env_var: false,
                 exclude_slash_tmp: false,
             }),
             model: Some("mock-model".to_string()),
-            effort: Some(codex_protocol::openai_models::ReasoningEffort::Medium),
-            summary: Some(codex_protocol::config_types::ReasoningSummary::Auto),
+            effort: Some(darwin_code_protocol::openai_models::ReasoningEffort::Medium),
+            summary: Some(darwin_code_protocol::config_types::ReasoningSummary::Auto),
             ..Default::default()
         })
         .await?;
@@ -739,13 +739,13 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     Ok(())
 }
 
-async fn create_zsh_test_mcp_process(codex_home: &Path, zdotdir: &Path) -> Result<McpProcess> {
+async fn create_zsh_test_mcp_process(darwin_code_home: &Path, zdotdir: &Path) -> Result<McpProcess> {
     let zdotdir = zdotdir.to_string_lossy().into_owned();
-    McpProcess::new_with_env(codex_home, &[("ZDOTDIR", Some(zdotdir.as_str()))]).await
+    McpProcess::new_with_env(darwin_code_home, &[("ZDOTDIR", Some(zdotdir.as_str()))]).await
 }
 
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
     feature_flags: &BTreeMap<Feature, bool>,
@@ -767,7 +767,7 @@ fn create_config_toml(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -796,8 +796,8 @@ stream_max_retries = 0
 }
 
 fn find_test_zsh_path() -> Result<Option<std::path::PathBuf>> {
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
-    let dotslash_zsh = repo_root.join("codex-rs/app-server/tests/suite/zsh");
+    let repo_root = darwin_code_utils_cargo_bin::repo_root()?;
+    let dotslash_zsh = repo_root.join("darwin-code-rs/app-server/tests/suite/zsh");
     if !dotslash_zsh.is_file() {
         eprintln!(
             "skipping zsh fork test: shared zsh DotSlash file not found at {}",

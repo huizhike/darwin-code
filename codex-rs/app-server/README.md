@@ -1,6 +1,6 @@
-# codex-app-server
+# darwin-code-app-server
 
-`codex app-server` is the interface Codex uses to power rich interfaces such as the [Codex VS Code extension](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt).
+`darwin-code app-server` is the interface Darwin-Code uses to power rich interfaces such as the [Darwin-Code VS Code extension](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt).
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@
 
 ## Protocol
 
-Similar to [MCP](https://modelcontextprotocol.io/), `codex app-server` supports bidirectional communication using JSON-RPC 2.0 messages (with the `"jsonrpc":"2.0"` header omitted on the wire).
+Similar to [MCP](https://modelcontextprotocol.io/), `darwin-code app-server` supports bidirectional communication using JSON-RPC 2.0 messages (with the `"jsonrpc":"2.0"` header omitted on the wire).
 
 Supported transports:
 
@@ -44,7 +44,7 @@ Security note:
   - `--ws-auth capability-token --ws-token-sha256 HEX`
   - `--ws-auth signed-bearer-token --ws-shared-secret-file /absolute/path` for HMAC-signed JWT/JWS bearer tokens, with optional `--ws-issuer`, `--ws-audience`, `--ws-max-clock-skew-seconds`
 - Clients present the credential as `Authorization: Bearer <token>` during the websocket handshake. Auth is enforced before JSON-RPC `initialize`.
-- When starting `codex app-server` manually, prefer `--ws-token-file` over passing raw bearer tokens on the command line. Store a high-entropy token in a file readable only by your user, then have your client present that token in the websocket `Authorization` header.
+- When starting `darwin-code app-server` manually, prefer `--ws-token-file` over passing raw bearer tokens on the command line. Store a high-entropy token in a file readable only by your user, then have your client present that token in the websocket `Authorization` header.
 - `--ws-token-sha256` is intended for clients that keep the raw token in a separate local secret store and only need the server to know the SHA-256 verifier. The hash may appear in process listings, but it is not sufficient to authenticate; clients still need the original raw token. Only use this mode with randomly generated high-entropy tokens, not passwords or other guessable values.
 
 Tracing/log output:
@@ -60,18 +60,18 @@ Backpressure behavior:
 
 ## Message Schema
 
-Currently, you can dump a TypeScript version of the schema using `codex app-server generate-ts`, or a JSON Schema bundle via `codex app-server generate-json-schema`. Each output is specific to the version of Codex you used to run the command, so the generated artifacts are guaranteed to match that version.
+Currently, you can dump a TypeScript version of the schema using `darwin-code app-server generate-ts`, or a JSON Schema bundle via `darwin-code app-server generate-json-schema`. Each output is specific to the version of Darwin-Code you used to run the command, so the generated artifacts are guaranteed to match that version.
 
 ```
-codex app-server generate-ts --out DIR
-codex app-server generate-json-schema --out DIR
+darwin-code app-server generate-ts --out DIR
+darwin-code app-server generate-json-schema --out DIR
 ```
 
 ## Core Primitives
 
-The API exposes three top level primitives representing an interaction between a user and Codex:
+The API exposes three top level primitives representing an interaction between a user and Darwin-Code:
 
-- **Thread**: A conversation between a user and the Codex agent. Each thread contains multiple turns.
+- **Thread**: A conversation between a user and the Darwin-Code agent. Each thread contains multiple turns.
 - **Turn**: One turn of the conversation, typically starting with a user message and finishing with an agent message. Each turn contains multiple items.
 - **Item**: Represents user inputs and agent outputs as part of the turn, persisted and used as the context for future conversations. Example items include user message, agent reasoning, agent message, shell command, file edit, etc.
 
@@ -88,15 +88,15 @@ Use the thread APIs to create, list, or archive conversations. Drive a conversat
 
 ## Initialization
 
-Clients must send a single `initialize` request per transport connection before invoking any other method on that connection, then acknowledge with an `initialized` notification. The server returns the user agent string it will present to upstream services, `codexHome` for the server's Codex home directory, and `platformFamily` and `platformOs` strings describing the app-server runtime target; subsequent requests issued before initialization receive a `"Not initialized"` error, and repeated `initialize` calls on the same connection receive an `"Already initialized"` error.
+Clients must send a single `initialize` request per transport connection before invoking any other method on that connection, then acknowledge with an `initialized` notification. The server returns the user agent string it will present to upstream services, `darwinCodeHome` for the server's Darwin-Code home directory, and `platformFamily` and `platformOs` strings describing the app-server runtime target; subsequent requests issued before initialization receive a `"Not initialized"` error, and repeated `initialize` calls on the same connection receive an `"Already initialized"` error.
 
 `initialize.params.capabilities` also supports per-connection notification opt-out via `optOutNotificationMethods`, which is a list of exact method names to suppress for that connection. Matching is exact (no wildcards/prefixes). Unknown method names are accepted and ignored.
 
-Applications building on top of `codex app-server` should identify themselves via the `clientInfo` parameter.
+Applications building on top of `darwin-code app-server` should identify themselves via the `clientInfo` parameter.
 
 **Important**: `clientInfo.name` is used to identify the client for the OpenAI Compliance Logs Platform. If
-you are developing a new Codex integration that is intended for enterprise use, please contact us to get it
-added to a known clients list. For more context: https://chatgpt.com/admin/api-reference#tag/Logs:-Codex
+you are developing a new Darwin-Code integration that is intended for enterprise use, please contact us to get it
+added to a known clients list. For more context: https://chatgpt.com/admin/api-reference#tag/Logs:-Darwin-Code
 
 Example (from OpenAI's official VSCode extension):
 
@@ -106,8 +106,8 @@ Example (from OpenAI's official VSCode extension):
   "id": 0,
   "params": {
     "clientInfo": {
-      "name": "codex_vscode",
-      "title": "Codex VS Code Extension",
+      "name": "darwin_code_vscode",
+      "title": "Darwin-Code VS Code Extension",
       "version": "0.1.0"
     }
   }
@@ -145,7 +145,7 @@ Example with notification opt-out:
 - `thread/turns/list` — page through a stored thread’s turn history without resuming it; supports cursor-based pagination with `sortDirection`, `nextCursor`, and `backwardsCursor`.
 - `thread/metadata/update` — patch stored thread metadata in sqlite; currently supports updating persisted `gitInfo` fields and returns the refreshed `thread`.
 - `thread/memoryMode/set` — experimental; set a thread’s persisted memory eligibility to `"enabled"` or `"disabled"` for either a loaded thread or a stored rollout; returns `{}` on success.
-- `memory/reset` — experimental; clear the current `CODEX_HOME/memories` directory and reset persisted memory stage data in sqlite while preserving existing thread memory modes; returns `{}` on success.
+- `memory/reset` — experimental; clear the current `DARWIN_CODE_HOME/memories` directory and reset persisted memory stage data in sqlite while preserving existing thread memory modes; returns `{}` on success.
 - `thread/status/changed` — notification emitted when a loaded thread’s status changes (`threadId` + new `status`).
 - `thread/archive` — move a thread’s rollout file into the archived directory; returns `{}` on success and emits `thread/archived`.
 - `thread/unsubscribe` — unsubscribe this connection from thread turn/item events. If this was the last subscriber, the server keeps the thread loaded and unloads it only after it has had no subscribers and no thread activity for 30 minutes, then emits `thread/closed`.
@@ -155,7 +155,7 @@ Example with notification opt-out:
 - `thread/shellCommand` — run a user-initiated `!` shell command against a thread; this runs unsandboxed with full access rather than inheriting the thread sandbox policy. Returns `{}` immediately while progress streams through standard turn/item notifications and any active turn receives the formatted output in its message stream.
 - `thread/backgroundTerminals/clean` — terminate all running background terminals for a thread (experimental; requires `capabilities.experimentalApi`); returns `{}` when the cleanup request is accepted.
 - `thread/rollback` — drop the last N turns from the agent’s in-memory context and persist a rollback marker in the rollout so future resumes see the pruned history; returns the updated `thread` (with `turns` populated) on success.
-- `turn/start` — add user input to a thread and begin Codex generation; responds with the initial `turn` object and streams `turn/started`, `item/*`, and `turn/completed` notifications. For `collaborationMode`, `settings.developer_instructions: null` means "use built-in instructions for the selected mode".
+- `turn/start` — add user input to a thread and begin Darwin-Code generation; responds with the initial `turn` object and streams `turn/started`, `item/*`, and `turn/completed` notifications. For `collaborationMode`, `settings.developer_instructions: null` means "use built-in instructions for the selected mode".
 - `thread/inject_items` — append raw Responses API items to a loaded thread’s model-visible history without starting a user turn; returns `{}` on success.
 - `turn/steer` — add user input to an already in-flight regular turn without starting a new turn; returns the active `turnId` that accepted the input. Review and manual compaction turns reject `turn/steer`.
 - `turn/interrupt` — request cancellation of an in-flight turn by `(thread_id, turn_id)`; success is an empty `{}` response and the turn finishes with `status: "interrupted"`.
@@ -163,7 +163,7 @@ Example with notification opt-out:
 - `thread/realtime/appendAudio` — append an input audio chunk to the active realtime session (experimental); returns `{}`.
 - `thread/realtime/appendText` — append text input to the active realtime session (experimental); returns `{}`.
 - `thread/realtime/stop` — stop the active realtime session for the thread (experimental); returns `{}`.
-- `review/start` — kick off Codex’s automated reviewer for a thread; responds like `turn/start` and emits `item/started`/`item/completed` notifications with `enteredReviewMode` and `exitedReviewMode` items, plus a final assistant `agentMessage` containing the review.
+- `review/start` — kick off Darwin-Code’s automated reviewer for a thread; responds like `turn/start` and emits `item/started`/`item/completed` notifications with `enteredReviewMode` and `exitedReviewMode` items, plus a final assistant `agentMessage` containing the review.
 - `command/exec` — run a single command under the server sandbox without starting a thread/turn (handy for utilities and validation).
 - `command/exec/write` — write base64-decoded stdin bytes to a running `command/exec` session or close stdin; returns `{}`.
 - `command/exec/resize` — resize a running PTY-backed `command/exec` session by `processId`; returns `{}`.
@@ -182,7 +182,7 @@ Example with notification opt-out:
 - `model/list` — list available models (set `includeHidden: true` to include entries with `hidden: true`), with reasoning effort options, `additionalSpeedTiers`, optional legacy `upgrade` model ids, optional `upgradeInfo` metadata (`model`, `upgradeCopy`, `modelLink`, `migrationMarkdown`), and optional `availabilityNux` metadata.
 - `experimentalFeature/list` — list feature flags with stage metadata (`beta`, `underDevelopment`, `stable`, etc.), enabled/default-enabled state, and cursor pagination. For non-beta flags, `displayName`/`description`/`announcement` are `null`.
 - `experimentalFeature/enablement/set` — patch the in-memory process-wide runtime feature enablement for the currently supported feature keys (`apps`, `plugins`). For each feature, precedence is: cloud requirements > --enable <feature_name> > config.toml > experimentalFeature/enablement/set (new) > code default.
-- `collaborationMode/list` — list available collaboration mode presets (experimental, no pagination). This response omits built-in developer instructions; clients should either pass `settings.developer_instructions: null` when setting a mode to use Codex's built-in instructions, or provide their own instructions explicitly.
+- `collaborationMode/list` — list available collaboration mode presets (experimental, no pagination). This response omits built-in developer instructions; clients should either pass `settings.developer_instructions: null` when setting a mode to use Darwin-Code's built-in instructions, or provide their own instructions explicitly.
 - `skills/list` — list skills for one or more `cwd` values (optional `forceReload`).
 - `marketplace/add` — add a remote plugin marketplace from an HTTP(S) Git URL, SSH Git URL, or GitHub `owner/repo` shorthand, then persist it into the user marketplace config. Returns the installed root path plus whether the marketplace was already present.
 - `plugin/list` — list discovered plugin marketplaces and plugin state, including effective marketplace install/auth policy metadata, fail-open `marketplaceLoadErrors` entries for marketplace files that could not be parsed or loaded, and best-effort `featuredPluginIds` for the official curated marketplace. `interface.category` uses the marketplace category when present; otherwise it falls back to the plugin manifest category (**under development; do not call from production clients yet**).
@@ -209,13 +209,13 @@ Example with notification opt-out:
 
 ### Example: Start or resume a thread
 
-Start a fresh thread when you need a new Codex conversation.
+Start a fresh thread when you need a new Darwin-Code conversation.
 
 ```json
 { "method": "thread/start", "id": 10, "params": {
     // Optionally set config settings. If not specified, will use the user's
     // current config settings.
-    "model": "gpt-5.1-codex",
+    "model": "gpt-5.1-darwin-code",
     "cwd": "/Users/me/project",
     "approvalPolicy": "never",
     "sandbox": "workspaceWrite",
@@ -438,7 +438,7 @@ Experimental: use `thread/memoryMode/set` to change whether a thread remains eli
 { "id": 26, "result": {} }
 ```
 
-Experimental: use `memory/reset` to clear local memory artifacts and sqlite-backed memory stage data for the current Codex home. This preserves existing thread memory modes; use `thread/memoryMode/set` separately when a thread's future memory eligibility should change.
+Experimental: use `memory/reset` to clear local memory artifacts and sqlite-backed memory stage data for the current Darwin-Code home. This preserves existing thread memory modes; use `thread/memoryMode/set` separately when a thread's future memory eligibility should change.
 
 ```json
 { "method": "memory/reset", "id": 27 }
@@ -510,7 +510,7 @@ If the thread does not already have an active turn, the server starts a standalo
 
 ### Example: Start a turn (send user input)
 
-Turns attach user input (text or images) to a thread and trigger Codex generation. The `input` field is a list of discriminated unions:
+Turns attach user input (text or images) to a thread and trigger Darwin-Code generation. The `input` field is a list of discriminated unions:
 
 - `{"type":"text","text":"Explain this diff"}`
 - `{"type":"image","url":"https://…png"}`
@@ -535,7 +535,7 @@ You can optionally specify config overrides on the new turn. If specified, these
         "writableRoots": ["/Users/me/project"],
         "networkAccess": true
     },
-    "model": "gpt-5.1-codex",
+    "model": "gpt-5.1-darwin-code",
     "effort": "medium",
     "summary": "concise",
     "personality": "friendly",
@@ -564,7 +564,7 @@ Invoke a skill explicitly by including `$<skill-name>` in the text input and add
     "threadId": "thr_123",
     "input": [
         { "type": "text", "text": "$skill-creator Add a new skill for triaging flaky CI and include step-by-step usage." },
-        { "type": "skill", "name": "skill-creator", "path": "/Users/me/.codex/skills/skill-creator/SKILL.md" }
+        { "type": "skill", "name": "skill-creator", "path": "/Users/me/.darwin-code/skills/skill-creator/SKILL.md" }
     ]
 } }
 { "id": 33, "result": { "turn": {
@@ -672,7 +672,7 @@ Then send `offer.sdp` to app-server. Core uses `experimental_realtime_ws_backend
 } }
 ```
 
-Omit `prompt` to use Codex's default realtime backend prompt. Send `prompt: null` or
+Omit `prompt` to use Darwin-Code's default realtime backend prompt. Send `prompt: null` or
 `prompt: ""` when the session should start without that default backend prompt.
 
 ```javascript
@@ -727,10 +727,10 @@ manual compaction), the request fails with an `invalid request` error.
 
 ### Example: Request a code review
 
-Use `review/start` to run Codex’s reviewer on the currently checked-out project. The request takes the thread id plus a `target` describing what should be reviewed:
+Use `review/start` to run Darwin-Code’s reviewer on the currently checked-out project. The request takes the thread id plus a `target` describing what should be reviewed:
 
 - `{"type":"uncommittedChanges"}` — staged, unstaged, and untracked files.
-- `{"type":"baseBranch","branch":"main"}` — diff against the provided branch’s upstream (see prompt for the exact `git merge-base`/`git diff` instructions Codex will run).
+- `{"type":"baseBranch","branch":"main"}` — diff against the provided branch’s upstream (see prompt for the exact `git merge-base`/`git diff` instructions Darwin-Code will run).
 - `{"type":"commit","sha":"abc1234","title":"Optional subject"}` — review a specific commit.
 - `{"type":"custom","instructions":"Free-form reviewer instructions"}` — fallback prompt equivalent to the legacy manual review request.
 - `delivery` (`"inline"` or `"detached"`, default `"inline"`) — where the review runs:
@@ -760,7 +760,7 @@ Example request/response:
 
 For a detached review, use `"delivery": "detached"`. The response is the same shape, but `reviewThreadId` will be the id of the new review thread (different from the original `threadId`). The server also emits a `thread/started` notification for that new thread before streaming the review turn.
 
-Codex streams the usual `turn/started` notification followed by an `item/started`
+Darwin-Code streams the usual `turn/started` notification followed by an `item/started`
 with an `enteredReviewMode` item so clients can show progress:
 
 ```json
@@ -818,7 +818,7 @@ Run a standalone command (argv vector) in the server’s sandbox without creatin
 } }
 ```
 
-- For clients that are already sandboxed externally, set `sandboxPolicy` to `{"type":"externalSandbox","networkAccess":"enabled"}` (or omit `networkAccess` to keep it restricted). Codex will not enforce its own sandbox in this mode; it tells the model it has full file-system access and passes the `networkAccess` state through `environment_context`.
+- For clients that are already sandboxed externally, set `sandboxPolicy` to `{"type":"externalSandbox","networkAccess":"enabled"}` (or omit `networkAccess` to keep it restricted). Darwin-Code will not enforce its own sandbox in this mode; it tells the model it has full file-system access and passes the `networkAccess` state through `environment_context`.
 
 Notes:
 
@@ -829,7 +829,7 @@ Notes:
 - When omitted, `outputBytesCap` falls back to the server default of 1 MiB per stream.
 - `disableOutputCap: true` disables stdout/stderr capture truncation for that `command/exec` request. It cannot be combined with `outputBytesCap`.
 - `disableTimeout: true` disables the timeout entirely for that `command/exec` request. It cannot be combined with `timeoutMs`.
-- `processId` is optional for buffered execution. When omitted, Codex generates an internal id for lifecycle tracking, but `tty`, `streamStdin`, and `streamStdoutStderr` must stay disabled and follow-up `command/exec/write` / `command/exec/terminate` calls are not available for that command.
+- `processId` is optional for buffered execution. When omitted, Darwin-Code generates an internal id for lifecycle tracking, but `tty`, `streamStdin`, and `streamStdoutStderr` must stay disabled and follow-up `command/exec/write` / `command/exec/terminate` calls are not available for that command.
 - `size` is only valid when `tty: true`. It sets the initial PTY size in character cells.
 - Buffered Windows sandbox execution accepts `processId` for correlation, but `command/exec/write` and `command/exec/terminate` are still unsupported for those requests.
 - Buffered Windows sandbox execution also requires the default output cap; custom `outputBytesCap` and `disableOutputCap` are unsupported there.
@@ -1010,7 +1010,7 @@ Because audio is intentionally separate from `ThreadItem`, clients can opt out o
 The app-server streams JSON-RPC notifications while a turn is running. Each turn emits `turn/started` when it begins running and ends with `turn/completed` (final `turn` status). Token usage events stream separately via `thread/tokenUsage/updated`. Clients subscribe to the events they care about, rendering each item incrementally as updates arrive. The per-item lifecycle is always: `item/started` → zero or more item-specific deltas → `item/completed`.
 
 - `turn/started` — `{ turn }` with the turn id, empty `items`, and `status: "inProgress"`.
-- `turn/completed` — `{ turn }` where `turn.status` is `completed`, `interrupted`, or `failed`; failures carry `{ error: { message, codexErrorInfo?, additionalDetails? } }`.
+- `turn/completed` — `{ turn }` where `turn.status` is `completed`, `interrupted`, or `failed`; failures carry `{ error: { message, darwinCodeErrorInfo?, additionalDetails? } }`.
 - `turn/diff/updated` — `{ threadId, turnId, diff }` represents the up-to-date snapshot of the turn-level unified diff, emitted after every FileChange item. `diff` is the latest aggregated unified diff across every file change in the turn. UIs can render this to show the full "what changed" view without stitching individual `fileChange` items.
 - `turn/plan/updated` — `{ turnId, explanation?, plan }` whenever the agent shares or changes its plan; each `plan` entry is `{ step, status }` with `status` in `pending`, `inProgress`, or `completed`.
 - `model/rerouted` — `{ threadId, turnId, fromModel, toModel, reason }` when the backend reroutes a request to a different model (for example, due to high-risk cyber safety checks).
@@ -1033,8 +1033,8 @@ Today both notifications carry an empty `items` array even when item events were
 - `imageView` — `{id, path}` emitted when the agent invokes the image viewer tool.
 - `enteredReviewMode` — `{id, review}` sent when the reviewer starts; `review` is a short user-facing label such as `"current changes"` or the requested target description.
 - `exitedReviewMode` — `{id, review}` emitted when the reviewer finishes; `review` is the full plain-text review (usually, overall notes plus bullet point findings).
-- `contextCompaction` — `{id}` emitted when codex compacts the conversation history. This can happen automatically.
-- `compacted` - `{threadId, turnId}` when codex compacts the conversation history. This can happen automatically. **Deprecated:** Use `contextCompaction` instead.
+- `contextCompaction` — `{id}` emitted when darwin-code compacts the conversation history. This can happen automatically.
+- `compacted` - `{threadId, turnId}` when darwin-code compacts the conversation history. This can happen automatically. **Deprecated:** Use `contextCompaction` instead.
 
 All items emit shared lifecycle events:
 
@@ -1072,9 +1072,9 @@ There are additional item-specific events:
 
 ### Errors
 
-`error` event is emitted whenever the server hits an error mid-turn (for example, upstream model errors or quota limits). Carries the same `{ error: { message, codexErrorInfo?, additionalDetails? } }` payload as `turn.status: "failed"` and may precede that terminal notification.
+`error` event is emitted whenever the server hits an error mid-turn (for example, upstream model errors or quota limits). Carries the same `{ error: { message, darwinCodeErrorInfo?, additionalDetails? } }` payload as `turn.status: "failed"` and may precede that terminal notification.
 
-`codexErrorInfo` maps to the `CodexErrorInfo` enum. Common values:
+`darwinCodeErrorInfo` maps to the `DarwinCodeErrorInfo` enum. Common values:
 
 - `ContextWindowExceeded`
 - `UsageLimitExceeded`
@@ -1090,11 +1090,11 @@ There are additional item-specific events:
 - `InternalServerError`
 - `Other`: all unclassified errors
 
-When an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `codexErrorInfo` variant.
+When an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `darwinCodeErrorInfo` variant.
 
 ## Approvals
 
-Certain actions (shell commands or modifying files) may require explicit user approval depending on the user's config. When `turn/start` is used, the app-server drives an approval flow by sending a server-initiated JSON-RPC request to the client. The client must respond to tell Codex whether to proceed. UIs should present these requests inline with the active turn so users can review the proposed command or diff before choosing.
+Certain actions (shell commands or modifying files) may require explicit user approval depending on the user's config. When `turn/start` is used, the app-server drives an approval flow by sending a server-initiated JSON-RPC request to the client. The client must respond to tell Darwin-Code whether to proceed. UIs should present these requests inline with the active turn so users can review the proposed command or diff before choosing.
 
 - Requests include `threadId` and `turnId`—use them to scope UI state to the active conversation.
 - Respond with a single `{ "decision": ... }` payload. Command approvals support `accept`, `acceptForSession`, `acceptWithExecpolicyAmendment`, `applyNetworkPolicyAmendment`, `decline`, or `cancel`. The server resumes or declines the work and ends the item with `item/completed`.
@@ -1140,7 +1140,7 @@ Order of messages:
 `turnId` is best-effort. When the elicitation is correlated with an active turn, the request includes that turn id; otherwise it is `null`.
 
 For MCP tool approval elicitations, form request `meta` includes
-`codex_approval_kind: "mcp_tool_call"` and may include `persist: "session"`,
+`darwin_code_approval_kind: "mcp_tool_call"` and may include `persist: "session"`,
 `persist: "always"`, or `persist: ["session", "always"]` to advertise whether
 the client can offer session-scoped and/or persistent approval choices.
 
@@ -1250,7 +1250,7 @@ Invoke a skill by including `$<skill-name>` in the text input. Add a `skill` inp
       {
         "type": "skill",
         "name": "skill-creator",
-        "path": "/Users/me/.codex/skills/skill-creator/SKILL.md"
+        "path": "/Users/me/.darwin-code/skills/skill-creator/SKILL.md"
       }
     ]
   }
@@ -1288,11 +1288,11 @@ The server also emits `skills/changed` notifications when watched local skill fi
         "skills": [
             {
               "name": "skill-creator",
-              "description": "Create or update a Codex skill",
+              "description": "Create or update a Darwin-Code skill",
               "enabled": true,
               "interface": {
                 "displayName": "Skill Creator",
-                "shortDescription": "Create or update a Codex skill",
+                "shortDescription": "Create or update a Darwin-Code skill",
                 "iconSmall": "icon.svg",
                 "iconLarge": "icon-large.svg",
                 "brandColor": "#111111",
@@ -1319,7 +1319,7 @@ To enable or disable a skill by absolute path:
   "method": "skills/config/write",
   "id": 26,
   "params": {
-    "path": "/Users/alice/.codex/skills/skill-creator/SKILL.md",
+    "path": "/Users/alice/.darwin-code/skills/skill-creator/SKILL.md",
     "name": null,
     "enabled": false
   }
@@ -1433,10 +1433,10 @@ The JSON-RPC auth/account surface exposes request/response methods plus server-i
 
 ### Authentication modes
 
-Codex supports these authentication modes. The current mode is surfaced in `account/updated` (`authMode`), which also includes the current ChatGPT `planType` when available, and can be inferred from `account/read`.
+Darwin-Code supports these authentication modes. The current mode is surfaced in `account/updated` (`authMode`), which also includes the current ChatGPT `planType` when available, and can be inferred from `account/read`.
 
 - **API key (`apiKey`)**: Caller supplies an OpenAI API key via `account/login/start` with `type: "apiKey"`. The API key is saved and used for API requests.
-- **ChatGPT managed (`chatgpt`)** (recommended): Codex owns the ChatGPT OAuth flow and refresh tokens. Start via `account/login/start` with `type: "chatgpt"` for the browser flow or `type: "chatgptDeviceCode"` for device code; Codex persists tokens to disk and refreshes them automatically.
+- **ChatGPT managed (`chatgpt`)** (recommended): Darwin-Code owns the ChatGPT OAuth flow and refresh tokens. Start via `account/login/start` with `type: "chatgpt"` for the browser flow or `type: "chatgptDeviceCode"` for device code; Darwin-Code persists tokens to disk and refreshes them automatically.
 
 ### API Overview
 
@@ -1471,7 +1471,7 @@ Response examples:
 Field notes:
 
 - `refreshToken` (bool): set `true` to force a token refresh.
-- `requiresOpenaiAuth` reflects the active provider; when `false`, Codex can run without OpenAI credentials.
+- `requiresOpenaiAuth` reflects the active provider; when `false`, Darwin-Code can run without OpenAI credentials.
 
 ### 2) Log in with an API key
 
@@ -1512,7 +1512,7 @@ Field notes:
 1. Start:
    ```json
    { "method": "account/login/start", "id": 4, "params": { "type": "chatgptDeviceCode" } }
-   { "id": 4, "result": { "type": "chatgptDeviceCode", "loginId": "<uuid>", "verificationUrl": "https://auth.openai.com/codex/device", "userCode": "ABCD-1234" } }
+   { "id": 4, "result": { "type": "chatgptDeviceCode", "loginId": "<uuid>", "verificationUrl": "https://auth.openai.com/darwin-code/device", "userCode": "ABCD-1234" } }
    ```
 2. Show `verificationUrl` and `userCode` to the user; the frontend owns the UX.
 3. Wait for notifications:
@@ -1559,16 +1559,16 @@ Some app-server methods and fields are intentionally gated behind an experimenta
 
 ### Generating stable vs experimental client schemas
 
-`codex app-server` schema generation defaults to the stable API surface (experimental fields and methods filtered out). Pass `--experimental` to include experimental methods/fields in generated TypeScript or JSON schema:
+`darwin-code app-server` schema generation defaults to the stable API surface (experimental fields and methods filtered out). Pass `--experimental` to include experimental methods/fields in generated TypeScript or JSON schema:
 
 ```bash
 # Stable-only output (default)
-codex app-server generate-ts --out DIR
-codex app-server generate-json-schema --out DIR
+darwin-code app-server generate-ts --out DIR
+darwin-code app-server generate-json-schema --out DIR
 
 # Include experimental API surface
-codex app-server generate-ts --out DIR --experimental
-codex app-server generate-json-schema --out DIR --experimental
+darwin-code app-server generate-ts --out DIR --experimental
+darwin-code app-server generate-json-schema --out DIR --experimental
 ```
 
 ### How clients opt in at runtime
@@ -1661,5 +1661,5 @@ For server-initiated request payloads, annotate the field the same way so schema
 5. Verify the protocol crate:
 
    ```bash
-   cargo test -p codex-app-server-protocol
+   cargo test -p darwin-code-app-server-protocol
    ```

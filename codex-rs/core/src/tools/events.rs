@@ -3,22 +3,22 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::context::SharedTurnDiffTracker;
 use crate::tools::sandboxing::ToolError;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_protocol::protocol::PatchApplyStatus;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_shell_command::parse_command::parse_command;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::ExecCommandStatus;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::PatchApplyBeginEvent;
+use darwin_code_protocol::protocol::PatchApplyEndEvent;
+use darwin_code_protocol::protocol::PatchApplyStatus;
+use darwin_code_protocol::protocol::TurnDiffEvent;
+use darwin_code_shell_command::parse_command::parse_command;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -316,14 +316,14 @@ impl ToolEmitter {
                 };
                 (event, result)
             }
-            Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Timeout { output })))
-            | Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied { output, .. }))) => {
+            Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Timeout { output })))
+            | Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied { output, .. }))) => {
                 let response = self.format_exec_output_for_model(&output, ctx);
                 let event = ToolEventStage::Failure(ToolEventFailure::Output(*output));
                 let result = Err(FunctionCallError::RespondToModel(response));
                 (event, result)
             }
-            Err(ToolError::Codex(err)) => {
+            Err(ToolError::Darwin-Code(err)) => {
                 let message = format!("execution error: {err:?}");
                 let event = ToolEventStage::Failure(ToolEventFailure::Message(message.clone()));
                 let result = Err(FunctionCallError::RespondToModel(message));

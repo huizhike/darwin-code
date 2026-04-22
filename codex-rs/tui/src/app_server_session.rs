@@ -5,99 +5,99 @@ use crate::legacy_core::config::Config;
 use crate::legacy_core::message_history_metadata;
 use crate::status::StatusAccountDisplay;
 use crate::status::plan_type_display_name;
-use codex_app_server_client::AppServerClient;
-use codex_app_server_client::AppServerEvent;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_client::TypedRequestError;
-use codex_app_server_protocol::Account;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigDetectResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportParams;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::GetAccountResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::LogoutAccountResponse;
-use codex_app_server_protocol::MemoryResetResponse;
-use codex_app_server_protocol::Model as ApiModel;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelListResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewDelivery;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadCompactStartResponse;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadMemoryMode;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMemoryModeSetResponse;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioResponse;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextResponse;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStartResponse;
-use codex_app_server_protocol::ThreadRealtimeStartTransport;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadRealtimeStopResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadRollbackResponse;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadShellCommandResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartSource;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::ThreadUnsubscribeResponse;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ModelAvailabilityNux;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelUpgrade;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ConversationStartTransport;
-use codex_protocol::protocol::ConversationTextParams;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget as CoreReviewTarget;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionNetworkProxyRuntime;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_client::AppServerClient;
+use darwin_code_app_server_client::AppServerEvent;
+use darwin_code_app_server_client::AppServerRequestHandle;
+use darwin_code_app_server_client::TypedRequestError;
+use darwin_code_app_server_protocol::Account;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::ConfigBatchWriteParams;
+use darwin_code_app_server_protocol::ConfigWriteResponse;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectResponse;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportResponse;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+use darwin_code_app_server_protocol::GetAccountParams;
+use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
+use darwin_code_app_server_protocol::GetAccountResponse;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::LogoutAccountResponse;
+use darwin_code_app_server_protocol::MemoryResetResponse;
+use darwin_code_app_server_protocol::Model as ApiModel;
+use darwin_code_app_server_protocol::ModelListParams;
+use darwin_code_app_server_protocol::ModelListResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ReviewDelivery;
+use darwin_code_app_server_protocol::ReviewStartParams;
+use darwin_code_app_server_protocol::ReviewStartResponse;
+use darwin_code_app_server_protocol::SkillsListParams;
+use darwin_code_app_server_protocol::SkillsListResponse;
+use darwin_code_app_server_protocol::Thread;
+use darwin_code_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
+use darwin_code_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
+use darwin_code_app_server_protocol::ThreadCompactStartParams;
+use darwin_code_app_server_protocol::ThreadCompactStartResponse;
+use darwin_code_app_server_protocol::ThreadForkParams;
+use darwin_code_app_server_protocol::ThreadForkResponse;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadListResponse;
+use darwin_code_app_server_protocol::ThreadLoadedListParams;
+use darwin_code_app_server_protocol::ThreadLoadedListResponse;
+use darwin_code_app_server_protocol::ThreadMemoryMode;
+use darwin_code_app_server_protocol::ThreadMemoryModeSetParams;
+use darwin_code_app_server_protocol::ThreadMemoryModeSetResponse;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadReadResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeStartParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStartResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeStartTransport;
+use darwin_code_app_server_protocol::ThreadRealtimeStopParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStopResponse;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadRollbackParams;
+use darwin_code_app_server_protocol::ThreadRollbackResponse;
+use darwin_code_app_server_protocol::ThreadSetNameParams;
+use darwin_code_app_server_protocol::ThreadSetNameResponse;
+use darwin_code_app_server_protocol::ThreadShellCommandParams;
+use darwin_code_app_server_protocol::ThreadShellCommandResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStartSource;
+use darwin_code_app_server_protocol::ThreadUnsubscribeParams;
+use darwin_code_app_server_protocol::ThreadUnsubscribeResponse;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnInterruptParams;
+use darwin_code_app_server_protocol::TurnInterruptResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnSteerParams;
+use darwin_code_app_server_protocol::TurnSteerResponse;
+use darwin_code_otel::TelemetryAuthMode;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ModelAvailabilityNux;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ModelUpgrade;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::ConversationStartParams;
+use darwin_code_protocol::protocol::ConversationStartTransport;
+use darwin_code_protocol::protocol::ConversationTextParams;
+use darwin_code_protocol::protocol::CreditsSnapshot;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::RateLimitWindow;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::protocol::ReviewTarget as CoreReviewTarget;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
@@ -114,7 +114,7 @@ pub(crate) struct AppServerBootstrap {
     pub(crate) account_email: Option<String>,
     pub(crate) auth_mode: Option<TelemetryAuthMode>,
     pub(crate) status_account_display: Option<StatusAccountDisplay>,
-    pub(crate) plan_type: Option<codex_protocol::account::PlanType>,
+    pub(crate) plan_type: Option<darwin_code_protocol::account::PlanType>,
     /// Whether the configured model provider needs OpenAI-style auth. Combined
     /// with `has_chatgpt_account` to decide if a startup rate-limit prefetch
     /// should be fired.
@@ -138,13 +138,13 @@ pub(crate) struct ThreadSessionState {
     pub(crate) thread_name: Option<String>,
     pub(crate) model: String,
     pub(crate) model_provider_id: String,
-    pub(crate) service_tier: Option<codex_protocol::config_types::ServiceTier>,
+    pub(crate) service_tier: Option<darwin_code_protocol::config_types::ServiceTier>,
     pub(crate) approval_policy: AskForApproval,
-    pub(crate) approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+    pub(crate) approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer,
     pub(crate) sandbox_policy: SandboxPolicy,
     pub(crate) cwd: AbsolutePathBuf,
     pub(crate) instruction_source_paths: Vec<AbsolutePathBuf>,
-    pub(crate) reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    pub(crate) reasoning_effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
     pub(crate) history_log_id: u64,
     pub(crate) history_entry_count: u64,
     pub(crate) network_proxy: Option<SessionNetworkProxyRuntime>,
@@ -449,17 +449,17 @@ impl AppServerSession {
     pub(crate) async fn turn_start(
         &mut self,
         thread_id: ThreadId,
-        items: Vec<codex_protocol::user_input::UserInput>,
+        items: Vec<darwin_code_protocol::user_input::UserInput>,
         cwd: PathBuf,
         approval_policy: AskForApproval,
-        approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+        approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer,
         sandbox_policy: SandboxPolicy,
         model: String,
-        effort: Option<codex_protocol::openai_models::ReasoningEffort>,
-        summary: Option<codex_protocol::config_types::ReasoningSummary>,
-        service_tier: Option<Option<codex_protocol::config_types::ServiceTier>>,
-        collaboration_mode: Option<codex_protocol::config_types::CollaborationMode>,
-        personality: Option<codex_protocol::config_types::Personality>,
+        effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
+        summary: Option<darwin_code_protocol::config_types::ReasoningSummary>,
+        service_tier: Option<Option<darwin_code_protocol::config_types::ServiceTier>>,
+        collaboration_mode: Option<darwin_code_protocol::config_types::CollaborationMode>,
+        personality: Option<darwin_code_protocol::config_types::Personality>,
         output_schema: Option<serde_json::Value>,
     ) -> Result<TurnStartResponse> {
         let request_id = self.next_request_id();
@@ -515,7 +515,7 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         turn_id: String,
-        items: Vec<codex_protocol::user_input::UserInput>,
+        items: Vec<darwin_code_protocol::user_input::UserInput>,
     ) -> std::result::Result<TurnSteerResponse, TypedRequestError> {
         let request_id = self.next_request_id();
         self.client
@@ -850,7 +850,7 @@ impl AppServerSession {
 
 pub(crate) fn status_account_display_from_auth_mode(
     auth_mode: Option<AuthMode>,
-    plan_type: Option<codex_protocol::account::PlanType>,
+    plan_type: Option<darwin_code_protocol::account::PlanType>,
 ) -> Option<StatusAccountDisplay> {
     match auth_mode {
         Some(AuthMode::ApiKey) => Some(StatusAccountDisplay::ApiKey),
@@ -911,7 +911,7 @@ fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
 
 fn approvals_reviewer_override_from_config(
     config: &Config,
-) -> Option<codex_app_server_protocol::ApprovalsReviewer> {
+) -> Option<darwin_code_app_server_protocol::ApprovalsReviewer> {
     Some(config.approvals_reviewer.into())
 }
 
@@ -928,14 +928,14 @@ fn config_request_overrides_from_config(
 
 fn sandbox_mode_from_policy(
     policy: SandboxPolicy,
-) -> Option<codex_app_server_protocol::SandboxMode> {
+) -> Option<darwin_code_app_server_protocol::SandboxMode> {
     match policy {
         SandboxPolicy::DangerFullAccess => {
-            Some(codex_app_server_protocol::SandboxMode::DangerFullAccess)
+            Some(darwin_code_app_server_protocol::SandboxMode::DangerFullAccess)
         }
-        SandboxPolicy::ReadOnly { .. } => Some(codex_app_server_protocol::SandboxMode::ReadOnly),
+        SandboxPolicy::ReadOnly { .. } => Some(darwin_code_app_server_protocol::SandboxMode::ReadOnly),
         SandboxPolicy::WorkspaceWrite { .. } => {
-            Some(codex_app_server_protocol::SandboxMode::WorkspaceWrite)
+            Some(darwin_code_app_server_protocol::SandboxMode::WorkspaceWrite)
         }
         SandboxPolicy::ExternalSandbox { .. } => None,
     }
@@ -1126,19 +1126,19 @@ async fn thread_session_state_from_thread_fork_response(
 
 fn review_target_to_app_server(
     target: CoreReviewTarget,
-) -> codex_app_server_protocol::ReviewTarget {
+) -> darwin_code_app_server_protocol::ReviewTarget {
     match target {
         CoreReviewTarget::UncommittedChanges => {
-            codex_app_server_protocol::ReviewTarget::UncommittedChanges
+            darwin_code_app_server_protocol::ReviewTarget::UncommittedChanges
         }
         CoreReviewTarget::BaseBranch { branch } => {
-            codex_app_server_protocol::ReviewTarget::BaseBranch { branch }
+            darwin_code_app_server_protocol::ReviewTarget::BaseBranch { branch }
         }
         CoreReviewTarget::Commit { sha, title } => {
-            codex_app_server_protocol::ReviewTarget::Commit { sha, title }
+            darwin_code_app_server_protocol::ReviewTarget::Commit { sha, title }
         }
         CoreReviewTarget::Custom { instructions } => {
-            codex_app_server_protocol::ReviewTarget::Custom { instructions }
+            darwin_code_app_server_protocol::ReviewTarget::Custom { instructions }
         }
     }
 }
@@ -1154,13 +1154,13 @@ async fn thread_session_state_from_thread_response(
     rollout_path: Option<PathBuf>,
     model: String,
     model_provider_id: String,
-    service_tier: Option<codex_protocol::config_types::ServiceTier>,
+    service_tier: Option<darwin_code_protocol::config_types::ServiceTier>,
     approval_policy: AskForApproval,
-    approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer,
+    approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer,
     sandbox_policy: SandboxPolicy,
     cwd: AbsolutePathBuf,
     instruction_source_paths: Vec<AbsolutePathBuf>,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
     let thread_id = ThreadId::from_string(thread_id)
@@ -1209,7 +1209,7 @@ pub(crate) fn app_server_rate_limit_snapshots_to_core(
 }
 
 pub(crate) fn app_server_rate_limit_snapshot_to_core(
-    snapshot: codex_app_server_protocol::RateLimitSnapshot,
+    snapshot: darwin_code_app_server_protocol::RateLimitSnapshot,
 ) -> RateLimitSnapshot {
     RateLimitSnapshot {
         limit_id: snapshot.limit_id,
@@ -1223,7 +1223,7 @@ pub(crate) fn app_server_rate_limit_snapshot_to_core(
 }
 
 fn app_server_rate_limit_window_to_core(
-    window: codex_app_server_protocol::RateLimitWindow,
+    window: darwin_code_app_server_protocol::RateLimitWindow,
 ) -> RateLimitWindow {
     RateLimitWindow {
         used_percent: window.used_percent as f64,
@@ -1233,7 +1233,7 @@ fn app_server_rate_limit_window_to_core(
 }
 
 fn app_server_credits_snapshot_to_core(
-    snapshot: codex_app_server_protocol::CreditsSnapshot,
+    snapshot: darwin_code_app_server_protocol::CreditsSnapshot,
 ) -> CreditsSnapshot {
     CreditsSnapshot {
         has_credits: snapshot.has_credits,
@@ -1246,17 +1246,17 @@ fn app_server_credits_snapshot_to_core(
 mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_app_server_protocol::ThreadStatus;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_app_server_protocol::ThreadStatus;
+    use darwin_code_app_server_protocol::Turn;
+    use darwin_code_app_server_protocol::TurnStatus;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> Config {
         ConfigBuilder::default()
-            .codex_home(temp_dir.path().to_path_buf())
+            .darwin_code_home(temp_dir.path().to_path_buf())
             .build()
             .await
             .expect("config should build")
@@ -1367,7 +1367,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let forked_from_id = ThreadId::new();
         let response = ThreadResumeResponse {
-            thread: codex_app_server_protocol::Thread {
+            thread: darwin_code_app_server_protocol::Thread {
                 id: thread_id.to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
                 preview: "hello".to_string(),
@@ -1379,7 +1379,7 @@ mod tests {
                 path: None,
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
-                source: codex_protocol::protocol::SessionSource::Cli.into(),
+                source: darwin_code_protocol::protocol::SessionSource::Cli.into(),
                 agent_nickname: None,
                 agent_role: None,
                 git_info: None,
@@ -1387,14 +1387,14 @@ mod tests {
                 turns: vec![Turn {
                     id: "turn-1".to_string(),
                     items: vec![
-                        codex_app_server_protocol::ThreadItem::UserMessage {
+                        darwin_code_app_server_protocol::ThreadItem::UserMessage {
                             id: "user-1".to_string(),
-                            content: vec![codex_app_server_protocol::UserInput::Text {
+                            content: vec![darwin_code_app_server_protocol::UserInput::Text {
                                 text: "hello from history".to_string(),
                                 text_elements: Vec::new(),
                             }],
                         },
-                        codex_app_server_protocol::ThreadItem::AgentMessage {
+                        darwin_code_app_server_protocol::ThreadItem::AgentMessage {
                             id: "assistant-1".to_string(),
                             text: "assistant reply".to_string(),
                             phase: None,
@@ -1413,9 +1413,9 @@ mod tests {
             service_tier: None,
             cwd: test_path_buf("/tmp/project").abs(),
             instruction_sources: vec![test_path_buf("/tmp/project/AGENTS.md").abs()],
-            approval_policy: codex_protocol::protocol::AskForApproval::Never.into(),
-            approvals_reviewer: codex_app_server_protocol::ApprovalsReviewer::User,
-            sandbox: codex_protocol::protocol::SandboxPolicy::new_read_only_policy().into(),
+            approval_policy: darwin_code_protocol::protocol::AskForApproval::Never.into(),
+            approvals_reviewer: darwin_code_app_server_protocol::ApprovalsReviewer::User,
+            sandbox: darwin_code_protocol::protocol::SandboxPolicy::new_read_only_policy().into(),
             reasoning_effort: None,
         };
 
@@ -1453,7 +1453,7 @@ mod tests {
             "openai".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
-            codex_protocol::config_types::ApprovalsReviewer::User,
+            darwin_code_protocol::config_types::ApprovalsReviewer::User,
             SandboxPolicy::new_read_only_policy(),
             test_path_buf("/tmp/project").abs(),
             Vec::new(),
@@ -1483,7 +1483,7 @@ mod tests {
             "openai".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
-            codex_protocol::config_types::ApprovalsReviewer::User,
+            darwin_code_protocol::config_types::ApprovalsReviewer::User,
             SandboxPolicy::new_read_only_policy(),
             test_path_buf("/tmp/project").abs(),
             Vec::new(),
@@ -1500,7 +1500,7 @@ mod tests {
     fn status_account_display_from_auth_mode_uses_remapped_plan_labels() {
         let business = status_account_display_from_auth_mode(
             Some(AuthMode::Chatgpt),
-            Some(codex_protocol::account::PlanType::EnterpriseCbpUsageBased),
+            Some(darwin_code_protocol::account::PlanType::EnterpriseCbpUsageBased),
         );
         assert!(matches!(
             business,
@@ -1512,7 +1512,7 @@ mod tests {
 
         let team = status_account_display_from_auth_mode(
             Some(AuthMode::Chatgpt),
-            Some(codex_protocol::account::PlanType::SelfServeBusinessUsageBased),
+            Some(darwin_code_protocol::account::PlanType::SelfServeBusinessUsageBased),
         );
         assert!(matches!(
             team,

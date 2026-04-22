@@ -16,28 +16,28 @@ use crate::skills::SkillRenderSideEffects;
 use crate::skills::render::SkillMetadataBudget;
 use crate::tools::format_exec_output_str;
 
-use codex_features::Feature;
-use codex_features::Features;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::model_info;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::protocol::NonSteerableTurnKind;
-use codex_protocol::protocol::ReadOnlyAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
+use darwin_code_features::Feature;
+use darwin_code_features::Features;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_models_manager::model_info;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::FileSystemSpecialPath;
+use darwin_code_protocol::protocol::NonSteerableTurnKind;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::request_permissions::PermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile;
 use tracing::Span;
 
 use crate::RolloutRecorderParams;
@@ -56,54 +56,54 @@ use crate::tools::handlers::UnifiedExecHandler;
 use crate::tools::registry::ToolHandler;
 use crate::tools::router::ToolCallSource;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_app_server_protocol::AppInfo;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_execpolicy::Decision;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_TRUNCATED_METRIC;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::NetworkApprovalProtocol;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::RealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadRolledBackEvent;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::protocol::W3cTraceContext;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::NetworkRuleProtocol;
+use darwin_code_execpolicy::Policy;
+use darwin_code_network_proxy::NetworkProxyConfig;
+use darwin_code_otel::MetricsClient;
+use darwin_code_otel::MetricsConfig;
+use darwin_code_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
+use darwin_code_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
+use darwin_code_otel::THREAD_SKILLS_TRUNCATED_METRIC;
+use darwin_code_otel::TelemetryAuthMode;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::CreditsSnapshot;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::NetworkApprovalProtocol;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::RateLimitWindow;
+use darwin_code_protocol::protocol::RealtimeAudioFrame;
+use darwin_code_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
+use darwin_code_protocol::protocol::RealtimeVoice;
+use darwin_code_protocol::protocol::RealtimeVoicesList;
+use darwin_code_protocol::protocol::ResumedHistory;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_protocol::protocol::Submission;
+use darwin_code_protocol::protocol::ThreadRolledBackEvent;
+use darwin_code_protocol::protocol::TokenCountEvent;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::protocol::W3cTraceContext;
 use core_test_support::PathBufExt;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
@@ -113,7 +113,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::test_path_buf;
 use core_test_support::tracing::install_test_tracing;
 use core_test_support::wait_for_event;
@@ -130,7 +130,7 @@ use tokio::time::sleep;
 use tokio::time::timeout;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use codex_protocol::mcp::CallToolResult as McpCallToolResult;
+use darwin_code_protocol::mcp::CallToolResult as McpCallToolResult;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::json;
@@ -172,7 +172,7 @@ fn assistant_message(text: &str) -> ResponseItem {
 fn test_session_telemetry_without_metadata() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
+        MetricsConfig::in_memory("test", "darwin-code-core", env!("CARGO_PKG_VERSION"), exporter)
             .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
@@ -326,7 +326,7 @@ fn test_model_client_session() -> crate::client::ModelClientSession {
             .expect("test thread id should be valid"),
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
         ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None),
-        codex_protocol::protocol::SessionSource::Exec,
+        darwin_code_protocol::protocol::SessionSource::Exec,
         /*model_verbosity*/ None,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
@@ -369,10 +369,10 @@ fn user_input_texts(items: &[ResponseItem]) -> Vec<&str> {
         .collect()
 }
 
-fn write_project_hooks(dot_codex: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(dot_codex)?;
+fn write_project_hooks(dot_darwin_code: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dot_darwin_code)?;
     std::fs::write(
-        dot_codex.join("hooks.json"),
+        dot_darwin_code.join("hooks.json"),
         r#"{
   "hooks": {
     "SessionStart": [
@@ -391,11 +391,11 @@ fn write_project_hooks(dot_codex: &Path) -> std::io::Result<()> {
 }
 
 async fn write_project_trust_config(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     trusted_projects: &[(&Path, TrustLevel)],
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(codex_config::CONFIG_TOML_FILE),
+        darwin_code_home.join(darwin_code_config::CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(
                 trusted_projects
@@ -419,7 +419,7 @@ async fn write_project_trust_config(
 
 async fn preview_session_start_hooks(
     config: &crate::config::Config,
-) -> std::io::Result<Vec<codex_protocol::protocol::HookRunSummary>> {
+) -> std::io::Result<Vec<darwin_code_protocol::protocol::HookRunSummary>> {
     let hooks = Hooks::new(HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
@@ -427,13 +427,13 @@ async fn preview_session_start_hooks(
     });
 
     Ok(
-        hooks.preview_session_start(&codex_hooks::SessionStartRequest {
+        hooks.preview_session_start(&darwin_code_hooks::SessionStartRequest {
             session_id: ThreadId::new(),
             cwd: config.cwd.clone(),
             transcript_path: None,
             model: "gpt-5".to_string(),
             permission_mode: "default".to_string(),
-            source: codex_hooks::SessionStartSource::Startup,
+            source: darwin_code_hooks::SessionStartSource::Startup,
         }),
     )
 }
@@ -659,11 +659,11 @@ async fn managed_network_proxy_decider_survives_full_access_start() -> anyhow::R
     )?;
     let exec_policy = Policy::empty();
     let decider_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let network_policy_decider: Arc<dyn codex_network_proxy::NetworkPolicyDecider> = Arc::new({
+    let network_policy_decider: Arc<dyn darwin_code_network_proxy::NetworkPolicyDecider> = Arc::new({
         let decider_calls = Arc::clone(&decider_calls);
         move |_request| {
             decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            async { codex_network_proxy::NetworkDecision::ask("not_allowed") }
+            async { darwin_code_network_proxy::NetworkDecision::ask("not_allowed") }
         }
     });
 
@@ -762,10 +762,10 @@ async fn new_turn_refreshes_managed_network_proxy_for_sandbox_change() -> anyhow
         let mut config = (*state.session_configuration.original_config_do_not_use).clone();
         config.permissions.network = Some(spec);
         config.permissions.sandbox_policy =
-            codex_config::Constrained::allow_any(initial_policy.clone());
+            darwin_code_config::Constrained::allow_any(initial_policy.clone());
         state.session_configuration.original_config_do_not_use = Arc::new(config);
         state.session_configuration.sandbox_policy =
-            codex_config::Constrained::allow_any(initial_policy);
+            darwin_code_config::Constrained::allow_any(initial_policy);
     }
     session.services.network_proxy = Some(started_proxy);
 
@@ -810,7 +810,7 @@ async fn danger_full_access_turns_do_not_expose_managed_network_proxy() -> anyho
 
     let session = make_session_with_config(move |config| {
         config.permissions.sandbox_policy =
-            codex_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
+            darwin_code_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
         config.permissions.network = Some(network_spec);
     })
     .await?;
@@ -844,8 +844,8 @@ async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> an
     }
 
     impl crate::tools::sandboxing::Sandboxable for ProbeToolRuntime {
-        fn sandbox_preference(&self) -> codex_sandboxing::SandboxablePreference {
-            codex_sandboxing::SandboxablePreference::Auto
+        fn sandbox_preference(&self) -> darwin_code_sandboxing::SandboxablePreference {
+            darwin_code_sandboxing::SandboxablePreference::Auto
         }
     }
 
@@ -873,7 +873,7 @@ async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> an
 
     let session = make_session_with_config(move |config| {
         config.permissions.sandbox_policy =
-            codex_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
+            darwin_code_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
         config.permissions.network = Some(network_spec);
 
         let layers = config
@@ -944,7 +944,7 @@ async fn workspace_write_turns_continue_to_expose_managed_network_proxy() -> any
     )?;
 
     let session = make_session_with_config(move |config| {
-        config.permissions.sandbox_policy = codex_config::Constrained::allow_any(sandbox_policy);
+        config.permissions.sandbox_policy = darwin_code_config::Constrained::allow_any(sandbox_policy);
         config.permissions.network = Some(network_spec);
     })
     .await?;
@@ -967,7 +967,7 @@ async fn user_shell_commands_do_not_inherit_managed_network_proxy() -> anyhow::R
     )?;
 
     let (session, rx) = make_session_with_config_and_rx(move |config| {
-        config.permissions.sandbox_policy = codex_config::Constrained::allow_any(sandbox_policy);
+        config.permissions.sandbox_policy = darwin_code_config::Constrained::allow_any(sandbox_policy);
         config.permissions.network = Some(network_spec);
     })
     .await?;
@@ -1026,11 +1026,11 @@ async fn get_base_instructions_no_user_content() {
             expects_apply_patch_description: false,
         },
         InstructionsTestCase {
-            slug: "gpt-5.1-codex",
+            slug: "gpt-5.1-darwin-code",
             expects_apply_patch_description: false,
         },
         InstructionsTestCase {
-            slug: "gpt-5.1-codex-max",
+            slug: "gpt-5.1-darwin-code-max",
             expects_apply_patch_description: false,
         },
     ];
@@ -1060,9 +1060,9 @@ async fn get_base_instructions_no_user_content() {
 #[tokio::test]
 async fn reload_user_config_layer_updates_effective_apps_config() {
     let (session, _turn_context) = make_session_and_context().await;
-    let codex_home = session.codex_home().await;
-    std::fs::create_dir_all(&codex_home).expect("create codex home");
-    let config_toml_path = codex_home.join(CONFIG_TOML_FILE);
+    let darwin_code_home = session.darwin_code_home().await;
+    std::fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
+    let config_toml_path = darwin_code_home.join(CONFIG_TOML_FILE);
     std::fs::write(
         &config_toml_path,
         "[apps.calendar]\nenabled = false\ndestructive_enabled = false\n",
@@ -1079,7 +1079,7 @@ async fn reload_user_config_layer_updates_effective_apps_config() {
         .and_then(|table| table.get("apps"))
         .cloned()
         .expect("apps table");
-    let apps = codex_config::types::AppsConfigToml::deserialize(apps_toml)
+    let apps = darwin_code_config::types::AppsConfigToml::deserialize(apps_toml)
         .expect("deserialize apps config");
     let app = apps
         .apps
@@ -1478,9 +1478,9 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.permissions.approval_policy =
-            codex_config::Constrained::allow_any(AskForApproval::OnRequest);
+            darwin_code_config::Constrained::allow_any(AskForApproval::OnRequest);
     });
     let initial = builder.build(&server).await?;
     let rollout_path = initial
@@ -1490,7 +1490,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
         .expect("rollout path");
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "fork seed".into(),
@@ -1500,19 +1500,19 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     // Forking reads the persisted rollout JSONL, so force the completed source turn to disk
     // before snapshotting from it.
-    initial.codex.ensure_rollout_materialized().await;
+    initial.darwin-code.ensure_rollout_materialized().await;
     initial
-        .codex
+        .darwin-code
         .flush_rollout()
         .await
         .expect("source rollout should flush before fork");
 
     let mut fork_config = initial.config.clone();
     fork_config.permissions.approval_policy =
-        codex_config::Constrained::allow_any(AskForApproval::UnlessTrusted);
+        darwin_code_config::Constrained::allow_any(AskForApproval::UnlessTrusted);
     let forked = initial
         .thread_manager
         .fork_thread(
@@ -1577,7 +1577,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         insta::assert_snapshot!(
-            "codex_core__codex_tests__fork_startup_context_then_first_turn_diff",
+            "darwin_code_core__darwin_code_tests__fork_startup_context_then_first_turn_diff",
             snapshot
         );
     });
@@ -1616,7 +1616,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         .expect("turn context should have turn_id");
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1624,7 +1624,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "forked seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1633,7 +1633,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         )),
         RolloutItem::TurnContext(previous_context_item.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1770,8 +1770,8 @@ async fn thread_rollback_fails_without_persisted_rollout_path() {
         "thread rollback requires a persisted rollout path"
     );
     assert_eq!(
-        error_event.codex_error_info,
-        Some(CodexErrorInfo::ThreadRollbackFailed)
+        error_event.darwin_code_error_info,
+        Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
     assert_eq!(sess.clone_history().await.raw_items(), initial_context);
 }
@@ -1800,7 +1800,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1808,7 +1808,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 1 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1825,7 +1825,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             duration_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: rolled_back_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1833,7 +1833,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 2 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1904,7 +1904,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1927,7 +1927,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             duration_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: compact_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1945,7 +1945,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             duration_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: rolled_back_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1995,7 +1995,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
 
     sess.persist_rollout_items(&[
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-1".to_string(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -2018,7 +2018,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             duration_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-2".to_string(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -2041,7 +2041,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             duration_ms: None,
         })),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: "turn-3".to_string(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -2108,8 +2108,8 @@ async fn thread_rollback_fails_when_turn_in_progress() {
 
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(
-        error_event.codex_error_info,
-        Some(CodexErrorInfo::ThreadRollbackFailed)
+        error_event.darwin_code_error_info,
+        Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
 
     let history = sess.clone_history().await;
@@ -2129,8 +2129,8 @@ async fn thread_rollback_fails_when_num_turns_is_zero() {
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(error_event.message, "num_turns must be >= 1");
     assert_eq!(
-        error_event.codex_error_info,
-        Some(CodexErrorInfo::ThreadRollbackFailed)
+        error_event.darwin_code_error_info,
+        Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
 
     let history = sess.clone_history().await;
@@ -2139,8 +2139,8 @@ async fn thread_rollback_fails_when_num_turns_is_zero() {
 
 #[tokio::test]
 async fn set_rate_limits_retains_previous_credits() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let model = ModelsManager::get_model_offline_for_tests(config.model.as_deref());
     let model_info = ModelsManager::construct_model_info_offline_for_tests(
@@ -2176,7 +2176,7 @@ async fn set_rate_limits_retains_previous_credits() {
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -2204,14 +2204,14 @@ async fn set_rate_limits_retains_previous_credits() {
             unlimited: false,
             balance: Some("10.00".to_string()),
         }),
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(darwin_code_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(initial.clone());
 
     let update = RateLimitSnapshot {
-        limit_id: Some("codex_other".to_string()),
-        limit_name: Some("codex_other".to_string()),
+        limit_id: Some("darwin_code_other".to_string()),
+        limit_name: Some("darwin_code_other".to_string()),
         primary: Some(RateLimitWindow {
             used_percent: 40.0,
             window_minutes: Some(30),
@@ -2231,8 +2231,8 @@ async fn set_rate_limits_retains_previous_credits() {
     assert_eq!(
         state.latest_rate_limits,
         Some(RateLimitSnapshot {
-            limit_id: Some("codex_other".to_string()),
-            limit_name: Some("codex_other".to_string()),
+            limit_id: Some("darwin_code_other".to_string()),
+            limit_name: Some("darwin_code_other".to_string()),
             primary: update.primary.clone(),
             secondary: update.secondary,
             credits: initial.credits,
@@ -2244,8 +2244,8 @@ async fn set_rate_limits_retains_previous_credits() {
 
 #[tokio::test]
 async fn set_rate_limits_updates_plan_type_when_present() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let model = ModelsManager::get_model_offline_for_tests(config.model.as_deref());
     let model_info = ModelsManager::construct_model_info_offline_for_tests(
@@ -2281,7 +2281,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -2313,7 +2313,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
             unlimited: false,
             balance: Some("15.00".to_string()),
         }),
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(darwin_code_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(initial.clone());
@@ -2328,7 +2328,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         }),
         secondary: None,
         credits: None,
-        plan_type: Some(codex_protocol::account::PlanType::Pro),
+        plan_type: Some(darwin_code_protocol::account::PlanType::Pro),
         rate_limit_reached_type: None,
     };
     state.set_rate_limits(update.clone());
@@ -2336,7 +2336,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
     assert_eq!(
         state.latest_rate_limits,
         Some(RateLimitSnapshot {
-            limit_id: Some("codex".to_string()),
+            limit_id: Some("darwin-code".to_string()),
             limit_name: None,
             primary: update.primary,
             secondary: update.secondary,
@@ -2523,7 +2523,7 @@ async fn wait_for_thread_rollback_failed(rx: &async_channel::Receiver<Event>) ->
             .expect("event");
         match evt.msg {
             EventMsg::Error(payload)
-                if payload.codex_error_info == Some(CodexErrorInfo::ThreadRollbackFailed) =>
+                if payload.darwin_code_error_info == Some(DarwinCodeErrorInfo::ThreadRollbackFailed) =>
             {
                 return payload;
             }
@@ -2569,9 +2569,9 @@ fn text_block(s: &str) -> serde_json::Value {
     })
 }
 
-async fn build_test_config(codex_home: &Path) -> Config {
+async fn build_test_config(darwin_code_home: &Path) -> Config {
     ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(codex_home.to_path_buf())
+        .darwin_code_home(darwin_code_home.to_path_buf())
         .build()
         .await
         .expect("load default test config")
@@ -2598,8 +2598,8 @@ fn session_telemetry(
 }
 
 pub(crate) async fn make_session_configuration_for_tests() -> SessionConfiguration {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let model = ModelsManager::get_model_offline_for_tests(config.model.as_deref());
     let model_info = ModelsManager::construct_model_info_offline_for_tests(
@@ -2636,7 +2636,7 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -2662,7 +2662,7 @@ async fn session_configuration_apply_preserves_split_file_system_policy_on_cwd_o
 
     session_configuration.cwd = original_cwd.abs();
     session_configuration.sandbox_policy =
-        codex_config::Constrained::allow_any(SandboxPolicy::WorkspaceWrite {
+        darwin_code_config::Constrained::allow_any(SandboxPolicy::WorkspaceWrite {
             writable_roots: Vec::new(),
             read_only_access: ReadOnlyAccess::Restricted {
                 include_platform_defaults: true,
@@ -2703,8 +2703,8 @@ async fn session_configuration_apply_preserves_split_file_system_policy_on_cwd_o
 async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
     let (session, _turn_context) = make_session_and_context().await;
     let parent_config = session.get_config().await;
-    let codex_home = parent_config.codex_home.clone();
-    let skill_dir = codex_home.join("skills").join("demo");
+    let darwin_code_home = parent_config.darwin_code_home.clone();
+    let skill_dir = darwin_code_home.join("skills").join("demo");
     std::fs::create_dir_all(&skill_dir).expect("create skill dir");
     let skill_path = skill_dir.join("SKILL.md");
     std::fs::write(
@@ -2718,7 +2718,7 @@ async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
         .environment
         .as_ref()
         .map(|environment| environment.get_filesystem())
-        .unwrap_or_else(|| std::sync::Arc::clone(&codex_exec_server::LOCAL_FS));
+        .unwrap_or_else(|| std::sync::Arc::clone(&darwin_code_exec_server::LOCAL_FS));
     let parent_outcome = session
         .services
         .skills_manager
@@ -2735,7 +2735,7 @@ async fn new_default_turn_uses_config_aware_skills_for_role_overrides() {
         .expect("demo skill should be discovered");
     assert_eq!(parent_outcome.is_skill_enabled(parent_skill), true);
 
-    let role_path = codex_home.join("skills-role.toml");
+    let role_path = darwin_code_home.join("skills-role.toml");
     std::fs::write(
         &role_path,
         format!(
@@ -2796,7 +2796,7 @@ async fn session_configuration_apply_rederives_legacy_file_system_policy_on_cwd_
 
     session_configuration.cwd = original_cwd.abs();
     session_configuration.sandbox_policy =
-        codex_config::Constrained::allow_any(SandboxPolicy::WorkspaceWrite {
+        darwin_code_config::Constrained::allow_any(SandboxPolicy::WorkspaceWrite {
             writable_roots: Vec::new(),
             read_only_access: ReadOnlyAccess::Restricted {
                 include_platform_defaults: true,
@@ -2857,8 +2857,8 @@ async fn session_update_settings_keeps_runtime_cwds_absolute() {
 
 #[tokio::test]
 async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let mut config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let mut config = build_test_config(darwin_code_home.path()).await;
     config
         .features
         .enable(Feature::ShellZshFork)
@@ -2866,9 +2866,9 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
     config.zsh_path = None;
     let config = Arc::new(config);
 
-    let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
+    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
@@ -2906,7 +2906,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -2921,10 +2921,10 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
 
     let (tx_event, _rx_event) = async_channel::unbounded();
     let (agent_status_tx, _agent_status_rx) = watch::channel(AgentStatus::PendingInit);
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.darwin_code_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_manager = Arc::new(SkillsManager::new(
-        config.codex_home.clone(),
+        config.darwin_code_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let result = Session::new(
@@ -2943,7 +2943,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
         Arc::new(SkillsWatcher::noop()),
         AgentControl::default(),
         Some(Arc::new(
-            codex_exec_server::Environment::create(/*exec_server_url*/ None)
+            darwin_code_exec_server::Environment::create(/*exec_server_url*/ None)
                 .await
                 .expect("create environment"),
         )),
@@ -2962,13 +2962,13 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
 // todo: use online model info
 pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     let (tx_event, _rx_event) = async_channel::unbounded();
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let conversation_id = ThreadId::default();
-    let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
+    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
@@ -3010,7 +3010,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -3035,15 +3035,15 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     );
 
     let state = SessionState::new(session_configuration.clone());
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.darwin_code_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_manager = Arc::new(SkillsManager::new(
-        config.codex_home.clone(),
+        config.darwin_code_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let network_approval = Arc::new(NetworkApprovalService::default());
     let environment = Arc::new(
-        codex_exec_server::Environment::create(/*exec_server_url*/ None)
+        darwin_code_exec_server::Environment::create(/*exec_server_url*/ None)
             .await
             .expect("create environment"),
     );
@@ -3092,8 +3092,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         network_proxy: None,
         network_approval: Arc::clone(&network_approval),
         state_db: None,
-        thread_store: codex_thread_store::LocalThreadStore::new(
-            codex_rollout::RolloutConfig::from_view(config.as_ref()),
+        thread_store: darwin_code_thread_store::LocalThreadStore::new(
+            darwin_code_rollout::RolloutConfig::from_view(config.as_ref()),
         ),
         model_client: ModelClient::new(
             Some(auth_manager.clone()),
@@ -3183,13 +3183,13 @@ async fn make_session_with_config(
 async fn make_session_with_config_and_rx(
     mutator: impl FnOnce(&mut Config),
 ) -> anyhow::Result<(Arc<Session>, async_channel::Receiver<Event>)> {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let mut config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let mut config = build_test_config(darwin_code_home.path()).await;
     mutator(&mut config);
     let config = Arc::new(config);
-    let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
+    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
@@ -3227,7 +3227,7 @@ async fn make_session_with_config_and_rx(
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -3242,10 +3242,10 @@ async fn make_session_with_config_and_rx(
 
     let (tx_event, rx_event) = async_channel::unbounded();
     let (agent_status_tx, _agent_status_rx) = watch::channel(AgentStatus::PendingInit);
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.darwin_code_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_manager = Arc::new(SkillsManager::new(
-        config.codex_home.clone(),
+        config.darwin_code_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
 
@@ -3265,7 +3265,7 @@ async fn make_session_with_config_and_rx(
         Arc::new(SkillsWatcher::noop()),
         AgentControl::default(),
         Some(Arc::new(
-            codex_exec_server::Environment::create(/*exec_server_url*/ None)
+            darwin_code_exec_server::Environment::create(/*exec_server_url*/ None)
                 .await
                 .expect("create environment"),
         )),
@@ -3284,9 +3284,9 @@ async fn notify_request_permissions_response_ignores_unmatched_call_id() {
     session
         .notify_request_permissions_response(
             "missing",
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            darwin_code_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile {
-                    network: Some(codex_protocol::models::NetworkPermissions {
+                    network: Some(darwin_code_protocol::models::NetworkPermissions {
                         enabled: Some(true),
                     }),
                     ..RequestPermissionProfile::default()
@@ -3318,9 +3318,9 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context);
     let call_id = "call-1".to_string();
-    let expected_response = codex_protocol::request_permissions::RequestPermissionsResponse {
+    let expected_response = darwin_code_protocol::request_permissions::RequestPermissionsResponse {
         permissions: RequestPermissionProfile {
-            network: Some(codex_protocol::models::NetworkPermissions {
+            network: Some(darwin_code_protocol::models::NetworkPermissions {
                 enabled: Some(true),
             }),
             ..RequestPermissionProfile::default()
@@ -3337,10 +3337,10 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
                 .request_permissions(
                     turn_context.as_ref(),
                     call_id,
-                    codex_protocol::request_permissions::RequestPermissionsArgs {
+                    darwin_code_protocol::request_permissions::RequestPermissionsArgs {
                         reason: Some("need network".to_string()),
                         permissions: RequestPermissionProfile {
-                            network: Some(codex_protocol::models::NetworkPermissions {
+                            network: Some(darwin_code_protocol::models::NetworkPermissions {
                                 enabled: Some(true),
                             }),
                             ..RequestPermissionProfile::default()
@@ -3395,10 +3395,10 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
         .request_permissions(
             turn_context.as_ref(),
             call_id,
-            codex_protocol::request_permissions::RequestPermissionsArgs {
+            darwin_code_protocol::request_permissions::RequestPermissionsArgs {
                 reason: Some("need network".to_string()),
                 permissions: RequestPermissionProfile {
-                    network: Some(codex_protocol::models::NetworkPermissions {
+                    network: Some(darwin_code_protocol::models::NetworkPermissions {
                         enabled: Some(true),
                     }),
                     ..RequestPermissionProfile::default()
@@ -3410,7 +3410,7 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
     assert_eq!(
         response,
         Some(
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            darwin_code_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
                 scope: PermissionGrantScope::Turn,
             }
@@ -3430,7 +3430,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
     let (tx_sub, rx_sub) = async_channel::bounded(1);
     let (_tx_event, rx_event) = async_channel::unbounded();
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
-    let codex = Codex {
+    let darwin-code = Darwin-Code {
         tx_sub,
         rx_event,
         agent_status,
@@ -3438,7 +3438,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
         session_loop_termination: completed_session_loop_termination(),
     };
 
-    let _trace_test_context = install_test_tracing("codex-core-tests");
+    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3453,7 +3453,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
     let expected_trace = async {
         let expected_trace =
             current_span_w3c_trace_context().expect("current span should have trace context");
-        codex
+        darwin-code
             .submit_with_id(Submission {
                 id: "sub-1".into(),
                 op: Op::Interrupt,
@@ -3474,7 +3474,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
 async fn new_default_turn_captures_current_span_trace_id() {
     let (session, _turn_context) = make_session_and_context().await;
 
-    let _trace_test_context = install_test_tracing("codex-core-tests");
+    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3509,7 +3509,7 @@ async fn new_default_turn_captures_current_span_trace_id() {
 
 #[test]
 fn submission_dispatch_span_prefers_submission_trace_context() {
-    let _trace_test_context = install_test_tracing("codex-core-tests");
+    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
 
     let ambient_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000033-0000000000000044-01".into()),
@@ -3542,7 +3542,7 @@ fn submission_dispatch_span_prefers_submission_trace_context() {
 
 #[test]
 fn submission_dispatch_span_uses_debug_for_realtime_audio() {
-    let _trace_test_context = install_test_tracing("codex-core-tests");
+    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
 
     let dispatch_span = submission_dispatch_span(&Submission {
         id: "sub-1".into(),
@@ -3609,7 +3609,7 @@ async fn user_turn_updates_approvals_reviewer() {
             }],
             cwd: config.cwd.to_path_buf(),
             approval_policy: config.permissions.approval_policy.value(),
-            approvals_reviewer: Some(codex_config::types::ApprovalsReviewer::GuardianSubagent),
+            approvals_reviewer: Some(darwin_code_config::types::ApprovalsReviewer::GuardianSubagent),
             sandbox_policy: config.permissions.sandbox_policy.get().clone(),
             model: turn_context.model_info.slug.clone(),
             effort: config.model_reasoning_effort,
@@ -3625,7 +3625,7 @@ async fn user_turn_updates_approvals_reviewer() {
     let state = session.state.lock().await;
     assert_eq!(
         state.session_configuration.approvals_reviewer,
-        codex_config::types::ApprovalsReviewer::GuardianSubagent
+        darwin_code_config::types::ApprovalsReviewer::GuardianSubagent
     );
 }
 
@@ -3660,7 +3660,7 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         }
     }
 
-    let _trace_test_context = install_test_tracing("codex-core-tests");
+    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3715,8 +3715,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .clone()
         .expect("turn task should capture the current span trace context");
     let submission_context =
-        codex_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
-    let task_context = codex_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
+        darwin_code_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
+    let task_context = darwin_code_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
 
     assert_eq!(
         task_context.span().span_context().trace_id(),
@@ -3739,7 +3739,7 @@ async fn shutdown_and_wait_allows_multiple_waiters() {
         assert_eq!(shutdown.op, Op::Shutdown);
         tokio::time::sleep(StdDuration::from_millis(50)).await;
     });
-    let codex = Arc::new(Codex {
+    let darwin-code = Arc::new(Darwin-Code {
         tx_sub,
         rx_event,
         agent_status,
@@ -3748,12 +3748,12 @@ async fn shutdown_and_wait_allows_multiple_waiters() {
     });
 
     let waiter_1 = {
-        let codex = Arc::clone(&codex);
-        tokio::spawn(async move { codex.shutdown_and_wait().await })
+        let darwin-code = Arc::clone(&darwin-code);
+        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
     };
     let waiter_2 = {
-        let codex = Arc::clone(&codex);
-        tokio::spawn(async move { codex.shutdown_and_wait().await })
+        let darwin-code = Arc::clone(&darwin-code);
+        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
     };
 
     waiter_1
@@ -3777,7 +3777,7 @@ async fn shutdown_and_wait_waits_when_shutdown_is_already_in_progress() {
     let session_loop_handle = tokio::spawn(async move {
         let _ = shutdown_complete_rx.await;
     });
-    let codex = Arc::new(Codex {
+    let darwin-code = Arc::new(Darwin-Code {
         tx_sub,
         rx_event,
         agent_status,
@@ -3786,8 +3786,8 @@ async fn shutdown_and_wait_waits_when_shutdown_is_already_in_progress() {
     });
 
     let waiter = {
-        let codex = Arc::clone(&codex);
-        tokio::spawn(async move { codex.shutdown_and_wait().await })
+        let darwin-code = Arc::clone(&darwin-code);
+        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
     };
 
     tokio::time::sleep(StdDuration::from_millis(10)).await;
@@ -3815,7 +3815,7 @@ async fn shutdown_and_wait_shuts_down_cached_guardian_subagent() {
     let parent_session_loop_handle = tokio::spawn(async move {
         submission_loop(parent_session_for_loop, parent_config, parent_rx_sub).await;
     });
-    let parent_codex = Codex {
+    let parent_darwin_code = Darwin-Code {
         tx_sub: parent_tx_sub,
         rx_event: parent_rx_event,
         agent_status: parent_agent_status,
@@ -3838,7 +3838,7 @@ async fn shutdown_and_wait_shuts_down_cached_guardian_subagent() {
             .send(())
             .expect("child shutdown signal should be delivered");
     });
-    let child_codex = Codex {
+    let child_darwin_code = Darwin-Code {
         tx_sub: child_tx_sub,
         rx_event: child_rx_event,
         agent_status: child_agent_status,
@@ -3847,10 +3847,10 @@ async fn shutdown_and_wait_shuts_down_cached_guardian_subagent() {
     };
     parent_session
         .guardian_review_session
-        .cache_for_test(child_codex)
+        .cache_for_test(child_darwin_code)
         .await;
 
-    parent_codex
+    parent_darwin_code
         .shutdown_and_wait()
         .await
         .expect("parent shutdown should succeed");
@@ -3872,7 +3872,7 @@ async fn shutdown_and_wait_shuts_down_tracked_ephemeral_guardian_review() {
     let parent_session_loop_handle = tokio::spawn(async move {
         submission_loop(parent_session_for_loop, parent_config, parent_rx_sub).await;
     });
-    let parent_codex = Codex {
+    let parent_darwin_code = Darwin-Code {
         tx_sub: parent_tx_sub,
         rx_event: parent_rx_event,
         agent_status: parent_agent_status,
@@ -3895,7 +3895,7 @@ async fn shutdown_and_wait_shuts_down_tracked_ephemeral_guardian_review() {
             .send(())
             .expect("child shutdown signal should be delivered");
     });
-    let child_codex = Codex {
+    let child_darwin_code = Darwin-Code {
         tx_sub: child_tx_sub,
         rx_event: child_rx_event,
         agent_status: child_agent_status,
@@ -3904,10 +3904,10 @@ async fn shutdown_and_wait_shuts_down_tracked_ephemeral_guardian_review() {
     };
     parent_session
         .guardian_review_session
-        .register_ephemeral_for_test(child_codex)
+        .register_ephemeral_for_test(child_darwin_code)
         .await;
 
-    parent_codex
+    parent_darwin_code
         .shutdown_and_wait()
         .await
         .expect("parent shutdown should succeed");
@@ -3925,13 +3925,13 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
     async_channel::Receiver<Event>,
 ) {
     let (tx_event, rx_event) = async_channel::unbounded();
-    let codex_home = tempfile::tempdir().expect("create temp dir");
-    let config = build_test_config(codex_home.path()).await;
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let conversation_id = ThreadId::default();
-    let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
+    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
@@ -3973,7 +3973,7 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         network_sandbox_policy: config.permissions.network_sandbox_policy,
         windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
         cwd: config.cwd.clone(),
-        codex_home: config.codex_home.clone(),
+        darwin_code_home: config.darwin_code_home.clone(),
         thread_name: None,
         original_config_do_not_use: Arc::clone(&config),
         metrics_service_name: None,
@@ -3998,15 +3998,15 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
     );
 
     let state = SessionState::new(session_configuration.clone());
-    let plugins_manager = Arc::new(PluginsManager::new(config.codex_home.to_path_buf()));
+    let plugins_manager = Arc::new(PluginsManager::new(config.darwin_code_home.to_path_buf()));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_manager = Arc::new(SkillsManager::new(
-        config.codex_home.clone(),
+        config.darwin_code_home.clone(),
         /*bundled_skills_enabled*/ true,
     ));
     let network_approval = Arc::new(NetworkApprovalService::default());
     let environment = Arc::new(
-        codex_exec_server::Environment::create(/*exec_server_url*/ None)
+        darwin_code_exec_server::Environment::create(/*exec_server_url*/ None)
             .await
             .expect("create environment"),
     );
@@ -4055,8 +4055,8 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         network_proxy: None,
         network_approval: Arc::clone(&network_approval),
         state_db: None,
-        thread_store: codex_thread_store::LocalThreadStore::new(
-            codex_rollout::RolloutConfig::from_view(config.as_ref()),
+        thread_store: darwin_code_thread_store::LocalThreadStore::new(
+            darwin_code_rollout::RolloutConfig::from_view(config.as_ref()),
         ),
         model_client: ModelClient::new(
             Some(Arc::clone(&auth_manager)),
@@ -4161,13 +4161,13 @@ async fn fail_agent_identity_registration_emits_error_without_shutdown() {
     match error_event.msg {
         EventMsg::Error(ErrorEvent {
             message,
-            codex_error_info,
+            darwin_code_error_info,
         }) => {
             assert_eq!(
                 message,
                 "Agent identity registration failed while `features.use_agent_identity` is enabled: registration exploded".to_string()
             );
-            assert_eq!(codex_error_info, Some(CodexErrorInfo::Other));
+            assert_eq!(darwin_code_error_info, Some(DarwinCodeErrorInfo::Other));
         }
         other => panic!("expected error event, got {other:?}"),
     }
@@ -4683,7 +4683,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
     let turn_context = Arc::new(turn_context);
     let call_id = "ig_history_records_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.darwin_code_home,
         &session.conversation_id.to_string(),
         call_id,
     );
@@ -4707,7 +4707,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
 
     let history = session.clone_history().await;
     let image_output_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.darwin_code_home,
         &session.conversation_id.to_string(),
         "<image_id>",
     );
@@ -4735,7 +4735,7 @@ async fn handle_output_item_done_skips_image_save_message_when_save_fails() {
     let turn_context = Arc::new(turn_context);
     let call_id = "ig_history_no_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
-        &turn_context.config.codex_home,
+        &turn_context.config.darwin_code_home,
         &session.conversation_id.to_string(),
         call_id,
     );
@@ -6154,8 +6154,8 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
     use crate::tools::sandboxing::ExecApprovalRequirement;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::SandboxPolicy;
     use std::collections::HashMap;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
@@ -6210,7 +6210,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
             turn: Arc::clone(&turn_context),
             tracker: Arc::clone(&turn_diff_tracker),
             call_id,
-            tool_name: codex_tools::ToolName::plain(tool_name),
+            tool_name: darwin_code_tools::ToolName::plain(tool_name),
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
                     "command": params.command.clone(),
@@ -6270,7 +6270,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
 async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use codex_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::AskForApproval;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
     turn_context_raw
@@ -6288,7 +6288,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
             turn: Arc::clone(&turn_context),
             tracker: Arc::clone(&tracker),
             call_id: "exec-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: darwin_code_tools::ToolName::plain("exec_command"),
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
                     "cmd": "echo hi",
@@ -6315,28 +6315,28 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
 #[tokio::test]
 async fn session_start_hooks_only_load_from_trusted_project_layers() -> std::io::Result<()> {
     let temp = tempfile::tempdir()?;
-    let codex_home = temp.path().join("home");
+    let darwin_code_home = temp.path().join("home");
     let project_root = temp.path().join("project");
     let nested = project_root.join("nested");
-    let root_dot_codex = project_root.join(".codex");
-    let nested_dot_codex = nested.join(".codex");
+    let root_dot_darwin_code = project_root.join(".darwin-code");
+    let nested_dot_darwin_code = nested.join(".darwin-code");
 
-    std::fs::create_dir_all(&codex_home)?;
-    std::fs::create_dir_all(&nested_dot_codex)?;
+    std::fs::create_dir_all(&darwin_code_home)?;
+    std::fs::create_dir_all(&nested_dot_darwin_code)?;
     std::fs::write(project_root.join(".git"), "gitdir: here")?;
-    write_project_hooks(&root_dot_codex)?;
-    write_project_hooks(&nested_dot_codex)?;
-    write_project_trust_config(&codex_home, &[(&nested, TrustLevel::Trusted)]).await?;
+    write_project_hooks(&root_dot_darwin_code)?;
+    write_project_hooks(&nested_dot_darwin_code)?;
+    write_project_trust_config(&darwin_code_home, &[(&nested, TrustLevel::Trusted)]).await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .fallback_cwd(Some(nested))
         .build()
         .await?;
 
     let preview = preview_session_start_hooks(&config).await?;
-    let expected_source_path = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
-        nested_dot_codex.join("hooks.json"),
+    let expected_source_path = darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+        nested_dot_darwin_code.join("hooks.json"),
     )?;
     assert_eq!(
         preview
@@ -6354,10 +6354,10 @@ async fn session_start_hooks_require_project_trust_without_config_toml() -> std:
     let temp = tempfile::tempdir()?;
     let project_root = temp.path().join("project");
     let nested = project_root.join("nested");
-    let dot_codex = project_root.join(".codex");
+    let dot_darwin_code = project_root.join(".darwin-code");
     std::fs::create_dir_all(&nested)?;
     std::fs::write(project_root.join(".git"), "gitdir: here")?;
-    write_project_hooks(&dot_codex)?;
+    write_project_hooks(&dot_darwin_code)?;
 
     let cases = [
         ("unknown", Vec::<(&Path, TrustLevel)>::new(), 0_usize),
@@ -6374,12 +6374,12 @@ async fn session_start_hooks_require_project_trust_without_config_toml() -> std:
     ];
 
     for (name, trust_entries, expected_hooks) in cases {
-        let codex_home = temp.path().join(format!("home_{name}"));
-        std::fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let darwin_code_home = temp.path().join(format!("home_{name}"));
+        std::fs::create_dir_all(&darwin_code_home)?;
+        write_project_trust_config(&darwin_code_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .darwin_code_home(darwin_code_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;

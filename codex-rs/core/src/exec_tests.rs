@@ -1,6 +1,6 @@
 use super::*;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_sandboxing::SandboxType;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_sandboxing::SandboxType;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
@@ -60,7 +60,7 @@ fn sandbox_detection_ignores_network_policy_text_in_non_sandbox_mode() {
         /*exit_code*/ 0,
         "",
         "",
-        r#"CODEX_NETWORK_POLICY_DECISION {"decision":"ask","reason":"not_allowed","source":"decider","protocol":"http","host":"google.com","port":80}"#,
+        r#"DARWIN_CODE_NETWORK_POLICY_DECISION {"decision":"ask","reason":"not_allowed","source":"decider","protocol":"http","host":"google.com","port":80}"#,
     );
     assert!(!is_likely_sandbox_denied(SandboxType::None, &output));
 }
@@ -85,7 +85,7 @@ fn sandbox_detection_ignores_network_policy_text_with_zero_exit_code() {
         /*exit_code*/ 0,
         "",
         "",
-        r#"CODEX_NETWORK_POLICY_DECISION {"decision":"ask","source":"decider","protocol":"http","host":"google.com","port":80}"#,
+        r#"DARWIN_CODE_NETWORK_POLICY_DECISION {"decision":"ask","source":"decider","protocol":"http","host":"google.com","port":80}"#,
     );
 
     assert!(!is_likely_sandbox_denied(
@@ -266,7 +266,7 @@ async fn exec_full_buffer_capture_ignores_expiration() -> Result<()> {
     let output = exec(
         ExecParams {
             command,
-            cwd: codex_utils_absolute_path::AbsolutePathBuf::current_dir()?,
+            cwd: darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir()?,
             expiration: 1.into(),
             capture_policy: ExecCapturePolicy::FullBuffer,
             env,
@@ -302,7 +302,7 @@ async fn exec_full_buffer_capture_keeps_io_drain_timeout_when_descendant_holds_p
                     "-c".to_string(),
                     "printf hello; sleep 30 &".to_string(),
                 ],
-                cwd: codex_utils_absolute_path::AbsolutePathBuf::current_dir()?,
+                cwd: darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir()?,
                 expiration: 1.into(),
                 capture_policy: ExecCapturePolicy::FullBuffer,
                 env: std::env::vars().collect(),
@@ -344,7 +344,7 @@ async fn process_exec_tool_call_preserves_full_buffer_capture_policy() -> Result
         format!("sleep 0.05; head -c {byte_count} /dev/zero | tr '\\0' 'a'"),
     ];
 
-    let cwd = codex_utils_absolute_path::AbsolutePathBuf::current_dir()?;
+    let cwd = darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir()?;
     let sandbox_policy = SandboxPolicy::DangerFullAccess;
     let output = process_exec_tool_call(
         ExecParams {
@@ -379,7 +379,7 @@ async fn process_exec_tool_call_preserves_full_buffer_capture_policy() -> Result
 #[test]
 fn windows_restricted_token_skips_external_sandbox_policies() {
     let policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Restricted,
+        network_access: darwin_code_protocol::protocol::NetworkAccess::Restricted,
     };
     let file_system_policy = FileSystemSandboxPolicy::from(&policy);
 
@@ -427,7 +427,7 @@ fn windows_proxy_enforcement_uses_elevated_backend() {
 #[test]
 fn windows_restricted_token_rejects_network_only_restrictions() {
     let policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Restricted,
+        network_access: darwin_code_protocol::protocol::NetworkAccess::Restricted,
     };
     let file_system_policy = FileSystemSandboxPolicy::unrestricted();
     let sandbox_policy_cwd = AbsolutePathBuf::current_dir().expect("cwd");
@@ -470,7 +470,7 @@ fn windows_restricted_token_allows_legacy_restricted_policies() {
 fn windows_restricted_token_allows_legacy_workspace_write_policies() {
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
@@ -494,13 +494,13 @@ fn windows_restricted_token_allows_legacy_workspace_write_policies() {
 #[test]
 fn windows_elevated_allows_legacy_restricted_read_policies() {
     let temp_dir = tempfile::TempDir::new().expect("tempdir");
-    let docs = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+    let docs = darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
         temp_dir.path().join("docs"),
     )
     .expect("absolute docs");
     std::fs::create_dir_all(docs.as_path()).expect("create docs");
     let policy = SandboxPolicy::ReadOnly {
-        access: codex_protocol::protocol::ReadOnlyAccess::Restricted {
+        access: darwin_code_protocol::protocol::ReadOnlyAccess::Restricted {
             readable_roots: vec![docs],
             include_platform_defaults: false,
         },
@@ -528,24 +528,24 @@ fn windows_restricted_token_rejects_split_only_filesystem_policies() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
                     .expect("absolute docs"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -572,24 +572,24 @@ fn windows_restricted_token_rejects_root_write_read_only_carveouts() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
                     .expect("absolute docs"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -619,31 +619,31 @@ fn windows_restricted_token_supports_full_read_split_write_read_carveouts() {
     std::fs::create_dir_all(docs.as_path()).expect("create docs");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path { path: docs.clone() },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path { path: docs.clone() },
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
-    // The legacy workspace-write root already protects top-level `.codex`, so
+    // The legacy workspace-write root already protects top-level `.darwin-code`, so
     // the restricted-token overlay only needs the extra read-only docs carveout.
     let expected_deny_write_paths = vec![docs];
 
@@ -671,16 +671,16 @@ fn windows_elevated_supports_split_restricted_read_roots() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let expected_docs = dunce::canonicalize(&docs).expect("canonical docs");
     let policy = SandboxPolicy::ReadOnly {
-        access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
                     .expect("absolute docs"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -709,30 +709,30 @@ fn windows_elevated_supports_split_write_read_carveouts() {
     let expected_docs = dunce::canonicalize(&docs).expect("canonical docs");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
                     .expect("absolute docs"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -749,7 +749,7 @@ fn windows_elevated_supports_split_write_read_carveouts() {
             read_roots_override: None,
             write_roots_override: None,
             additional_deny_write_paths: vec![
-                codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(expected_docs)
+                darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(expected_docs)
                     .expect("absolute docs"),
             ],
         }))
@@ -763,30 +763,30 @@ fn windows_elevated_rejects_unreadable_split_carveouts() {
     std::fs::create_dir_all(&blocked).expect("create blocked");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&blocked)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&blocked)
                     .expect("absolute blocked"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::None,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::None,
         },
     ]);
 
@@ -811,29 +811,29 @@ fn windows_elevated_rejects_unreadable_globs() {
     let temp_dir = tempfile::TempDir::new().expect("tempdir");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::GlobPattern {
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::GlobPattern {
                 pattern: "**/*.env".to_string(),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::None,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::None,
         },
     ]);
 
@@ -861,37 +861,37 @@ fn windows_elevated_rejects_reopened_writable_descendants() {
     std::fs::create_dir_all(&nested).expect("create nested");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
-        read_only_access: codex_protocol::protocol::ReadOnlyAccess::FullAccess,
+        read_only_access: darwin_code_protocol::protocol::ReadOnlyAccess::FullAccess,
         network_access: false,
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
     let file_system_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&docs)
                     .expect("absolute docs"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path {
-                path: codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&nested)
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path {
+                path: darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(&nested)
                     .expect("absolute nested"),
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
     ]);
 
@@ -913,14 +913,14 @@ fn windows_elevated_rejects_reopened_writable_descendants() {
 
 #[test]
 fn process_exec_tool_call_uses_platform_sandbox_for_network_only_restrictions() {
-    let expected = codex_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
+    let expected = darwin_code_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
         .unwrap_or(SandboxType::None);
 
     assert_eq!(
         select_process_exec_tool_sandbox_type(
             &FileSystemSandboxPolicy::unrestricted(),
             NetworkSandboxPolicy::Restricted,
-            codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+            darwin_code_protocol::config_types::WindowsSandboxLevel::Disabled,
             /*enforce_managed_network*/ false,
         ),
         expected
@@ -952,7 +952,7 @@ async fn kill_child_process_group_kills_grandchildren_on_timeout() -> Result<()>
         "-c".to_string(),
         "sleep 60 & echo $!; sleep 60".to_string(),
     ];
-    let cwd = codex_utils_absolute_path::AbsolutePathBuf::current_dir()?;
+    let cwd = darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir()?;
     let env: HashMap<String, String> = std::env::vars().collect();
     let params = ExecParams {
         command,
@@ -962,7 +962,7 @@ async fn kill_child_process_group_kills_grandchildren_on_timeout() -> Result<()>
         env,
         network: None,
         sandbox_permissions: SandboxPermissions::UseDefault,
-        windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+        windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,
         justification: None,
         arg0: None,
@@ -1005,7 +1005,7 @@ async fn kill_child_process_group_kills_grandchildren_on_timeout() -> Result<()>
 #[tokio::test]
 async fn process_exec_tool_call_respects_cancellation_token() -> Result<()> {
     let command = long_running_command();
-    let cwd = codex_utils_absolute_path::AbsolutePathBuf::current_dir()?;
+    let cwd = darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir()?;
     let env: HashMap<String, String> = std::env::vars().collect();
     let cancel_token = CancellationToken::new();
     let cancel_tx = cancel_token.clone();
@@ -1017,7 +1017,7 @@ async fn process_exec_tool_call_respects_cancellation_token() -> Result<()> {
         env,
         network: None,
         sandbox_permissions: SandboxPermissions::UseDefault,
-        windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+        windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,
         justification: None,
         arg0: None,
@@ -1038,7 +1038,7 @@ async fn process_exec_tool_call_respects_cancellation_token() -> Result<()> {
     )
     .await;
     let output = match result {
-        Err(CodexErr::Sandbox(SandboxErr::Timeout { output })) => output,
+        Err(DarwinCodeErr::Sandbox(SandboxErr::Timeout { output })) => output,
         other => panic!("expected timeout error, got {other:?}"),
     };
     assert!(output.timed_out);

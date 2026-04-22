@@ -1,7 +1,7 @@
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnStatus;
 use owo_colors::Style;
 use pretty_assertions::assert_eq;
 
@@ -155,7 +155,7 @@ fn turn_completed_recovers_final_message_from_turn_items() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
@@ -176,7 +176,7 @@ fn turn_completed_recovers_final_message_from_turn_items() {
 
     assert_eq!(
         status,
-        crate::event_processor::CodexStatus::InitiateShutdown
+        crate::event_processor::DarwinCodeStatus::InitiateShutdown
     );
     assert_eq!(processor.final_message.as_deref(), Some("final answer"));
 }
@@ -202,7 +202,7 @@ fn turn_completed_overwrites_stale_final_message_from_turn_items() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
@@ -223,7 +223,7 @@ fn turn_completed_overwrites_stale_final_message_from_turn_items() {
 
     assert_eq!(
         status,
-        crate::event_processor::CodexStatus::InitiateShutdown
+        crate::event_processor::DarwinCodeStatus::InitiateShutdown
     );
     assert_eq!(processor.final_message.as_deref(), Some("final answer"));
     assert!(!processor.final_message_rendered);
@@ -250,7 +250,7 @@ fn turn_completed_preserves_streamed_final_message_when_turn_items_are_empty() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
@@ -266,7 +266,7 @@ fn turn_completed_preserves_streamed_final_message_when_turn_items_are_empty() {
 
     assert_eq!(
         status,
-        crate::event_processor::CodexStatus::InitiateShutdown
+        crate::event_processor::DarwinCodeStatus::InitiateShutdown
     );
     assert_eq!(processor.final_message.as_deref(), Some("streamed answer"));
     assert!(processor.emit_final_message_on_shutdown);
@@ -293,7 +293,7 @@ fn turn_failed_clears_stale_final_message() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
@@ -309,7 +309,7 @@ fn turn_failed_clears_stale_final_message() {
 
     assert_eq!(
         status,
-        crate::event_processor::CodexStatus::InitiateShutdown
+        crate::event_processor::DarwinCodeStatus::InitiateShutdown
     );
     assert_eq!(processor.final_message, None);
     assert!(!processor.final_message_rendered);
@@ -337,7 +337,7 @@ fn turn_interrupted_clears_stale_final_message() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
@@ -353,7 +353,7 @@ fn turn_interrupted_clears_stale_final_message() {
 
     assert_eq!(
         status,
-        crate::event_processor::CodexStatus::InitiateShutdown
+        crate::event_processor::DarwinCodeStatus::InitiateShutdown
     );
     assert_eq!(processor.final_message, None);
     assert!(!processor.final_message_rendered);

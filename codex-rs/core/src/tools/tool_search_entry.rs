@@ -1,9 +1,9 @@
-use codex_mcp::ToolInfo;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_tools::ToolSearchOutputTool;
-use codex_tools::ToolSearchResultSource;
-use codex_tools::dynamic_tool_to_responses_api_tool;
-use codex_tools::tool_search_result_source_to_output_tool;
+use darwin_code_mcp::ToolInfo;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_tools::ToolSearchOutputTool;
+use darwin_code_tools::ToolSearchResultSource;
+use darwin_code_tools::dynamic_tool_to_responses_api_tool;
+use darwin_code_tools::tool_search_result_source_to_output_tool;
 use std::collections::HashMap;
 
 #[derive(Clone)]

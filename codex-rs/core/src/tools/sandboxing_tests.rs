@@ -1,7 +1,7 @@
 use super::*;
 use crate::sandboxing::SandboxPermissions;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::NetworkAccess;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::NetworkAccess;
 use pretty_assertions::assert_eq;
 
 #[test]

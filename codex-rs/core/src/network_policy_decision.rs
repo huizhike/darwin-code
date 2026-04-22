@@ -1,12 +1,12 @@
-use codex_execpolicy::Decision as ExecPolicyDecision;
-use codex_execpolicy::NetworkRuleProtocol as ExecPolicyNetworkRuleProtocol;
-use codex_network_proxy::BlockedRequest;
-use codex_network_proxy::NetworkPolicyDecision;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
-use codex_protocol::network_policy::NetworkPolicyDecisionPayload;
+use darwin_code_execpolicy::Decision as ExecPolicyDecision;
+use darwin_code_execpolicy::NetworkRuleProtocol as ExecPolicyNetworkRuleProtocol;
+use darwin_code_network_proxy::BlockedRequest;
+use darwin_code_network_proxy::NetworkPolicyDecision;
+use darwin_code_protocol::approvals::NetworkApprovalContext;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol;
+use darwin_code_protocol::approvals::NetworkPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyRuleAction;
+use darwin_code_protocol::network_policy::NetworkPolicyDecisionPayload;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExecPolicyNetworkRuleAmendment {

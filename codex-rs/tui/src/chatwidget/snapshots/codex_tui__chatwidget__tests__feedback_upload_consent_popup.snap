@@ -5,14 +5,14 @@ expression: popup
   Upload logs?
 
   The following files will be sent:
-    • codex-logs.log
-    • codex-connectivity-diagnostics.txt
+    • darwin-code-logs.log
+    • darwin-code-connectivity-diagnostics.txt
 
   Connectivity diagnostics
     - Proxy environment variables are set and may affect connectivity.
       - HTTPS_PROXY = hello
 
-› 1. Yes  Share the current Codex session logs with the team for
+› 1. Yes  Share the current Darwin-Code session logs with the team for
           troubleshooting.
   2. No
 

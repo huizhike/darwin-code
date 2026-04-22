@@ -163,7 +163,7 @@ impl ToolHandler for Handler {
         let new_thread_id = result?.thread_id;
         let role_tag = role_name.unwrap_or(DEFAULT_ROLE_NAME);
         turn.session_telemetry.counter(
-            "codex.multi_agent.spawn",
+            "darwin-code.multi_agent.spawn",
             /*inc*/ 1,
             &[("role", role_tag)],
         );

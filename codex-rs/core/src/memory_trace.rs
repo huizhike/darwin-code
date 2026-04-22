@@ -2,13 +2,13 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::ModelClient;
-use codex_api::RawMemory as ApiRawMemory;
-use codex_api::RawMemoryMetadata as ApiRawMemoryMetadata;
-use codex_otel::SessionTelemetry;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_api::RawMemory as ApiRawMemory;
+use darwin_code_api::RawMemoryMetadata as ApiRawMemoryMetadata;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use serde_json::Map;
 use serde_json::Value;
 
@@ -54,7 +54,7 @@ pub async fn build_memories_from_trace_files(
         .summarize_memories(raw_memories, model_info, effort, session_telemetry)
         .await?;
     if output.len() != prepared.len() {
-        return Err(CodexErr::InvalidRequest(format!(
+        return Err(DarwinCodeErr::InvalidRequest(format!(
             "unexpected memory summarize output length: expected {}, got {}",
             prepared.len(),
             output.len()
@@ -116,7 +116,7 @@ fn load_trace_items(path: &Path, text: &str) -> Result<Vec<Value>> {
             .filter(serde_json::Value::is_object)
             .collect::<Vec<_>>();
         if dict_items.is_empty() {
-            return Err(CodexErr::InvalidRequest(format!(
+            return Err(DarwinCodeErr::InvalidRequest(format!(
                 "no object items found in trace file: {}",
                 path.display()
             )));
@@ -145,7 +145,7 @@ fn load_trace_items(path: &Path, text: &str) -> Result<Vec<Value>> {
     }
 
     if parsed_items.is_empty() {
-        return Err(CodexErr::InvalidRequest(format!(
+        return Err(DarwinCodeErr::InvalidRequest(format!(
             "no JSON items parsed from trace file: {}",
             path.display()
         )));
@@ -193,7 +193,7 @@ fn normalize_trace_items(items: Vec<Value>, path: &Path) -> Result<Vec<Value>> {
     }
 
     if normalized.is_empty() {
-        return Err(CodexErr::InvalidRequest(format!(
+        return Err(DarwinCodeErr::InvalidRequest(format!(
             "no valid trace items after normalization: {}",
             path.display()
         )));

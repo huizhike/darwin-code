@@ -8,19 +8,19 @@ use crate::config_loader::ConfigRequirements;
 use crate::config_loader::ConfigRequirementsToml;
 use crate::config_loader::RequirementSource;
 use crate::config_loader::Sourced;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::RequirementsExecPolicy;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::RequirementsExecPolicy;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSpecialPath;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -30,11 +30,11 @@ use tempfile::TempDir;
 use tempfile::tempdir;
 use toml::Value as TomlValue;
 
-fn config_stack_for_dot_codex_folder(dot_codex_folder: &Path) -> ConfigLayerStack {
-    let dot_codex_folder =
-        AbsolutePathBuf::from_absolute_path(dot_codex_folder).expect("absolute dot_codex_folder");
+fn config_stack_for_dot_darwin_code_folder(dot_darwin_code_folder: &Path) -> ConfigLayerStack {
+    let dot_darwin_code_folder =
+        AbsolutePathBuf::from_absolute_path(dot_darwin_code_folder).expect("absolute dot_darwin_code_folder");
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_darwin_code_folder },
         TomlValue::Table(Default::default()),
     );
     ConfigLayerStack::new(
@@ -71,11 +71,11 @@ fn starlark_string(value: &str) -> String {
 }
 
 async fn write_project_trust_config(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     trusted_projects: &[(&Path, TrustLevel)],
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(codex_config::CONFIG_TOML_FILE),
+        darwin_code_home.join(darwin_code_config::CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(
                 trusted_projects
@@ -117,7 +117,7 @@ fn external_file_system_sandbox_policy() -> FileSystemSandboxPolicy {
 async fn test_config() -> (TempDir, Config) {
     let home = TempDir::new().expect("create temp dir");
     let config = ConfigBuilder::without_managed_config_for_tests()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .build()
         .await
         .expect("load default test config");
@@ -203,7 +203,7 @@ async fn child_does_not_use_parent_exec_policy_when_requirements_exec_policy_dif
 #[tokio::test]
 async fn returns_empty_policy_when_no_policy_files_exist() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_darwin_code_folder(temp_dir.path());
 
     let manager = ExecPolicyManager::load(&config_stack)
         .await
@@ -239,7 +239,7 @@ async fn collect_policy_files_returns_empty_when_dir_missing() {
 #[tokio::test]
 async fn format_exec_policy_error_with_source_renders_range() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_darwin_code_folder(temp_dir.path());
     let policy_dir = temp_dir.path().join(RULES_DIR_NAME);
     fs::create_dir_all(&policy_dir).expect("create policy dir");
     let broken_path = policy_dir.join("broken.rules");
@@ -284,7 +284,7 @@ fn parse_starlark_line_from_message_rejects_zero_line() {
 #[tokio::test]
 async fn loads_policies_from_policy_subdirectory() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_darwin_code_folder(temp_dir.path());
     let policy_dir = temp_dir.path().join(RULES_DIR_NAME);
     fs::create_dir_all(&policy_dir).expect("create policy dir");
     fs::write(
@@ -318,21 +318,21 @@ async fn merges_requirements_exec_policy_network_rules() -> anyhow::Result<()> {
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        darwin_code_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(darwin_code_config::Sourced::new(
+            darwin_code_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            darwin_code_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
-    let dot_codex_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
+    let dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_darwin_code_folder },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -365,21 +365,21 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        darwin_code_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(darwin_code_config::Sourced::new(
+            darwin_code_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            darwin_code_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
-    let dot_codex_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
+    let dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_codex_folder },
+        ConfigLayerSource::Project { dot_darwin_code_folder },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -401,7 +401,7 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
 #[tokio::test]
 async fn ignores_policies_outside_policy_dir() {
     let temp_dir = tempdir().expect("create temp dir");
-    let config_stack = config_stack_for_dot_codex_folder(temp_dir.path());
+    let config_stack = config_stack_for_dot_darwin_code_folder(temp_dir.path());
     fs::write(
         temp_dir.path().join("root.rules"),
         r#"prefix_rule(pattern=["ls"], decision="prompt")"#,
@@ -434,10 +434,10 @@ async fn ignores_rules_from_untrusted_project_layers() -> anyhow::Result<()> {
         r#"prefix_rule(pattern=["ls"], decision="forbidden")"#,
     )?;
 
-    let project_dot_codex_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
+    let project_dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
     let layers = vec![ConfigLayerEntry::new_disabled(
         ConfigLayerSource::Project {
-            dot_codex_folder: project_dot_codex_folder,
+            dot_darwin_code_folder: project_dot_darwin_code_folder,
         },
         TomlValue::Table(Default::default()),
         "marked untrusted",
@@ -484,7 +484,7 @@ async fn loads_policies_from_multiple_config_layers() -> anyhow::Result<()> {
 
     let user_config_toml =
         AbsolutePathBuf::from_absolute_path(user_dir.path().join("config.toml"))?;
-    let project_dot_codex_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
+    let project_dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(project_dir.path())?;
     let layers = vec![
         ConfigLayerEntry::new(
             ConfigLayerSource::User {
@@ -494,7 +494,7 @@ async fn loads_policies_from_multiple_config_layers() -> anyhow::Result<()> {
         ),
         ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_codex_folder: project_dot_codex_folder,
+                dot_darwin_code_folder: project_dot_darwin_code_folder,
             },
             TomlValue::Table(Default::default()),
         ),
@@ -1102,7 +1102,7 @@ async fn request_rule_falls_back_when_prefix_rule_does_not_approve_all_commands(
     let command = vec![
         "bash".to_string(),
         "-lc".to_string(),
-        "cargo install cargo-insta && rm -rf /tmp/codex".to_string(),
+        "cargo install cargo-insta && rm -rf /tmp/darwin-code".to_string(),
     ];
     let manager = ExecPolicyManager::default();
 
@@ -1124,7 +1124,7 @@ async fn request_rule_falls_back_when_prefix_rule_does_not_approve_all_commands(
             proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(vec![
                 "rm".to_string(),
                 "-rf".to_string(),
-                "/tmp/codex".to_string(),
+                "/tmp/darwin-code".to_string(),
             ])),
         }
     );
@@ -1166,12 +1166,12 @@ async fn heuristics_apply_when_other_commands_match_policy() {
 
 #[tokio::test]
 async fn append_execpolicy_amendment_updates_policy_and_file() {
-    let codex_home = tempdir().expect("create temp dir");
+    let darwin_code_home = tempdir().expect("create temp dir");
     let prefix = vec!["echo".to_string(), "hello".to_string()];
     let manager = ExecPolicyManager::default();
 
     manager
-        .append_amendment_and_update(codex_home.path(), &ExecPolicyAmendment::from(prefix))
+        .append_amendment_and_update(darwin_code_home.path(), &ExecPolicyAmendment::from(prefix))
         .await
         .expect("update policy");
     let updated_policy = manager.current();
@@ -1188,7 +1188,7 @@ async fn append_execpolicy_amendment_updates_policy_and_file() {
         }
     ));
 
-    let contents = fs::read_to_string(default_policy_path(codex_home.path()))
+    let contents = fs::read_to_string(default_policy_path(darwin_code_home.path()))
         .expect("policy file should have been created");
     assert_eq!(
         contents,
@@ -1199,11 +1199,11 @@ async fn append_execpolicy_amendment_updates_policy_and_file() {
 
 #[tokio::test]
 async fn append_execpolicy_amendment_rejects_empty_prefix() {
-    let codex_home = tempdir().expect("create temp dir");
+    let darwin_code_home = tempdir().expect("create temp dir");
     let manager = ExecPolicyManager::default();
 
     let result = manager
-        .append_amendment_and_update(codex_home.path(), &ExecPolicyAmendment::from(vec![]))
+        .append_amendment_and_update(darwin_code_home.path(), &ExecPolicyAmendment::from(vec![]))
         .await;
 
     assert!(matches!(
@@ -1790,13 +1790,13 @@ async fn assert_exec_approval_requirement_for_command(
 #[tokio::test]
 async fn exec_policies_only_load_from_trusted_project_layers() -> std::io::Result<()> {
     let temp = tempfile::tempdir()?;
-    let codex_home = temp.path().join("home_execpolicy_nested");
+    let darwin_code_home = temp.path().join("home_execpolicy_nested");
     let project_root = temp.path().join("project_execpolicy_nested");
     let nested = project_root.join("nested");
-    let root_rules = project_root.join(".codex").join(RULES_DIR_NAME);
-    let nested_rules = nested.join(".codex").join(RULES_DIR_NAME);
+    let root_rules = project_root.join(".darwin-code").join(RULES_DIR_NAME);
+    let nested_rules = nested.join(".darwin-code").join(RULES_DIR_NAME);
 
-    fs::create_dir_all(&codex_home)?;
+    fs::create_dir_all(&darwin_code_home)?;
     fs::create_dir_all(&nested_rules)?;
     fs::write(project_root.join(".git"), "gitdir: here")?;
     fs::create_dir_all(&root_rules)?;
@@ -1808,10 +1808,10 @@ async fn exec_policies_only_load_from_trusted_project_layers() -> std::io::Resul
         nested_rules.join("deny-mv.rules"),
         r#"prefix_rule(pattern=["mv"], decision="forbidden")"#,
     )?;
-    write_project_trust_config(&codex_home, &[(&nested, TrustLevel::Trusted)]).await?;
+    write_project_trust_config(&darwin_code_home, &[(&nested, TrustLevel::Trusted)]).await?;
 
     let config = ConfigBuilder::default()
-        .codex_home(codex_home)
+        .darwin_code_home(darwin_code_home)
         .fallback_cwd(Some(nested))
         .build()
         .await?;
@@ -1840,7 +1840,7 @@ async fn exec_policies_require_project_trust_without_config_toml() -> std::io::R
     let temp = tempfile::tempdir()?;
     let project_root = temp.path().join("project_execpolicy");
     let nested = project_root.join("nested");
-    let rules_dir = project_root.join(".codex").join(RULES_DIR_NAME);
+    let rules_dir = project_root.join(".darwin-code").join(RULES_DIR_NAME);
     fs::create_dir_all(&nested)?;
     fs::write(project_root.join(".git"), "gitdir: here")?;
     fs::create_dir_all(&rules_dir)?;
@@ -1868,12 +1868,12 @@ async fn exec_policies_require_project_trust_without_config_toml() -> std::io::R
     ];
 
     for (name, trust_entries, expected_decision) in cases {
-        let codex_home = temp.path().join(format!("home_execpolicy_{name}"));
-        fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let darwin_code_home = temp.path().join(format!("home_execpolicy_{name}"));
+        fs::create_dir_all(&darwin_code_home)?;
+        write_project_trust_config(&darwin_code_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .darwin_code_home(darwin_code_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;
@@ -1899,7 +1899,7 @@ async fn exec_policy_warnings_ignore_untrusted_project_rules_without_config_toml
     let temp = tempfile::tempdir()?;
     let project_root = temp.path().join("project_execpolicy_warning");
     let nested = project_root.join("nested");
-    let rules_dir = project_root.join(".codex").join(RULES_DIR_NAME);
+    let rules_dir = project_root.join(".darwin-code").join(RULES_DIR_NAME);
     fs::create_dir_all(&nested)?;
     fs::write(project_root.join(".git"), "gitdir: here")?;
     fs::create_dir_all(&rules_dir)?;
@@ -1920,12 +1920,12 @@ async fn exec_policy_warnings_ignore_untrusted_project_rules_without_config_toml
     ];
 
     for (name, trust_entries, expect_warning) in cases {
-        let codex_home = temp.path().join(format!("home_execpolicy_warning_{name}"));
-        fs::create_dir_all(&codex_home)?;
-        write_project_trust_config(&codex_home, &trust_entries).await?;
+        let darwin_code_home = temp.path().join(format!("home_execpolicy_warning_{name}"));
+        fs::create_dir_all(&darwin_code_home)?;
+        write_project_trust_config(&darwin_code_home, &trust_entries).await?;
 
         let config = ConfigBuilder::default()
-            .codex_home(codex_home)
+            .darwin_code_home(darwin_code_home)
             .fallback_cwd(Some(nested.clone()))
             .build()
             .await?;

@@ -5,11 +5,11 @@ use crate::tools::context::ToolPayload;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_tools::REQUEST_USER_INPUT_TOOL_NAME;
-use codex_tools::normalize_request_user_input_args;
-use codex_tools::request_user_input_unavailable_message;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_tools::REQUEST_USER_INPUT_TOOL_NAME;
+use darwin_code_tools::normalize_request_user_input_args;
+use darwin_code_tools::request_user_input_unavailable_message;
 
 pub struct RequestUserInputHandler {
     pub default_mode_request_user_input: bool,

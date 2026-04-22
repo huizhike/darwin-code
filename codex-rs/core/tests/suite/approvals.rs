@@ -1,28 +1,28 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use codex_core::CodexThread;
-use codex_core::config::Constrained;
-use codex_core::config_loader::ConfigLayerStack;
-use codex_core::config_loader::ConfigLayerStackOrdering;
-use codex_core::config_loader::NetworkConstraints;
-use codex_core::config_loader::NetworkRequirementsToml;
-use codex_core::config_loader::RequirementSource;
-use codex_core::config_loader::Sourced;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_features::Feature;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::ExecPolicyAmendment;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::config::Constrained;
+use darwin_code_core::config_loader::ConfigLayerStack;
+use darwin_code_core::config_loader::ConfigLayerStackOrdering;
+use darwin_code_core::config_loader::NetworkConstraints;
+use darwin_code_core::config_loader::NetworkRequirementsToml;
+use darwin_code_core::config_loader::RequirementSource;
+use darwin_code_core::config_loader::Sourced;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_features::Feature;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol;
+use darwin_code_protocol::approvals::NetworkPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyRuleAction;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::ExecPolicyAmendment;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -33,8 +33,8 @@ use core_test_support::responses::mount_sse_once_match;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_with_timeout;
 use core_test_support::zsh_fork::build_zsh_fork_test;
@@ -64,7 +64,7 @@ enum TargetPath {
 }
 
 impl TargetPath {
-    fn resolve_for_patch(self, test: &TestCodex) -> (PathBuf, String) {
+    fn resolve_for_patch(self, test: &TestDarwinCode) -> (PathBuf, String) {
         match self {
             TargetPath::Workspace(name) => {
                 let path = test.cwd.path().join(name);
@@ -117,7 +117,7 @@ const DEFAULT_UNIFIED_EXEC_JUSTIFICATION: &str =
 impl ActionKind {
     async fn prepare(
         &self,
-        test: &TestCodex,
+        test: &TestDarwinCode,
         server: &MockServer,
         call_id: &str,
         sandbox_permissions: SandboxPermissions,
@@ -226,7 +226,7 @@ impl ActionKind {
                 let _ = fs::remove_file(&path);
                 let patch = build_add_file_patch(&patch_path, content);
                 let command = shell_apply_patch_command(&patch);
-                // Bazel may need to launch the configured Codex helper binary
+                // Bazel may need to launch the configured Darwin-Code helper binary
                 // to apply the verified patch, which can exceed the normal
                 // short command timeout on slower CI runners.
                 let timeout_ms = 30_000;
@@ -348,7 +348,7 @@ enum Expectation {
 }
 
 impl Expectation {
-    fn verify(&self, test: &TestCodex, result: &CommandResult) -> Result<()> {
+    fn verify(&self, test: &TestDarwinCode, result: &CommandResult) -> Result<()> {
         match self {
             Expectation::FileCreated { target, content } => {
                 let (path, _) = target.resolve_for_patch(test);
@@ -572,14 +572,14 @@ struct CommandResult {
 }
 
 async fn submit_turn(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     prompt: &str,
     approval_policy: AskForApproval,
     sandbox_policy: SandboxPolicy,
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -643,10 +643,10 @@ fn parse_result(item: &Value) -> CommandResult {
 }
 
 async fn expect_exec_approval(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     expected_command: &str,
 ) -> ExecApprovalRequestEvent {
-    let event = wait_for_event(&test.codex, |event| {
+    let event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -670,10 +670,10 @@ async fn expect_exec_approval(
 }
 
 async fn expect_patch_approval(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     expected_call_id: &str,
 ) -> ApplyPatchApprovalRequestEvent {
-    let event = wait_for_event(&test.codex, |event| {
+    let event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -691,8 +691,8 @@ async fn expect_patch_approval(
     }
 }
 
-async fn wait_for_completion_without_approval(test: &TestCodex) {
-    let event = wait_for_event(&test.codex, |event| {
+async fn wait_for_completion_without_approval(test: &TestDarwinCode) {
+    let event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -709,8 +709,8 @@ async fn wait_for_completion_without_approval(test: &TestCodex) {
     }
 }
 
-async fn wait_for_completion(test: &TestCodex) {
-    wait_for_event(&test.codex, |event| {
+async fn wait_for_completion(test: &TestDarwinCode) {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -736,7 +736,7 @@ fn body_contains(req: &Request, text: &str) -> bool {
         .is_some_and(|body| body.contains(text))
 }
 
-async fn wait_for_spawned_thread(test: &TestCodex) -> Result<Arc<CodexThread>> {
+async fn wait_for_spawned_thread(test: &TestDarwinCode) -> Result<Arc<DarwinCodeThread>> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
     loop {
         let ids = test.thread_manager.list_thread_ids().await;
@@ -1223,7 +1223,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::Auto,
             expectation: Expectation::PatchApplied {
                 target: TargetPath::Workspace("apply_patch_function.txt"),
@@ -1240,7 +1240,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![Feature::ApplyPatchFreeform],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::Auto,
             expectation: Expectation::PatchApplied {
                 target: TargetPath::OutsideWorkspace("apply_patch_function_danger.txt"),
@@ -1257,7 +1257,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::PatchApproval {
                 decision: ReviewDecision::Approved,
                 expected_reason: None,
@@ -1277,7 +1277,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::PatchApproval {
                 decision: ReviewDecision::Denied,
                 expected_reason: None,
@@ -1317,7 +1317,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::PatchApproval {
                 decision: ReviewDecision::Approved,
                 expected_reason: None,
@@ -1337,7 +1337,7 @@ fn scenarios() -> Vec<ScenarioSpec> {
             },
             sandbox_permissions: SandboxPermissions::UseDefault,
             features: vec![],
-            model_override: Some("gpt-5.1-codex"),
+            model_override: Some("gpt-5.1-darwin-code"),
             outcome: Outcome::Auto,
             expectation: Expectation::FileNotCreated {
                 target: TargetPath::OutsideWorkspace("apply_patch_function_never.txt"),
@@ -1674,7 +1674,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
     let model_override = scenario.model_override;
     let model = model_override.unwrap_or("gpt-5.1");
 
-    let mut builder = test_codex().with_model(model).with_config(move |config| {
+    let mut builder = test_darwin_code().with_model(model).with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy.clone());
         for feature in features {
@@ -1741,7 +1741,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                     scenario.name
                 );
             }
-            test.codex
+            test.darwin-code
                 .submit(Op::ExecApproval {
                     id: approval.effective_approval_id(),
                     turn_id: None,
@@ -1763,7 +1763,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                     scenario.name
                 );
             }
-            test.codex
+            test.darwin-code
                 .submit(Op::PatchApproval {
                     id: approval.call_id,
                     decision: decision.clone(),
@@ -1800,8 +1800,8 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     };
     let sandbox_policy_for_config = sandbox_policy.clone();
 
-    let mut builder = test_codex()
-        .with_model("gpt-5.1-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1-darwin-code")
         .with_config(move |config| {
             config.permissions.approval_policy = Constrained::allow_any(approval_policy);
             config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
@@ -1846,7 +1846,7 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     )
     .await?;
     let approval = expect_patch_approval(&test, call_id_1).await;
-    test.codex
+    test.darwin-code
         .submit(Op::PatchApproval {
             id: approval.call_id,
             decision: ReviewDecision::ApprovedForSession,
@@ -1881,7 +1881,7 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     )
     .await?;
 
-    let event = wait_for_event(&test.codex, |event| {
+    let event = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -1909,7 +1909,7 @@ async fn approving_execpolicy_amendment_persists_policy_and_skips_future_prompts
     let approval_policy = AskForApproval::UnlessTrusted;
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
     });
@@ -1965,7 +1965,7 @@ async fn approving_execpolicy_amendment_persists_policy_and_skips_future_prompts
         Some(expected_execpolicy_amendment.clone())
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -2080,7 +2080,7 @@ async fn spawned_subagent_execpolicy_amendment_propagates_to_parent_session() ->
     let approval_policy = AskForApproval::UnlessTrusted;
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
         config
@@ -2341,7 +2341,7 @@ async fn invalid_requested_prefix_rule_falls_back_for_compound_command() -> Resu
     let approval_policy = AskForApproval::OnRequest;
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
     });
@@ -2349,7 +2349,7 @@ async fn invalid_requested_prefix_rule_falls_back_for_compound_command() -> Resu
 
     let call_id = "invalid-prefix-rule";
     let command =
-        "touch /tmp/codex-fallback-rule-test.txt && echo hello > /tmp/codex-fallback-rule-test.txt";
+        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2392,7 +2392,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     let approval_policy = AskForApproval::OnRequest;
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
     });
@@ -2400,7 +2400,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
 
     let call_id = "invalid-prefix-rule";
     let command =
-        "touch /tmp/codex-fallback-rule-test.txt && echo hello > /tmp/codex-fallback-rule-test.txt";
+        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2434,7 +2434,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
         .expect("should have a proposed execpolicy amendment");
     assert!(amendment.command.contains(&command.to_string()));
 
-    test.codex
+    test.darwin-code
         .submit(Op::ExecApproval {
             id: approval_id,
             turn_id: None,
@@ -2447,7 +2447,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
 
     let call_id = "invalid-prefix-rule-again";
     let command =
-        "touch /tmp/codex-fallback-rule-test.txt && echo hello > /tmp/codex-fallback-rule-test.txt";
+        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2528,7 +2528,7 @@ allow_local_binding = true
         exclude_slash_tmp: false,
     };
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_home(home).with_config(move |config| {
+    let mut builder = test_darwin_code().with_home(home).with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
         let layers = config
@@ -2575,7 +2575,7 @@ allow_local_binding = true
     let call_id_first = "allow-network-first";
     // Use urllib without overriding proxy settings so managed-network sessions
     // continue to exercise the env-based proxy routing path under bubblewrap.
-    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://codex-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
+    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://darwin-code-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
         .to_string();
     let first_event = shell_event(
         call_id_first,
@@ -2616,7 +2616,7 @@ allow_local_binding = true
             .checked_duration_since(std::time::Instant::now())
             .expect("timed out waiting for network approval request");
         let event = wait_for_event_with_timeout(
-            &test.codex,
+            &test.darwin-code,
             |event| {
                 matches!(
                     event,
@@ -2633,7 +2633,7 @@ allow_local_binding = true
                 {
                     break approval;
                 }
-                test.codex
+                test.darwin-code
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
                         turn_id: None,
@@ -2671,7 +2671,7 @@ allow_local_binding = true
         .find(|amendment| amendment.action == NetworkPolicyRuleAction::Deny)
         .expect("expected deny network policy amendment");
 
-    test.codex
+    test.darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -2756,7 +2756,7 @@ allow_local_binding = true
             .checked_duration_since(std::time::Instant::now())
             .expect("timed out waiting for second turn completion");
         let event = wait_for_event_with_timeout(
-            &test.codex,
+            &test.darwin-code,
             |event| {
                 matches!(
                     event,
@@ -2776,7 +2776,7 @@ allow_local_binding = true
                         approval.command
                     );
                 }
-                test.codex
+                test.darwin-code
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
                         turn_id: None,
@@ -2829,7 +2829,7 @@ allow_local_binding = true
         exclude_tmpdir_env_var: false,
         exclude_slash_tmp: false,
     };
-    let mut builder = test_codex().with_home(home).with_config(move |config| {
+    let mut builder = test_darwin_code().with_home(home).with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(SandboxPolicy::DangerFullAccess);
         let layers = config
@@ -2874,7 +2874,7 @@ allow_local_binding = true
     );
 
     let call_id = "allow-network-after-yolo";
-    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://codex-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
+    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://darwin-code-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
         .to_string();
     let event = shell_event(
         call_id,
@@ -2915,7 +2915,7 @@ allow_local_binding = true
             .checked_duration_since(std::time::Instant::now())
             .expect("timed out waiting for network approval request");
         let event = wait_for_event_with_timeout(
-            &test.codex,
+            &test.darwin-code,
             |event| {
                 matches!(
                     event,
@@ -2932,7 +2932,7 @@ allow_local_binding = true
                 {
                     break approval;
                 }
-                test.codex
+                test.darwin-code
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
                         turn_id: None,
@@ -2953,7 +2953,7 @@ allow_local_binding = true
         .expect("expected network approval context");
     assert_eq!(network_context.protocol, NetworkApprovalProtocol::Http);
 
-    test.codex
+    test.darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -2975,7 +2975,7 @@ async fn compound_command_with_one_safe_command_still_requires_approval() -> Res
     let approval_policy = AskForApproval::UnlessTrusted;
     let sandbox_policy = SandboxPolicy::new_workspace_write_policy();
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(approval_policy);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
     });
@@ -3023,7 +3023,7 @@ async fn compound_command_with_one_safe_command_still_requires_approval() -> Res
     .await?;
 
     let approval = expect_exec_approval(&test, expected_command.as_str()).await;
-    test.codex
+    test.darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,

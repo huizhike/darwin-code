@@ -9,11 +9,11 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::ExecCommandToolOutput;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::process::OutputHandles;
-use codex_sandboxing::SandboxType;
-use codex_utils_output_truncation::approx_token_count;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_utils_output_truncation::approx_token_count;
 use core_test_support::get_remote_test_env;
 use core_test_support::skip_if_sandbox;
-use core_test_support::test_codex::test_env as remote_test_env;
+use core_test_support::test_darwin_code::test_env as remote_test_env;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -246,7 +246,7 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     write_stdin(
         &session,
         process_id,
-        "export CODEX_INTERACTIVE_SHELL_VAR=codex\n",
+        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin-code\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -254,12 +254,12 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     let out_2 = write_stdin(
         &session,
         process_id,
-        "echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "echo $DARWIN_CODE_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
     assert!(
-        out_2.truncated_output().contains("codex"),
+        out_2.truncated_output().contains("darwin-code"),
         "expected environment variable output"
     );
 
@@ -281,7 +281,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     write_stdin(
         &session,
         session_a,
-        "export CODEX_INTERACTIVE_SHELL_VAR=codex\n",
+        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin-code\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -289,7 +289,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     let out_2 = exec_command(
         &session,
         &turn,
-        "echo $CODEX_INTERACTIVE_SHELL_VAR",
+        "echo $DARWIN_CODE_INTERACTIVE_SHELL_VAR",
         /*yield_time_ms*/ 2_500,
         /*workdir*/ None,
     )
@@ -300,19 +300,19 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
         "short command should not report a process id if it exits quickly"
     );
     assert!(
-        !out_2.truncated_output().contains("codex"),
+        !out_2.truncated_output().contains("darwin-code"),
         "short command should run in a fresh shell"
     );
 
     let out_3 = write_stdin(
         &session,
         shell_a.process_id.expect("expected process id"),
-        "echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "echo $DARWIN_CODE_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
     assert!(
-        out_3.truncated_output().contains("codex"),
+        out_3.truncated_output().contains("darwin-code"),
         "session should preserve state"
     );
 
@@ -336,7 +336,7 @@ async fn unified_exec_timeouts() -> anyhow::Result<()> {
     write_stdin(
         &session,
         process_id,
-        format!("export CODEX_INTERACTIVE_SHELL_VAR={TEST_VAR_VALUE}\n").as_str(),
+        format!("export DARWIN_CODE_INTERACTIVE_SHELL_VAR={TEST_VAR_VALUE}\n").as_str(),
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -344,7 +344,7 @@ async fn unified_exec_timeouts() -> anyhow::Result<()> {
     let out_2 = write_stdin(
         &session,
         process_id,
-        "sleep 5 && echo $CODEX_INTERACTIVE_SHELL_VAR\n",
+        "sleep 5 && echo $DARWIN_CODE_INTERACTIVE_SHELL_VAR\n",
         /*yield_time_ms*/ 10,
     )
     .await?;
@@ -412,14 +412,14 @@ async fn requests_with_large_timeout_are_capped() -> anyhow::Result<()> {
     let result = exec_command(
         &session,
         &turn,
-        "echo codex",
+        "echo darwin-code",
         /*yield_time_ms*/ 120_000,
         /*workdir*/ None,
     )
     .await?;
 
     assert!(result.process_id.is_some());
-    assert!(result.truncated_output().contains("codex"));
+    assert!(result.truncated_output().contains("darwin-code"));
 
     Ok(())
 }
@@ -431,7 +431,7 @@ async fn completed_commands_do_not_persist_sessions() -> anyhow::Result<()> {
     let result = exec_command(
         &session,
         &turn,
-        "echo codex",
+        "echo darwin-code",
         /*yield_time_ms*/ 2_500,
         /*workdir*/ None,
     )
@@ -441,7 +441,7 @@ async fn completed_commands_do_not_persist_sessions() -> anyhow::Result<()> {
         result.process_id.is_some(),
         "completed command should report a process id"
     );
-    assert!(result.truncated_output().contains("codex"));
+    assert!(result.truncated_output().contains("darwin-code"));
 
     assert!(
         session
@@ -508,7 +508,7 @@ async fn completed_pipe_commands_preserve_exit_code() -> anyhow::Result<()> {
         shell_env(),
     );
 
-    let environment = codex_exec_server::Environment::default();
+    let environment = darwin_code_exec_server::Environment::default();
     let process = UnifiedExecProcessManager::default()
         .open_session_with_exec_env(
             /*process_id*/ 1234,

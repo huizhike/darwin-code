@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_protocol::models::ShellCommandToolCallParams;
+use darwin_code_protocol::models::ShellCommandToolCallParams;
 use core_test_support::PathBufExt;
 use core_test_support::test_path_buf;
 use pretty_assertions::assert_eq;
@@ -19,9 +19,9 @@ use crate::tools::handlers::ShellCommandHandler;
 use crate::tools::handlers::ShellHandler;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_shell_command::is_safe_command::is_known_safe_command;
-use codex_shell_command::powershell::try_find_powershell_executable_blocking;
-use codex_shell_command::powershell::try_find_pwsh_executable_blocking;
+use darwin_code_shell_command::is_safe_command::is_known_safe_command;
+use darwin_code_shell_command::powershell::try_find_powershell_executable_blocking;
+use darwin_code_shell_command::powershell::try_find_pwsh_executable_blocking;
 use serde_json::json;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
@@ -204,7 +204,7 @@ fn shell_command_handler_rejects_login_when_disallowed() {
 #[tokio::test]
 async fn shell_pre_tool_use_payload_uses_joined_command() {
     let payload = ToolPayload::LocalShell {
-        params: codex_protocol::models::ShellToolCallParams {
+        params: darwin_code_protocol::models::ShellToolCallParams {
             command: vec![
                 "bash".to_string(),
                 "-lc".to_string(),
@@ -227,7 +227,7 @@ async fn shell_pre_tool_use_payload_uses_joined_command() {
             turn: turn.into(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-41".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell"),
+            tool_name: darwin_code_tools::ToolName::plain("shell"),
             payload,
         }),
         Some(crate::tools::registry::PreToolUsePayload {
@@ -252,7 +252,7 @@ async fn shell_command_pre_tool_use_payload_uses_raw_command() {
             turn: turn.into(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-42".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell_command"),
+            tool_name: darwin_code_tools::ToolName::plain("shell_command"),
             payload,
         }),
         Some(crate::tools::registry::PreToolUsePayload {

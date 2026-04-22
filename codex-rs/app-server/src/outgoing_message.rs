@@ -4,15 +4,15 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_otel::span_w3c_trace_context;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::W3cTraceContext;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::Result;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ServerRequestPayload;
+use darwin_code_otel::span_w3c_trace_context;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::W3cTraceContext;
 use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
@@ -25,7 +25,7 @@ use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::server_request_error::TURN_TRANSITION_PENDING_REQUEST_ERROR_REASON;
 
 #[cfg(test)]
-use codex_protocol::account::PlanType;
+use darwin_code_protocol::account::PlanType;
 
 pub(crate) type ClientRequestResult = std::result::Result<Result, JSONRPCErrorError>;
 
@@ -649,20 +649,20 @@ pub(crate) struct OutgoingError {
 mod tests {
     use std::time::Duration;
 
-    use codex_app_server_protocol::AccountLoginCompletedNotification;
-    use codex_app_server_protocol::AccountRateLimitsUpdatedNotification;
-    use codex_app_server_protocol::AccountUpdatedNotification;
-    use codex_app_server_protocol::ApplyPatchApprovalParams;
-    use codex_app_server_protocol::AuthMode;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::DynamicToolCallParams;
-    use codex_app_server_protocol::FileChangeRequestApprovalParams;
-    use codex_app_server_protocol::ModelRerouteReason;
-    use codex_app_server_protocol::ModelReroutedNotification;
-    use codex_app_server_protocol::RateLimitSnapshot;
-    use codex_app_server_protocol::RateLimitWindow;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_protocol::ThreadId;
+    use darwin_code_app_server_protocol::AccountLoginCompletedNotification;
+    use darwin_code_app_server_protocol::AccountRateLimitsUpdatedNotification;
+    use darwin_code_app_server_protocol::AccountUpdatedNotification;
+    use darwin_code_app_server_protocol::ApplyPatchApprovalParams;
+    use darwin_code_app_server_protocol::AuthMode;
+    use darwin_code_app_server_protocol::ConfigWarningNotification;
+    use darwin_code_app_server_protocol::DynamicToolCallParams;
+    use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
+    use darwin_code_app_server_protocol::ModelRerouteReason;
+    use darwin_code_app_server_protocol::ModelReroutedNotification;
+    use darwin_code_app_server_protocol::RateLimitSnapshot;
+    use darwin_code_app_server_protocol::RateLimitWindow;
+    use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+    use darwin_code_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
@@ -726,7 +726,7 @@ mod tests {
         let notification =
             ServerNotification::AccountRateLimitsUpdated(AccountRateLimitsUpdatedNotification {
                 rate_limits: RateLimitSnapshot {
-                    limit_id: Some("codex".to_string()),
+                    limit_id: Some("darwin-code".to_string()),
                     limit_name: None,
                     primary: Some(RateLimitWindow {
                         used_percent: 25,
@@ -746,7 +746,7 @@ mod tests {
                 "method": "account/rateLimits/updated",
                 "params": {
                         "rateLimits": {
-                        "limitId": "codex",
+                        "limitId": "darwin-code",
                         "limitName": null,
                         "primary": {
                             "usedPercent": 25,
@@ -817,7 +817,7 @@ mod tests {
         let notification = ServerNotification::ModelRerouted(ModelReroutedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
-            from_model: "gpt-5.3-codex".to_string(),
+            from_model: "gpt-5.3-darwin-code".to_string(),
             to_model: "gpt-5.2".to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
         });
@@ -829,7 +829,7 @@ mod tests {
                 "params": {
                     "threadId": "thread-1",
                     "turnId": "turn-1",
-                    "fromModel": "gpt-5.3-codex",
+                    "fromModel": "gpt-5.3-darwin-code",
                     "toModel": "gpt-5.2",
                     "reason": "highRiskCyberActivity",
                 },
@@ -949,7 +949,7 @@ mod tests {
                     ServerNotification::ModelRerouted(ModelReroutedNotification {
                         thread_id: "thread-1".to_string(),
                         turn_id: "turn-1".to_string(),
-                        from_model: "gpt-5.3-codex".to_string(),
+                        from_model: "gpt-5.3-darwin-code".to_string(),
                         to_model: "gpt-5.2".to_string(),
                         reason: ModelRerouteReason::HighRiskCyberActivity,
                     }),

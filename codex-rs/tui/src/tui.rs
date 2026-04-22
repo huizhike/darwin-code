@@ -46,8 +46,8 @@ use crate::tui::event_stream::EventBroker;
 use crate::tui::event_stream::TuiEventStream;
 #[cfg(unix)]
 use crate::tui::job_control::SuspendContext;
-use codex_config::types::NotificationCondition;
-use codex_config::types::NotificationMethod;
+use darwin_code_config::types::NotificationCondition;
+use darwin_code_config::types::NotificationMethod;
 
 mod event_stream;
 mod frame_rate_limiter;
@@ -71,7 +71,7 @@ fn should_emit_notification(condition: NotificationCondition, terminal_focused: 
 #[cfg(test)]
 mod tests {
     use super::should_emit_notification;
-    use codex_config::types::NotificationCondition;
+    use darwin_code_config::types::NotificationCondition;
 
     #[test]
     fn unfocused_notification_condition_is_suppressed_when_focused() {
@@ -310,8 +310,8 @@ impl Tui {
         supports_color::on_cached(supports_color::Stream::Stdout);
         let _ = crate::terminal_palette::default_colors();
         let is_zellij = matches!(
-            codex_terminal_detection::terminal_info().multiplexer,
-            Some(codex_terminal_detection::Multiplexer::Zellij {})
+            darwin_code_terminal_detection::terminal_info().multiplexer,
+            Some(darwin_code_terminal_detection::Multiplexer::Zellij {})
         );
 
         Self {
@@ -373,7 +373,7 @@ impl Tui {
     /// Temporarily restore terminal state to run an external interactive program `f`.
     ///
     /// This pauses crossterm's stdin polling by dropping the underlying event stream, restores
-    /// terminal modes (optionally keeping raw mode enabled), then re-applies Codex TUI modes and
+    /// terminal modes (optionally keeping raw mode enabled), then re-applies Darwin-Code TUI modes and
     /// flushes pending stdin input before resuming events.
     pub async fn with_restored<R, F, Fut>(&mut self, mode: RestoreMode, f: F) -> R
     where

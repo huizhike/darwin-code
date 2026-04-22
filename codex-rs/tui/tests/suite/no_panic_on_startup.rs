@@ -4,19 +4,19 @@ use std::time::Duration;
 use tokio::select;
 use tokio::time::timeout;
 
-/// Regression test for https://github.com/openai/codex/issues/8803.
+/// Regression test for https://github.com/openai/darwin-code/issues/8803.
 #[tokio::test]
 #[ignore = "TODO(mbolin): flaky"]
 async fn malformed_rules_should_not_panic() -> anyhow::Result<()> {
-    // run_codex_cli() does not work on Windows due to PTY limitations.
+    // run_darwin_code_cli() does not work on Windows due to PTY limitations.
     if cfg!(windows) {
         return Ok(());
     }
 
     let tmp = tempfile::tempdir()?;
-    let codex_home = tmp.path();
+    let darwin_code_home = tmp.path();
     std::fs::write(
-        codex_home.join("rules"),
+        darwin_code_home.join("rules"),
         "rules should be a directory not a file",
     )?;
 
@@ -33,12 +33,12 @@ model_provider = "ollama"
 "#,
         cwd = cwd.display()
     );
-    std::fs::write(codex_home.join("config.toml"), config_contents)?;
+    std::fs::write(darwin_code_home.join("config.toml"), config_contents)?;
 
-    let CodexCliOutput { exit_code, output } = run_codex_cli(codex_home, cwd).await?;
-    assert_ne!(0, exit_code, "Codex CLI should exit nonzero.");
+    let DarwinCodeCliOutput { exit_code, output } = run_darwin_code_cli(darwin_code_home, cwd).await?;
+    assert_ne!(0, exit_code, "Darwin-Code CLI should exit nonzero.");
     assert!(
-        output.contains("ERROR: Failed to initialize codex:"),
+        output.contains("ERROR: Failed to initialize darwin-code:"),
         "expected startup error in output, got: {output}"
     );
     assert!(
@@ -48,40 +48,40 @@ model_provider = "ollama"
     Ok(())
 }
 
-struct CodexCliOutput {
+struct DarwinCodeCliOutput {
     exit_code: i32,
     output: String,
 }
 
-async fn run_codex_cli(
-    codex_home: impl AsRef<Path>,
+async fn run_darwin_code_cli(
+    darwin_code_home: impl AsRef<Path>,
     cwd: impl AsRef<Path>,
-) -> anyhow::Result<CodexCliOutput> {
-    let codex_cli = codex_utils_cargo_bin::cargo_bin("codex")?;
+) -> anyhow::Result<DarwinCodeCliOutput> {
+    let darwin_code_cli = darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?;
     let mut env = HashMap::new();
     env.insert(
-        "CODEX_HOME".to_string(),
-        codex_home.as_ref().display().to_string(),
+        "DARWIN_CODE_HOME".to_string(),
+        darwin_code_home.as_ref().display().to_string(),
     );
 
     let args = vec!["-c".to_string(), "analytics.enabled=false".to_string()];
-    let spawned = codex_utils_pty::spawn_pty_process(
-        codex_cli.to_string_lossy().as_ref(),
+    let spawned = darwin_code_utils_pty::spawn_pty_process(
+        darwin_code_cli.to_string_lossy().as_ref(),
         &args,
         cwd.as_ref(),
         &env,
         &None,
-        codex_utils_pty::TerminalSize::default(),
+        darwin_code_utils_pty::TerminalSize::default(),
     )
     .await?;
     let mut output = Vec::new();
-    let codex_utils_pty::SpawnedProcess {
+    let darwin_code_utils_pty::SpawnedProcess {
         session,
         stdout_rx,
         stderr_rx,
         exit_rx,
     } = spawned;
-    let mut output_rx = codex_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
+    let mut output_rx = darwin_code_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
     let mut exit_rx = exit_rx;
     let writer_tx = session.writer_sender();
     let exit_code_result = timeout(Duration::from_secs(10), async {
@@ -111,7 +111,7 @@ async fn run_codex_cli(
         Ok(Err(err)) => return Err(err.into()),
         Err(_) => {
             session.terminate();
-            anyhow::bail!("timed out waiting for codex CLI to exit");
+            anyhow::bail!("timed out waiting for darwin-code CLI to exit");
         }
     };
     // Drain any output that raced with the exit notification.
@@ -120,7 +120,7 @@ async fn run_codex_cli(
     }
 
     let output = String::from_utf8_lossy(&output);
-    Ok(CodexCliOutput {
+    Ok(DarwinCodeCliOutput {
         exit_code,
         output: output.to_string(),
     })

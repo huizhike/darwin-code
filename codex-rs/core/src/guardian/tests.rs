@@ -15,23 +15,23 @@ use crate::config_loader::Sourced;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::test_support;
-use codex_config::config_toml::ConfigToml;
-use codex_exec_server::LOCAL_FS;
-use codex_model_provider::create_model_provider;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_network_proxy::NetworkProxyConfig;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+use darwin_code_protocol::protocol::GuardianRiskLevel;
+use darwin_code_protocol::protocol::GuardianUserAuthorization;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
 use core_test_support::context_snapshot;
@@ -78,7 +78,7 @@ async fn guardian_test_session_and_turn_with_base_url(
     config.user_instructions = None;
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
@@ -108,12 +108,12 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                     id: None,
                     name: "gh_repo_view".to_string(),
                     namespace: None,
-                    arguments: "{\"repo\":\"openai/codex\"}".to_string(),
+                    arguments: "{\"repo\":\"openai/darwin-code\"}".to_string(),
                     call_id: "call-1".to_string(),
                 },
                 ResponseItem::FunctionCallOutput {
                     call_id: "call-1".to_string(),
-                    output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+                    output: darwin_code_protocol::models::FunctionCallOutputPayload::from_text(
                         "repo visibility: public".to_string(),
                     ),
                 },
@@ -157,8 +157,8 @@ fn guardian_snapshot_options() -> ContextSnapshotOptions {
 }
 
 fn normalize_guardian_snapshot_paths(text: String) -> String {
-    let platform_path = test_path_buf("/repo/codex-rs/core").display().to_string();
-    if platform_path == "/repo/codex-rs/core" {
+    let platform_path = test_path_buf("/repo/darwin-code-rs/core").display().to_string();
+    if platform_path == "/repo/darwin-code-rs/core" {
         return text;
     }
 
@@ -166,15 +166,15 @@ fn normalize_guardian_snapshot_paths(text: String) -> String {
         .expect("test path should serialize")
         .trim_matches('"')
         .to_string();
-    text.replace(&escaped_platform_path, "/repo/codex-rs/core")
-        .replace(&platform_path, "/repo/codex-rs/core")
+    text.replace(&escaped_platform_path, "/repo/darwin-code-rs/core")
+        .replace(&platform_path, "/repo/darwin-code-rs/core")
 }
 
-fn guardian_prompt_text(items: &[codex_protocol::user_input::UserInput]) -> String {
+fn guardian_prompt_text(items: &[darwin_code_protocol::user_input::UserInput]) -> String {
     items
         .iter()
         .map(|item| match item {
-            codex_protocol::user_input::UserInput::Text { text, .. } => text.as_str(),
+            darwin_code_protocol::user_input::UserInput::Text { text, .. } => text.as_str(),
             _ => "",
         })
         .collect::<String>()
@@ -235,7 +235,7 @@ async fn build_guardian_prompt_full_mode_preserves_initial_review_format() -> an
         GuardianApprovalRequest::Shell {
             id: "shell-1".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the reviewed docs fix.".to_string()),
@@ -248,7 +248,7 @@ async fn build_guardian_prompt_full_mode_preserves_initial_review_format() -> an
     assert!(text.contains("whose request action you are assessing"));
     assert!(text.contains(">>> TRANSCRIPT START\n"));
     assert!(text.contains(">>> TRANSCRIPT END\n"));
-    assert!(text.contains("The Codex agent has requested the following action:\n"));
+    assert!(text.contains("The Darwin-Code agent has requested the following action:\n"));
     assert!(!text.contains("TRANSCRIPT DELTA"));
     assert_eq!(prompt.transcript_cursor.transcript_entry_count, 4);
 
@@ -291,7 +291,7 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
         GuardianApprovalRequest::Shell {
             id: "shell-2".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the second docs fix.".to_string()),
@@ -311,7 +311,7 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
     assert!(text.contains("[5] user: Please also push the second docs fix."));
     assert!(text.contains("[6] assistant: I need approval for the second push."));
     assert!(text.contains(">>> TRANSCRIPT DELTA END\n"));
-    assert!(text.contains("The Codex agent has requested the following next action:\n"));
+    assert!(text.contains("The Darwin-Code agent has requested the following next action:\n"));
     assert!(!text.contains("[1] user: Please check the repo visibility"));
     assert_eq!(prompt.transcript_cursor.transcript_entry_count, 6);
 
@@ -329,7 +329,7 @@ async fn build_guardian_prompt_delta_mode_handles_empty_delta() -> anyhow::Resul
         GuardianApprovalRequest::Shell {
             id: "shell-2".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the second docs fix.".to_string()),
@@ -364,7 +364,7 @@ async fn build_guardian_prompt_stale_delta_cursor_falls_back_to_full_prompt() ->
         GuardianApprovalRequest::Shell {
             id: "shell-3".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the docs fix.".to_string()),
@@ -449,7 +449,7 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
         GuardianApprovalRequest::Shell {
             id: "shell-4".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push after the compaction.".to_string()),
@@ -531,7 +531,7 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
         },
         ResponseItem::FunctionCallOutput {
             call_id: "call-1".to_string(),
-            output: codex_protocol::models::FunctionCallOutputPayload::from_text(
+            output: darwin_code_protocol::models::FunctionCallOutputPayload::from_text(
                 "repo is public".to_string(),
             ),
         },
@@ -884,7 +884,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
@@ -903,7 +903,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
             "origin".to_string(),
             "guardian-approval-mvp".to_string(),
         ],
-        cwd: test_path_buf("/repo/codex-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the reviewed docs fix to the repo remote.".to_string()),
@@ -929,7 +929,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         assert_snapshot!(
-            "codex_core__guardian__tests__guardian_review_request_layout",
+            "darwin_code_core__guardian__tests__guardian_review_request_layout",
             normalize_guardian_snapshot_paths(context_snapshot::format_labeled_requests_snapshot(
                 "Guardian review request layout",
                 &[("Guardian Review Request", &request)],
@@ -962,15 +962,15 @@ async fn build_guardian_prompt_items_includes_parent_session_id() -> anyhow::Res
         .items
         .into_iter()
         .map(|item| match item {
-            codex_protocol::user_input::UserInput::Text { text, .. } => text,
-            codex_protocol::user_input::UserInput::Image { .. } => String::new(),
+            darwin_code_protocol::user_input::UserInput::Text { text, .. } => text,
+            darwin_code_protocol::user_input::UserInput::Image { .. } => String::new(),
             _ => String::new(),
         })
         .collect::<String>();
 
     assert!(
         prompt_text.contains(&format!(
-            ">>> TRANSCRIPT END\nReviewed Codex session id: {}\n",
+            ">>> TRANSCRIPT END\nReviewed Darwin-Code session id: {}\n",
             session.conversation_id
         )),
         "guardian prompt should expose the parent session id immediately after the transcript end"
@@ -1024,7 +1024,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     let first_request = GuardianApprovalRequest::Shell {
         id: "shell-1".to_string(),
         command: vec!["git".to_string(), "push".to_string()],
-        cwd: test_path_buf("/repo/codex-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the first docs fix.".to_string()),
@@ -1070,7 +1070,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
             "push".to_string(),
             "--force-with-lease".to_string(),
         ],
-        cwd: test_path_buf("/repo/codex-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the second docs fix.".to_string()),
@@ -1112,7 +1112,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     let third_request = GuardianApprovalRequest::Shell {
         id: "shell-3".to_string(),
         command: vec!["git".to_string(), "push".to_string()],
-        cwd: test_path_buf("/repo/codex-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the third docs fix.".to_string()),
@@ -1205,7 +1205,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     settings.set_prepend_module_to_snapshot(false);
     settings.bind(|| {
         assert_snapshot!(
-            "codex_core__guardian__tests__guardian_followup_review_request_layout",
+            "darwin_code_core__guardian__tests__guardian_followup_review_request_layout",
             format!(
                 "{}\n\nshared_prompt_cache_key: {}\nfollowup_contains_first_rationale: {}",
                 normalize_guardian_snapshot_paths(
@@ -1253,7 +1253,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
     config.user_instructions = None;
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
@@ -1276,7 +1276,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
         GuardianApprovalRequest::Shell {
             id: "shell-guardian-error".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the reviewed docs fix.".to_string()),
@@ -1410,7 +1410,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let initial_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-1".to_string(),
             command: vec!["git".to_string(), "status".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect repo state before proceeding.".to_string()),
@@ -1455,7 +1455,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let second_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-2".to_string(),
             command: vec!["git".to_string(), "diff".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect pending changes before proceeding.".to_string()),
@@ -1463,7 +1463,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let third_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-3".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/codex-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect whether pushing is safe before proceeding.".to_string()),
@@ -1597,7 +1597,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
         &parent_config,
         /*live_network_config*/ None,
         "parent-active-model",
-        Some(codex_protocol::openai_models::ReasoningEffort::Low),
+        Some(darwin_code_protocol::openai_models::ReasoningEffort::Low),
     )
     .expect("guardian config");
 
@@ -1608,7 +1608,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
     );
     assert_eq!(
         guardian_config.model_reasoning_effort,
-        Some(codex_protocol::openai_models::ReasoningEffort::Low)
+        Some(darwin_code_protocol::openai_models::ReasoningEffort::Low)
     );
     assert_eq!(
         guardian_config.permissions.approval_policy,
@@ -1730,7 +1730,7 @@ async fn guardian_review_session_config_uses_parent_active_model_instead_of_hard
 
 #[tokio::test]
 async fn guardian_review_session_config_uses_requirements_guardian_policy_config() {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
     let workspace = tempfile::tempdir().expect("create temp dir");
     let config_layer_stack = ConfigLayerStack::new(
         Vec::new(),
@@ -1750,7 +1750,7 @@ async fn guardian_review_session_config_uses_requirements_guardian_policy_config
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
         },
-        codex_home.abs(),
+        darwin_code_home.abs(),
         config_layer_stack,
     )
     .await
@@ -1775,7 +1775,7 @@ async fn guardian_review_session_config_uses_requirements_guardian_policy_config
 #[tokio::test]
 async fn guardian_review_session_config_uses_default_guardian_policy_without_requirements_override()
 {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
     let workspace = tempfile::tempdir().expect("create temp dir");
     let config_layer_stack =
         ConfigLayerStack::new(Vec::new(), Default::default(), Default::default())
@@ -1787,7 +1787,7 @@ async fn guardian_review_session_config_uses_default_guardian_policy_without_req
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
         },
-        codex_home.abs(),
+        darwin_code_home.abs(),
         config_layer_stack,
     )
     .await

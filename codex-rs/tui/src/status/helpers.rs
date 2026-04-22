@@ -4,8 +4,8 @@ use crate::status::StatusAccountDisplay;
 use crate::text_formatting;
 use chrono::DateTime;
 use chrono::Local;
-use codex_protocol::account::PlanType;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::account::PlanType;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
@@ -188,13 +188,13 @@ mod tests {
     use crate::legacy_core::DEFAULT_AGENTS_MD_FILENAME;
     use crate::legacy_core::LOCAL_AGENTS_MD_FILENAME;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
-    async fn test_config(codex_home: &TempDir, cwd: &TempDir) -> Config {
+    async fn test_config(darwin_code_home: &TempDir, cwd: &TempDir) -> Config {
         ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .fallback_cwd(Some(cwd.path().to_path_buf()))
             .build()
             .await
@@ -225,10 +225,10 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_includes_global_agents_path() {
-        let codex_home = TempDir::new().expect("temp codex home");
+        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
         let cwd = TempDir::new().expect("temp cwd");
-        let global_agents_path = codex_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
-        let config = test_config(&codex_home, &cwd).await;
+        let global_agents_path = darwin_code_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
+        let config = test_config(&darwin_code_home, &cwd).await;
 
         assert_eq!(
             compose_agents_summary(&config, &[global_agents_path.abs()]),
@@ -238,10 +238,10 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_names_global_agents_override() {
-        let codex_home = TempDir::new().expect("temp codex home");
+        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
         let cwd = TempDir::new().expect("temp cwd");
-        let override_path = codex_home.path().join(LOCAL_AGENTS_MD_FILENAME);
-        let config = test_config(&codex_home, &cwd).await;
+        let override_path = darwin_code_home.path().join(LOCAL_AGENTS_MD_FILENAME);
+        let config = test_config(&darwin_code_home, &cwd).await;
 
         assert_eq!(
             compose_agents_summary(&config, &[override_path.abs()]),
@@ -251,11 +251,11 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_orders_global_before_project_agents() {
-        let codex_home = TempDir::new().expect("temp codex home");
+        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
         let cwd = TempDir::new().expect("temp cwd");
-        let global_agents_path = codex_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
+        let global_agents_path = darwin_code_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
         let project_agents_path = cwd.path().join(DEFAULT_AGENTS_MD_FILENAME);
-        let config = test_config(&codex_home, &cwd).await;
+        let config = test_config(&darwin_code_home, &cwd).await;
 
         let summary = compose_agents_summary(
             &config,

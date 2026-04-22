@@ -7,7 +7,7 @@ async fn submission_preserves_text_elements_and_local_images() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -25,7 +25,7 @@ async fn submission_preserves_text_elements_and_local_images() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -91,7 +91,7 @@ async fn submission_with_remote_and_local_images_keeps_local_placeholder_numberi
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -109,7 +109,7 @@ async fn submission_with_remote_and_local_images_keeps_local_placeholder_numberi
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -186,7 +186,7 @@ async fn enter_with_only_remote_images_submits_user_turn() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -204,7 +204,7 @@ async fn enter_with_only_remote_images_submits_user_turn() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -251,7 +251,7 @@ async fn shift_enter_with_only_remote_images_does_not_submit_user_turn() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -269,7 +269,7 @@ async fn shift_enter_with_only_remote_images_does_not_submit_user_turn() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -291,7 +291,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_modal_is_active() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -309,7 +309,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_modal_is_active() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -331,7 +331,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -349,7 +349,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -374,7 +374,7 @@ async fn submission_prefers_selected_duplicate_skill_path() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -392,7 +392,7 @@ async fn submission_prefers_selected_duplicate_skill_path() {
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -613,9 +613,9 @@ async fn interrupted_turn_restore_keeps_active_mode_for_resubmission() {
     });
     chat.refresh_pending_input_preview();
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "interrupt".into(),
-        msg: EventMsg::TurnAborted(codex_protocol::protocol::TurnAbortedEvent {
+        msg: EventMsg::TurnAborted(darwin_code_protocol::protocol::TurnAbortedEvent {
             turn_id: Some("turn-1".to_string()),
             reason: TurnAbortReason::Interrupted,
             completed_at: None,
@@ -1037,9 +1037,9 @@ async fn interrupt_restores_queued_messages_into_composer() {
     chat.refresh_pending_input_preview();
 
     // Deliver a TurnAborted event with Interrupted reason (as if Esc was pressed).
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(codex_protocol::protocol::TurnAbortedEvent {
+        msg: EventMsg::TurnAborted(darwin_code_protocol::protocol::TurnAbortedEvent {
             turn_id: Some("turn-1".to_string()),
             reason: TurnAbortReason::Interrupted,
             completed_at: None,
@@ -1078,9 +1078,9 @@ async fn interrupt_prepends_queued_messages_before_existing_composer_text() {
         .push_back(UserMessage::from("second queued".to_string()));
     chat.refresh_pending_input_preview();
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(codex_protocol::protocol::TurnAbortedEvent {
+        msg: EventMsg::TurnAborted(darwin_code_protocol::protocol::TurnAbortedEvent {
             turn_id: Some("turn-1".to_string()),
             reason: TurnAbortReason::Interrupted,
             completed_at: None,

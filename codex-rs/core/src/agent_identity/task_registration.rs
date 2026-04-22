@@ -50,7 +50,7 @@ impl AgentIdentityManager {
 
     async fn register_task_for_binding(
         &self,
-        auth: CodexAuth,
+        auth: DarwinCodeAuth,
         binding: AgentIdentityBinding,
     ) -> Result<Option<RegisteredAgentTask>> {
         let stored_identity = self
@@ -163,12 +163,12 @@ fn agent_task_registration_url(chatgpt_base_url: &str, agent_runtime_id: &str) -
 #[cfg(test)]
 mod tests {
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use codex_app_server_protocol::AuthMode as ApiAuthMode;
-    use codex_login::AuthCredentialsStoreMode;
-    use codex_login::AuthDotJson;
-    use codex_login::save_auth;
-    use codex_login::token_data::IdTokenInfo;
-    use codex_login::token_data::TokenData;
+    use darwin_code_app_server_protocol::AuthMode as ApiAuthMode;
+    use darwin_code_login::AuthCredentialsStoreMode;
+    use darwin_code_login::AuthDotJson;
+    use darwin_code_login::save_auth;
+    use darwin_code_login::token_data::IdTokenInfo;
+    use darwin_code_login::token_data::TokenData;
     use pretty_assertions::assert_eq;
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -195,7 +195,7 @@ mod tests {
 
     #[tokio::test]
     async fn register_task_skips_for_api_key_auth() {
-        let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("test-key"));
+        let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("test-key"));
         let manager = AgentIdentityManager::new_for_tests(
             auth_manager,
             /*feature_enabled*/ true,
@@ -389,7 +389,7 @@ mod tests {
 
     fn seed_stored_identity(
         manager: &AgentIdentityManager,
-        auth: &CodexAuth,
+        auth: &DarwinCodeAuth,
         agent_runtime_id: &str,
         account_id: &str,
     ) -> StoredAgentIdentity {
@@ -429,7 +429,7 @@ mod tests {
         Ok(BASE64_STANDARD.encode(ciphertext))
     }
 
-    fn make_chatgpt_auth(account_id: &str, user_id: Option<&str>) -> CodexAuth {
+    fn make_chatgpt_auth(account_id: &str, user_id: Option<&str>) -> DarwinCodeAuth {
         let tempdir = tempfile::tempdir().expect("tempdir");
         let auth_json = AuthDotJson {
             auth_mode: Some(ApiAuthMode::Chatgpt),
@@ -451,7 +451,7 @@ mod tests {
             agent_identity: None,
         };
         save_auth(tempdir.path(), &auth_json, AuthCredentialsStoreMode::File).expect("save auth");
-        CodexAuth::from_auth_storage(tempdir.path(), AuthCredentialsStoreMode::File)
+        DarwinCodeAuth::from_auth_storage(tempdir.path(), AuthCredentialsStoreMode::File)
             .expect("load auth")
             .expect("auth")
     }

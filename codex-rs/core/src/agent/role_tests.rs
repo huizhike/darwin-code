@@ -5,10 +5,10 @@ use crate::config::ConfigBuilder;
 use crate::config_loader::ConfigLayerStackOrdering;
 use crate::plugins::PluginsManager;
 use crate::skills_load_input_from_config;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_utils_absolute_path::test_support::PathExt;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::Verbosity;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::PathBuf;
@@ -21,7 +21,7 @@ async fn test_config_with_cli_overrides(
     let home = TempDir::new().expect("create temp dir");
     let home_path = home.path().to_path_buf();
     let config = ConfigBuilder::default()
-        .codex_home(home_path.clone())
+        .darwin_code_home(home_path.clone())
         .cli_overrides(cli_overrides)
         .fallback_cwd(Some(home_path))
         .build()
@@ -83,7 +83,7 @@ async fn apply_explorer_role_sets_model_and_adds_session_flags_layer() {
         .await
         .expect("explorer role should apply");
 
-    assert_eq!(config.model.as_deref(), Some("gpt-5.1-codex-mini"));
+    assert_eq!(config.model.as_deref(), Some("gpt-5.1-darwin-code-mini"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::Medium));
     assert_eq!(session_flags_layer_count(&config), before_layers + 1);
 }
@@ -181,8 +181,8 @@ async fn apply_role_preserves_unspecified_keys() {
         TomlValue::String("base-model".to_string()),
     )])
     .await;
-    config.codex_linux_sandbox_exe = Some(PathBuf::from("/tmp/codex-linux-sandbox"));
-    config.main_execve_wrapper_exe = Some(PathBuf::from("/tmp/codex-execve-wrapper"));
+    config.darwin_code_linux_sandbox_exe = Some(PathBuf::from("/tmp/darwin-code-linux-sandbox"));
+    config.main_execve_wrapper_exe = Some(PathBuf::from("/tmp/darwin-code-execve-wrapper"));
     let role_path = write_role_config(
         &home,
         "effort-only.toml",
@@ -205,12 +205,12 @@ async fn apply_role_preserves_unspecified_keys() {
     assert_eq!(config.model.as_deref(), Some("base-model"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::High));
     assert_eq!(
-        config.codex_linux_sandbox_exe,
-        Some(PathBuf::from("/tmp/codex-linux-sandbox"))
+        config.darwin_code_linux_sandbox_exe,
+        Some(PathBuf::from("/tmp/darwin-code-linux-sandbox"))
     );
     assert_eq!(
         config.main_execve_wrapper_exe,
-        Some(PathBuf::from("/tmp/codex-execve-wrapper"))
+        Some(PathBuf::from("/tmp/darwin-code-execve-wrapper"))
     );
 }
 
@@ -233,7 +233,7 @@ model_provider = "test-provider"
     .await
     .expect("write config.toml");
     let mut config = ConfigBuilder::default()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             config_profile: Some("test-profile".to_string()),
             ..Default::default()
@@ -282,7 +282,7 @@ model_verbosity = "low"
     .await
     .expect("write config.toml");
     let mut config = ConfigBuilder::default()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             config_profile: Some("base-profile".to_string()),
             ..Default::default()
@@ -353,7 +353,7 @@ model_provider = "role-provider"
     .await
     .expect("write config.toml");
     let mut config = ConfigBuilder::default()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             config_profile: Some("base-profile".to_string()),
             ..Default::default()
@@ -411,7 +411,7 @@ model_provider = "base-provider"
     .await
     .expect("write config.toml");
     let mut config = ConfigBuilder::default()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             config_profile: Some("base-profile".to_string()),
             ..Default::default()
@@ -470,7 +470,7 @@ model_reasoning_effort = "low"
     .await
     .expect("write config.toml");
     let mut config = ConfigBuilder::default()
-        .codex_home(home.path().to_path_buf())
+        .darwin_code_home(home.path().to_path_buf())
         .harness_overrides(ConfigOverrides {
             config_profile: Some("base-profile".to_string()),
             ..Default::default()
@@ -512,7 +512,7 @@ model_reasoning_effort = "high"
 #[tokio::test]
 #[cfg(not(windows))]
 async fn apply_role_does_not_materialize_default_sandbox_workspace_write_fields() {
-    use codex_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SandboxPolicy;
     let (home, mut config) = test_config_with_cli_overrides(vec![
         (
             "sandbox_mode".to_string(),
@@ -661,7 +661,7 @@ enabled = false
     let outcome = skills_manager
         .skills_for_config(
             &skills_input,
-            Some(Arc::clone(&codex_exec_server::LOCAL_FS)),
+            Some(Arc::clone(&darwin_code_exec_server::LOCAL_FS)),
         )
         .await;
     let skill = outcome

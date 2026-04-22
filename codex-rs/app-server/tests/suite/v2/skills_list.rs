@@ -4,14 +4,14 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SkillsChangedNotification;
-use codex_app_server_protocol::SkillsListExtraRootsForCwd;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::SkillsChangedNotification;
+use darwin_code_app_server_protocol::SkillsListExtraRootsForCwd;
+use darwin_code_app_server_protocol::SkillsListParams;
+use darwin_code_app_server_protocol::SkillsListResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_exec_server::DARWIN_CODE_EXEC_SERVER_URL_ENV_VAR;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -29,12 +29,12 @@ fn write_skill(root: &TempDir, name: &str) -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_includes_skills_from_per_cwd_extra_user_roots() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let extra_root = TempDir::new()?;
     write_skill(&extra_root, "extra-skill")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -67,15 +67,15 @@ async fn skills_list_includes_skills_from_per_cwd_extra_user_roots() -> Result<(
 
 #[tokio::test]
 async fn skills_list_skips_cwd_roots_when_environment_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let extra_root = TempDir::new()?;
-    write_skill(&codex_home, "home-skill")?;
+    write_skill(&darwin_code_home, "home-skill")?;
     write_skill(&extra_root, "extra-skill")?;
 
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
-        &[(CODEX_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
+        darwin_code_home.path(),
+        &[(DARWIN_CODE_EXEC_SERVER_URL_ENV_VAR, Some("none"))],
     )
     .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -117,10 +117,10 @@ async fn skills_list_skips_cwd_roots_when_environment_disabled() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_rejects_relative_extra_user_roots() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -151,11 +151,11 @@ async fn skills_list_rejects_relative_extra_user_roots() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_accepts_relative_cwds() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let relative_cwd = std::path::PathBuf::from("relative-cwd");
-    std::fs::create_dir_all(codex_home.path().join(&relative_cwd))?;
+    std::fs::create_dir_all(darwin_code_home.path().join(&relative_cwd))?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -180,13 +180,13 @@ async fn skills_list_accepts_relative_cwds() -> Result<()> {
 
 #[tokio::test]
 async fn skills_list_ignores_per_cwd_extra_roots_for_unknown_cwd() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let requested_cwd = TempDir::new()?;
     let unknown_cwd = TempDir::new()?;
     let extra_root = TempDir::new()?;
     write_skill(&extra_root, "ignored-extra-skill")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -219,12 +219,12 @@ async fn skills_list_ignores_per_cwd_extra_roots_for_unknown_cwd() -> Result<()>
 
 #[tokio::test]
 async fn skills_list_uses_cached_result_until_force_reload() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     let extra_root = TempDir::new()?;
     write_skill(&extra_root, "late-extra-skill")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     // Seed the cwd cache first without extra roots.
@@ -301,10 +301,10 @@ async fn skills_list_uses_cached_result_until_force_reload() -> Result<()> {
 
 #[tokio::test]
 async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    write_skill(&codex_home, "demo")?;
+    let darwin_code_home = TempDir::new()?;
+    write_skill(&darwin_code_home, "demo")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     let thread_start_request_id = mcp
         .send_thread_start_request(ThreadStartParams {
@@ -334,7 +334,7 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
     )
     .await??;
 
-    let skill_path = codex_home
+    let skill_path = darwin_code_home
         .path()
         .join("skills")
         .join("demo")

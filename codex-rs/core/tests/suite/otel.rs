@@ -1,11 +1,11 @@
-use codex_core::config::Constrained;
-use codex_features::Feature;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::config::Constrained;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_custom_tool_call;
@@ -23,8 +23,8 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
 use core_test_support::responses::start_mock_server;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use std::sync::Mutex;
 use tracing::Level;
@@ -73,7 +73,7 @@ fn assert_empty_mcp_tool_fields(line: &str) -> Result<(), String> {
 
 #[test]
 fn extract_log_field_handles_empty_bare_values() {
-    let line = "event.name=\"codex.tool_result\" mcp_server= mcp_server_origin=";
+    let line = "event.name=\"darwin-code.tool_result\" mcp_server= mcp_server_origin=";
     assert_eq!(extract_log_field(line, "mcp_server"), Some(String::new()));
     assert_eq!(
         extract_log_field(line, "mcp_server_origin"),
@@ -83,7 +83,7 @@ fn extract_log_field_handles_empty_bare_values() {
 
 #[test]
 fn extract_log_field_does_not_confuse_similar_keys() {
-    let line = "event.name=\"codex.tool_result\" mcp_server_origin=stdio";
+    let line = "event.name=\"darwin-code.tool_result\" mcp_server_origin=stdio";
     assert_eq!(extract_log_field(line, "mcp_server"), None);
     assert_eq!(
         extract_log_field(line, "mcp_server_origin"),
@@ -98,9 +98,9 @@ async fn responses_api_emits_api_request_event() {
 
     mount_sse_once(&server, sse(vec![ev_completed("done")])).await;
 
-    let TestCodex { codex, .. } = test_codex().build(&server).await.unwrap();
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code().build(&server).await.unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -112,22 +112,22 @@ async fn responses_api_emits_api_request_event() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
-            .find(|line| line.contains("codex.api_request"))
+            .find(|line| line.contains("darwin-code.api_request"))
             .map(|_| Ok(()))
-            .unwrap_or_else(|| Err("expected codex.api_request event".to_string()))
+            .unwrap_or_else(|| Err("expected darwin-code.api_request event".to_string()))
     });
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
-            .find(|line| line.contains("codex.conversation_starts"))
+            .find(|line| line.contains("darwin-code.conversation_starts"))
             .map(|_| Ok(()))
-            .unwrap_or_else(|| Err("expected codex.conversation_starts event".to_string()))
+            .unwrap_or_else(|| Err("expected darwin-code.conversation_starts event".to_string()))
     });
 }
 
@@ -142,9 +142,9 @@ async fn process_sse_emits_tracing_for_output_item() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex().build(&server).await.unwrap();
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code().build(&server).await.unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -156,13 +156,13 @@ async fn process_sse_emits_tracing_for_output_item() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("event.kind=response.output_item.done")
             })
             .map(|_| Ok(()))
@@ -177,7 +177,7 @@ async fn process_sse_emits_failed_event_on_parse_error() {
 
     mount_sse_once(&server, "data: not-json\n\n".to_string()).await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -188,7 +188,7 @@ async fn process_sse_emits_failed_event_on_parse_error() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -200,18 +200,18 @@ async fn process_sse_emits_failed_event_on_parse_error() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("error.message")
                     && line.contains("expected ident at line 1 column 2")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -222,7 +222,7 @@ async fn process_sse_records_failed_event_when_stream_closes_without_completed()
 
     mount_sse_once(&server, sse(vec![ev_assistant_message("id", "hi")])).await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -233,7 +233,7 @@ async fn process_sse_records_failed_event_when_stream_closes_without_completed()
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -245,18 +245,18 @@ async fn process_sse_records_failed_event_when_stream_closes_without_completed()
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("error.message")
                     && line.contains("stream closed before response.completed")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -287,7 +287,7 @@ async fn process_sse_failed_event_records_response_error_message() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -298,7 +298,7 @@ async fn process_sse_failed_event_records_response_error_message() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -310,19 +310,19 @@ async fn process_sse_failed_event_records_response_error_message() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("event.kind=response.failed")
                     && line.contains("error.message")
                     && line.contains("boom")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -350,7 +350,7 @@ async fn process_sse_failed_event_logs_parse_error() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -361,7 +361,7 @@ async fn process_sse_failed_event_logs_parse_error() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -373,16 +373,16 @@ async fn process_sse_failed_event_logs_parse_error() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event") && line.contains("event.kind=response.failed")
+                line.contains("darwin-code.sse_event") && line.contains("event.kind=response.failed")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -400,7 +400,7 @@ async fn process_sse_failed_event_logs_missing_error() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -411,7 +411,7 @@ async fn process_sse_failed_event_logs_missing_error() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -423,16 +423,16 @@ async fn process_sse_failed_event_logs_missing_error() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event") && line.contains("event.kind=response.failed")
+                line.contains("darwin-code.sse_event") && line.contains("event.kind=response.failed")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -459,7 +459,7 @@ async fn process_sse_failed_event_logs_response_completed_parse_error() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -470,7 +470,7 @@ async fn process_sse_failed_event_logs_response_completed_parse_error() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -482,19 +482,19 @@ async fn process_sse_failed_event_logs_response_completed_parse_error() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("event.kind=response.completed")
                     && line.contains("error.message")
                     && line.contains("failed to parse ResponseCompleted")
             })
             .map(|_| Ok(()))
-            .unwrap_or(Err("missing codex.sse_event".to_string()))
+            .unwrap_or(Err("missing darwin-code.sse_event".to_string()))
     });
 }
 
@@ -521,9 +521,9 @@ async fn process_sse_emits_completed_telemetry() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex().build(&server).await.unwrap();
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code().build(&server).await.unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -535,13 +535,13 @@ async fn process_sse_emits_completed_telemetry() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         lines
             .iter()
             .find(|line| {
-                line.contains("codex.sse_event")
+                line.contains("darwin-code.sse_event")
                     && line.contains("event.kind=response.completed")
                     && line.contains("input_token_count=3")
                     && line.contains("output_token_count=5")
@@ -585,7 +585,7 @@ async fn handle_responses_span_records_response_kind_and_tool_name() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config
                 .features
@@ -596,7 +596,7 @@ async fn handle_responses_span_records_response_kind_and_tool_name() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -608,7 +608,7 @@ async fn handle_responses_span_records_response_kind_and_tool_name() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let logs = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
 
@@ -670,7 +670,7 @@ async fn record_responses_sets_span_fields_for_response_events() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config
                 .features
@@ -681,7 +681,7 @@ async fn record_responses_sets_span_fields_for_response_events() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -693,7 +693,7 @@ async fn record_responses_sets_span_fields_for_response_events() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let logs = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
 
@@ -755,7 +755,7 @@ async fn handle_response_item_records_tool_result_for_custom_tool_call() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -766,7 +766,7 @@ async fn handle_response_item_records_tool_result_for_custom_tool_call() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -778,15 +778,15 @@ async fn handle_response_item_records_tool_result_for_custom_tool_call() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(|lines: &[&str]| {
         let line = lines
             .iter()
             .find(|line| {
-                line.contains("codex.tool_result") && line.contains("call_id=custom-tool-call")
+                line.contains("darwin-code.tool_result") && line.contains("call_id=custom-tool-call")
             })
-            .ok_or_else(|| "missing codex.tool_result event".to_string())?;
+            .ok_or_else(|| "missing darwin-code.tool_result event".to_string())?;
 
         if !line.contains("tool_name=unsupported_tool") {
             return Err("missing tool_name field".to_string());
@@ -829,7 +829,7 @@ async fn handle_response_item_records_tool_result_for_function_call() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -840,7 +840,7 @@ async fn handle_response_item_records_tool_result_for_function_call() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -852,15 +852,15 @@ async fn handle_response_item_records_tool_result_for_function_call() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(|lines: &[&str]| {
         let line = lines
             .iter()
             .find(|line| {
-                line.contains("codex.tool_result") && line.contains("call_id=function-call")
+                line.contains("darwin-code.tool_result") && line.contains("call_id=function-call")
             })
-            .ok_or_else(|| "missing codex.tool_result event".to_string())?;
+            .ok_or_else(|| "missing darwin-code.tool_result event".to_string())?;
 
         if !line.contains("tool_name=nonexistent") {
             return Err("missing tool_name field".to_string());
@@ -913,7 +913,7 @@ async fn handle_response_item_records_tool_result_for_local_shell_missing_ids() 
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -924,7 +924,7 @@ async fn handle_response_item_records_tool_result_for_local_shell_missing_ids() 
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -936,17 +936,17 @@ async fn handle_response_item_records_tool_result_for_local_shell_missing_ids() 
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(|lines: &[&str]| {
         let line = lines
             .iter()
             .find(|line| {
-                line.contains("codex.tool_result")
+                line.contains("darwin-code.tool_result")
                     && line.contains(&"tool_name=local_shell".to_string())
                     && line.contains("output=LocalShellCall without call_id or id")
             })
-            .ok_or_else(|| "missing codex.tool_result event".to_string())?;
+            .ok_or_else(|| "missing darwin-code.tool_result event".to_string())?;
 
         if !line.contains("success=false") {
             return Err("missing success field".to_string());
@@ -981,7 +981,7 @@ async fn handle_response_item_records_tool_result_for_local_shell_call() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |config| {
             config
                 .features
@@ -993,7 +993,7 @@ async fn handle_response_item_records_tool_result_for_local_shell_call() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1005,13 +1005,13 @@ async fn handle_response_item_records_tool_result_for_local_shell_call() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(|lines: &[&str]| {
         let line = lines
             .iter()
-            .find(|line| line.contains("codex.tool_result") && line.contains("call_id=shell-call"))
-            .ok_or_else(|| "missing codex.tool_result event".to_string())?;
+            .find(|line| line.contains("darwin-code.tool_result") && line.contains("call_id=shell-call"))
+            .ok_or_else(|| "missing darwin-code.tool_result event".to_string())?;
 
         if !line.contains("tool_name=local_shell") {
             return Err("missing tool_name field".to_string());
@@ -1047,9 +1047,9 @@ fn tool_decision_assertion<'a>(
         let line = lines
             .iter()
             .find(|line| {
-                line.contains("codex.tool_decision") && line.contains(&format!("call_id={call_id}"))
+                line.contains("darwin-code.tool_decision") && line.contains(&format!("call_id={call_id}"))
             })
-            .ok_or_else(|| format!("missing codex.tool_decision event for {call_id}"))?;
+            .ok_or_else(|| format!("missing darwin-code.tool_decision event for {call_id}"))?;
 
         let lower = line.to_lowercase();
         if !lower.contains("tool_name=local_shell") {
@@ -1092,7 +1092,7 @@ async fn handle_container_exec_autoapprove_from_config_records_tool_decision() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
             config.permissions.sandbox_policy =
@@ -1102,7 +1102,7 @@ async fn handle_container_exec_autoapprove_from_config_records_tool_decision() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1114,7 +1114,7 @@ async fn handle_container_exec_autoapprove_from_config_records_tool_decision() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     logs_assert(tool_decision_assertion(
         "auto_config_call",
@@ -1145,7 +1145,7 @@ async fn handle_container_exec_user_approved_records_tool_decision() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1154,7 +1154,7 @@ async fn handle_container_exec_user_approved_records_tool_decision() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "approved".into(),
@@ -1167,12 +1167,12 @@ async fn handle_container_exec_user_approved_records_tool_decision() {
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1181,7 +1181,7 @@ async fn handle_container_exec_user_approved_records_tool_decision() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "user_approved_call",
@@ -1212,7 +1212,7 @@ async fn handle_container_exec_user_approved_for_session_records_tool_decision()
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1221,7 +1221,7 @@ async fn handle_container_exec_user_approved_for_session_records_tool_decision()
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "persist".into(),
@@ -1234,12 +1234,12 @@ async fn handle_container_exec_user_approved_for_session_records_tool_decision()
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1248,7 +1248,7 @@ async fn handle_container_exec_user_approved_for_session_records_tool_decision()
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "user_approved_session_call",
@@ -1279,7 +1279,7 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1288,7 +1288,7 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "retry".into(),
@@ -1301,12 +1301,12 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1315,7 +1315,7 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "sandbox_retry_call",
@@ -1346,7 +1346,7 @@ async fn handle_container_exec_user_denies_records_tool_decision() {
         ]),
     )
     .await;
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1355,7 +1355,7 @@ async fn handle_container_exec_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "deny".into(),
@@ -1368,12 +1368,12 @@ async fn handle_container_exec_user_denies_records_tool_decision() {
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1382,7 +1382,7 @@ async fn handle_container_exec_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "user_denied_call",
@@ -1413,7 +1413,7 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1422,7 +1422,7 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "persist".into(),
@@ -1435,12 +1435,12 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1449,7 +1449,7 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "sandbox_session_call",
@@ -1481,7 +1481,7 @@ async fn handle_sandbox_error_user_denies_records_tool_decision() {
     )
     .await;
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(|config| {
             config.permissions.approval_policy =
                 Constrained::allow_any(AskForApproval::UnlessTrusted);
@@ -1490,7 +1490,7 @@ async fn handle_sandbox_error_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "deny".into(),
@@ -1503,12 +1503,12 @@ async fn handle_sandbox_error_user_denies_records_tool_decision() {
         .unwrap();
 
     let approval_event =
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
 
-    codex
+    darwin-code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1517,7 +1517,7 @@ async fn handle_sandbox_error_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TokenCount(_))).await;
 
     logs_assert(tool_decision_assertion(
         "sandbox_deny_call",

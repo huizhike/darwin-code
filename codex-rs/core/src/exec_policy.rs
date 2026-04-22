@@ -7,24 +7,24 @@ use arc_swap::ArcSwap;
 
 use crate::config_loader::ConfigLayerStack;
 use crate::config_loader::ConfigLayerStackOrdering;
-use codex_execpolicy::AmendError;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Error as ExecPolicyRuleError;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::MatchOptions;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
-use codex_execpolicy::PolicyParser;
-use codex_execpolicy::RuleMatch;
-use codex_execpolicy::blocking_append_allow_prefix_rule;
-use codex_execpolicy::blocking_append_network_rule;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_shell_command::is_dangerous_command::command_might_be_dangerous;
-use codex_shell_command::is_safe_command::is_known_safe_command;
+use darwin_code_execpolicy::AmendError;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::Error as ExecPolicyRuleError;
+use darwin_code_execpolicy::Evaluation;
+use darwin_code_execpolicy::MatchOptions;
+use darwin_code_execpolicy::NetworkRuleProtocol;
+use darwin_code_execpolicy::Policy;
+use darwin_code_execpolicy::PolicyParser;
+use darwin_code_execpolicy::RuleMatch;
+use darwin_code_execpolicy::blocking_append_allow_prefix_rule;
+use darwin_code_execpolicy::blocking_append_network_rule;
+use darwin_code_protocol::approvals::ExecPolicyAmendment;
+use darwin_code_protocol::permissions::FileSystemSandboxKind;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_shell_command::is_dangerous_command::command_might_be_dangerous;
+use darwin_code_shell_command::is_safe_command::is_known_safe_command;
 use thiserror::Error;
 use tokio::fs;
 use tokio::task::spawn_blocking;
@@ -33,9 +33,9 @@ use tracing::instrument;
 use crate::config::Config;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::sandboxing::ExecApprovalRequirement;
-use codex_shell_command::bash::parse_shell_lc_plain_commands;
-use codex_shell_command::bash::parse_shell_lc_single_command_prefix;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_shell_command::bash::parse_shell_lc_plain_commands;
+use darwin_code_shell_command::bash::parse_shell_lc_single_command_prefix;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use shlex::try_join as shlex_try_join;
 
 const PROMPT_CONFLICT_REASON: &str =
@@ -105,7 +105,7 @@ pub(crate) fn child_uses_parent_exec_policy(parent_config: &Config, child_config
                 /*include_disabled*/ false,
             )
             .into_iter()
-            .filter_map(codex_config::ConfigLayerEntry::config_folder)
+            .filter_map(darwin_code_config::ConfigLayerEntry::config_folder)
             .collect()
     }
 
@@ -169,7 +169,7 @@ pub enum ExecPolicyError {
     #[error("failed to parse rules file {path}: {source}")]
     ParsePolicy {
         path: String,
-        source: codex_execpolicy::Error,
+        source: darwin_code_execpolicy::Error,
     },
 }
 
@@ -321,11 +321,11 @@ impl ExecPolicyManager {
 
     pub(crate) async fn append_amendment_and_update(
         &self,
-        codex_home: &Path,
+        darwin_code_home: &Path,
         amendment: &ExecPolicyAmendment,
     ) -> Result<(), ExecPolicyUpdateError> {
         let _update_guard = self.update_lock.lock().await;
-        let policy_path = default_policy_path(codex_home);
+        let policy_path = default_policy_path(darwin_code_home);
         spawn_blocking({
             let policy_path = policy_path.clone();
             let prefix = amendment.command.clone();
@@ -363,14 +363,14 @@ impl ExecPolicyManager {
 
     pub(crate) async fn append_network_rule_and_update(
         &self,
-        codex_home: &Path,
+        darwin_code_home: &Path,
         host: &str,
         protocol: NetworkRuleProtocol,
         decision: Decision,
         justification: Option<String>,
     ) -> Result<(), ExecPolicyUpdateError> {
         let _update_guard = self.update_lock.lock().await;
-        let policy_path = default_policy_path(codex_home);
+        let policy_path = default_policy_path(darwin_code_home);
         let host = host.to_string();
         spawn_blocking({
             let policy_path = policy_path.clone();
@@ -413,7 +413,7 @@ pub async fn check_execpolicy_for_warnings(
     Ok(warning)
 }
 
-fn exec_policy_message_for_display(source: &codex_execpolicy::Error) -> String {
+fn exec_policy_message_for_display(source: &darwin_code_execpolicy::Error) -> String {
     let message = source.to_string();
     if let Some(line) = message
         .lines()
@@ -638,8 +638,8 @@ pub fn render_decision_for_unmatched_command(
     }
 }
 
-fn default_policy_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
+fn default_policy_path(darwin_code_home: &Path) -> PathBuf {
+    darwin_code_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
 }
 
 fn commands_for_exec_policy(command: &[String]) -> (Vec<Vec<String>>, bool) {
@@ -687,7 +687,7 @@ fn try_derive_execpolicy_amendment_for_prompt_rules(
         })
 }
 
-/// - Note: we only use this amendment when the command fails to run in sandbox and codex prompts the user to run outside the sandbox
+/// - Note: we only use this amendment when the command fails to run in sandbox and darwin-code prompts the user to run outside the sandbox
 /// - The purpose of this amendment is to bypass sandbox for similar commands in the future
 /// - If any execpolicy rule matches, return None, because we would already be running command outside the sandbox
 fn try_derive_execpolicy_amendment_for_allow_rules(

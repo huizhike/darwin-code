@@ -2,14 +2,14 @@
 
 use std::os::unix::fs::PermissionsExt;
 
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::fs_wait;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -49,13 +49,13 @@ mv "${tmp_path}" "${payload_path}""#,
     let notify_file = notify_dir.path().join("notify.txt");
     let notify_script_str = notify_script.to_str().unwrap().to_string();
 
-    let TestCodex { codex, .. } = test_codex()
+    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
         .with_config(move |cfg| cfg.notify = Some(vec![notify_script_str]))
         .build(&server)
         .await?;
 
     // 1) Normal user input – should hit server once.
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello world".into(),
@@ -65,7 +65,7 @@ mv "${tmp_path}" "${payload_path}""#,
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // We fork the notify script, so we need to wait for it to write to the file.
     fs_wait::wait_for_path_exists(&notify_file, Duration::from_secs(5)).await?;

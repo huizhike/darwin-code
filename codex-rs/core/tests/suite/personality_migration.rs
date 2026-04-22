@@ -1,18 +1,18 @@
-use codex_config::config_toml::ConfigToml;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_core::SESSIONS_SUBDIR;
-use codex_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
-use codex_core::personality_migration::PersonalityMigrationStatus;
-use codex_core::personality_migration::maybe_migrate_personality;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::Personality;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::UserMessageEvent;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_core::ARCHIVED_SESSIONS_SUBDIR;
+use darwin_code_core::SESSIONS_SUBDIR;
+use darwin_code_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
+use darwin_code_core::personality_migration::PersonalityMigrationStatus;
+use darwin_code_core::personality_migration::maybe_migrate_personality;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::UserMessageEvent;
 use pretty_assertions::assert_eq;
 use std::io;
 use std::path::Path;
@@ -21,14 +21,14 @@ use tokio::io::AsyncWriteExt;
 
 const TEST_TIMESTAMP: &str = "2025-01-01T00-00-00";
 
-async fn read_config_toml(codex_home: &Path) -> io::Result<ConfigToml> {
-    let contents = tokio::fs::read_to_string(codex_home.join("config.toml")).await?;
+async fn read_config_toml(darwin_code_home: &Path) -> io::Result<ConfigToml> {
+    let contents = tokio::fs::read_to_string(darwin_code_home.join("config.toml")).await?;
     toml::from_str(&contents).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
 }
 
-async fn write_session_with_user_event(codex_home: &Path) -> io::Result<()> {
+async fn write_session_with_user_event(darwin_code_home: &Path) -> io::Result<()> {
     let thread_id = ThreadId::new();
-    let dir = codex_home
+    let dir = darwin_code_home
         .join(SESSIONS_SUBDIR)
         .join("2025")
         .join("01")
@@ -36,15 +36,15 @@ async fn write_session_with_user_event(codex_home: &Path) -> io::Result<()> {
     write_rollout_with_user_event(&dir, thread_id).await
 }
 
-async fn write_archived_session_with_user_event(codex_home: &Path) -> io::Result<()> {
+async fn write_archived_session_with_user_event(darwin_code_home: &Path) -> io::Result<()> {
     let thread_id = ThreadId::new();
-    let dir = codex_home.join(ARCHIVED_SESSIONS_SUBDIR);
+    let dir = darwin_code_home.join(ARCHIVED_SESSIONS_SUBDIR);
     write_rollout_with_user_event(&dir, thread_id).await
 }
 
-async fn write_session_with_meta_only(codex_home: &Path) -> io::Result<()> {
+async fn write_session_with_meta_only(darwin_code_home: &Path) -> io::Result<()> {
     let thread_id = ThreadId::new();
-    let dir = codex_home
+    let dir = darwin_code_home
         .join(SESSIONS_SUBDIR)
         .join("2025")
         .join("01")
@@ -191,14 +191,14 @@ async fn no_marker_sessions_sets_personality() -> io::Result<()> {
 async fn no_marker_sessions_preserves_existing_config_fields() -> io::Result<()> {
     let temp = TempDir::new()?;
     write_session_with_user_event(temp.path()).await?;
-    tokio::fs::write(temp.path().join("config.toml"), "model = \"gpt-5-codex\"\n").await?;
+    tokio::fs::write(temp.path().join("config.toml"), "model = \"gpt-5-darwin-code\"\n").await?;
     let config_toml = read_config_toml(temp.path()).await?;
 
     let status = maybe_migrate_personality(temp.path(), &config_toml).await?;
 
     assert_eq!(status, PersonalityMigrationStatus::Applied);
     let persisted = read_config_toml(temp.path()).await?;
-    assert_eq!(persisted.model, Some("gpt-5-codex".to_string()));
+    assert_eq!(persisted.model, Some("gpt-5-darwin-code".to_string()));
     assert_eq!(persisted.personality, Some(Personality::Pragmatic));
     Ok(())
 }

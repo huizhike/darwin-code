@@ -1,20 +1,20 @@
-//! Entry-point for the `codex-exec` binary.
+//! Entry-point for the `darwin-code-exec` binary.
 //!
-//! When this CLI is invoked normally, it parses the standard `codex-exec` CLI
-//! options and launches the non-interactive Codex agent. However, if it is
-//! invoked with arg0 as `codex-linux-sandbox`, we instead treat the invocation
-//! as a request to run the logic for the standalone `codex-linux-sandbox`
+//! When this CLI is invoked normally, it parses the standard `darwin-code-exec` CLI
+//! options and launches the non-interactive Darwin-Code agent. However, if it is
+//! invoked with arg0 as `darwin-code-linux-sandbox`, we instead treat the invocation
+//! as a request to run the logic for the standalone `darwin-code-linux-sandbox`
 //! executable (i.e., parse any -s args and then run a *sandboxed* command under
 //! Landlock + seccomp.
 //!
 //! This allows us to ship a completely separate set of functionality as part
-//! of the `codex-exec` binary.
+//! of the `darwin-code-exec` binary.
 use clap::Parser;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_exec::Cli;
-use codex_exec::run_main;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_arg0::arg0_dispatch_or_else;
+use darwin_code_exec::Cli;
+use darwin_code_exec::run_main;
+use darwin_code_utils_cli::CliConfigOverrides;
 
 #[derive(Parser, Debug)]
 struct TopCli {

@@ -3,7 +3,7 @@ source: tui/src/chatwidget/tests/popups_and_settings.rs
 expression: popup
 ---
   Memories
-  Choose how Codex uses and creates memories. Changes are saved to config.toml
+  Choose how Darwin-Code uses and creates memories. Changes are saved to config.toml
 
 › [x] Use memories       Use memories in the following threads. Applied at
                          next thread.
@@ -12,6 +12,6 @@ expression: popup
   Reset all memories     Clear local memory files and summaries. Existing
                          threads stay intact.
 
-  Learn more: https://developers.openai.com/codex/memories
+  Learn more: https://developers.openai.com/darwin-code/memories
 
   Press space to toggle; enter to save or select

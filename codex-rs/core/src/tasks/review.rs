@@ -1,31 +1,31 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageContentDeltaEvent;
-use codex_protocol::protocol::AgentMessageDeltaEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExitedReviewModeEvent;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ReviewOutputEvent;
-use codex_protocol::protocol::SubAgentSource;
-use codex_utils_template::Template;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AgentMessageContentDeltaEvent;
+use darwin_code_protocol::protocol::AgentMessageDeltaEvent;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExitedReviewModeEvent;
+use darwin_code_protocol::protocol::ItemCompletedEvent;
+use darwin_code_protocol::protocol::ReviewOutputEvent;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_utils_template::Template;
 use tokio_util::sync::CancellationToken;
 
-use crate::codex_delegate::run_codex_thread_one_shot;
+use crate::darwin_code_delegate::run_darwin_code_thread_one_shot;
 use crate::config::Constrained;
 use crate::review_format::format_review_findings_block;
 use crate::review_format::render_review_output_text;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::state::TaskKind;
-use codex_features::Feature;
-use codex_protocol::user_input::UserInput;
+use darwin_code_features::Feature;
+use darwin_code_protocol::user_input::UserInput;
 use std::sync::LazyLock;
 
 use super::SessionTask;
@@ -64,12 +64,12 @@ impl SessionTask for ReviewTask {
         cancellation_token: CancellationToken,
     ) -> Option<String> {
         session.session.services.session_telemetry.counter(
-            "codex.task.review",
+            "darwin-code.task.review",
             /*inc*/ 1,
             &[],
         );
 
-        // Start sub-codex conversation and get the receiver for events.
+        // Start sub-darwin-code conversation and get the receiver for events.
         let output = match start_review_conversation(
             session.clone(),
             ctx.clone(),
@@ -120,7 +120,7 @@ async fn start_review_conversation(
         .clone()
         .unwrap_or_else(|| ctx.model_info.slug.clone());
     sub_agent_config.model = Some(model);
-    (run_codex_thread_one_shot(
+    (run_darwin_code_thread_one_shot(
         sub_agent_config,
         session.auth_manager(),
         session.models_manager(),

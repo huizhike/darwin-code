@@ -3,6 +3,6 @@ source: tui/src/history_cell.rs
 expression: rendered
 ---
 • Ran set -o pipefail
-  │ cargo test -p codex-tui
+  │ cargo test -p darwin-code-tui
   │ --quiet
   └ (no output)

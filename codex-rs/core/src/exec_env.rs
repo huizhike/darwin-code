@@ -1,10 +1,10 @@
 #[cfg(test)]
-use codex_config::types::EnvironmentVariablePattern;
-use codex_config::types::ShellEnvironmentPolicy;
-use codex_protocol::ThreadId;
+use darwin_code_config::types::EnvironmentVariablePattern;
+use darwin_code_config::types::ShellEnvironmentPolicy;
+use darwin_code_protocol::ThreadId;
 use std::collections::HashMap;
 
-pub use codex_config::shell_environment::CODEX_THREAD_ID_ENV_VAR;
+pub use darwin_code_config::shell_environment::DARWIN_CODE_THREAD_ID_ENV_VAR;
 
 /// Construct an environment map based on the rules in the specified policy. The
 /// resulting map can be passed directly to `Command::envs()` after calling
@@ -14,14 +14,14 @@ pub use codex_config::shell_environment::CODEX_THREAD_ID_ENV_VAR;
 /// The derivation follows the algorithm documented in the struct-level comment
 /// for [`ShellEnvironmentPolicy`].
 ///
-/// `CODEX_THREAD_ID` is injected when a thread id is provided, even when
+/// `DARWIN_CODE_THREAD_ID` is injected when a thread id is provided, even when
 /// `include_only` is set.
 pub fn create_env(
     policy: &ShellEnvironmentPolicy,
     thread_id: Option<ThreadId>,
 ) -> HashMap<String, String> {
     let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    codex_config::shell_environment::create_env(policy, thread_id.as_deref())
+    darwin_code_config::shell_environment::create_env(policy, thread_id.as_deref())
 }
 
 #[cfg(all(test, target_os = "windows"))]
@@ -34,7 +34,7 @@ where
     I: IntoIterator<Item = (String, String)>,
 {
     let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    codex_config::shell_environment::create_env_from_vars(vars, policy, thread_id.as_deref())
+    darwin_code_config::shell_environment::create_env_from_vars(vars, policy, thread_id.as_deref())
 }
 
 #[cfg(test)]
@@ -47,7 +47,7 @@ where
     I: IntoIterator<Item = (String, String)>,
 {
     let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    codex_config::shell_environment::populate_env(vars, policy, thread_id.as_deref())
+    darwin_code_config::shell_environment::populate_env(vars, policy, thread_id.as_deref())
 }
 
 #[cfg(test)]

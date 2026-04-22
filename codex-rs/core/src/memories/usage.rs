@@ -1,14 +1,14 @@
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::handlers::unified_exec::ExecCommandArgs;
-use codex_protocol::models::ShellCommandToolCallParams;
-use codex_protocol::models::ShellToolCallParams;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_shell_command::is_safe_command::is_known_safe_command;
-use codex_shell_command::parse_command::parse_command;
+use darwin_code_protocol::models::ShellCommandToolCallParams;
+use darwin_code_protocol::models::ShellToolCallParams;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_shell_command::is_safe_command::is_known_safe_command;
+use darwin_code_shell_command::parse_command::parse_command;
 use std::path::PathBuf;
 
-const MEMORIES_USAGE_METRIC: &str = "codex.memories.usage";
+const MEMORIES_USAGE_METRIC: &str = "darwin-code.memories.usage";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum MemoriesUsageKind {

@@ -17,11 +17,11 @@ use super::protocol::ServerEnvelope;
 use super::protocol::StreamId;
 use axum::http::HeaderValue;
 use base64::Engine;
-use codex_core::util::backoff;
-use codex_login::AuthManager;
-use codex_login::UnauthorizedRecovery;
-use codex_state::StateRuntime;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use darwin_code_core::util::backoff;
+use darwin_code_login::AuthManager;
+use darwin_code_login::UnauthorizedRecovery;
+use darwin_code_state::StateRuntime;
+use darwin_code_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use futures::stream::SplitSink;
@@ -49,7 +49,7 @@ use tracing::warn;
 
 pub(super) const REMOTE_CONTROL_PROTOCOL_VERSION: &str = "2";
 pub(super) const REMOTE_CONTROL_ACCOUNT_ID_HEADER: &str = "chatgpt-account-id";
-const REMOTE_CONTROL_SUBSCRIBE_CURSOR_HEADER: &str = "x-codex-subscribe-cursor";
+const REMOTE_CONTROL_SUBSCRIBE_CURSOR_HEADER: &str = "x-darwin-code-subscribe-cursor";
 const REMOTE_CONTROL_WEBSOCKET_PING_INTERVAL: std::time::Duration =
     std::time::Duration::from_secs(10);
 const REMOTE_CONTROL_WEBSOCKET_PONG_TIMEOUT: std::time::Duration =
@@ -657,15 +657,15 @@ fn build_remote_control_websocket_request(
         )
     })?;
     let headers = request.headers_mut();
-    set_remote_control_header(headers, "x-codex-server-id", &enrollment.server_id)?;
+    set_remote_control_header(headers, "x-darwin-code-server-id", &enrollment.server_id)?;
     set_remote_control_header(
         headers,
-        "x-codex-name",
+        "x-darwin-code-name",
         &base64::engine::general_purpose::STANDARD.encode(&enrollment.server_name),
     )?;
     set_remote_control_header(
         headers,
-        "x-codex-protocol-version",
+        "x-darwin-code-protocol-version",
         REMOTE_CONTROL_PROTOCOL_VERSION,
     )?;
     set_remote_control_header(
@@ -916,17 +916,17 @@ mod tests {
     use crate::transport::remote_control::protocol::StreamId;
     use crate::transport::remote_control::protocol::normalize_remote_control_url;
     use chrono::Utc;
-    use codex_app_server_protocol::AuthMode;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_core::test_support::auth_manager_from_auth;
-    use codex_login::AuthDotJson;
-    use codex_login::CodexAuth;
-    use codex_login::save_auth;
-    use codex_login::token_data::TokenData;
-    use codex_login::token_data::parse_chatgpt_jwt_claims;
-    use codex_state::StateRuntime;
+    use darwin_code_app_server_protocol::AuthMode;
+    use darwin_code_app_server_protocol::ConfigWarningNotification;
+    use darwin_code_app_server_protocol::ServerNotification;
+    use darwin_code_config::types::AuthCredentialsStoreMode;
+    use darwin_code_core::test_support::auth_manager_from_auth;
+    use darwin_code_login::AuthDotJson;
+    use darwin_code_login::DarwinCodeAuth;
+    use darwin_code_login::save_auth;
+    use darwin_code_login::token_data::TokenData;
+    use darwin_code_login::token_data::parse_chatgpt_jwt_claims;
+    use darwin_code_state::StateRuntime;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
@@ -948,14 +948,14 @@ mod tests {
     #[cfg(not(windows))]
     const TEST_HTTP_ACCEPT_TIMEOUT: Duration = Duration::from_secs(5);
 
-    async fn remote_control_state_runtime(codex_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string())
+    async fn remote_control_state_runtime(darwin_code_home: &TempDir) -> Arc<StateRuntime> {
+        StateRuntime::init(darwin_code_home.path().to_path_buf(), "test-provider".to_string())
             .await
             .expect("state runtime should initialize")
     }
 
     fn remote_control_auth_manager() -> Arc<AuthManager> {
-        auth_manager_from_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+        auth_manager_from_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
     }
 
     fn remote_control_url_for_listener(listener: &TcpListener) -> String {
@@ -1029,8 +1029,8 @@ mod tests {
             )
             .await;
         });
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let darwin_code_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&darwin_code_home).await;
         let auth_manager = remote_control_auth_manager();
         let mut auth_recovery = auth_manager.unauthorized_recovery();
         let mut enrollment = Some(RemoteControlEnrollment {
@@ -1067,17 +1067,17 @@ mod tests {
         let remote_control_url = remote_control_url_for_listener(&listener);
         let remote_control_target =
             normalize_remote_control_url(&remote_control_url).expect("target should parse");
-        let codex_home = TempDir::new().expect("temp dir should create");
+        let darwin_code_home = TempDir::new().expect("temp dir should create");
         save_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             &remote_control_auth_dot_json("stale-token"),
             AuthCredentialsStoreMode::File,
         )
         .expect("stale auth should save");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let state_db = remote_control_state_runtime(&darwin_code_home).await;
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            darwin_code_home.path().to_path_buf(),
+            /*enable_darwin_code_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
         );
         let mut auth_recovery = auth_manager.unauthorized_recovery();
@@ -1088,7 +1088,7 @@ mod tests {
             server_name: "test-server".to_string(),
         });
         save_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             &remote_control_auth_dot_json("fresh-token"),
             AuthCredentialsStoreMode::File,
         )
@@ -1148,23 +1148,23 @@ mod tests {
             );
             respond_with_status_and_headers(stream, "401 Unauthorized", &[], "unauthorized").await;
         });
-        let codex_home = TempDir::new().expect("temp dir should create");
+        let darwin_code_home = TempDir::new().expect("temp dir should create");
         save_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             &remote_control_auth_dot_json("stale-token"),
             AuthCredentialsStoreMode::File,
         )
         .expect("stale auth should save");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let state_db = remote_control_state_runtime(&darwin_code_home).await;
         let auth_manager = AuthManager::shared(
-            codex_home.path().to_path_buf(),
-            /*enable_codex_api_key_env*/ false,
+            darwin_code_home.path().to_path_buf(),
+            /*enable_darwin_code_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
         );
         let mut auth_recovery = auth_manager.unauthorized_recovery();
         let mut enrollment = None;
         save_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             &remote_control_auth_dot_json("fresh-token"),
             AuthCredentialsStoreMode::File,
         )

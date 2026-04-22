@@ -1,7 +1,7 @@
-load("//:defs.bzl", "codex_rust_crate")
+load("//:defs.bzl", "darwin_code_rust_crate")
 
-codex_rust_crate(
+darwin_code_rust_crate(
     name = "exec",
-    crate_name = "codex_exec",
+    crate_name = "darwin_code_exec",
     test_tags = ["no-sandbox"],
 )

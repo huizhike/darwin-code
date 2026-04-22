@@ -1,28 +1,28 @@
 use super::*;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_git_utils::GhostCommit;
-use codex_protocol::AgentPath;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use darwin_code_git_utils::GhostCommit;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::models::LocalShellAction;
+use darwin_code_protocol::models::LocalShellExecAction;
+use darwin_code_protocol::models::LocalShellStatus;
+use darwin_code_protocol::models::ReasoningItemContent;
+use darwin_code_protocol::models::ReasoningItemReasoningSummary;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::truncate_text;
 use image::ImageBuffer;
 use image::ImageFormat;
 use image::Rgba;
@@ -143,7 +143,7 @@ fn reference_context_item() -> TurnContextItem {
         user_instructions: None,
         developer_instructions: None,
         final_output_json_schema: None,
-        truncation_policy: Some(codex_protocol::protocol::TruncationPolicy::Tokens(10_000)),
+        truncation_policy: Some(darwin_code_protocol::protocol::TruncationPolicy::Tokens(10_000)),
     }
 }
 

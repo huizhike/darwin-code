@@ -22,313 +22,313 @@ use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_app_server_protocol::Account;
-use codex_app_server_protocol::AccountLoginCompletedNotification;
-use codex_app_server_protocol::AccountUpdatedNotification;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppsListParams;
-use codex_app_server_protocol::AppsListResponse;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::AuthMode as CoreAuthMode;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::CancelLoginAccountResponse;
-use codex_app_server_protocol::CancelLoginAccountStatus;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponse;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::CollaborationModeListParams;
-use codex_app_server_protocol::CollaborationModeListResponse;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::ConversationGitInfo;
-use codex_app_server_protocol::ConversationSummary;
-use codex_app_server_protocol::DynamicToolSpec as ApiDynamicToolSpec;
-use codex_app_server_protocol::ExperimentalFeature as ApiExperimentalFeature;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::ExperimentalFeatureListResponse;
-use codex_app_server_protocol::ExperimentalFeatureStage as ApiExperimentalFeatureStage;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FeedbackUploadResponse;
-use codex_app_server_protocol::FuzzyFileSearchParams;
-use codex_app_server_protocol::FuzzyFileSearchResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionStartParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionStartResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionStopParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionStopResponse;
-use codex_app_server_protocol::FuzzyFileSearchSessionUpdateParams;
-use codex_app_server_protocol::FuzzyFileSearchSessionUpdateResponse;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::GetAccountResponse;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetAuthStatusResponse;
-use codex_app_server_protocol::GetConversationSummaryParams;
-use codex_app_server_protocol::GetConversationSummaryResponse;
-use codex_app_server_protocol::GitDiffToRemoteResponse;
-use codex_app_server_protocol::GitInfo as ApiGitInfo;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::LoginApiKeyParams;
-use codex_app_server_protocol::LogoutAccountResponse;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::MarketplaceAddResponse;
-use codex_app_server_protocol::MarketplaceInterface;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpResourceReadResponse;
-use codex_app_server_protocol::McpServerOauthLoginCompletedNotification;
-use codex_app_server_protocol::McpServerOauthLoginParams;
-use codex_app_server_protocol::McpServerOauthLoginResponse;
-use codex_app_server_protocol::McpServerRefreshResponse;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::MemoryResetResponse;
-use codex_app_server_protocol::MockExperimentalMethodParams;
-use codex_app_server_protocol::MockExperimentalMethodResponse;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelListResponse;
-use codex_app_server_protocol::PluginDetail;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginInterface;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::PluginSummary;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewDelivery as ApiReviewDelivery;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::ReviewStartResponse;
-use codex_app_server_protocol::ReviewTarget as ApiReviewTarget;
-use codex_app_server_protocol::SandboxMode;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::SkillSummary;
-use codex_app_server_protocol::SkillsConfigWriteParams;
-use codex_app_server_protocol::SkillsConfigWriteResponse;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::SortDirection;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadArchivedNotification;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
-use codex_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
-use codex_app_server_protocol::ThreadClosedNotification;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadCompactStartResponse;
-use codex_app_server_protocol::ThreadDecrementElicitationParams;
-use codex_app_server_protocol::ThreadDecrementElicitationResponse;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadIncrementElicitationParams;
-use codex_app_server_protocol::ThreadIncrementElicitationResponse;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadInjectItemsResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMemoryModeSetResponse;
-use codex_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateResponse;
-use codex_app_server_protocol::ThreadNameUpdatedNotification;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioResponse;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextResponse;
-use codex_app_server_protocol::ThreadRealtimeListVoicesParams;
-use codex_app_server_protocol::ThreadRealtimeListVoicesResponse;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStartResponse;
-use codex_app_server_protocol::ThreadRealtimeStartTransport;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadRealtimeStopResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadShellCommandResponse;
-use codex_app_server_protocol::ThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadTurnsListResponse;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnarchiveResponse;
-use codex_app_server_protocol::ThreadUnarchivedNotification;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::ThreadUnsubscribeResponse;
-use codex_app_server_protocol::ThreadUnsubscribeStatus;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnError;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnInterruptResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_app_server_protocol::WindowsSandboxSetupCompletedNotification;
-use codex_app_server_protocol::WindowsSandboxSetupMode;
-use codex_app_server_protocol::WindowsSandboxSetupStartParams;
-use codex_app_server_protocol::WindowsSandboxSetupStartResponse;
-use codex_app_server_protocol::build_turns_from_rollout_items;
-use codex_arg0::Arg0DispatchPaths;
-use codex_backend_client::Client as BackendClient;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::CodexThread;
-use codex_core::ForkSnapshot;
-use codex_core::NewThread;
-use codex_core::RolloutRecorder;
-use codex_core::SessionMeta;
-use codex_core::SteerInputError;
-use codex_core::ThreadConfigSnapshot;
-use codex_core::ThreadManager;
-use codex_core::append_thread_name;
-use codex_core::clear_memory_roots_contents;
-use codex_core::config::Config;
-use codex_core::config::ConfigOverrides;
-use codex_core::config::NetworkProxyAuditMetadata;
-use codex_core::config::edit::ConfigEdit;
-use codex_core::config::edit::ConfigEditsBuilder;
-use codex_core::config_loader::CloudRequirementsLoadError;
-use codex_core::config_loader::CloudRequirementsLoadErrorCode;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::LoaderOverrides;
-use codex_core::config_loader::load_config_layers_state;
-use codex_core::config_loader::project_trust_key;
-use codex_core::exec::ExecCapturePolicy;
-use codex_core::exec::ExecExpiration;
-use codex_core::exec::ExecParams;
-use codex_core::exec_env::create_env;
-use codex_core::find_archived_thread_path_by_id_str;
-use codex_core::find_thread_name_by_id;
-use codex_core::find_thread_names_by_ids;
-use codex_core::find_thread_path_by_id_str;
-use codex_core::path_utils;
-use codex_core::plugins::MarketplaceAddError;
-use codex_core::plugins::OPENAI_CURATED_MARKETPLACE_NAME;
-use codex_core::plugins::PluginInstallError as CorePluginInstallError;
-use codex_core::plugins::PluginInstallRequest;
-use codex_core::plugins::PluginReadRequest;
-use codex_core::plugins::PluginUninstallError as CorePluginUninstallError;
-use codex_core::plugins::add_marketplace as add_marketplace_to_codex_home;
-use codex_core::read_head_for_summary;
-use codex_core::read_session_meta_line;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_core::windows_sandbox::WindowsSandboxLevelExt;
-use codex_core::windows_sandbox::WindowsSandboxSetupMode as CoreWindowsSandboxSetupMode;
-use codex_core::windows_sandbox::WindowsSandboxSetupRequest;
-use codex_core_plugins::loader::load_plugin_apps;
-use codex_core_plugins::loader::load_plugin_mcp_servers;
-use codex_core_plugins::manifest::PluginManifestInterface;
-use codex_core_plugins::marketplace::MarketplaceError;
-use codex_core_plugins::marketplace::MarketplacePluginSource;
-use codex_exec_server::LOCAL_FS;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_features::Stage;
-use codex_git_utils::git_diff_to_remote;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_login::AuthManager;
-use codex_login::CLIENT_ID;
-use codex_login::CodexAuth;
-use codex_login::ServerOptions as LoginServerOptions;
-use codex_login::ShutdownHandle;
-use codex_login::auth::login_with_chatgpt_auth_tokens;
-use codex_login::complete_device_code_login;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::login_with_api_key;
-use codex_login::request_device_code;
-use codex_login::run_login_server;
-use codex_mcp::McpServerStatusSnapshot;
-use codex_mcp::McpSnapshotDetail;
-use codex_mcp::collect_mcp_server_status_snapshot_with_detail;
-use codex_mcp::discover_supported_scopes;
-use codex_mcp::effective_mcp_servers;
-use codex_mcp::resolve_oauth_scopes;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::dynamic_tools::DynamicToolSpec as CoreDynamicToolSpec;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ConversationStartTransport;
-use codex_protocol::protocol::ConversationTextParams;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GitInfo as CoreGitInfo;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::McpAuthStatus as CoreMcpAuthStatus;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
-use codex_protocol::protocol::RealtimeVoicesList;
-use codex_protocol::protocol::ReviewDelivery as CoreReviewDelivery;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget as CoreReviewTarget;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::ThreadNameUpdatedEvent;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use codex_protocol::user_input::UserInput as CoreInputItem;
-use codex_rmcp_client::perform_oauth_login_return_url;
-use codex_rollout::append_rollout_item_to_path;
-use codex_rollout::state_db::StateDbHandle;
-use codex_rollout::state_db::get_state_db;
-use codex_rollout::state_db::reconcile_rollout;
-use codex_state::StateRuntime;
-use codex_state::ThreadMetadata;
-use codex_state::ThreadMetadataBuilder;
-use codex_state::log_db::LogDbLayer;
-use codex_thread_store::ArchiveThreadParams as StoreArchiveThreadParams;
-use codex_thread_store::ListThreadsParams as StoreListThreadsParams;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::ReadThreadParams as StoreReadThreadParams;
-use codex_thread_store::SortDirection as StoreSortDirection;
-use codex_thread_store::StoredThread;
-use codex_thread_store::ThreadSortKey as StoreThreadSortKey;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::ThreadStoreError;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_json_to_toml::json_to_toml;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
+use darwin_code_app_server_protocol::Account;
+use darwin_code_app_server_protocol::AccountLoginCompletedNotification;
+use darwin_code_app_server_protocol::AccountUpdatedNotification;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_app_server_protocol::AppsListParams;
+use darwin_code_app_server_protocol::AppsListResponse;
+use darwin_code_app_server_protocol::AskForApproval;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_app_server_protocol::AuthMode as CoreAuthMode;
+use darwin_code_app_server_protocol::CancelLoginAccountParams;
+use darwin_code_app_server_protocol::CancelLoginAccountResponse;
+use darwin_code_app_server_protocol::CancelLoginAccountStatus;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::ClientResponse;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
+use darwin_code_app_server_protocol::CollaborationModeListParams;
+use darwin_code_app_server_protocol::CollaborationModeListResponse;
+use darwin_code_app_server_protocol::CommandExecParams;
+use darwin_code_app_server_protocol::CommandExecResizeParams;
+use darwin_code_app_server_protocol::CommandExecTerminateParams;
+use darwin_code_app_server_protocol::CommandExecWriteParams;
+use darwin_code_app_server_protocol::ConversationGitInfo;
+use darwin_code_app_server_protocol::ConversationSummary;
+use darwin_code_app_server_protocol::DynamicToolSpec as ApiDynamicToolSpec;
+use darwin_code_app_server_protocol::ExperimentalFeature as ApiExperimentalFeature;
+use darwin_code_app_server_protocol::ExperimentalFeatureListParams;
+use darwin_code_app_server_protocol::ExperimentalFeatureListResponse;
+use darwin_code_app_server_protocol::ExperimentalFeatureStage as ApiExperimentalFeatureStage;
+use darwin_code_app_server_protocol::FeedbackUploadParams;
+use darwin_code_app_server_protocol::FeedbackUploadResponse;
+use darwin_code_app_server_protocol::FuzzyFileSearchParams;
+use darwin_code_app_server_protocol::FuzzyFileSearchResponse;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionStartParams;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionStartResponse;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionStopParams;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionStopResponse;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionUpdateParams;
+use darwin_code_app_server_protocol::FuzzyFileSearchSessionUpdateResponse;
+use darwin_code_app_server_protocol::GetAccountParams;
+use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
+use darwin_code_app_server_protocol::GetAccountResponse;
+use darwin_code_app_server_protocol::GetAuthStatusParams;
+use darwin_code_app_server_protocol::GetAuthStatusResponse;
+use darwin_code_app_server_protocol::GetConversationSummaryParams;
+use darwin_code_app_server_protocol::GetConversationSummaryResponse;
+use darwin_code_app_server_protocol::GitDiffToRemoteResponse;
+use darwin_code_app_server_protocol::GitInfo as ApiGitInfo;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::ListMcpServerStatusParams;
+use darwin_code_app_server_protocol::ListMcpServerStatusResponse;
+use darwin_code_app_server_protocol::LoginAccountParams;
+use darwin_code_app_server_protocol::LoginAccountResponse;
+use darwin_code_app_server_protocol::LoginApiKeyParams;
+use darwin_code_app_server_protocol::LogoutAccountResponse;
+use darwin_code_app_server_protocol::MarketplaceAddParams;
+use darwin_code_app_server_protocol::MarketplaceAddResponse;
+use darwin_code_app_server_protocol::MarketplaceInterface;
+use darwin_code_app_server_protocol::McpResourceReadParams;
+use darwin_code_app_server_protocol::McpResourceReadResponse;
+use darwin_code_app_server_protocol::McpServerOauthLoginCompletedNotification;
+use darwin_code_app_server_protocol::McpServerOauthLoginParams;
+use darwin_code_app_server_protocol::McpServerOauthLoginResponse;
+use darwin_code_app_server_protocol::McpServerRefreshResponse;
+use darwin_code_app_server_protocol::McpServerStatus;
+use darwin_code_app_server_protocol::McpServerStatusDetail;
+use darwin_code_app_server_protocol::McpServerToolCallParams;
+use darwin_code_app_server_protocol::McpServerToolCallResponse;
+use darwin_code_app_server_protocol::MemoryResetResponse;
+use darwin_code_app_server_protocol::MockExperimentalMethodParams;
+use darwin_code_app_server_protocol::MockExperimentalMethodResponse;
+use darwin_code_app_server_protocol::ModelListParams;
+use darwin_code_app_server_protocol::ModelListResponse;
+use darwin_code_app_server_protocol::PluginDetail;
+use darwin_code_app_server_protocol::PluginInstallParams;
+use darwin_code_app_server_protocol::PluginInstallResponse;
+use darwin_code_app_server_protocol::PluginInterface;
+use darwin_code_app_server_protocol::PluginListParams;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::PluginMarketplaceEntry;
+use darwin_code_app_server_protocol::PluginReadParams;
+use darwin_code_app_server_protocol::PluginReadResponse;
+use darwin_code_app_server_protocol::PluginSource;
+use darwin_code_app_server_protocol::PluginSummary;
+use darwin_code_app_server_protocol::PluginUninstallParams;
+use darwin_code_app_server_protocol::PluginUninstallResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ReviewDelivery as ApiReviewDelivery;
+use darwin_code_app_server_protocol::ReviewStartParams;
+use darwin_code_app_server_protocol::ReviewStartResponse;
+use darwin_code_app_server_protocol::ReviewTarget as ApiReviewTarget;
+use darwin_code_app_server_protocol::SandboxMode;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequestResolvedNotification;
+use darwin_code_app_server_protocol::SkillSummary;
+use darwin_code_app_server_protocol::SkillsConfigWriteParams;
+use darwin_code_app_server_protocol::SkillsConfigWriteResponse;
+use darwin_code_app_server_protocol::SkillsListParams;
+use darwin_code_app_server_protocol::SkillsListResponse;
+use darwin_code_app_server_protocol::SortDirection;
+use darwin_code_app_server_protocol::Thread;
+use darwin_code_app_server_protocol::ThreadArchiveParams;
+use darwin_code_app_server_protocol::ThreadArchiveResponse;
+use darwin_code_app_server_protocol::ThreadArchivedNotification;
+use darwin_code_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
+use darwin_code_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
+use darwin_code_app_server_protocol::ThreadClosedNotification;
+use darwin_code_app_server_protocol::ThreadCompactStartParams;
+use darwin_code_app_server_protocol::ThreadCompactStartResponse;
+use darwin_code_app_server_protocol::ThreadDecrementElicitationParams;
+use darwin_code_app_server_protocol::ThreadDecrementElicitationResponse;
+use darwin_code_app_server_protocol::ThreadForkParams;
+use darwin_code_app_server_protocol::ThreadForkResponse;
+use darwin_code_app_server_protocol::ThreadIncrementElicitationParams;
+use darwin_code_app_server_protocol::ThreadIncrementElicitationResponse;
+use darwin_code_app_server_protocol::ThreadInjectItemsParams;
+use darwin_code_app_server_protocol::ThreadInjectItemsResponse;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadListResponse;
+use darwin_code_app_server_protocol::ThreadLoadedListParams;
+use darwin_code_app_server_protocol::ThreadLoadedListResponse;
+use darwin_code_app_server_protocol::ThreadMemoryModeSetParams;
+use darwin_code_app_server_protocol::ThreadMemoryModeSetResponse;
+use darwin_code_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
+use darwin_code_app_server_protocol::ThreadMetadataUpdateParams;
+use darwin_code_app_server_protocol::ThreadMetadataUpdateResponse;
+use darwin_code_app_server_protocol::ThreadNameUpdatedNotification;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadReadResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextParams;
+use darwin_code_app_server_protocol::ThreadRealtimeAppendTextResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeListVoicesParams;
+use darwin_code_app_server_protocol::ThreadRealtimeListVoicesResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeStartParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStartResponse;
+use darwin_code_app_server_protocol::ThreadRealtimeStartTransport;
+use darwin_code_app_server_protocol::ThreadRealtimeStopParams;
+use darwin_code_app_server_protocol::ThreadRealtimeStopResponse;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadRollbackParams;
+use darwin_code_app_server_protocol::ThreadSetNameParams;
+use darwin_code_app_server_protocol::ThreadSetNameResponse;
+use darwin_code_app_server_protocol::ThreadShellCommandParams;
+use darwin_code_app_server_protocol::ThreadShellCommandResponse;
+use darwin_code_app_server_protocol::ThreadSortKey;
+use darwin_code_app_server_protocol::ThreadSourceKind;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStartedNotification;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::ThreadTurnsListParams;
+use darwin_code_app_server_protocol::ThreadTurnsListResponse;
+use darwin_code_app_server_protocol::ThreadUnarchiveParams;
+use darwin_code_app_server_protocol::ThreadUnarchiveResponse;
+use darwin_code_app_server_protocol::ThreadUnarchivedNotification;
+use darwin_code_app_server_protocol::ThreadUnsubscribeParams;
+use darwin_code_app_server_protocol::ThreadUnsubscribeResponse;
+use darwin_code_app_server_protocol::ThreadUnsubscribeStatus;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnError;
+use darwin_code_app_server_protocol::TurnInterruptParams;
+use darwin_code_app_server_protocol::TurnInterruptResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::TurnSteerParams;
+use darwin_code_app_server_protocol::TurnSteerResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_app_server_protocol::WindowsSandboxSetupCompletedNotification;
+use darwin_code_app_server_protocol::WindowsSandboxSetupMode;
+use darwin_code_app_server_protocol::WindowsSandboxSetupStartParams;
+use darwin_code_app_server_protocol::WindowsSandboxSetupStartResponse;
+use darwin_code_app_server_protocol::build_turns_from_rollout_items;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_backend_client::Client as BackendClient;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::ForkSnapshot;
+use darwin_code_core::NewThread;
+use darwin_code_core::RolloutRecorder;
+use darwin_code_core::SessionMeta;
+use darwin_code_core::SteerInputError;
+use darwin_code_core::ThreadConfigSnapshot;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::append_thread_name;
+use darwin_code_core::clear_memory_roots_contents;
+use darwin_code_core::config::Config;
+use darwin_code_core::config::ConfigOverrides;
+use darwin_code_core::config::NetworkProxyAuditMetadata;
+use darwin_code_core::config::edit::ConfigEdit;
+use darwin_code_core::config::edit::ConfigEditsBuilder;
+use darwin_code_core::config_loader::CloudRequirementsLoadError;
+use darwin_code_core::config_loader::CloudRequirementsLoadErrorCode;
+use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::LoaderOverrides;
+use darwin_code_core::config_loader::load_config_layers_state;
+use darwin_code_core::config_loader::project_trust_key;
+use darwin_code_core::exec::ExecCapturePolicy;
+use darwin_code_core::exec::ExecExpiration;
+use darwin_code_core::exec::ExecParams;
+use darwin_code_core::exec_env::create_env;
+use darwin_code_core::find_archived_thread_path_by_id_str;
+use darwin_code_core::find_thread_name_by_id;
+use darwin_code_core::find_thread_names_by_ids;
+use darwin_code_core::find_thread_path_by_id_str;
+use darwin_code_core::path_utils;
+use darwin_code_core::plugins::MarketplaceAddError;
+use darwin_code_core::plugins::OPENAI_CURATED_MARKETPLACE_NAME;
+use darwin_code_core::plugins::PluginInstallError as CorePluginInstallError;
+use darwin_code_core::plugins::PluginInstallRequest;
+use darwin_code_core::plugins::PluginReadRequest;
+use darwin_code_core::plugins::PluginUninstallError as CorePluginUninstallError;
+use darwin_code_core::plugins::add_marketplace as add_marketplace_to_darwin_code_home;
+use darwin_code_core::read_head_for_summary;
+use darwin_code_core::read_session_meta_line;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_core::windows_sandbox::WindowsSandboxLevelExt;
+use darwin_code_core::windows_sandbox::WindowsSandboxSetupMode as CoreWindowsSandboxSetupMode;
+use darwin_code_core::windows_sandbox::WindowsSandboxSetupRequest;
+use darwin_code_core_plugins::loader::load_plugin_apps;
+use darwin_code_core_plugins::loader::load_plugin_mcp_servers;
+use darwin_code_core_plugins::manifest::PluginManifestInterface;
+use darwin_code_core_plugins::marketplace::MarketplaceError;
+use darwin_code_core_plugins::marketplace::MarketplacePluginSource;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
+use darwin_code_features::Stage;
+use darwin_code_git_utils::git_diff_to_remote;
+use darwin_code_git_utils::resolve_root_git_project_for_trust;
+use darwin_code_login::AuthManager;
+use darwin_code_login::CLIENT_ID;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::ServerOptions as LoginServerOptions;
+use darwin_code_login::ShutdownHandle;
+use darwin_code_login::auth::login_with_chatgpt_auth_tokens;
+use darwin_code_login::complete_device_code_login;
+use darwin_code_login::default_client::set_default_client_residency_requirement;
+use darwin_code_login::login_with_api_key;
+use darwin_code_login::request_device_code;
+use darwin_code_login::run_login_server;
+use darwin_code_mcp::McpServerStatusSnapshot;
+use darwin_code_mcp::McpSnapshotDetail;
+use darwin_code_mcp::collect_mcp_server_status_snapshot_with_detail;
+use darwin_code_mcp::discover_supported_scopes;
+use darwin_code_mcp::effective_mcp_servers;
+use darwin_code_mcp::resolve_oauth_scopes;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec as CoreDynamicToolSpec;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AgentStatus;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::ConversationStartParams;
+use darwin_code_protocol::protocol::ConversationStartTransport;
+use darwin_code_protocol::protocol::ConversationTextParams;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GitInfo as CoreGitInfo;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::McpAuthStatus as CoreMcpAuthStatus;
+use darwin_code_protocol::protocol::McpServerRefreshConfig;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
+use darwin_code_protocol::protocol::RealtimeVoicesList;
+use darwin_code_protocol::protocol::ReviewDelivery as CoreReviewDelivery;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::protocol::ReviewTarget as CoreReviewTarget;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionConfiguredEvent;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::ThreadNameUpdatedEvent;
+use darwin_code_protocol::protocol::USER_MESSAGE_BEGIN;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+use darwin_code_protocol::user_input::UserInput as CoreInputItem;
+use darwin_code_rmcp_client::perform_oauth_login_return_url;
+use darwin_code_rollout::append_rollout_item_to_path;
+use darwin_code_rollout::state_db::StateDbHandle;
+use darwin_code_rollout::state_db::get_state_db;
+use darwin_code_rollout::state_db::reconcile_rollout;
+use darwin_code_state::StateRuntime;
+use darwin_code_state::ThreadMetadata;
+use darwin_code_state::ThreadMetadataBuilder;
+use darwin_code_state::log_db::LogDbLayer;
+use darwin_code_thread_store::ArchiveThreadParams as StoreArchiveThreadParams;
+use darwin_code_thread_store::ListThreadsParams as StoreListThreadsParams;
+use darwin_code_thread_store::LocalThreadStore;
+use darwin_code_thread_store::ReadThreadParams as StoreReadThreadParams;
+use darwin_code_thread_store::SortDirection as StoreSortDirection;
+use darwin_code_thread_store::StoredThread;
+use darwin_code_thread_store::ThreadSortKey as StoreThreadSortKey;
+use darwin_code_thread_store::ThreadStore;
+use darwin_code_thread_store::ThreadStoreError;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_json_to_toml::json_to_toml;
+use darwin_code_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -355,7 +355,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 #[cfg(test)]
-use codex_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ServerRequest;
 
 mod apps_list_helpers;
 mod plugin_app_helpers;
@@ -387,7 +387,7 @@ struct ThreadListFilters {
 
 // Duration before a browser ChatGPT login attempt is abandoned.
 const LOGIN_CHATGPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
-const LOGIN_ISSUER_OVERRIDE_ENV_VAR: &str = "CODEX_APP_SERVER_LOGIN_ISSUER";
+const LOGIN_ISSUER_OVERRIDE_ENV_VAR: &str = "DARWIN_CODE_APP_SERVER_LOGIN_ISSUER";
 const APP_LIST_LOAD_TIMEOUT: Duration = Duration::from_secs(90);
 const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60);
 
@@ -448,8 +448,8 @@ impl Drop for ActiveLogin {
     }
 }
 
-/// Handles JSON-RPC messages for Codex threads (and legacy conversation APIs).
-pub(crate) struct CodexMessageProcessor {
+/// Handles JSON-RPC messages for Darwin-Code threads (and legacy conversation APIs).
+pub(crate) struct DarwinCodeMessageProcessor {
     auth_manager: Arc<AuthManager>,
     thread_manager: Arc<ThreadManager>,
     outgoing: Arc<OutgoingMessageSender>,
@@ -468,7 +468,7 @@ pub(crate) struct CodexMessageProcessor {
     pending_fuzzy_searches: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     fuzzy_search_sessions: Arc<Mutex<HashMap<String, FuzzyFileSearchSession>>>,
     background_tasks: TaskTracker,
-    feedback: CodexFeedback,
+    feedback: DarwinCodeFeedback,
     log_db: Option<LogDbLayer>,
 }
 
@@ -490,7 +490,7 @@ struct ListenerTaskContext {
     general_analytics_enabled: bool,
     thread_watch_manager: ThreadWatchManager,
     fallback_model_provider: String,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -610,7 +610,7 @@ impl UnloadingState {
     }
 }
 
-pub(crate) struct CodexMessageProcessorArgs {
+pub(crate) struct DarwinCodeMessageProcessorArgs {
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) thread_manager: Arc<ThreadManager>,
     pub(crate) outgoing: Arc<OutgoingMessageSender>,
@@ -620,13 +620,13 @@ pub(crate) struct CodexMessageProcessorArgs {
     pub(crate) cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     pub(crate) runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
     pub(crate) cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
-    pub(crate) feedback: CodexFeedback,
+    pub(crate) feedback: DarwinCodeFeedback,
     pub(crate) log_db: Option<LogDbLayer>,
 }
 
-impl CodexMessageProcessor {
+impl DarwinCodeMessageProcessor {
     async fn instruction_sources_from_config(config: &Config) -> Vec<AbsolutePathBuf> {
-        codex_core::AgentsMdManager::new(config)
+        darwin_code_core::AgentsMdManager::new(config)
             .instruction_sources(LOCAL_FS.as_ref())
             .await
     }
@@ -643,8 +643,8 @@ impl CodexMessageProcessor {
     fn current_account_updated_notification(&self) -> AccountUpdatedNotification {
         let auth = self.auth_manager.auth_cached();
         AccountUpdatedNotification {
-            auth_mode: auth.as_ref().map(CodexAuth::api_auth_mode),
-            plan_type: auth.as_ref().and_then(CodexAuth::account_plan_type),
+            auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
+            plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
         }
     }
 
@@ -667,7 +667,7 @@ impl CodexMessageProcessor {
     async fn load_thread(
         &self,
         thread_id: &str,
-    ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ThreadId, Arc<DarwinCodeThread>), JSONRPCErrorError> {
         // Resolve the core conversation handle from a v2 thread id string.
         let thread_id = ThreadId::from_string(thread_id).map_err(|err| JSONRPCErrorError {
             code: INVALID_REQUEST_ERROR_CODE,
@@ -687,8 +687,8 @@ impl CodexMessageProcessor {
 
         Ok((thread_id, thread))
     }
-    pub fn new(args: CodexMessageProcessorArgs) -> Self {
-        let CodexMessageProcessorArgs {
+    pub fn new(args: DarwinCodeMessageProcessorArgs) -> Self {
+        let DarwinCodeMessageProcessorArgs {
             auth_manager,
             thread_manager,
             outgoing,
@@ -707,7 +707,7 @@ impl CodexMessageProcessor {
             outgoing: outgoing.clone(),
             analytics_events_client,
             arg0_paths,
-            thread_store: LocalThreadStore::new(codex_rollout::RolloutConfig::from_view(&config)),
+            thread_store: LocalThreadStore::new(darwin_code_rollout::RolloutConfig::from_view(&config)),
             config,
             cli_overrides,
             runtime_feature_enablement,
@@ -730,7 +730,7 @@ impl CodexMessageProcessor {
         fallback_cwd: Option<PathBuf>,
     ) -> Result<Config, JSONRPCErrorError> {
         let cloud_requirements = self.current_cloud_requirements();
-        let mut config = codex_core::config::ConfigBuilder::default()
+        let mut config = darwin_code_core::config::ConfigBuilder::default()
             .cli_overrides(self.current_cli_overrides())
             .fallback_cwd(fallback_cwd)
             .cloud_requirements(cloud_requirements)
@@ -742,8 +742,8 @@ impl CodexMessageProcessor {
                 data: None,
             })?;
         apply_runtime_feature_enablement(&mut config, &self.current_runtime_feature_enablement());
-        config.codex_self_exe = self.arg0_paths.codex_self_exe.clone();
-        config.codex_linux_sandbox_exe = self.arg0_paths.codex_linux_sandbox_exe.clone();
+        config.darwin_code_self_exe = self.arg0_paths.darwin_code_self_exe.clone();
+        config.darwin_code_linux_sandbox_exe = self.arg0_paths.darwin_code_linux_sandbox_exe.clone();
         config.main_execve_wrapper_exe = self.arg0_paths.main_execve_wrapper_exe.clone();
         Ok(config)
     }
@@ -842,7 +842,7 @@ impl CodexMessageProcessor {
             ApiReviewTarget::Custom { instructions } => CoreReviewTarget::Custom { instructions },
         };
 
-        let hint = codex_core::review_prompts::user_facing_hint(&core_target);
+        let hint = darwin_code_core::review_prompts::user_facing_hint(&core_target);
         let review_request = ReviewRequest {
             target: core_target,
             user_facing_hint: Some(hint.clone()),
@@ -1152,7 +1152,7 @@ impl CodexMessageProcessor {
             | ClientRequest::ConfigValueWrite { .. }
             | ClientRequest::ConfigBatchWrite { .. }
             | ClientRequest::ExperimentalFeatureEnablementSet { .. } => {
-                warn!("Config request reached CodexMessageProcessor unexpectedly");
+                warn!("Config request reached DarwinCodeMessageProcessor unexpectedly");
             }
             ClientRequest::FsReadFile { .. }
             | ClientRequest::FsWriteFile { .. }
@@ -1163,14 +1163,14 @@ impl CodexMessageProcessor {
             | ClientRequest::FsCopy { .. }
             | ClientRequest::FsWatch { .. }
             | ClientRequest::FsUnwatch { .. } => {
-                warn!("Filesystem request reached CodexMessageProcessor unexpectedly");
+                warn!("Filesystem request reached DarwinCodeMessageProcessor unexpectedly");
             }
             ClientRequest::ConfigRequirementsRead { .. } => {
-                warn!("ConfigRequirementsRead request reached CodexMessageProcessor unexpectedly");
+                warn!("ConfigRequirementsRead request reached DarwinCodeMessageProcessor unexpectedly");
             }
             ClientRequest::ExternalAgentConfigDetect { .. }
             | ClientRequest::ExternalAgentConfigImport { .. } => {
-                warn!("ExternalAgentConfig request reached CodexMessageProcessor unexpectedly");
+                warn!("ExternalAgentConfig request reached DarwinCodeMessageProcessor unexpectedly");
             }
             ClientRequest::GetAccountRateLimits {
                 request_id,
@@ -1251,7 +1251,7 @@ impl CodexMessageProcessor {
         }
 
         match login_with_api_key(
-            &self.config.codex_home,
+            &self.config.darwin_code_home,
             &params.api_key,
             self.config.cli_auth_credentials_store_mode,
         ) {
@@ -1270,7 +1270,7 @@ impl CodexMessageProcessor {
     async fn login_api_key_v2(&self, request_id: ConnectionRequestId, params: LoginApiKeyParams) {
         match self.login_api_key_common(&params).await {
             Ok(()) => {
-                let response = codex_app_server_protocol::LoginAccountResponse::ApiKey {};
+                let response = darwin_code_app_server_protocol::LoginAccountResponse::ApiKey {};
                 self.outgoing.send_response(request_id, response).await;
 
                 let payload_login_completed = AccountLoginCompletedNotification {
@@ -1317,7 +1317,7 @@ impl CodexMessageProcessor {
         let opts = LoginServerOptions {
             open_browser: false,
             ..LoginServerOptions::new(
-                config.codex_home.to_path_buf(),
+                config.darwin_code_home.to_path_buf(),
                 CLIENT_ID.to_string(),
                 config.forced_chatgpt_workspace_id.clone(),
                 config.cli_auth_credentials_store_mode,
@@ -1379,7 +1379,7 @@ impl CodexMessageProcessor {
                     let auth_manager = self.auth_manager.clone();
                     let cloud_requirements = self.cloud_requirements.clone();
                     let chatgpt_base_url = self.config.chatgpt_base_url.clone();
-                    let codex_home = self.config.codex_home.to_path_buf();
+                    let darwin_code_home = self.config.darwin_code_home.to_path_buf();
                     let cli_overrides = self.current_cli_overrides();
                     let auth_url = server.auth_url.clone();
                     tokio::spawn(async move {
@@ -1414,7 +1414,7 @@ impl CodexMessageProcessor {
                                 cloud_requirements.as_ref(),
                                 auth_manager.clone(),
                                 chatgpt_base_url,
-                                codex_home,
+                                darwin_code_home,
                             );
                             sync_default_client_residency_requirement(
                                 &cli_overrides,
@@ -1425,8 +1425,8 @@ impl CodexMessageProcessor {
                             // Notify clients with the actual current auth mode.
                             let auth = auth_manager.auth_cached();
                             let payload_v2 = AccountUpdatedNotification {
-                                auth_mode: auth.as_ref().map(CodexAuth::api_auth_mode),
-                                plan_type: auth.as_ref().and_then(CodexAuth::account_plan_type),
+                                auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
+                                plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
                             };
                             outgoing_clone
                                 .send_server_notification(ServerNotification::AccountUpdated(
@@ -1442,7 +1442,7 @@ impl CodexMessageProcessor {
                         }
                     });
 
-                    let response = codex_app_server_protocol::LoginAccountResponse::Chatgpt {
+                    let response = darwin_code_app_server_protocol::LoginAccountResponse::Chatgpt {
                         login_id: login_id.to_string(),
                         auth_url,
                     };
@@ -1484,7 +1484,7 @@ impl CodexMessageProcessor {
                     let verification_url = device_code.verification_url.clone();
                     let user_code = device_code.user_code.clone();
                     let response =
-                        codex_app_server_protocol::LoginAccountResponse::ChatgptDeviceCode {
+                        darwin_code_app_server_protocol::LoginAccountResponse::ChatgptDeviceCode {
                             login_id: login_id.to_string(),
                             verification_url,
                             user_code,
@@ -1496,7 +1496,7 @@ impl CodexMessageProcessor {
                     let auth_manager = self.auth_manager.clone();
                     let cloud_requirements = self.cloud_requirements.clone();
                     let chatgpt_base_url = self.config.chatgpt_base_url.clone();
-                    let codex_home = self.config.codex_home.to_path_buf();
+                    let darwin_code_home = self.config.darwin_code_home.to_path_buf();
                     let cli_overrides = self.current_cli_overrides();
                     tokio::spawn(async move {
                         let (success, error_msg) = tokio::select! {
@@ -1528,7 +1528,7 @@ impl CodexMessageProcessor {
                                 cloud_requirements.as_ref(),
                                 auth_manager.clone(),
                                 chatgpt_base_url,
-                                codex_home,
+                                darwin_code_home,
                             );
                             sync_default_client_residency_requirement(
                                 &cli_overrides,
@@ -1538,8 +1538,8 @@ impl CodexMessageProcessor {
 
                             let auth = auth_manager.auth_cached();
                             let payload_v2 = AccountUpdatedNotification {
-                                auth_mode: auth.as_ref().map(CodexAuth::api_auth_mode),
-                                plan_type: auth.as_ref().and_then(CodexAuth::account_plan_type),
+                                auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
+                                plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
                             };
                             outgoing_clone
                                 .send_server_notification(ServerNotification::AccountUpdated(
@@ -1650,7 +1650,7 @@ impl CodexMessageProcessor {
         }
 
         if let Err(err) = login_with_chatgpt_auth_tokens(
-            &self.config.codex_home,
+            &self.config.darwin_code_home,
             &access_token,
             &chatgpt_account_id,
             chatgpt_plan_type.as_deref(),
@@ -1668,7 +1668,7 @@ impl CodexMessageProcessor {
             self.cloud_requirements.as_ref(),
             self.auth_manager.clone(),
             self.config.chatgpt_base_url.clone(),
-            self.config.codex_home.to_path_buf(),
+            self.config.darwin_code_home.to_path_buf(),
         );
         let cli_overrides = self.current_cli_overrides();
         sync_default_client_residency_requirement(&cli_overrides, self.cloud_requirements.as_ref())
@@ -1721,7 +1721,7 @@ impl CodexMessageProcessor {
             .auth_manager
             .auth_cached()
             .as_ref()
-            .map(CodexAuth::api_auth_mode))
+            .map(DarwinCodeAuth::api_auth_mode))
     }
 
     async fn logout_v2(&self, request_id: ConnectionRequestId) {
@@ -1905,7 +1905,7 @@ impl CodexMessageProcessor {
         let Some(auth) = self.auth_manager.auth().await else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "codex account authentication required to read rate limits".to_string(),
+                message: "darwin-code account authentication required to read rate limits".to_string(),
                 data: None,
             });
         };
@@ -1930,13 +1930,13 @@ impl CodexMessageProcessor {
             .await
             .map_err(|err| JSONRPCErrorError {
                 code: INTERNAL_ERROR_CODE,
-                message: format!("failed to fetch codex rate limits: {err}"),
+                message: format!("failed to fetch darwin-code rate limits: {err}"),
                 data: None,
             })?;
         if snapshots.is_empty() {
             return Err(JSONRPCErrorError {
                 code: INTERNAL_ERROR_CODE,
-                message: "failed to fetch codex rate limits: no snapshots returned".to_string(),
+                message: "failed to fetch darwin-code rate limits: no snapshots returned".to_string(),
                 data: None,
             });
         }
@@ -1948,14 +1948,14 @@ impl CodexMessageProcessor {
                 let limit_id = snapshot
                     .limit_id
                     .clone()
-                    .unwrap_or_else(|| "codex".to_string());
+                    .unwrap_or_else(|| "darwin-code".to_string());
                 (limit_id, snapshot)
             })
             .collect();
 
         let primary = snapshots
             .iter()
-            .find(|snapshot| snapshot.limit_id.as_deref() == Some("codex"))
+            .find(|snapshot| snapshot.limit_id.as_deref() == Some("darwin-code"))
             .cloned()
             .unwrap_or_else(|| snapshots[0].clone());
 
@@ -2116,7 +2116,7 @@ impl CodexMessageProcessor {
             env,
             network: started_network_proxy
                 .as_ref()
-                .map(codex_core::config::StartedNetworkProxy::proxy),
+                .map(darwin_code_core::config::StartedNetworkProxy::proxy),
             sandbox_permissions: SandboxPermissions::UseDefault,
             windows_sandbox_level,
             windows_sandbox_private_desktop: self
@@ -2136,9 +2136,9 @@ impl CodexMessageProcessor {
             Some(policy) => match self.config.permissions.sandbox_policy.can_set(&policy) {
                 Ok(()) => {
                     let file_system_sandbox_policy =
-                        codex_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(&policy, &sandbox_cwd);
+                        darwin_code_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(&policy, &sandbox_cwd);
                     let network_sandbox_policy =
-                        codex_protocol::permissions::NetworkSandboxPolicy::from(&policy);
+                        darwin_code_protocol::permissions::NetworkSandboxPolicy::from(&policy);
                     (policy, file_system_sandbox_policy, network_sandbox_policy)
                 }
                 Err(err) => {
@@ -2158,7 +2158,7 @@ impl CodexMessageProcessor {
             ),
         };
 
-        let codex_linux_sandbox_exe = self.arg0_paths.codex_linux_sandbox_exe.clone();
+        let darwin_code_linux_sandbox_exe = self.arg0_paths.darwin_code_linux_sandbox_exe.clone();
         let outgoing = self.outgoing.clone();
         let request_for_task = request.clone();
         let started_network_proxy_for_task = started_network_proxy;
@@ -2172,13 +2172,13 @@ impl CodexMessageProcessor {
             None => None,
         };
 
-        match codex_core::exec::build_exec_request(
+        match darwin_code_core::exec::build_exec_request(
             exec_params,
             &effective_policy,
             &effective_file_system_sandbox_policy,
             effective_network_sandbox_policy,
             &sandbox_cwd,
-            &codex_linux_sandbox_exe,
+            &darwin_code_linux_sandbox_exe,
             use_legacy_landlock,
         ) {
             Ok(exec_request) => {
@@ -2309,7 +2309,7 @@ impl CodexMessageProcessor {
             general_analytics_enabled: self.config.features.enabled(Feature::GeneralAnalytics),
             thread_watch_manager: self.thread_watch_manager.clone(),
             fallback_model_provider: self.config.model_provider_id.clone(),
-            codex_home: self.config.codex_home.to_path_buf(),
+            darwin_code_home: self.config.darwin_code_home.to_path_buf(),
         };
         let request_trace = request_context.request_trace();
         let runtime_feature_enablement = self.current_runtime_feature_enablement();
@@ -2374,16 +2374,16 @@ impl CodexMessageProcessor {
     async fn request_trace_context(
         &self,
         request_id: &ConnectionRequestId,
-    ) -> Option<codex_protocol::protocol::W3cTraceContext> {
+    ) -> Option<darwin_code_protocol::protocol::W3cTraceContext> {
         self.outgoing.request_trace_context(request_id).await
     }
 
     async fn submit_core_op(
         &self,
         request_id: &ConnectionRequestId,
-        thread: &CodexThread,
+        thread: &DarwinCodeThread,
         op: Op,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         thread
             .submit_with_trace(op, self.request_trace_context(request_id).await)
             .await
@@ -2401,7 +2401,7 @@ impl CodexMessageProcessor {
         config_overrides: Option<HashMap<String, serde_json::Value>>,
         typesafe_overrides: ConfigOverrides,
         dynamic_tools: Option<Vec<ApiDynamicToolSpec>>,
-        session_start_source: Option<codex_app_server_protocol::ThreadStartSource>,
+        session_start_source: Option<darwin_code_app_server_protocol::ThreadStartSource>,
         persist_extended_history: bool,
         service_name: Option<String>,
         experimental_raw_events: bool,
@@ -2413,7 +2413,7 @@ impl CodexMessageProcessor {
             config_overrides.clone(),
             typesafe_overrides.clone(),
             &cloud_requirements,
-            &listener_task_context.codex_home,
+            &listener_task_context.darwin_code_home,
             &runtime_feature_enablement,
         )
         .await
@@ -2437,8 +2437,8 @@ impl CodexMessageProcessor {
         let requested_sandbox_trusts_project = matches!(
             typesafe_overrides.sandbox_mode,
             Some(
-                codex_protocol::config_types::SandboxMode::WorkspaceWrite
-                    | codex_protocol::config_types::SandboxMode::DangerFullAccess
+                darwin_code_protocol::config_types::SandboxMode::WorkspaceWrite
+                    | darwin_code_protocol::config_types::SandboxMode::DangerFullAccess
             )
         );
 
@@ -2447,9 +2447,9 @@ impl CodexMessageProcessor {
             && (requested_sandbox_trusts_project
                 || matches!(
                     config.permissions.sandbox_policy.get(),
-                    codex_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
-                        | codex_protocol::protocol::SandboxPolicy::DangerFullAccess
-                        | codex_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
+                    darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
+                        | darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess
+                        | darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
                 ))
         {
             let trust_target = resolve_root_git_project_for_trust(LOCAL_FS.as_ref(), &config.cwd)
@@ -2457,8 +2457,8 @@ impl CodexMessageProcessor {
                 .unwrap_or_else(|| config.cwd.clone());
             let cli_overrides_with_trust;
             let cli_overrides_for_reload = if let Err(err) =
-                codex_core::config::set_project_trust_level(
-                    &listener_task_context.codex_home,
+                darwin_code_core::config::set_project_trust_level(
+                    &listener_task_context.darwin_code_home,
                     trust_target.as_path(),
                     TrustLevel::Trusted,
                 ) {
@@ -2494,7 +2494,7 @@ impl CodexMessageProcessor {
                 config_overrides,
                 typesafe_overrides,
                 &cloud_requirements,
-                &listener_task_context.codex_home,
+                &listener_task_context.darwin_code_home,
                 &runtime_feature_enablement,
             )
             .await
@@ -2545,10 +2545,10 @@ impl CodexMessageProcessor {
             .start_thread_with_tools_and_service_name(
                 config,
                 match session_start_source
-                    .unwrap_or(codex_app_server_protocol::ThreadStartSource::Startup)
+                    .unwrap_or(darwin_code_app_server_protocol::ThreadStartSource::Startup)
                 {
-                    codex_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
-                    codex_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
+                    darwin_code_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
+                    darwin_code_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
                 },
                 core_dynamic_tools,
                 persist_extended_history,
@@ -2699,10 +2699,10 @@ impl CodexMessageProcessor {
         &self,
         model: Option<String>,
         model_provider: Option<String>,
-        service_tier: Option<Option<codex_protocol::config_types::ServiceTier>>,
+        service_tier: Option<Option<darwin_code_protocol::config_types::ServiceTier>>,
         cwd: Option<String>,
-        approval_policy: Option<codex_app_server_protocol::AskForApproval>,
-        approvals_reviewer: Option<codex_app_server_protocol::ApprovalsReviewer>,
+        approval_policy: Option<darwin_code_app_server_protocol::AskForApproval>,
+        approvals_reviewer: Option<darwin_code_app_server_protocol::ApprovalsReviewer>,
         sandbox: Option<SandboxMode>,
         base_instructions: Option<String>,
         developer_instructions: Option<String>,
@@ -2714,11 +2714,11 @@ impl CodexMessageProcessor {
             service_tier,
             cwd: cwd.map(PathBuf::from),
             approval_policy: approval_policy
-                .map(codex_app_server_protocol::AskForApproval::to_core),
+                .map(darwin_code_app_server_protocol::AskForApproval::to_core),
             approvals_reviewer: approvals_reviewer
-                .map(codex_app_server_protocol::ApprovalsReviewer::to_core),
+                .map(darwin_code_app_server_protocol::ApprovalsReviewer::to_core),
             sandbox_mode: sandbox.map(SandboxMode::to_core),
-            codex_linux_sandbox_exe: self.arg0_paths.codex_linux_sandbox_exe.clone(),
+            darwin_code_linux_sandbox_exe: self.arg0_paths.darwin_code_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
             base_instructions,
             developer_instructions,
@@ -2841,7 +2841,7 @@ impl CodexMessageProcessor {
                     )
                     .await;
             }
-            Err(CodexErr::InvalidRequest(message)) => {
+            Err(DarwinCodeErr::InvalidRequest(message)) => {
                 self.send_invalid_request_error(request_id, message).await;
             }
             Err(err) => {
@@ -2864,7 +2864,7 @@ impl CodexMessageProcessor {
                 return;
             }
         };
-        let Some(name) = codex_core::util::normalize_thread_name(&name) else {
+        let Some(name) = darwin_code_core::util::normalize_thread_name(&name) else {
             self.send_invalid_request_error(
                 request_id,
                 "thread name must not be empty".to_string(),
@@ -2890,7 +2890,7 @@ impl CodexMessageProcessor {
         }
 
         let rollout_path =
-            match find_thread_path_by_id_str(&self.config.codex_home, &thread_id.to_string()).await
+            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string()).await
             {
                 Ok(Some(path)) => Some(path),
                 Ok(None) => None,
@@ -2920,7 +2920,7 @@ impl CodexMessageProcessor {
                 .await;
             return;
         }
-        if let Err(err) = append_thread_name(&self.config.codex_home, thread_id, &name).await {
+        if let Err(err) = append_thread_name(&self.config.darwin_code_home, thread_id, &name).await {
             self.send_internal_error(request_id, format!("failed to index thread name: {err}"))
                 .await;
             return;
@@ -2991,7 +2991,7 @@ impl CodexMessageProcessor {
         }
 
         let rollout_path =
-            match find_thread_path_by_id_str(&self.config.codex_home, &thread_id.to_string()).await
+            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string()).await
             {
                 Ok(Some(path)) => Some(path),
                 Ok(None) => None,
@@ -3089,12 +3089,12 @@ impl CodexMessageProcessor {
             return;
         }
 
-        if let Err(err) = clear_memory_roots_contents(&self.config.codex_home).await {
+        if let Err(err) = clear_memory_roots_contents(&self.config.darwin_code_home).await {
             self.send_internal_error(
                 request_id,
                 format!(
                     "failed to clear memory directories under {}: {err}",
-                    self.config.codex_home.display()
+                    self.config.darwin_code_home.display()
                 ),
             )
             .await;
@@ -3276,7 +3276,7 @@ impl CodexMessageProcessor {
         &self,
         thread_uuid: ThreadId,
         state_db_ctx: &Arc<StateRuntime>,
-        loaded_thread: Option<&Arc<CodexThread>>,
+        loaded_thread: Option<&Arc<DarwinCodeThread>>,
     ) -> Result<(), JSONRPCErrorError> {
         fn invalid_request(message: String) -> JSONRPCErrorError {
             JSONRPCErrorError {
@@ -3355,12 +3355,12 @@ impl CodexMessageProcessor {
         }
 
         let rollout_path =
-            match find_thread_path_by_id_str(&self.config.codex_home, &thread_uuid.to_string())
+            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_uuid.to_string())
                 .await
             {
                 Ok(Some(path)) => path,
                 Ok(None) => match find_archived_thread_path_by_id_str(
-                    &self.config.codex_home,
+                    &self.config.darwin_code_home,
                     &thread_uuid.to_string(),
                 )
                 .await
@@ -3862,7 +3862,7 @@ impl CodexMessageProcessor {
         Ok(thread)
     }
 
-    async fn load_live_thread_for_read(&self, thread_id: ThreadId) -> Option<Arc<CodexThread>> {
+    async fn load_live_thread_for_read(&self, thread_id: ThreadId) -> Option<Arc<DarwinCodeThread>> {
         self.thread_manager.get_thread(thread_id).await.ok()
     }
 
@@ -3910,7 +3910,7 @@ impl CodexMessageProcessor {
         &self,
         thread_id: ThreadId,
         include_turns: bool,
-        loaded_thread: Option<&Arc<CodexThread>>,
+        loaded_thread: Option<&Arc<DarwinCodeThread>>,
     ) -> Result<Option<Thread>, ThreadReadViewError> {
         let Some(thread) = loaded_thread else {
             return Ok(None);
@@ -3997,12 +3997,12 @@ impl CodexMessageProcessor {
             .await;
         if rollout_path.is_none() {
             rollout_path =
-                match find_thread_path_by_id_str(&self.config.codex_home, &thread_uuid.to_string())
+                match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_uuid.to_string())
                     .await
                 {
                     Ok(Some(path)) => Some(path),
                     Ok(None) => match find_archived_thread_path_by_id_str(
-                        &self.config.codex_home,
+                        &self.config.darwin_code_home,
                         &thread_uuid.to_string(),
                     )
                     .await
@@ -4274,7 +4274,7 @@ impl CodexMessageProcessor {
             typesafe_overrides,
             history_cwd,
             &cloud_requirements,
-            &self.config.codex_home,
+            &self.config.darwin_code_home,
             &runtime_feature_enablement,
         )
         .await
@@ -4304,7 +4304,7 @@ impl CodexMessageProcessor {
         {
             Ok(NewThread {
                 thread_id,
-                thread: codex_thread,
+                thread: darwin_code_thread,
                 session_configured,
                 ..
             }) => {
@@ -4334,7 +4334,7 @@ impl CodexMessageProcessor {
                 let mut thread = match self
                     .load_thread_from_resume_source_or_send_internal(
                         thread_id,
-                        codex_thread.as_ref(),
+                        darwin_code_thread.as_ref(),
                         &response_history,
                         rollout_path.as_path(),
                         fallback_model_provider.as_str(),
@@ -4401,7 +4401,7 @@ impl CodexMessageProcessor {
                     connection_id,
                     thread_id,
                     &token_usage_thread,
-                    codex_thread.as_ref(),
+                    darwin_code_thread.as_ref(),
                     token_usage_turn_id,
                 )
                 .await;
@@ -4460,7 +4460,7 @@ impl CodexMessageProcessor {
                     path
                 } else {
                     match find_thread_path_by_id_str(
-                        &self.config.codex_home,
+                        &self.config.darwin_code_home,
                         &existing_thread_id.to_string(),
                     )
                     .await
@@ -4486,7 +4486,7 @@ impl CodexMessageProcessor {
                 }
             } else {
                 match find_thread_path_by_id_str(
-                    &self.config.codex_home,
+                    &self.config.darwin_code_home,
                     &existing_thread_id.to_string(),
                 )
                 .await
@@ -4654,7 +4654,7 @@ impl CodexMessageProcessor {
             };
 
             match find_thread_path_by_id_str(
-                &self.config.codex_home,
+                &self.config.darwin_code_home,
                 &existing_thread_id.to_string(),
             )
             .await
@@ -4695,7 +4695,7 @@ impl CodexMessageProcessor {
     async fn load_thread_from_resume_source_or_send_internal(
         &self,
         thread_id: ThreadId,
-        thread: &CodexThread,
+        thread: &DarwinCodeThread,
         thread_history: &InitialHistory,
         rollout_path: &Path,
         fallback_provider: &str,
@@ -4780,7 +4780,7 @@ impl CodexMessageProcessor {
             };
 
             match find_thread_path_by_id_str(
-                &self.config.codex_home,
+                &self.config.darwin_code_home,
                 &existing_thread_id.to_string(),
             )
             .await
@@ -4854,7 +4854,7 @@ impl CodexMessageProcessor {
             typesafe_overrides,
             history_cwd,
             &cloud_requirements,
-            &self.config.codex_home,
+            &self.config.darwin_code_home,
             &runtime_feature_enablement,
         )
         .await
@@ -4890,14 +4890,14 @@ impl CodexMessageProcessor {
             Ok(thread) => thread,
             Err(err) => {
                 match err {
-                    CodexErr::Io(_) | CodexErr::Json(_) => {
+                    DarwinCodeErr::Io(_) | DarwinCodeErr::Json(_) => {
                         self.send_invalid_request_error(
                             request_id,
                             format!("failed to load rollout `{}`: {err}", rollout_path.display()),
                         )
                         .await;
                     }
-                    CodexErr::InvalidRequest(message) => {
+                    DarwinCodeErr::InvalidRequest(message) => {
                         self.send_invalid_request_error(request_id, message).await;
                     }
                     _ => {
@@ -5089,14 +5089,14 @@ impl CodexMessageProcessor {
         let path = match params {
             GetConversationSummaryParams::RolloutPath { rollout_path } => {
                 if rollout_path.is_relative() {
-                    self.config.codex_home.join(&rollout_path).to_path_buf()
+                    self.config.darwin_code_home.join(&rollout_path).to_path_buf()
                 } else {
                     rollout_path
                 }
             }
             GetConversationSummaryParams::ThreadId { conversation_id } => {
-                match codex_core::find_thread_path_by_id_str(
-                    &self.config.codex_home,
+                match darwin_code_core::find_thread_path_by_id_str(
+                    &self.config.darwin_code_home,
                     &conversation_id.to_string(),
                 )
                 .await
@@ -5651,8 +5651,8 @@ impl CodexMessageProcessor {
         request_id: ConnectionRequestId,
         params: ListMcpServerStatusParams,
         config: Config,
-        mcp_config: codex_mcp::McpConfig,
-        auth: Option<CodexAuth>,
+        mcp_config: darwin_code_mcp::McpConfig,
+        auth: Option<DarwinCodeAuth>,
     ) {
         let detail = match params.detail.unwrap_or(McpServerStatusDetail::Full) {
             McpServerStatusDetail::Full => McpSnapshotDetail::Full,
@@ -5905,7 +5905,7 @@ impl CodexMessageProcessor {
         }
     }
 
-    async fn wait_for_thread_shutdown(thread: &Arc<CodexThread>) -> ThreadShutdownResult {
+    async fn wait_for_thread_shutdown(thread: &Arc<DarwinCodeThread>) -> ThreadShutdownResult {
         match tokio::time::timeout(Duration::from_secs(10), thread.shutdown_and_wait()).await {
             Ok(Ok(())) => ThreadShutdownResult::Complete,
             Ok(Err(_)) => ThreadShutdownResult::SubmitFailed,
@@ -5933,7 +5933,7 @@ impl CodexMessageProcessor {
         thread_state_manager: ThreadStateManager,
         thread_watch_manager: ThreadWatchManager,
         thread_id: ThreadId,
-        thread: Arc<CodexThread>,
+        thread: Arc<DarwinCodeThread>,
     ) {
         info!("thread {thread_id} has no subscribers and is idle; shutting down");
 
@@ -6069,7 +6069,7 @@ impl CodexMessageProcessor {
         let auth = self.auth_manager.auth().await;
         if !config
             .features
-            .apps_enabled_for_auth(auth.as_ref().is_some_and(CodexAuth::is_chatgpt_auth))
+            .apps_enabled_for_auth(auth.as_ref().is_some_and(DarwinCodeAuth::is_chatgpt_auth))
         {
             self.outgoing
                 .send_response(
@@ -6351,10 +6351,10 @@ impl CodexMessageProcessor {
                 Ok(path) => path,
                 Err(err) => {
                     let error_path = cwd.clone();
-                    data.push(codex_app_server_protocol::SkillsListEntry {
+                    data.push(darwin_code_app_server_protocol::SkillsListEntry {
                         cwd,
                         skills: Vec::new(),
-                        errors: vec![codex_app_server_protocol::SkillErrorInfo {
+                        errors: vec![darwin_code_app_server_protocol::SkillErrorInfo {
                             path: error_path,
                             message: err.to_string(),
                         }],
@@ -6364,7 +6364,7 @@ impl CodexMessageProcessor {
             };
             let config_layer_stack = match load_config_layers_state(
                 LOCAL_FS.as_ref(),
-                &self.config.codex_home,
+                &self.config.darwin_code_home,
                 Some(cwd_abs.clone()),
                 &cli_overrides,
                 LoaderOverrides::default(),
@@ -6375,10 +6375,10 @@ impl CodexMessageProcessor {
                 Ok(config_layer_stack) => config_layer_stack,
                 Err(err) => {
                     let error_path = cwd.clone();
-                    data.push(codex_app_server_protocol::SkillsListEntry {
+                    data.push(darwin_code_app_server_protocol::SkillsListEntry {
                         cwd,
                         skills: Vec::new(),
-                        errors: vec![codex_app_server_protocol::SkillErrorInfo {
+                        errors: vec![darwin_code_app_server_protocol::SkillErrorInfo {
                             path: error_path,
                             message: err.to_string(),
                         }],
@@ -6392,7 +6392,7 @@ impl CodexMessageProcessor {
                     config.features.enabled(Feature::Plugins),
                 )
                 .await;
-            let skills_input = codex_core::skills::SkillsLoadInput::new(
+            let skills_input = darwin_code_core::skills::SkillsLoadInput::new(
                 cwd_abs.clone(),
                 effective_skill_roots,
                 config_layer_stack,
@@ -6408,7 +6408,7 @@ impl CodexMessageProcessor {
                 .await;
             let errors = errors_to_info(&outcome.errors);
             let skills = skills_to_info(&outcome.skills, &outcome.disabled_paths);
-            data.push(codex_app_server_protocol::SkillsListEntry {
+            data.push(darwin_code_app_server_protocol::SkillsListEntry {
                 cwd,
                 skills,
                 errors,
@@ -6442,7 +6442,7 @@ impl CodexMessageProcessor {
             Ok::<
                 (
                     Vec<PluginMarketplaceEntry>,
-                    Vec<codex_app_server_protocol::MarketplaceLoadErrorInfo>,
+                    Vec<darwin_code_app_server_protocol::MarketplaceLoadErrorInfo>,
                 ),
                 MarketplaceError,
             >((
@@ -6474,7 +6474,7 @@ impl CodexMessageProcessor {
                 outcome
                     .errors
                     .into_iter()
-                    .map(|err| codex_app_server_protocol::MarketplaceLoadErrorInfo {
+                    .map(|err| darwin_code_app_server_protocol::MarketplaceLoadErrorInfo {
                         marketplace_path: err.path,
                         message: err.message,
                     })
@@ -6533,9 +6533,9 @@ impl CodexMessageProcessor {
     }
 
     async fn marketplace_add(&self, request_id: ConnectionRequestId, params: MarketplaceAddParams) {
-        let result = add_marketplace_to_codex_home(
-            self.config.codex_home.to_path_buf(),
-            codex_core::plugins::MarketplaceAddRequest {
+        let result = add_marketplace_to_darwin_code_home(
+            self.config.darwin_code_home.to_path_buf(),
+            darwin_code_core::plugins::MarketplaceAddRequest {
                 source: params.source,
                 ref_name: params.ref_name,
                 sparse_paths: params.sparse_paths.unwrap_or_default(),
@@ -6694,7 +6694,7 @@ impl CodexMessageProcessor {
             }
         };
         let edits = vec![edit];
-        let result = ConfigEditsBuilder::new(&self.config.codex_home)
+        let result = ConfigEditsBuilder::new(&self.config.darwin_code_home)
             .with_edits(edits)
             .apply()
             .await;
@@ -6802,7 +6802,7 @@ impl CodexMessageProcessor {
                 let auth = self.auth_manager.auth().await;
                 let apps_needing_auth = if plugin_apps.is_empty()
                     || !config.features.apps_enabled_for_auth(
-                        auth.as_ref().is_some_and(CodexAuth::is_chatgpt_auth),
+                        auth.as_ref().is_some_and(DarwinCodeAuth::is_chatgpt_auth),
                     ) {
                     Vec::new()
                 } else {
@@ -6827,9 +6827,9 @@ impl CodexMessageProcessor {
                     };
                     let all_connectors =
                         connectors::connectors_for_plugin_apps(all_connectors, &plugin_apps);
-                    let (accessible_connectors, codex_apps_ready) =
+                    let (accessible_connectors, darwin_code_apps_ready) =
                         match accessible_connectors_result {
-                            Ok(status) => (status.connectors, status.codex_apps_ready),
+                            Ok(status) => (status.connectors, status.darwin_code_apps_ready),
                             Err(err) => {
                                 warn!(
                                     plugin = result.plugin_id.as_key(),
@@ -6845,10 +6845,10 @@ impl CodexMessageProcessor {
                                 )
                             }
                         };
-                    if !codex_apps_ready {
+                    if !darwin_code_apps_ready {
                         warn!(
                             plugin = result.plugin_id.as_key(),
-                            "codex_apps MCP not ready after plugin install; skipping appsNeedingAuth check"
+                            "darwin_code_apps MCP not ready after plugin install; skipping appsNeedingAuth check"
                         );
                     }
 
@@ -6856,7 +6856,7 @@ impl CodexMessageProcessor {
                         &all_connectors,
                         &accessible_connectors,
                         &plugin_apps,
-                        codex_apps_ready,
+                        darwin_code_apps_ready,
                     )
                 };
 
@@ -7048,7 +7048,7 @@ impl CodexMessageProcessor {
                         approval_policy: params.approval_policy.map(AskForApproval::to_core),
                         approvals_reviewer: params
                             .approvals_reviewer
-                            .map(codex_app_server_protocol::ApprovalsReviewer::to_core),
+                            .map(darwin_code_app_server_protocol::ApprovalsReviewer::to_core),
                         sandbox_policy: params.sandbox_policy.map(|p| p.to_core()),
                         windows_sandbox_level: None,
                         model: params.model,
@@ -7150,7 +7150,7 @@ impl CodexMessageProcessor {
                     .send_response(request_id, ThreadInjectItemsResponse {})
                     .await;
             }
-            Err(CodexErr::InvalidRequest(message)) => {
+            Err(DarwinCodeErr::InvalidRequest(message)) => {
                 self.send_invalid_request_error(request_id, message).await;
             }
             Err(err) => {
@@ -7164,7 +7164,7 @@ impl CodexMessageProcessor {
     }
 
     async fn set_app_server_client_info(
-        thread: &CodexThread,
+        thread: &DarwinCodeThread,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> Result<(), JSONRPCErrorError> {
@@ -7256,18 +7256,18 @@ impl CodexMessageProcessor {
                     ),
                     SteerInputError::ActiveTurnNotSteerable { turn_kind } => {
                         let (message, turn_steer_error) = match turn_kind {
-                            codex_protocol::protocol::NonSteerableTurnKind::Review => (
+                            darwin_code_protocol::protocol::NonSteerableTurnKind::Review => (
                                 "cannot steer a review turn".to_string(),
                                 TurnSteerRequestError::NonSteerableReview,
                             ),
-                            codex_protocol::protocol::NonSteerableTurnKind::Compact => (
+                            darwin_code_protocol::protocol::NonSteerableTurnKind::Compact => (
                                 "cannot steer a compact turn".to_string(),
                                 TurnSteerRequestError::NonSteerableCompact,
                             ),
                         };
                         let error = TurnError {
                             message: message.clone(),
-                            codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+                            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                                 turn_kind: turn_kind.into(),
                             }),
                             additional_details: None,
@@ -7311,7 +7311,7 @@ impl CodexMessageProcessor {
         &self,
         request_id: ConnectionRequestId,
         thread_id: &str,
-    ) -> Option<(ThreadId, Arc<CodexThread>)> {
+    ) -> Option<(ThreadId, Arc<DarwinCodeThread>)> {
         let (thread_id, thread) = match self.load_thread(thread_id).await {
             Ok(v) => v,
             Err(error) => {
@@ -7564,7 +7564,7 @@ impl CodexMessageProcessor {
     async fn start_inline_review(
         &self,
         request_id: &ConnectionRequestId,
-        parent_thread: Arc<CodexThread>,
+        parent_thread: Arc<DarwinCodeThread>,
         review_request: ReviewRequest,
         display_text: &str,
         parent_thread_id: String,
@@ -7596,14 +7596,14 @@ impl CodexMessageProcessor {
         &self,
         request_id: &ConnectionRequestId,
         parent_thread_id: ThreadId,
-        parent_thread: Arc<CodexThread>,
+        parent_thread: Arc<DarwinCodeThread>,
         review_request: ReviewRequest,
         display_text: &str,
     ) -> std::result::Result<(), JSONRPCErrorError> {
         let rollout_path = if let Some(path) = parent_thread.rollout_path() {
             path
         } else {
-            find_thread_path_by_id_str(&self.config.codex_home, &parent_thread_id.to_string())
+            find_thread_path_by_id_str(&self.config.darwin_code_home, &parent_thread_id.to_string())
                 .await
                 .map_err(|err| JSONRPCErrorError {
                     code: INTERNAL_ERROR_CODE,
@@ -7844,7 +7844,7 @@ impl CodexMessageProcessor {
                 general_analytics_enabled: self.config.features.enabled(Feature::GeneralAnalytics),
                 thread_watch_manager: self.thread_watch_manager.clone(),
                 fallback_model_provider: self.config.model_provider_id.clone(),
-                codex_home: self.config.codex_home.to_path_buf(),
+                darwin_code_home: self.config.darwin_code_home.to_path_buf(),
             },
             conversation_id,
             connection_id,
@@ -7944,7 +7944,7 @@ impl CodexMessageProcessor {
     async fn ensure_listener_task_running(
         &self,
         conversation_id: ThreadId,
-        conversation: Arc<CodexThread>,
+        conversation: Arc<DarwinCodeThread>,
         thread_state: Arc<Mutex<ThreadState>>,
         api_version: ApiVersion,
     ) -> Result<(), JSONRPCErrorError> {
@@ -7958,7 +7958,7 @@ impl CodexMessageProcessor {
                 general_analytics_enabled: self.config.features.enabled(Feature::GeneralAnalytics),
                 thread_watch_manager: self.thread_watch_manager.clone(),
                 fallback_model_provider: self.config.model_provider_id.clone(),
-                codex_home: self.config.codex_home.to_path_buf(),
+                darwin_code_home: self.config.darwin_code_home.to_path_buf(),
             },
             conversation_id,
             conversation,
@@ -7971,7 +7971,7 @@ impl CodexMessageProcessor {
     async fn ensure_listener_task_running_task(
         listener_task_context: ListenerTaskContext,
         conversation_id: ThreadId,
-        conversation: Arc<CodexThread>,
+        conversation: Arc<DarwinCodeThread>,
         thread_state: Arc<Mutex<ThreadState>>,
         api_version: ApiVersion,
     ) -> Result<(), JSONRPCErrorError> {
@@ -8007,7 +8007,7 @@ impl CodexMessageProcessor {
             general_analytics_enabled: _,
             thread_watch_manager,
             fallback_model_provider,
-            codex_home,
+            darwin_code_home,
         } = listener_task_context;
         let outgoing_for_task = Arc::clone(&outgoing);
         tokio::spawn(async move {
@@ -8025,7 +8025,7 @@ impl CodexMessageProcessor {
                         handle_thread_listener_command(
                             conversation_id,
                             &conversation,
-                            codex_home.as_path(),
+                            darwin_code_home.as_path(),
                             &thread_state_manager,
                             &thread_state,
                             &thread_watch_manager,
@@ -8088,7 +8088,7 @@ impl CodexMessageProcessor {
                             thread_watch_manager.clone(),
                             api_version,
                             fallback_model_provider.clone(),
-                            codex_home.as_path(),
+                            darwin_code_home.as_path(),
                         )
                         .await;
                     }
@@ -8349,8 +8349,8 @@ impl CodexMessageProcessor {
                         let mut thread_ids = vec![conversation_id];
                         if let Some(state_db_ctx) = state_db_ctx.as_ref() {
                             for status in [
-                                codex_state::DirectionalThreadSpawnEdgeStatus::Open,
-                                codex_state::DirectionalThreadSpawnEdgeStatus::Closed,
+                                darwin_code_state::DirectionalThreadSpawnEdgeStatus::Open,
+                                darwin_code_state::DirectionalThreadSpawnEdgeStatus::Closed,
                             ] {
                                 match state_db_ctx
                                     .list_thread_spawn_descendants_with_status(
@@ -8508,7 +8508,7 @@ impl CodexMessageProcessor {
                 },
                 Some(command_cwd.clone()),
                 &cloud_requirements,
-                &config.codex_home,
+                &config.darwin_code_home,
                 &runtime_feature_enablement,
             )
             .await;
@@ -8520,10 +8520,10 @@ impl CodexMessageProcessor {
                         policy_cwd: config.cwd.to_path_buf(),
                         command_cwd,
                         env_map: std::env::vars().collect(),
-                        codex_home: config.codex_home.to_path_buf(),
+                        darwin_code_home: config.darwin_code_home.to_path_buf(),
                         active_profile: config.active_profile.clone(),
                     };
-                    codex_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await
+                    darwin_code_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await
                 }
                 Err(err) => Err(err.into()),
             };
@@ -8585,7 +8585,7 @@ fn normalize_thread_list_cwd_filter(
 #[cfg(test)]
 mod thread_list_cwd_filter_tests {
     use super::normalize_thread_list_cwd_filter;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -8620,8 +8620,8 @@ mod thread_list_cwd_filter_tests {
 #[allow(clippy::too_many_arguments)]
 async fn handle_thread_listener_command(
     conversation_id: ThreadId,
-    conversation: &Arc<CodexThread>,
-    codex_home: &Path,
+    conversation: &Arc<DarwinCodeThread>,
+    darwin_code_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,
@@ -8634,7 +8634,7 @@ async fn handle_thread_listener_command(
             handle_pending_thread_resume_request(
                 conversation_id,
                 conversation,
-                codex_home,
+                darwin_code_home,
                 thread_state_manager,
                 thread_state,
                 thread_watch_manager,
@@ -8663,8 +8663,8 @@ async fn handle_thread_listener_command(
 #[allow(clippy::too_many_arguments)]
 async fn handle_pending_thread_resume_request(
     conversation_id: ThreadId,
-    conversation: &Arc<CodexThread>,
-    _codex_home: &Path,
+    conversation: &Arc<DarwinCodeThread>,
+    _darwin_code_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,
@@ -8928,7 +8928,7 @@ fn collect_resume_override_mismatches(
         }
     }
     if let Some(requested_review_policy) = request.approvals_reviewer.as_ref() {
-        let active_review_policy: codex_app_server_protocol::ApprovalsReviewer =
+        let active_review_policy: darwin_code_app_server_protocol::ApprovalsReviewer =
             config_snapshot.approvals_reviewer.into();
         if requested_review_policy != &active_review_policy {
             mismatch_details.push(format!(
@@ -8941,16 +8941,16 @@ fn collect_resume_override_mismatches(
             (requested_sandbox, &config_snapshot.sandbox_policy),
             (
                 SandboxMode::ReadOnly,
-                codex_protocol::protocol::SandboxPolicy::ReadOnly { .. }
+                darwin_code_protocol::protocol::SandboxPolicy::ReadOnly { .. }
             ) | (
                 SandboxMode::WorkspaceWrite,
-                codex_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
+                darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
             ) | (
                 SandboxMode::DangerFullAccess,
-                codex_protocol::protocol::SandboxPolicy::DangerFullAccess
+                darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess
             ) | (
                 SandboxMode::DangerFullAccess,
-                codex_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
+                darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox { .. }
             )
         );
         if !sandbox_matches {
@@ -9022,19 +9022,19 @@ fn has_model_resume_override(
 }
 
 fn skills_to_info(
-    skills: &[codex_core::skills::SkillMetadata],
+    skills: &[darwin_code_core::skills::SkillMetadata],
     disabled_paths: &std::collections::HashSet<AbsolutePathBuf>,
-) -> Vec<codex_app_server_protocol::SkillMetadata> {
+) -> Vec<darwin_code_app_server_protocol::SkillMetadata> {
     skills
         .iter()
         .map(|skill| {
             let enabled = !disabled_paths.contains(&skill.path_to_skills_md);
-            codex_app_server_protocol::SkillMetadata {
+            darwin_code_app_server_protocol::SkillMetadata {
                 name: skill.name.clone(),
                 description: skill.description.clone(),
                 short_description: skill.short_description.clone(),
                 interface: skill.interface.clone().map(|interface| {
-                    codex_app_server_protocol::SkillInterface {
+                    darwin_code_app_server_protocol::SkillInterface {
                         display_name: interface.display_name,
                         short_description: interface.short_description,
                         icon_small: interface.icon_small,
@@ -9044,11 +9044,11 @@ fn skills_to_info(
                     }
                 }),
                 dependencies: skill.dependencies.clone().map(|dependencies| {
-                    codex_app_server_protocol::SkillDependencies {
+                    darwin_code_app_server_protocol::SkillDependencies {
                         tools: dependencies
                             .tools
                             .into_iter()
-                            .map(|tool| codex_app_server_protocol::SkillToolDependency {
+                            .map(|tool| darwin_code_app_server_protocol::SkillToolDependency {
                                 r#type: tool.r#type,
                                 value: tool.value,
                                 description: tool.description,
@@ -9068,7 +9068,7 @@ fn skills_to_info(
 }
 
 fn plugin_skills_to_info(
-    skills: &[codex_core::skills::SkillMetadata],
+    skills: &[darwin_code_core::skills::SkillMetadata],
     disabled_skill_paths: &std::collections::HashSet<AbsolutePathBuf>,
 ) -> Vec<SkillSummary> {
     skills
@@ -9078,7 +9078,7 @@ fn plugin_skills_to_info(
             description: skill.description.clone(),
             short_description: skill.short_description.clone(),
             interface: skill.interface.clone().map(|interface| {
-                codex_app_server_protocol::SkillInterface {
+                darwin_code_app_server_protocol::SkillInterface {
                     display_name: interface.display_name,
                     short_description: interface.short_description,
                     icon_small: interface.icon_small,
@@ -9133,11 +9133,11 @@ fn marketplace_plugin_source_to_info(source: MarketplacePluginSource) -> PluginS
 }
 
 fn errors_to_info(
-    errors: &[codex_core::skills::SkillError],
-) -> Vec<codex_app_server_protocol::SkillErrorInfo> {
+    errors: &[darwin_code_core::skills::SkillError],
+) -> Vec<darwin_code_app_server_protocol::SkillErrorInfo> {
     errors
         .iter()
-        .map(|err| codex_app_server_protocol::SkillErrorInfo {
+        .map(|err| darwin_code_app_server_protocol::SkillErrorInfo {
             path: err.path.to_path_buf(),
             message: err.message.clone(),
         })
@@ -9200,7 +9200,7 @@ fn validate_dynamic_tools(tools: &[ApiDynamicToolSpec]) -> Result<(), String> {
             return Err(format!("duplicate dynamic tool name: {name}"));
         }
 
-        if let Err(err) = codex_tools::parse_tool_input_schema(&tool.input_schema) {
+        if let Err(err) = darwin_code_tools::parse_tool_input_schema(&tool.input_schema) {
             return Err(format!(
                 "dynamic tool input schema is not supported for {name}: {err}"
             ));
@@ -9213,9 +9213,9 @@ fn replace_cloud_requirements_loader(
     cloud_requirements: &RwLock<CloudRequirementsLoader>,
     auth_manager: Arc<AuthManager>,
     chatgpt_base_url: String,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
 ) {
-    let loader = cloud_requirements_loader(auth_manager, chatgpt_base_url, codex_home);
+    let loader = cloud_requirements_loader(auth_manager, chatgpt_base_url, darwin_code_home);
     if let Ok(mut guard) = cloud_requirements.write() {
         *guard = loader;
     } else {
@@ -9231,7 +9231,7 @@ async fn sync_default_client_residency_requirement(
         .read()
         .map(|guard| guard.clone())
         .unwrap_or_default();
-    match codex_core::config::ConfigBuilder::default()
+    match darwin_code_core::config::ConfigBuilder::default()
         .cli_overrides(cli_overrides.to_vec())
         .cloud_requirements(loader)
         .build()
@@ -9260,7 +9260,7 @@ async fn derive_config_from_params(
     request_overrides: Option<HashMap<String, serde_json::Value>>,
     typesafe_overrides: ConfigOverrides,
     cloud_requirements: &CloudRequirementsLoader,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     runtime_feature_enablement: &BTreeMap<String, bool>,
 ) -> std::io::Result<Config> {
     let merged_cli_overrides = cli_overrides
@@ -9274,8 +9274,8 @@ async fn derive_config_from_params(
         )
         .collect::<Vec<_>>();
 
-    let mut config = codex_core::config::ConfigBuilder::default()
-        .codex_home(codex_home.to_path_buf())
+    let mut config = darwin_code_core::config::ConfigBuilder::default()
+        .darwin_code_home(darwin_code_home.to_path_buf())
         .cli_overrides(merged_cli_overrides)
         .harness_overrides(typesafe_overrides)
         .cloud_requirements(cloud_requirements.clone())
@@ -9291,7 +9291,7 @@ async fn derive_config_for_cwd(
     typesafe_overrides: ConfigOverrides,
     cwd: Option<PathBuf>,
     cloud_requirements: &CloudRequirementsLoader,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     runtime_feature_enablement: &BTreeMap<String, bool>,
 ) -> std::io::Result<Config> {
     let merged_cli_overrides = cli_overrides
@@ -9305,8 +9305,8 @@ async fn derive_config_for_cwd(
         )
         .collect::<Vec<_>>();
 
-    let mut config = codex_core::config::ConfigBuilder::default()
-        .codex_home(codex_home.to_path_buf())
+    let mut config = darwin_code_core::config::ConfigBuilder::default()
+        .darwin_code_home(darwin_code_home.to_path_buf())
         .cli_overrides(merged_cli_overrides)
         .harness_overrides(typesafe_overrides)
         .fallback_cwd(cwd)
@@ -9367,7 +9367,7 @@ async fn title_from_state_db(config: &Config, thread_id: ThreadId) -> Option<Str
     {
         return Some(title);
     }
-    find_thread_name_by_id(&config.codex_home, &thread_id)
+    find_thread_name_by_id(&config.darwin_code_home, &thread_id)
         .await
         .ok()
         .flatten()
@@ -9389,7 +9389,7 @@ async fn thread_titles_by_ids(
         }
     }
     if names.len() < thread_ids.len()
-        && let Ok(legacy_names) = find_thread_names_by_ids(&config.codex_home, thread_ids).await
+        && let Ok(legacy_names) = find_thread_names_by_ids(&config.darwin_code_home, thread_ids).await
     {
         for (thread_id, title) in legacy_names {
             names.entry(thread_id).or_insert(title);
@@ -9444,7 +9444,7 @@ fn thread_from_stored_thread(
     thread: StoredThread,
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
-) -> (Thread, Option<codex_thread_store::StoredThreadHistory>) {
+) -> (Thread, Option<darwin_code_thread_store::StoredThreadHistory>) {
     let path = thread.rollout_path;
     let git_info = thread.git_info.map(|info| ApiGitInfo {
         sha: info.commit_hash.map(|sha| sha.0),
@@ -9568,7 +9568,7 @@ fn summary_from_state_db_metadata(
     let preview = first_user_message.unwrap_or_default();
     let source = serde_json::from_str(&source)
         .or_else(|_| serde_json::from_value(serde_json::Value::String(source.clone())))
-        .unwrap_or(codex_protocol::protocol::SessionSource::Unknown);
+        .unwrap_or(darwin_code_protocol::protocol::SessionSource::Unknown);
     let source = with_thread_spawn_agent_metadata(source, agent_nickname, agent_role);
     let git_info = if git_sha.is_none() && git_branch.is_none() && git_origin_url.is_none() {
         None
@@ -9713,7 +9713,7 @@ fn extract_conversation_summary(
     let preview = head
         .iter()
         .filter_map(|value| serde_json::from_value::<ResponseItem>(value.clone()).ok())
-        .find_map(|item| match codex_core::parse_turn_item(&item) {
+        .find_map(|item| match darwin_code_core::parse_turn_item(&item) {
             Some(TurnItem::UserMessage(user)) => Some(user.message()),
             _ => None,
         })?;
@@ -9813,8 +9813,8 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
     items
         .iter()
         .find_map(|item| match item {
-            RolloutItem::ResponseItem(item) => match codex_core::parse_turn_item(item) {
-                Some(codex_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+            RolloutItem::ResponseItem(item) => match darwin_code_core::parse_turn_item(item) {
+                Some(darwin_code_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
                 _ => None,
             },
             _ => None,
@@ -9827,25 +9827,25 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
 }
 
 fn with_thread_spawn_agent_metadata(
-    source: codex_protocol::protocol::SessionSource,
+    source: darwin_code_protocol::protocol::SessionSource,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
-) -> codex_protocol::protocol::SessionSource {
+) -> darwin_code_protocol::protocol::SessionSource {
     if agent_nickname.is_none() && agent_role.is_none() {
         return source;
     }
 
     match source {
-        codex_protocol::protocol::SessionSource::SubAgent(
-            codex_protocol::protocol::SubAgentSource::ThreadSpawn {
+        darwin_code_protocol::protocol::SessionSource::SubAgent(
+            darwin_code_protocol::protocol::SubAgentSource::ThreadSpawn {
                 parent_thread_id,
                 depth,
                 agent_path,
                 agent_nickname: existing_agent_nickname,
                 agent_role: existing_agent_role,
             },
-        ) => codex_protocol::protocol::SessionSource::SubAgent(
-            codex_protocol::protocol::SubAgentSource::ThreadSpawn {
+        ) => darwin_code_protocol::protocol::SessionSource::SubAgent(
+            darwin_code_protocol::protocol::SubAgentSource::ThreadSpawn {
                 parent_thread_id,
                 depth,
                 agent_path,
@@ -10132,17 +10132,17 @@ mod tests {
     use anyhow::Result;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_app_server_protocol::ServerRequestPayload;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_protocol::ThreadId;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::SubAgentSource;
-    use codex_thread_store::StoredThread;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_app_server_protocol::ServerRequestPayload;
+    use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::openai_models::ReasoningEffort;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::SubAgentSource;
+    use darwin_code_thread_store::StoredThread;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -10306,7 +10306,7 @@ mod tests {
             path: None,
             model: None,
             model_provider: None,
-            service_tier: Some(Some(codex_protocol::config_types::ServiceTier::Fast)),
+            service_tier: Some(Some(darwin_code_protocol::config_types::ServiceTier::Fast)),
             cwd: None,
             approval_policy: None,
             approvals_reviewer: None,
@@ -10320,10 +10320,10 @@ mod tests {
         let config_snapshot = ThreadConfigSnapshot {
             model: "gpt-5".to_string(),
             model_provider_id: "openai".to_string(),
-            service_tier: Some(codex_protocol::config_types::ServiceTier::Flex),
-            approval_policy: codex_protocol::protocol::AskForApproval::OnRequest,
-            approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer::User,
-            sandbox_policy: codex_protocol::protocol::SandboxPolicy::DangerFullAccess,
+            service_tier: Some(darwin_code_protocol::config_types::ServiceTier::Flex),
+            approval_policy: darwin_code_protocol::protocol::AskForApproval::OnRequest,
+            approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer::User,
+            sandbox_policy: darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess,
             cwd: test_path_buf("/tmp").abs(),
             ephemeral: false,
             reasoning_effort: None,
@@ -10346,7 +10346,7 @@ mod tests {
             thread_id,
             PathBuf::from("/tmp/rollout.jsonl"),
             Utc::now(),
-            codex_protocol::protocol::SessionSource::default(),
+            darwin_code_protocol::protocol::SessionSource::default(),
         );
         builder.model_provider = Some("mock_provider".to_string());
         let mut metadata = builder.build("mock_provider");
@@ -10377,7 +10377,7 @@ mod tests {
         let mut request_overrides = None;
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_thread_metadata(Some("gpt-5.1-darwin-code-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -10387,7 +10387,7 @@ mod tests {
 
         assert_eq!(
             typesafe_overrides.model,
-            Some("gpt-5.1-codex-max".to_string())
+            Some("gpt-5.1-darwin-code-max".to_string())
         );
         assert_eq!(
             request_overrides,
@@ -10406,11 +10406,11 @@ mod tests {
             serde_json::Value::String("low".to_string()),
         )]));
         let mut typesafe_overrides = ConfigOverrides {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         };
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_thread_metadata(Some("gpt-5.1-darwin-code-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -10418,7 +10418,7 @@ mod tests {
             &persisted_metadata,
         );
 
-        assert_eq!(typesafe_overrides.model, Some("gpt-5.2-codex".to_string()));
+        assert_eq!(typesafe_overrides.model, Some("gpt-5.2-darwin-code".to_string()));
         assert_eq!(
             request_overrides,
             Some(HashMap::from([(
@@ -10434,11 +10434,11 @@ mod tests {
     {
         let mut request_overrides = Some(HashMap::from([(
             "model".to_string(),
-            serde_json::Value::String("gpt-5.2-codex".to_string()),
+            serde_json::Value::String("gpt-5.2-darwin-code".to_string()),
         )]));
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_thread_metadata(Some("gpt-5.1-darwin-code-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -10451,7 +10451,7 @@ mod tests {
             request_overrides,
             Some(HashMap::from([(
                 "model".to_string(),
-                serde_json::Value::String("gpt-5.2-codex".to_string()),
+                serde_json::Value::String("gpt-5.2-darwin-code".to_string()),
             )]))
         );
         Ok(())
@@ -10466,7 +10466,7 @@ mod tests {
             ..Default::default()
         };
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_thread_metadata(Some("gpt-5.1-darwin-code-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -10489,7 +10489,7 @@ mod tests {
         )]));
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_thread_metadata(Some("gpt-5.1-darwin-code-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -10537,7 +10537,7 @@ mod tests {
                 "id": conversation_id.to_string(),
                 "timestamp": timestamp,
                 "cwd": "/",
-                "originator": "codex",
+                "originator": "darwin-code",
                 "cli_version": "0.0.0",
                 "model_provider": "test-provider"
             }),
@@ -10590,9 +10590,9 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_returns_empty_preview_when_no_user_message() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use darwin_code_protocol::protocol::RolloutItem;
+        use darwin_code_protocol::protocol::RolloutLine;
+        use darwin_code_protocol::protocol::SessionMetaLine;
         use std::fs;
         use std::fs::FileTimes;
 
@@ -10646,9 +10646,9 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_agent_nickname() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use darwin_code_protocol::protocol::RolloutItem;
+        use darwin_code_protocol::protocol::RolloutLine;
+        use darwin_code_protocol::protocol::SessionMetaLine;
         use std::fs;
 
         let temp_dir = TempDir::new()?;
@@ -10694,9 +10694,9 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_forked_from_id() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use darwin_code_protocol::protocol::RolloutItem;
+        use darwin_code_protocol::protocol::RolloutLine;
+        use darwin_code_protocol::protocol::SessionMetaLine;
         use std::fs;
 
         let temp_dir = TempDir::new()?;
@@ -10846,7 +10846,7 @@ mod tests {
             let mut state = state.lock().await;
             state.cancel_tx = Some(cancel_tx);
             state.track_current_turn_event(&EventMsg::TurnStarted(
-                codex_protocol::protocol::TurnStartedEvent {
+                darwin_code_protocol::protocol::TurnStartedEvent {
                     turn_id: "turn-1".to_string(),
                     started_at: None,
                     model_context_window: None,

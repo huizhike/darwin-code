@@ -2,14 +2,14 @@ use crate::environment_context::EnvironmentContext;
 use crate::session::PreviousTurnSettings;
 use crate::session::turn_context::TurnContext;
 use crate::shell::Shell;
-use codex_execpolicy::Policy;
-use codex_features::Feature;
-use codex_protocol::config_types::Personality;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::protocol::TurnContextItem;
+use darwin_code_execpolicy::Policy;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::protocol::TurnContextItem;
 
 fn build_environment_update_item(
     previous: Option<&TurnContextItem>,

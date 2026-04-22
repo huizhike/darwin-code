@@ -23,7 +23,7 @@ impl Session {
                         return None;
                     }
                 };
-                codex_protocol::approvals::ElicitationRequest::Form {
+                darwin_code_protocol::approvals::ElicitationRequest::Form {
                     meta,
                     message,
                     requested_schema,
@@ -34,7 +34,7 @@ impl Session {
                 message,
                 url,
                 elicitation_id,
-            } => codex_protocol::approvals::ElicitationRequest::Url {
+            } => darwin_code_protocol::approvals::ElicitationRequest::Url {
                 meta,
                 message,
                 url,
@@ -64,10 +64,10 @@ impl Session {
         }
         let id = match request_id {
             rmcp::model::NumberOrString::String(value) => {
-                codex_protocol::mcp::RequestId::String(value.to_string())
+                darwin_code_protocol::mcp::RequestId::String(value.to_string())
             }
             rmcp::model::NumberOrString::Number(value) => {
-                codex_protocol::mcp::RequestId::Integer(value)
+                darwin_code_protocol::mcp::RequestId::Integer(value)
             }
         };
         let event = EventMsg::ElicitationRequest(ElicitationRequestEvent {
@@ -190,7 +190,7 @@ impl Session {
             .mcp_manager
             .tool_plugin_provenance(config.as_ref())
             .await;
-        let mcp_servers = with_codex_apps_mcp(mcp_servers, auth.as_ref(), &mcp_config);
+        let mcp_servers = with_darwin_code_apps_mcp(mcp_servers, auth.as_ref(), &mcp_config);
         let auth_statuses = compute_auth_statuses(mcp_servers.iter(), store_mode).await;
         {
             let mut guard = self.services.mcp_startup_cancellation_token.lock().await;
@@ -205,8 +205,8 @@ impl Session {
             turn_context.sub_id.clone(),
             self.get_tx_event(),
             turn_context.sandbox_policy.get().clone(),
-            config.codex_home.to_path_buf(),
-            codex_apps_tools_cache_key(auth.as_ref()),
+            config.darwin_code_home.to_path_buf(),
+            darwin_code_apps_tools_cache_key(auth.as_ref()),
             tool_plugin_provenance,
         )
         .await;

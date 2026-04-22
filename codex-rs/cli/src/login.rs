@@ -1,24 +1,24 @@
 //! CLI login commands and their direct-user observability surfaces.
 //!
 //! The TUI path already installs a broader tracing stack with feedback, OpenTelemetry, and other
-//! interactive-session layers. Direct `codex login` intentionally does less: it preserves the
+//! interactive-session layers. Direct `darwin-code login` intentionally does less: it preserves the
 //! existing stderr/browser UX and adds only a small file-backed tracing layer for login-specific
 //! targets. Keeping that setup local avoids pulling the TUI's session-oriented logging machinery
-//! into a one-shot CLI command while still producing a durable `codex-login.log` artifact that
+//! into a one-shot CLI command while still producing a durable `darwin-code-login.log` artifact that
 //! support can request from users.
 
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::Config;
-use codex_login::CLIENT_ID;
-use codex_login::CodexAuth;
-use codex_login::ServerOptions;
-use codex_login::login_with_api_key;
-use codex_login::logout_with_revoke;
-use codex_login::run_device_code_login;
-use codex_login::run_login_server;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_core::config::Config;
+use darwin_code_login::CLIENT_ID;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::ServerOptions;
+use darwin_code_login::login_with_api_key;
+use darwin_code_login::logout_with_revoke;
+use darwin_code_login::run_device_code_login;
+use darwin_code_login::run_login_server;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
+use darwin_code_utils_cli::CliConfigOverrides;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::io::Read;
@@ -36,15 +36,15 @@ const API_KEY_LOGIN_DISABLED_MESSAGE: &str =
     "API key login is disabled. Use ChatGPT login instead.";
 const LOGIN_SUCCESS_MESSAGE: &str = "Successfully logged in";
 
-/// Installs a small file-backed tracing layer for direct `codex login` flows.
+/// Installs a small file-backed tracing layer for direct `darwin-code login` flows.
 ///
 /// This deliberately duplicates a narrow slice of the TUI logging setup instead of reusing it
 /// wholesale. The TUI stack includes session-oriented layers that are valuable for interactive
 /// runs but unnecessary for a one-shot login command. Keeping the direct CLI path local lets this
-/// command produce a durable `codex-login.log` artifact without coupling it to the TUI's broader
+/// command produce a durable `darwin-code-login.log` artifact without coupling it to the TUI's broader
 /// telemetry and feedback initialization.
 fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
-    let log_dir = match codex_core::config::log_dir(config) {
+    let log_dir = match darwin_code_core::config::log_dir(config) {
         Ok(log_dir) => log_dir,
         Err(err) => {
             eprintln!("Warning: failed to resolve login log directory: {err}");
@@ -69,7 +69,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
         log_file_opts.mode(0o600);
     }
 
-    let log_path = log_dir.join("codex-login.log");
+    let log_path = log_dir.join("darwin-code-login.log");
     let log_file = match log_file_opts.open(&log_path) {
         Ok(log_file) => log_file,
         Err(err) => {
@@ -83,14 +83,14 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
     let (non_blocking, guard) = non_blocking(log_file);
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("codex_cli=info,codex_core=info,codex_login=info"));
+        .unwrap_or_else(|_| EnvFilter::new("darwin_code_cli=info,darwin_code_core=info,darwin_code_login=info"));
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
         .with_target(true)
         .with_ansi(false)
         .with_filter(env_filter);
 
-    // Direct `codex login` otherwise relies on ephemeral stderr and browser output.
+    // Direct `darwin-code login` otherwise relies on ephemeral stderr and browser output.
     // Persist the same login targets to a file so support can inspect auth failures
     // without reproducing them through TUI or app-server.
     if let Err(err) = tracing_subscriber::registry().with(file_layer).try_init() {
@@ -106,17 +106,17 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
 fn print_login_server_start(actual_port: u16, auth_url: &str) {
     eprintln!(
-        "Starting local login server on http://localhost:{actual_port}.\nIf your browser did not open, navigate to this URL to authenticate:\n\n{auth_url}\n\nOn a remote or headless machine? Use `codex login --device-auth` instead."
+        "Starting local login server on http://localhost:{actual_port}.\nIf your browser did not open, navigate to this URL to authenticate:\n\n{auth_url}\n\nOn a remote or headless machine? Use `darwin-code login --device-auth` instead."
     );
 }
 
 pub async fn login_with_chatgpt(
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     forced_chatgpt_workspace_id: Option<String>,
     cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
 ) -> std::io::Result<()> {
     let opts = ServerOptions::new(
-        codex_home,
+        darwin_code_home,
         CLIENT_ID.to_string(),
         forced_chatgpt_workspace_id,
         cli_auth_credentials_store_mode,
@@ -141,7 +141,7 @@ pub async fn run_login_with_chatgpt(cli_config_overrides: CliConfigOverrides) ->
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
 
     match login_with_chatgpt(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
     )
@@ -172,7 +172,7 @@ pub async fn run_login_with_api_key(
     }
 
     match login_with_api_key(
-        &config.codex_home,
+        &config.darwin_code_home,
         &api_key,
         config.cli_auth_credentials_store_mode,
     ) {
@@ -192,7 +192,7 @@ pub fn read_api_key_from_stdin() -> String {
 
     if stdin.is_terminal() {
         eprintln!(
-            "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENAI_API_KEY | codex login --with-api-key`."
+            "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENAI_API_KEY | darwin-code login --with-api-key`."
         );
         std::process::exit(1);
     }
@@ -229,7 +229,7 @@ pub async fn run_login_with_device_code(
     }
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
     let mut opts = ServerOptions::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         client_id.unwrap_or(CLIENT_ID.to_string()),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
@@ -250,7 +250,7 @@ pub async fn run_login_with_device_code(
 }
 
 /// Prefers device-code login (with `open_browser = false`) when headless environment is detected, but keeps
-/// `codex login` working in environments where device-code may be disabled/feature-gated.
+/// `darwin-code login` working in environments where device-code may be disabled/feature-gated.
 /// If `run_device_code_login` returns `ErrorKind::NotFound` ("device-code unsupported"), this
 /// falls back to starting the local browser login server.
 pub async fn run_login_with_device_code_fallback_to_browser(
@@ -268,7 +268,7 @@ pub async fn run_login_with_device_code_fallback_to_browser(
 
     let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
     let mut opts = ServerOptions::new(
-        config.codex_home.to_path_buf(),
+        config.darwin_code_home.to_path_buf(),
         client_id.unwrap_or(CLIENT_ID.to_string()),
         forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
@@ -316,7 +316,7 @@ pub async fn run_login_with_device_code_fallback_to_browser(
 pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
 
-    match CodexAuth::from_auth_storage(&config.codex_home, config.cli_auth_credentials_store_mode) {
+    match DarwinCodeAuth::from_auth_storage(&config.darwin_code_home, config.cli_auth_credentials_store_mode) {
         Ok(Some(auth)) => match auth.auth_mode() {
             AuthMode::ApiKey => match auth.get_token() {
                 Ok(api_key) => {
@@ -347,7 +347,7 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
 pub async fn run_logout(cli_config_overrides: CliConfigOverrides) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
 
-    match logout_with_revoke(&config.codex_home, config.cli_auth_credentials_store_mode).await {
+    match logout_with_revoke(&config.darwin_code_home, config.cli_auth_credentials_store_mode).await {
         Ok(true) => {
             eprintln!("Successfully logged out");
             std::process::exit(0);

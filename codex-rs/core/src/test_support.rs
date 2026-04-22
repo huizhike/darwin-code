@@ -7,16 +7,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::collaboration_mode_presets;
-use codex_models_manager::manager::ModelsManager;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_models_manager::collaboration_mode_presets;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelPreset;
 use once_cell::sync::Lazy;
 
 use crate::ThreadManager;
@@ -41,31 +41,31 @@ pub fn set_deterministic_process_ids(enabled: bool) {
     unified_exec::set_deterministic_process_ids_for_tests(enabled);
 }
 
-pub fn auth_manager_from_auth(auth: CodexAuth) -> Arc<AuthManager> {
+pub fn auth_manager_from_auth(auth: DarwinCodeAuth) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing(auth)
 }
 
-pub fn auth_manager_from_auth_with_home(auth: CodexAuth, codex_home: PathBuf) -> Arc<AuthManager> {
-    AuthManager::from_auth_for_testing_with_home(auth, codex_home)
+pub fn auth_manager_from_auth_with_home(auth: DarwinCodeAuth, darwin_code_home: PathBuf) -> Arc<AuthManager> {
+    AuthManager::from_auth_for_testing_with_home(auth, darwin_code_home)
 }
 
 pub fn thread_manager_with_models_provider(
-    auth: CodexAuth,
+    auth: DarwinCodeAuth,
     provider: ModelProviderInfo,
 ) -> ThreadManager {
     ThreadManager::with_models_provider_for_tests(auth, provider)
 }
 
 pub fn thread_manager_with_models_provider_and_home(
-    auth: CodexAuth,
+    auth: DarwinCodeAuth,
     provider: ModelProviderInfo,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
 ) -> ThreadManager {
     ThreadManager::with_models_provider_and_home_for_tests(
         auth,
         provider,
-        codex_home,
+        darwin_code_home,
         environment_manager,
     )
 }
@@ -74,7 +74,7 @@ pub async fn start_thread_with_user_shell_override(
     thread_manager: &ThreadManager,
     config: Config,
     user_shell_override: crate::shell::Shell,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> darwin_code_protocol::error::Result<crate::NewThread> {
     thread_manager
         .start_thread_with_user_shell_override_for_tests(config, user_shell_override)
         .await
@@ -86,7 +86,7 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
     rollout_path: PathBuf,
     auth_manager: Arc<AuthManager>,
     user_shell_override: crate::shell::Shell,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> darwin_code_protocol::error::Result<crate::NewThread> {
     thread_manager
         .resume_thread_from_rollout_with_user_shell_override_for_tests(
             config,
@@ -98,11 +98,11 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
 }
 
 pub fn models_manager_with_provider(
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     auth_manager: Arc<AuthManager>,
     provider: ModelProviderInfo,
 ) -> ModelsManager {
-    ModelsManager::with_provider_for_tests(codex_home, auth_manager, provider)
+    ModelsManager::with_provider_for_tests(darwin_code_home, auth_manager, provider)
 }
 
 pub fn get_model_offline(model: Option<&str>) -> String {

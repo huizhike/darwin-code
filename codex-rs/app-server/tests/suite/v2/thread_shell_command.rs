@@ -5,30 +5,30 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionOutputDeltaNotification;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadShellCommandResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_core::shell::default_user_shell;
-use codex_features::FEATURES;
-use codex_features::Feature;
+use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
+use darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::CommandExecutionSource;
+use darwin_code_app_server_protocol::CommandExecutionStatus;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadReadResponse;
+use darwin_code_app_server_protocol::ThreadShellCommandParams;
+use darwin_code_app_server_protocol::ThreadShellCommandResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_core::shell::default_user_shell;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -40,20 +40,20 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_shell_command_runs_as_standalone_turn_and_persists_history() -> Result<()> {
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
     let server = create_mock_responses_server_sequence(vec![]).await;
     create_config_toml(
-        codex_home.as_path(),
+        darwin_code_home.as_path(),
         &server.uri(),
         "never",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.as_path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.as_path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -160,8 +160,8 @@ async fn thread_shell_command_runs_as_standalone_turn_and_persists_history() -> 
 #[tokio::test]
 async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -180,13 +180,13 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
     ];
     let server = create_mock_responses_server_sequence(responses).await;
     create_config_toml(
-        codex_home.as_path(),
+        darwin_code_home.as_path(),
         &server.uri(),
         "untrusted",
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.as_path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.as_path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -421,7 +421,7 @@ async fn wait_for_command_execution_output_delta(
 }
 
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: &str,
     feature_flags: &BTreeMap<Feature, bool>,
@@ -439,7 +439,7 @@ fn create_config_toml(
         .collect::<Vec<_>>()
         .join("\n");
     std::fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         format!(
             r#"
 model = "mock-model"

@@ -1,11 +1,11 @@
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::InputModality;
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::load_for_prompt_bytes;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_utils_image::PromptImageMode;
+use darwin_code_utils_image::load_for_prompt_bytes;
 use serde::Deserialize;
 
 use crate::function_tool::FunctionCallError;
@@ -16,8 +16,8 @@ use crate::tools::context::ToolPayload;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ViewImageToolCallEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ViewImageToolCallEvent;
 
 pub struct ViewImageHandler;
 

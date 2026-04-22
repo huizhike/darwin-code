@@ -30,7 +30,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     // implementation). Instead we configure the std `Command` ourselves, then later hand the
     // resulting `Output` to `assert_cmd` for the familiar assertions.
 
-    let mut cmd = Command::new(codex_utils_cargo_bin::cargo_bin("codex-rs").unwrap());
+    let mut cmd = Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code-rs").unwrap());
     cmd.current_dir(dir.path());
     cmd.env("OPENAI_API_KEY", require_api_key());
 
@@ -55,7 +55,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().expect("failed to spawn codex-rs");
+    let mut child = cmd.spawn().expect("failed to spawn darwin-code-rs");
 
     // Send the terminating newline so Session::run exits after the first turn.
     child

@@ -1,20 +1,20 @@
-use codex_features::FEATURES;
-use codex_protocol::account::PlanType;
+use darwin_code_features::FEATURES;
+use darwin_code_protocol::account::PlanType;
 use lazy_static::lazy_static;
 use rand::Rng;
 
 const ANNOUNCEMENT_TIP_URL: &str =
-    "https://raw.githubusercontent.com/openai/codex/main/announcement_tip.toml";
+    "https://raw.githubusercontent.com/openai/darwin-code/main/announcement_tip.toml";
 
 const IS_MACOS: bool = cfg!(target_os = "macos");
 const IS_WINDOWS: bool = cfg!(target_os = "windows");
 
-const APP_TOOLTIP: &str = "Try the **Codex App**. Run 'codex app' or visit https://chatgpt.com/codex?app-landing-page=true";
+const APP_TOOLTIP: &str = "Try the **Darwin-Code App**. Run 'darwin-code app' or visit https://chatgpt.com/darwin-code?app-landing-page=true";
 const FAST_TOOLTIP: &str = "*New* Use **/fast** to enable our fastest inference at 2X plan usage.";
-const OTHER_TOOLTIP: &str = "*New* Build faster with the **Codex App**. Run 'codex app' or visit https://chatgpt.com/codex?app-landing-page=true";
-const OTHER_TOOLTIP_NON_MAC: &str = "*New* Build faster with Codex.";
+const OTHER_TOOLTIP: &str = "*New* Build faster with the **Darwin-Code App**. Run 'darwin-code app' or visit https://chatgpt.com/darwin-code?app-landing-page=true";
+const OTHER_TOOLTIP_NON_MAC: &str = "*New* Build faster with Darwin-Code.";
 const FREE_GO_TOOLTIP: &str =
-    "*New* For a limited time, Codex is included in your plan for free – let’s build together.";
+    "*New* For a limited time, Darwin-Code is included in your plan for free – let’s build together.";
 
 const RAW_TOOLTIPS: &str = include_str!("../tooltips.txt");
 
@@ -26,7 +26,7 @@ lazy_static! {
             if line.is_empty() || line.starts_with('#') {
                 return false;
             }
-            if !IS_MACOS && !IS_WINDOWS && line.contains("codex app") {
+            if !IS_MACOS && !IS_WINDOWS && line.contains("darwin-code app") {
                 return false;
             }
             true
@@ -47,7 +47,7 @@ fn experimental_tooltips() -> Vec<&'static str> {
         .collect()
 }
 
-/// Pick a random tooltip to show to the user when starting Codex.
+/// Pick a random tooltip to show to the user when starting Darwin-Code.
 pub(crate) fn get_tooltip(plan: Option<PlanType>, fast_mode_enabled: bool) -> Option<String> {
     let mut rng = rand::rng();
 
@@ -121,10 +121,10 @@ fn pick_tooltip<R: Rng + ?Sized>(rng: &mut R) -> Option<&'static str> {
 
 pub(crate) mod announcement {
     use crate::tooltips::ANNOUNCEMENT_TIP_URL;
-    use crate::version::CODEX_CLI_VERSION;
+    use crate::version::DARWIN_CODE_CLI_VERSION;
     use chrono::NaiveDate;
     use chrono::Utc;
-    use codex_protocol::account::PlanType;
+    use darwin_code_protocol::account::PlanType;
     use regex_lite::Regex;
     use serde::Deserialize;
     use std::sync::OnceLock;
@@ -192,7 +192,7 @@ pub(crate) mod announcement {
             } else if cfg!(target_os = "windows") {
                 Self::Windows
             } else {
-                // Codex currently publishes CLI builds for macOS, Windows, and Linux.
+                // Darwin-Code currently publishes CLI builds for macOS, Windows, and Linux.
                 Self::Linux
             }
         }
@@ -242,7 +242,7 @@ pub(crate) mod announcement {
                 .target_oses
                 .as_ref()
                 .is_none_or(|target_oses| target_oses.contains(&CURRENT_OS));
-            if tip.version_matches(CODEX_CLI_VERSION)
+            if tip.version_matches(DARWIN_CODE_CLI_VERSION)
                 && tip.date_matches(today)
                 && tip.target_app == "cli"
                 && plan_matches
@@ -449,7 +449,7 @@ from_date = "2000-01-01"
     #[test]
     fn announcement_tip_toml_parse_comments() {
         let toml = r#"
-# Example announcement tips for Codex TUI.
+# Example announcement tips for Darwin-Code TUI.
 # Each [[announcements]] entry is evaluated in order; the last matching one is shown.
 # Dates are UTC, formatted as YYYY-MM-DD. The from_date is inclusive and the to_date is exclusive.
 # version_regex matches against the CLI version (env!("CARGO_PKG_VERSION")); omit to apply to all versions.
@@ -458,7 +458,7 @@ from_date = "2000-01-01"
 # target_oses optionally restricts the announcement to operating systems like ["macos", "windows"].
 
 [[announcements]]
-content = "Welcome to Codex! Check out the new onboarding flow."
+content = "Welcome to Darwin-Code! Check out the new onboarding flow."
 from_date = "2024-10-01"
 to_date = "2024-10-15"
 target_app = "cli"

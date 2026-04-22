@@ -1,17 +1,17 @@
-use codex_core::ForkSnapshot;
-use codex_core::NewThread;
-use codex_core::parse_turn_item;
-use codex_protocol::items::TurnItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::ForkSnapshot;
+use darwin_code_core::NewThread;
+use darwin_code_core::parse_turn_item;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -38,15 +38,15 @@ async fn fork_thread_twice_drops_to_first_message() {
         .mount(&server)
         .await;
 
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build(&server).await.expect("create conversation");
-    let codex = test.codex.clone();
+    let darwin-code = test.darwin-code.clone();
     let thread_manager = test.thread_manager.clone();
     let config_for_fork = test.config.clone();
 
     // Send three user messages; wait for three completed turns.
     for text in ["first", "second", "third"] {
-        codex
+        darwin-code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: text.to_string(),
@@ -57,11 +57,11 @@ async fn fork_thread_twice_drops_to_first_message() {
             })
             .await
             .unwrap();
-        let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        let _ = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     }
 
     // Request history from the base conversation to obtain rollout path.
-    let base_path = codex.rollout_path().expect("rollout path");
+    let base_path = darwin-code.rollout_path().expect("rollout path");
 
     // GetHistory flushes before returning the path; no wait needed.
 
@@ -109,7 +109,7 @@ async fn fork_thread_twice_drops_to_first_message() {
 
     // Fork once with n=1 → drops the last user input and everything after.
     let NewThread {
-        thread: codex_fork1,
+        thread: darwin_code_fork1,
         ..
     } = thread_manager
         .fork_thread(
@@ -122,7 +122,7 @@ async fn fork_thread_twice_drops_to_first_message() {
         .await
         .expect("fork 1");
 
-    let fork1_path = codex_fork1.rollout_path().expect("rollout path");
+    let fork1_path = darwin_code_fork1.rollout_path().expect("rollout path");
 
     // GetHistory on fork1 flushed; the file is ready.
     let fork1_items = read_items(&fork1_path);
@@ -133,7 +133,7 @@ async fn fork_thread_twice_drops_to_first_message() {
 
     // Fork again with n=0 → drops the (new) last user message, leaving only the first.
     let NewThread {
-        thread: codex_fork2,
+        thread: darwin_code_fork2,
         ..
     } = thread_manager
         .fork_thread(
@@ -146,7 +146,7 @@ async fn fork_thread_twice_drops_to_first_message() {
         .await
         .expect("fork 2");
 
-    let fork2_path = codex_fork2.rollout_path().expect("rollout path");
+    let fork2_path = darwin_code_fork2.rollout_path().expect("rollout path");
     // GetHistory on fork2 flushed; the file is ready.
     let fork1_items = read_items(&fork1_path);
     let fork1_user_inputs = find_user_input_positions(&fork1_items);

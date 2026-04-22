@@ -1,6 +1,6 @@
 use super::*;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
 use pretty_assertions::assert_eq;
 
 async fn process_compacted_history_with_test_session(

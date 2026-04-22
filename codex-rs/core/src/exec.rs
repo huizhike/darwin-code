@@ -23,29 +23,29 @@ use crate::sandboxing::SandboxPermissions;
 use crate::spawn::SpawnChildRequest;
 use crate::spawn::StdioPolicy;
 use crate::spawn::spawn_child_async;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
-use codex_utils_pty::process_group::kill_child_process_group;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::permissions::FileSystemSandboxKind;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
+use darwin_code_protocol::protocol::ExecOutputStream;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxTransformRequest;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
+use darwin_code_utils_pty::process_group::kill_child_process_group;
 
 pub const DEFAULT_EXEC_COMMAND_TIMEOUT_MS: u64 = 10_000;
 
@@ -88,7 +88,7 @@ pub struct ExecParams {
     pub env: HashMap<String, String>,
     pub network: Option<NetworkProxy>,
     pub sandbox_permissions: SandboxPermissions,
-    pub windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    pub windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
     pub justification: Option<String>,
     pub arg0: Option<String>,
@@ -131,7 +131,7 @@ pub enum ExecCapturePolicy {
 fn select_process_exec_tool_sandbox_type(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
-    windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     enforce_managed_network: bool,
 ) -> SandboxType {
     SandboxManager::new().select_initial(
@@ -222,7 +222,7 @@ pub async fn process_exec_tool_call(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox_cwd: &AbsolutePathBuf,
-    codex_linux_sandbox_exe: &Option<PathBuf>,
+    darwin_code_linux_sandbox_exe: &Option<PathBuf>,
     use_legacy_landlock: bool,
     stdout_stream: Option<StdoutStream>,
 ) -> Result<ExecToolCallOutput> {
@@ -232,7 +232,7 @@ pub async fn process_exec_tool_call(
         file_system_sandbox_policy,
         network_sandbox_policy,
         sandbox_cwd,
-        codex_linux_sandbox_exe,
+        darwin_code_linux_sandbox_exe,
         use_legacy_landlock,
     )?;
 
@@ -248,7 +248,7 @@ pub fn build_exec_request(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox_cwd: &AbsolutePathBuf,
-    codex_linux_sandbox_exe: &Option<PathBuf>,
+    darwin_code_linux_sandbox_exe: &Option<PathBuf>,
     use_legacy_landlock: bool,
 ) -> Result<ExecRequest> {
     let ExecParams {
@@ -281,7 +281,7 @@ pub fn build_exec_request(
         network.apply_to_env(&mut env);
     }
     let (program, args) = command.split_first().ok_or_else(|| {
-        CodexErr::Io(io::Error::new(
+        DarwinCodeErr::Io(io::Error::new(
             io::ErrorKind::InvalidInput,
             "command args are empty",
         ))
@@ -309,13 +309,13 @@ pub fn build_exec_request(
             enforce_managed_network,
             network: network.as_ref(),
             sandbox_policy_cwd: sandbox_cwd,
-            codex_linux_sandbox_exe: codex_linux_sandbox_exe.as_deref(),
+            darwin_code_linux_sandbox_exe: darwin_code_linux_sandbox_exe.as_deref(),
             use_legacy_landlock,
             windows_sandbox_level,
             windows_sandbox_private_desktop,
         })
         .map(|request| ExecRequest::from_sandbox_exec_request(request, options))
-        .map_err(CodexErr::from)?;
+        .map_err(DarwinCodeErr::from)?;
     let use_windows_elevated_backend = windows_sandbox_uses_elevated_backend(
         exec_req.windows_sandbox_level,
         exec_req.network.is_some(),
@@ -339,7 +339,7 @@ pub fn build_exec_request(
             exec_req.windows_sandbox_level,
         )
     }
-    .map_err(CodexErr::UnsupportedOperation)?;
+    .map_err(DarwinCodeErr::UnsupportedOperation)?;
     Ok(exec_req)
 }
 
@@ -447,7 +447,7 @@ fn windowsapps_path_kind(path: &str) -> &'static str {
 #[cfg(target_os = "windows")]
 fn record_windows_sandbox_spawn_failure(
     command_path: Option<&str>,
-    windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     err: &str,
 ) {
     let Some(error_code) = extract_create_process_as_user_error_code(err) else {
@@ -462,15 +462,15 @@ fn record_windows_sandbox_spawn_failure(
     let path_kind = windowsapps_path_kind(path);
     let level = if matches!(
         windows_sandbox_level,
-        codex_protocol::config_types::WindowsSandboxLevel::Elevated
+        darwin_code_protocol::config_types::WindowsSandboxLevel::Elevated
     ) {
         "elevated"
     } else {
         "legacy"
     };
-    if let Some(metrics) = codex_otel::global() {
+    if let Some(metrics) = darwin_code_otel::global() {
         let _ = metrics.counter(
-            "codex.windows_sandbox.createprocessasuserw_failed",
+            "darwin-code.windows_sandbox.createprocessasuserw_failed",
             /*inc*/ 1,
             &[
                 ("error_code", error_code.as_str()),
@@ -488,9 +488,9 @@ async fn exec_windows_sandbox(
     sandbox_policy: &SandboxPolicy,
     windows_sandbox_filesystem_overrides: Option<&WindowsSandboxFilesystemOverrides>,
 ) -> Result<RawExecToolCallOutput> {
-    use crate::config::find_codex_home;
-    use codex_windows_sandbox::run_windows_sandbox_capture_elevated;
-    use codex_windows_sandbox::run_windows_sandbox_capture_with_extra_deny_write_paths;
+    use crate::config::find_darwin_code_home;
+    use darwin_code_windows_sandbox::run_windows_sandbox_capture_elevated;
+    use darwin_code_windows_sandbox::run_windows_sandbox_capture_with_extra_deny_write_paths;
 
     let ExecParams {
         command,
@@ -516,14 +516,14 @@ async fn exec_windows_sandbox(
     };
 
     let policy_str = serde_json::to_string(sandbox_policy).map_err(|err| {
-        CodexErr::Io(io::Error::other(format!(
+        DarwinCodeErr::Io(io::Error::other(format!(
             "failed to serialize Windows sandbox policy: {err}"
         )))
     })?;
     let sandbox_cwd = cwd.clone();
-    let codex_home = find_codex_home().map_err(|err| {
-        CodexErr::Io(io::Error::other(format!(
-            "windows sandbox: failed to resolve codex_home: {err}"
+    let darwin_code_home = find_darwin_code_home().map_err(|err| {
+        DarwinCodeErr::Io(io::Error::other(format!(
+            "windows sandbox: failed to resolve darwin_code_home: {err}"
         )))
     })?;
     let command_path = command.first().cloned();
@@ -555,10 +555,10 @@ async fn exec_windows_sandbox(
     let spawn_res = tokio::task::spawn_blocking(move || {
         if use_elevated {
             run_windows_sandbox_capture_elevated(
-                codex_windows_sandbox::ElevatedSandboxCaptureRequest {
+                darwin_code_windows_sandbox::ElevatedSandboxCaptureRequest {
                     policy_json_or_preset: policy_str.as_str(),
                     sandbox_policy_cwd: &sandbox_cwd,
-                    codex_home: codex_home.as_ref(),
+                    darwin_code_home: darwin_code_home.as_ref(),
                     command,
                     cwd: &cwd,
                     env_map: env,
@@ -574,7 +574,7 @@ async fn exec_windows_sandbox(
             run_windows_sandbox_capture_with_extra_deny_write_paths(
                 policy_str.as_str(),
                 &sandbox_cwd,
-                codex_home.as_ref(),
+                darwin_code_home.as_ref(),
                 command,
                 &cwd,
                 env,
@@ -594,12 +594,12 @@ async fn exec_windows_sandbox(
                 sandbox_level,
                 &err.to_string(),
             );
-            return Err(CodexErr::Io(io::Error::other(format!(
+            return Err(DarwinCodeErr::Io(io::Error::other(format!(
                 "windows sandbox: {err}"
             ))));
         }
         Err(join_err) => {
-            return Err(CodexErr::Io(io::Error::other(format!(
+            return Err(DarwinCodeErr::Io(io::Error::other(format!(
                 "windows sandbox join error: {join_err}"
             ))));
         }
@@ -638,7 +638,7 @@ async fn exec_windows_sandbox(
 }
 
 fn finalize_exec_result(
-    raw_output_result: std::result::Result<RawExecToolCallOutput, CodexErr>,
+    raw_output_result: std::result::Result<RawExecToolCallOutput, DarwinCodeErr>,
     sandbox_type: SandboxType,
     duration: Duration,
 ) -> Result<ExecToolCallOutput> {
@@ -653,7 +653,7 @@ fn finalize_exec_result(
                     if signal == TIMEOUT_CODE {
                         timed_out = true;
                     } else {
-                        return Err(CodexErr::Sandbox(SandboxErr::Signal(signal)));
+                        return Err(DarwinCodeErr::Sandbox(SandboxErr::Signal(signal)));
                     }
                 }
             }
@@ -676,13 +676,13 @@ fn finalize_exec_result(
             };
 
             if timed_out {
-                return Err(CodexErr::Sandbox(SandboxErr::Timeout {
+                return Err(DarwinCodeErr::Sandbox(SandboxErr::Timeout {
                     output: Box::new(exec_output),
                 }));
             }
 
             if is_likely_sandbox_denied(sandbox_type, &exec_output) {
-                return Err(CodexErr::Sandbox(SandboxErr::Denied {
+                return Err(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                     output: Box::new(exec_output),
                     network_policy_decision: None,
                 }));
@@ -828,7 +828,7 @@ fn aggregate_output(
 /// output consumption begins.
 ///
 /// `network_sandbox_policy` is used to determine whether
-/// CODEX_SANDBOX_NETWORK_DISABLED=1 is added to the environment of the spawned
+/// DARWIN_CODE_SANDBOX_NETWORK_DISABLED=1 is added to the environment of the spawned
 /// process.
 ///
 /// Note this command does not apply any sandboxing logic. The caller is
@@ -862,7 +862,7 @@ async fn exec(
     }
 
     let (program, args) = command.split_first().ok_or_else(|| {
-        CodexErr::Io(io::Error::new(
+        DarwinCodeErr::Io(io::Error::new(
             io::ErrorKind::InvalidInput,
             "command args are empty",
         ))
@@ -1125,7 +1125,7 @@ pub(crate) fn resolve_windows_elevated_filesystem_overrides(
     let legacy_readable_root_set: BTreeSet<PathBuf> = sandbox_policy
         .get_readable_roots_with_cwd(sandbox_policy_cwd)
         .into_iter()
-        .map(codex_utils_absolute_path::AbsolutePathBuf::into_path_buf)
+        .map(darwin_code_utils_absolute_path::AbsolutePathBuf::into_path_buf)
         .map(&normalize_path)
         .collect();
     let legacy_root_paths: BTreeSet<PathBuf> = legacy_writable_roots
@@ -1135,7 +1135,7 @@ pub(crate) fn resolve_windows_elevated_filesystem_overrides(
     let split_readable_roots: Vec<PathBuf> = file_system_sandbox_policy
         .get_readable_roots_with_cwd(sandbox_policy_cwd)
         .into_iter()
-        .map(codex_utils_absolute_path::AbsolutePathBuf::into_path_buf)
+        .map(darwin_code_utils_absolute_path::AbsolutePathBuf::into_path_buf)
         .map(&normalize_path)
         .collect();
     let split_readable_root_set: BTreeSet<PathBuf> = split_readable_roots.iter().cloned().collect();
@@ -1211,7 +1211,7 @@ pub(crate) fn resolve_windows_elevated_filesystem_overrides(
 }
 
 fn has_reopened_writable_descendant(
-    writable_roots: &[codex_protocol::protocol::WritableRoot],
+    writable_roots: &[darwin_code_protocol::protocol::WritableRoot],
 ) -> bool {
     writable_roots.iter().any(|writable_root| {
         writable_root
@@ -1242,12 +1242,12 @@ async fn consume_output(
     // we treat it as an exceptional I/O error
 
     let stdout_reader = child.stdout.take().ok_or_else(|| {
-        CodexErr::Io(io::Error::other(
+        DarwinCodeErr::Io(io::Error::other(
             "stdout pipe was unexpectedly not available",
         ))
     })?;
     let stderr_reader = child.stderr.take().ok_or_else(|| {
-        CodexErr::Io(io::Error::other(
+        DarwinCodeErr::Io(io::Error::other(
             "stderr pipe was unexpectedly not available",
         ))
     })?;

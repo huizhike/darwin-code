@@ -1,10 +1,10 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_features::Feature;
-use codex_protocol::protocol::EventMsg;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::EventMsg;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
@@ -15,7 +15,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event_match;
 use std::collections::HashMap;
 use std::fs;
@@ -112,7 +112,7 @@ async fn run_js_repl_sequence(
         "js_repl test must include at least one call"
     );
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::JsRepl)
@@ -187,7 +187,7 @@ async fn assert_failed_cell_followup(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn js_repl_is_not_advertised_when_startup_node_is_incompatible() -> Result<()> {
     skip_if_no_network!(Ok(()));
-    if std::env::var_os("CODEX_JS_REPL_NODE_PATH").is_some() {
+    if std::env::var_os("DARWIN_CODE_JS_REPL_NODE_PATH").is_some() {
         return Ok(());
     }
 
@@ -195,7 +195,7 @@ async fn js_repl_is_not_advertised_when_startup_node_is_incompatible() -> Result
     let temp = tempdir()?;
     let old_node = write_too_old_node_script(temp.path())?;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config
             .features
             .enable(Feature::JsRepl)
@@ -203,7 +203,7 @@ async fn js_repl_is_not_advertised_when_startup_node_is_incompatible() -> Result
         config.js_repl_node_path = Some(old_node);
     });
     let test = builder.build(&server).await?;
-    let warning = wait_for_event_match(&test.codex, |event| match event {
+    let warning = wait_for_event_match(&test.darwin-code, |event| match event {
         EventMsg::Warning(ev) if ev.message.contains("Disabled `js_repl` for this session") => {
             Some(ev.message.clone())
         }
@@ -546,7 +546,7 @@ async fn js_repl_keeps_function_to_string_stable() -> Result<()> {
     let req = mock.single_request();
     assert_js_repl_ok(&req, "call-1", "function foo() { return 1; }");
     let (output, _) = custom_tool_output_text_and_success(&req, "call-1");
-    assert!(!output.contains("__codexInternalMarkCommittedBindings"));
+    assert!(!output.contains("__darwinCodeInternalMarkCommittedBindings"));
 
     Ok(())
 }
@@ -582,7 +582,7 @@ async fn js_repl_can_invoke_builtin_tools() -> Result<()> {
         "use js_repl to call a tool",
         &[(
             "call-1",
-            "const toolOut = await codex.tool(\"list_mcp_resources\", {}); console.log(toolOut.type);",
+            "const toolOut = await darwin-code.tool(\"list_mcp_resources\", {}); console.log(toolOut.type);",
         )],
     )
     .await?;
@@ -605,7 +605,7 @@ async fn js_repl_can_invoke_mcp_tools_by_display_name() -> Result<()> {
 
     let server = responses::start_mock_server().await;
     let rmcp_test_server_bin = stdio_server_bin()?;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config
             .features
             .enable(Feature::JsRepl)
@@ -652,7 +652,7 @@ async fn js_repl_can_invoke_mcp_tools_by_display_name() -> Result<()> {
                 "call-1",
                 "js_repl",
                 r#"
-const result = await codex.tool("mcp__rmcp__echo", { message: "ping" });
+const result = await darwin-code.tool("mcp__rmcp__echo", { message: "ping" });
 console.log(result.output);
 "#,
             ),
@@ -689,7 +689,7 @@ async fn js_repl_tool_call_rejects_recursive_js_repl_invocation() -> Result<()> 
             "call-1",
             r#"
 try {
-  await codex.tool("js_repl", "console.log('recursive')");
+  await darwin-code.tool("js_repl", "console.log('recursive')");
   console.log("unexpected-success");
 } catch (err) {
   console.log(String(err));
@@ -743,16 +743,16 @@ async fn js_repl_does_not_expose_process_global() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn js_repl_exposes_codex_path_helpers() -> Result<()> {
+async fn js_repl_exposes_darwin_code_path_helpers() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
     let mock = run_js_repl_turn(
         &server,
-        "check codex path helpers",
+        "check darwin-code path helpers",
         &[(
             "call-1",
-            "console.log(`cwd:${typeof codex.cwd}:${codex.cwd.length > 0}`); console.log(`home:${codex.homeDir === null || typeof codex.homeDir === \"string\"}`);",
+            "console.log(`cwd:${typeof darwin-code.cwd}:${darwin-code.cwd.length > 0}`); console.log(`home:${darwin-code.homeDir === null || typeof darwin-code.homeDir === \"string\"}`);",
         )],
     )
     .await?;

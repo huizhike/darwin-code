@@ -1,12 +1,12 @@
 use anyhow::Result;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ModelRerouteReason;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ModelRerouteReason;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
@@ -17,12 +17,12 @@ use core_test_support::responses::sse_completed;
 use core_test_support::responses::sse_response;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 
 const SERVER_MODEL: &str = "gpt-5.2";
-const REQUESTED_MODEL: &str = "gpt-5.3-codex";
+const REQUESTED_MODEL: &str = "gpt-5.3-darwin-code";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn openai_model_header_mismatch_emits_warning_event_and_warning_item() -> Result<()> {
@@ -33,10 +33,10 @@ async fn openai_model_header_mismatch_emits_warning_event_and_warning_item() -> 
         sse_response(sse_completed("resp-1")).insert_header("OpenAI-Model", SERVER_MODEL);
     let _mock = mount_response_once(&server, response).await;
 
-    let mut builder = test_codex().with_model(REQUESTED_MODEL);
+    let mut builder = test_darwin_code().with_model(REQUESTED_MODEL);
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "trigger safety check".to_string(),
@@ -56,7 +56,7 @@ async fn openai_model_header_mismatch_emits_warning_event_and_warning_item() -> 
         })
         .await?;
 
-    let reroute = wait_for_event(&test.codex, |event| {
+    let reroute = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::ModelReroute(_))
     })
     .await;
@@ -67,14 +67,14 @@ async fn openai_model_header_mismatch_emits_warning_event_and_warning_item() -> 
     assert_eq!(reroute.to_model, SERVER_MODEL);
     assert_eq!(reroute.reason, ModelRerouteReason::HighRiskCyberActivity);
 
-    let warning = wait_for_event(&test.codex, |event| matches!(event, EventMsg::Warning(_))).await;
+    let warning = wait_for_event(&test.darwin-code, |event| matches!(event, EventMsg::Warning(_))).await;
     let EventMsg::Warning(warning) = warning else {
         panic!("expected warning event");
     };
     assert!(warning.message.contains(REQUESTED_MODEL));
     assert!(warning.message.contains(SERVER_MODEL));
 
-    let warning_item = wait_for_event(&test.codex, |event| {
+    let warning_item = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::RawResponseItem(raw)
@@ -104,7 +104,7 @@ async fn openai_model_header_mismatch_emits_warning_event_and_warning_item() -> 
     assert!(warning_text.contains(REQUESTED_MODEL));
     assert!(warning_text.contains(SERVER_MODEL));
 
-    let _ = wait_for_event(&test.codex, |event| {
+    let _ = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -132,10 +132,10 @@ async fn response_model_field_mismatch_emits_warning_when_header_matches_request
     .insert_header("OpenAI-Model", REQUESTED_MODEL);
     let _mock = mount_response_once(&server, response).await;
 
-    let mut builder = test_codex().with_model(REQUESTED_MODEL);
+    let mut builder = test_darwin_code().with_model(REQUESTED_MODEL);
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "trigger response model check".to_string(),
@@ -155,7 +155,7 @@ async fn response_model_field_mismatch_emits_warning_when_header_matches_request
         })
         .await?;
 
-    let reroute = wait_for_event(&test.codex, |event| {
+    let reroute = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::ModelReroute(_))
     })
     .await;
@@ -166,7 +166,7 @@ async fn response_model_field_mismatch_emits_warning_when_header_matches_request
     assert_eq!(reroute.to_model, SERVER_MODEL);
     assert_eq!(reroute.reason, ModelRerouteReason::HighRiskCyberActivity);
 
-    let warning = wait_for_event(&test.codex, |event| {
+    let warning = wait_for_event(&test.darwin-code, |event| {
         matches!(
             event,
             EventMsg::Warning(warning)
@@ -182,7 +182,7 @@ async fn response_model_field_mismatch_emits_warning_when_header_matches_request
     assert!(warning.message.contains(REQUESTED_MODEL));
     assert!(warning.message.contains(SERVER_MODEL));
 
-    let _ = wait_for_event(&test.codex, |event| {
+    let _ = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -218,10 +218,10 @@ async fn openai_model_header_mismatch_only_emits_one_warning_per_turn() -> Resul
     .insert_header("OpenAI-Model", SERVER_MODEL);
     let _mock = mount_response_sequence(&server, vec![first_response, second_response]).await;
 
-    let mut builder = test_codex().with_model(REQUESTED_MODEL);
+    let mut builder = test_darwin_code().with_model(REQUESTED_MODEL);
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "trigger follow-up turn".to_string(),
@@ -243,7 +243,7 @@ async fn openai_model_header_mismatch_only_emits_one_warning_per_turn() -> Resul
 
     let mut warning_count = 0;
     loop {
-        let event = wait_for_event(&test.codex, |_| true).await;
+        let event = wait_for_event(&test.darwin-code, |_| true).await;
         match event {
             EventMsg::Warning(warning) if warning.message.contains(REQUESTED_MODEL) => {
                 warning_count += 1;
@@ -268,10 +268,10 @@ async fn openai_model_header_casing_only_mismatch_does_not_warn() -> Result<()> 
         .insert_header("OpenAI-Model", requested_header.as_str());
     let _mock = mount_response_once(&server, response).await;
 
-    let mut builder = test_codex().with_model(REQUESTED_MODEL);
+    let mut builder = test_darwin_code().with_model(REQUESTED_MODEL);
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "trigger casing check".to_string(),
@@ -294,7 +294,7 @@ async fn openai_model_header_casing_only_mismatch_does_not_warn() -> Result<()> 
     let mut reroute_count = 0;
     let mut warning_count = 0;
     loop {
-        let event = wait_for_event(&test.codex, |_| true).await;
+        let event = wait_for_event(&test.darwin-code, |_| true).await;
         match event {
             EventMsg::ModelReroute(_) => reroute_count += 1,
             EventMsg::Warning(warning)

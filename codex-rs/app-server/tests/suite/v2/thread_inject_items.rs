@@ -2,19 +2,19 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadInjectItemsResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_core::RolloutRecorder;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::RolloutItem;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadInjectItemsParams;
+use darwin_code_app_server_protocol::ThreadInjectItemsResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_core::RolloutRecorder;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::RolloutItem;
 use core_test_support::responses;
 use serde_json::Value;
 use std::path::Path;
@@ -33,10 +33,10 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     ]);
     let response_mock = responses::mount_sse_once(&server, body).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -149,10 +149,10 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     ]);
     let response_mock = responses::mount_sse_sequence(&server, vec![first_body, second_body]).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -249,8 +249,8 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     Ok(())
 }
 
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

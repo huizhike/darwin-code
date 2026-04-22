@@ -87,7 +87,7 @@ use darwin_code_utils_absolute_path::canonicalize_existing_preserving_symlinks;
 use darwin_code_utils_oss::ensure_oss_provider_ready;
 use darwin_code_utils_oss::get_default_model_for_oss_provider;
 use event_processor_with_human_output::EventProcessorWithHumanOutput;
-pub use event_processor_with_jsonl_output::CodexStatus;
+pub use event_processor_with_jsonl_output::DarwinCodeStatus;
 pub use event_processor_with_jsonl_output::CollectedThreadEvents;
 pub use event_processor_with_jsonl_output::EventProcessorWithJsonOutput;
 pub use exec_events::AgentMessageItem;
@@ -478,7 +478,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         cli_overrides: run_cli_overrides,
         loader_overrides: run_loader_overrides,
         cloud_requirements: run_cloud_requirements,
-        feedback: CodexFeedback::new(),
+        feedback: DarwinCodeFeedback::new(),
         log_db: None,
         environment_manager: std::sync::Arc::new(EnvironmentManager::from_env_with_runtime_paths(
             Some(local_runtime_paths),
@@ -694,7 +694,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
 
     exec_span.record("thread.id", primary_thread_id_for_span.as_str());
 
-    // Print the effective configuration and initial request so users can see what Codex
+    // Print the effective configuration and initial request so users can see what Darwin-Code
     // is using.
     event_processor.print_config_summary(&config, &prompt_summary, &session_configured);
     if !json_mode
@@ -704,7 +704,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
         event_processor.process_warning(message);
     }
 
-    info!("Codex initialized with event: {session_configured:?}");
+    info!("Darwin-Code initialized with event: {session_configured:?}");
 
     let (interrupt_tx, mut interrupt_rx) = mpsc::unbounded_channel::<()>();
     tokio::spawn(async move {
@@ -851,8 +851,8 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     &task_id,
                 ) {
                     match event_processor.process_server_notification(notification) {
-                        CodexStatus::Running => {}
-                        CodexStatus::InitiateShutdown => {
+                        DarwinCodeStatus::Running => {}
+                        DarwinCodeStatus::InitiateShutdown => {
                             if let Err(err) = request_shutdown(
                                 &client,
                                 &mut request_ids,

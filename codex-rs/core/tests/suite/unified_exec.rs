@@ -5,14 +5,14 @@ use std::sync::OnceLock;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_features::Feature;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_exec_server::CreateDirectoryOptions;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::assert_regex_match;
 use core_test_support::process::process_is_alive;
 use core_test_support::process::wait_for_pid_file;
@@ -27,9 +27,9 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::skip_if_sandbox;
 use core_test_support::skip_if_windows;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::TestCodexHarness;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::TestDarwinCodeHarness;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_event_with_timeout;
@@ -158,13 +158,13 @@ fn collect_tool_outputs(bodies: &[Value]) -> Result<HashMap<String, ParsedUnifie
 }
 
 async fn submit_unified_exec_turn(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     prompt: &str,
     sandbox_policy: SandboxPolicy,
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -188,7 +188,7 @@ async fn submit_unified_exec_turn(
 }
 
 async fn create_workspace_directory(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     rel_path: impl AsRef<std::path::Path>,
 ) -> Result<std::path::PathBuf> {
     let abs_path = test.config.cwd.join(rel_path.as_ref());
@@ -208,7 +208,7 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
     skip_if_sandbox!(Ok(()));
     skip_if_windows!(Ok(()));
 
-    let builder = test_codex().with_config(|config| {
+    let builder = test_darwin_code().with_config(|config| {
         config.include_apply_patch_tool = true;
         config.use_experimental_unified_exec_tool = true;
         config
@@ -216,7 +216,7 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
             .enable(Feature::UnifiedExec)
             .expect("test config should allow feature update");
     });
-    let harness = TestCodexHarness::with_builder(builder).await?;
+    let harness = TestDarwinCodeHarness::with_builder(builder).await?;
 
     let patch =
         "*** Begin Patch\n*** Add File: uexec_apply.txt\n+hello from unified exec\n*** End Patch";
@@ -244,11 +244,11 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let codex = test.codex.clone();
+    let darwin-code = test.darwin-code.clone();
     let cwd = test.cwd_path().to_path_buf();
     let session_model = test.session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply patch via unified exec".into(),
@@ -272,7 +272,7 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
     let mut patch_end = None;
     let mut saw_exec_begin = false;
     let mut saw_exec_end = false;
-    wait_for_event(&codex, |event| match event {
+    wait_for_event(&darwin-code, |event| match event {
         EventMsg::PatchApplyBegin(begin) if begin.call_id == call_id => {
             saw_patch_begin = true;
             assert!(
@@ -345,7 +345,7 @@ async fn unified_exec_emits_exec_command_begin_event() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_model("gpt-5").with_config(|config| {
+    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -378,7 +378,7 @@ async fn unified_exec_emits_exec_command_begin_event() -> Result<()> {
 
     submit_unified_exec_turn(&test, "emit begin event", SandboxPolicy::DangerFullAccess).await?;
 
-    let begin_event = wait_for_event_match(&test.codex, |msg| match msg {
+    let begin_event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(event) if event.call_id == call_id => Some(event.clone()),
         _ => None,
     })
@@ -388,7 +388,7 @@ async fn unified_exec_emits_exec_command_begin_event() -> Result<()> {
 
     assert_eq!(begin_event.cwd.as_path(), cwd.as_path());
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -404,7 +404,7 @@ async fn unified_exec_resolves_relative_workdir() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_model("gpt-5").with_config(|config| {
+    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -444,7 +444,7 @@ async fn unified_exec_resolves_relative_workdir() -> Result<()> {
     )
     .await?;
 
-    let begin_event = wait_for_event_match(&test.codex, |msg| match msg {
+    let begin_event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(event) if event.call_id == call_id => Some(event.clone()),
         _ => None,
     })
@@ -456,7 +456,7 @@ async fn unified_exec_resolves_relative_workdir() -> Result<()> {
         "exec_command cwd should resolve relative workdir against turn cwd",
     );
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -473,7 +473,7 @@ async fn unified_exec_respects_workdir_override() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_model("gpt-5").with_config(|config| {
+    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -507,7 +507,7 @@ async fn unified_exec_respects_workdir_override() -> Result<()> {
 
     submit_unified_exec_turn(&test, "run workdir test", SandboxPolicy::DangerFullAccess).await?;
 
-    let begin_event = wait_for_event_match(&test.codex, |msg| match msg {
+    let begin_event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(event) if event.call_id == call_id => Some(event.clone()),
         _ => None,
     })
@@ -519,7 +519,7 @@ async fn unified_exec_respects_workdir_override() -> Result<()> {
         "exec_command cwd should reflect the requested workdir override"
     );
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -538,7 +538,7 @@ async fn unified_exec_emits_exec_command_end_event() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -584,7 +584,7 @@ async fn unified_exec_emits_exec_command_end_event() -> Result<()> {
 
     submit_unified_exec_turn(&test, "emit end event", SandboxPolicy::DangerFullAccess).await?;
 
-    let end_event = wait_for_event_match(&test.codex, |msg| match msg {
+    let end_event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -596,7 +596,7 @@ async fn unified_exec_emits_exec_command_end_event() -> Result<()> {
         "expected aggregated output to contain marker"
     );
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -611,7 +611,7 @@ async fn unified_exec_emits_output_delta_for_exec_command() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -642,7 +642,7 @@ async fn unified_exec_emits_output_delta_for_exec_command() -> Result<()> {
 
     submit_unified_exec_turn(&test, "emit delta", SandboxPolicy::DangerFullAccess).await?;
 
-    let event = wait_for_event_match(&test.codex, |msg| match msg {
+    let event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -654,7 +654,7 @@ async fn unified_exec_emits_output_delta_for_exec_command() -> Result<()> {
         "delta chunk missing expected text: {text:?}",
     );
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -669,7 +669,7 @@ async fn unified_exec_full_lifecycle_with_background_end_event() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -711,7 +711,7 @@ async fn unified_exec_full_lifecycle_with_background_end_event() -> Result<()> {
     let mut task_completed = false;
 
     loop {
-        let msg = wait_for_event(&test.codex, |_| true).await;
+        let msg = wait_for_event(&test.darwin-code, |_| true).await;
         match msg {
             EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => begin_event = Some(ev),
             EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => {
@@ -764,7 +764,7 @@ async fn unified_exec_emits_terminal_interaction_for_write_stdin() -> Result<()>
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -819,7 +819,7 @@ async fn unified_exec_emits_terminal_interaction_for_write_stdin() -> Result<()>
     let mut terminal_interaction = None;
 
     loop {
-        let msg = wait_for_event(&test.codex, |_| true).await;
+        let msg = wait_for_event(&test.darwin-code, |_| true).await;
         match msg {
             EventMsg::TerminalInteraction(ev) if ev.call_id == open_call_id => {
                 terminal_interaction = Some(ev);
@@ -847,7 +847,7 @@ async fn unified_exec_terminal_interaction_captures_delayed_output() -> Result<(
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -946,7 +946,7 @@ async fn unified_exec_terminal_interaction_captures_delayed_output() -> Result<(
 
     // Consume all events for this turn so we can assert on each stage.
     loop {
-        let msg = wait_for_event(&test.codex, |_| true).await;
+        let msg = wait_for_event(&test.darwin-code, |_| true).await;
         match msg {
             EventMsg::ExecCommandBegin(ev) if ev.call_id == open_call_id => {
                 begin_event = Some(ev);
@@ -1026,7 +1026,7 @@ async fn unified_exec_emits_one_begin_and_one_end_event() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -1087,7 +1087,7 @@ async fn unified_exec_emits_one_begin_and_one_end_event() -> Result<()> {
     let mut end_events = Vec::new();
     let mut task_completed = false;
     loop {
-        let event_msg = wait_for_event(&test.codex, |_| true).await;
+        let event_msg = wait_for_event(&test.darwin-code, |_| true).await;
         match event_msg {
             EventMsg::ExecCommandBegin(event) if event.call_id == open_call_id => {
                 begin_events.push(event);
@@ -1141,7 +1141,7 @@ async fn exec_command_reports_chunk_and_exit_metadata() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1171,7 +1171,7 @@ async fn exec_command_reports_chunk_and_exit_metadata() -> Result<()> {
 
     submit_unified_exec_turn(&test, "run metadata test", SandboxPolicy::DangerFullAccess).await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1234,7 +1234,7 @@ async fn unified_exec_defaults_to_pipe() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1269,7 +1269,7 @@ async fn unified_exec_defaults_to_pipe() -> Result<()> {
     )
     .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1303,7 +1303,7 @@ async fn unified_exec_can_enable_tty() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1334,7 +1334,7 @@ async fn unified_exec_can_enable_tty() -> Result<()> {
 
     submit_unified_exec_turn(&test, "check tty enabled", SandboxPolicy::DangerFullAccess).await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1369,7 +1369,7 @@ async fn unified_exec_respects_early_exit_notifications() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1403,7 +1403,7 @@ async fn unified_exec_respects_early_exit_notifications() -> Result<()> {
     )
     .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1452,7 +1452,7 @@ async fn write_stdin_returns_exit_metadata_and_clears_session() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1522,7 +1522,7 @@ async fn write_stdin_returns_exit_metadata_and_clears_session() -> Result<()> {
     )
     .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1605,7 +1605,7 @@ async fn unified_exec_emits_end_event_when_session_dies_via_stdin() -> Result<()
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -1674,7 +1674,7 @@ async fn unified_exec_emits_end_event_when_session_dies_via_stdin() -> Result<()
     submit_unified_exec_turn(&test, "end on exit", SandboxPolicy::DangerFullAccess).await?;
 
     // We expect the ExecCommandEnd event to match the initial exec_command call_id.
-    let end_event = wait_for_event_match(&test.codex, |msg| match msg {
+    let end_event = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == start_call_id => Some(ev.clone()),
         _ => None,
     })
@@ -1682,7 +1682,7 @@ async fn unified_exec_emits_end_event_when_session_dies_via_stdin() -> Result<()
 
     assert_eq!(end_event.exit_code, 0);
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1697,15 +1697,15 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
             .enable(Feature::UnifiedExec)
             .expect("test config should allow feature update");
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -1738,7 +1738,7 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
 
     let session_model = session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "keep unified exec process after turn end".into(),
@@ -1758,7 +1758,7 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
         })
         .await?;
 
-    let begin_event = wait_for_event_match(&codex, |msg| match msg {
+    let begin_event = wait_for_event_match(&darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -1775,15 +1775,15 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
         "expected numeric pid, got {pid:?}"
     );
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     assert!(
         process_is_alive(&pid)?,
         "expected unified exec process to remain alive after turn completion"
     );
 
-    codex.submit(Op::Shutdown).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    darwin-code.submit(Op::Shutdown).await?;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::ShutdownComplete)).await;
     wait_for_process_exit(&pid).await?;
 
     Ok(())
@@ -1797,15 +1797,15 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
             .enable(Feature::UnifiedExec)
             .expect("test config should allow feature update");
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -1831,7 +1831,7 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "interrupt long-running unified exec".into(),
@@ -1851,7 +1851,7 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
         })
         .await?;
 
-    let _begin_event = wait_for_event_match(&codex, |msg| match msg {
+    let _begin_event = wait_for_event_match(&darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -1863,15 +1863,15 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
         "expected numeric pid, got {pid:?}"
     );
 
-    codex.submit(Op::Interrupt).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnAborted(_))).await;
+    darwin-code.submit(Op::Interrupt).await?;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnAborted(_))).await;
 
     assert!(
         process_is_alive(&pid)?,
         "expected unified exec process to remain alive after interrupt"
     );
 
-    codex.submit(Op::CleanBackgroundTerminals).await?;
+    darwin-code.submit(Op::CleanBackgroundTerminals).await?;
     wait_for_process_exit(&pid).await?;
 
     Ok(())
@@ -1885,7 +1885,7 @@ async fn unified_exec_reuses_session_via_stdin() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -1935,7 +1935,7 @@ async fn unified_exec_reuses_session_via_stdin() -> Result<()> {
 
     submit_unified_exec_turn(&test, "run unified exec", SandboxPolicy::DangerFullAccess).await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1983,7 +1983,7 @@ async fn unified_exec_streams_after_lagged_output() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -2060,7 +2060,7 @@ PY
     // This is a worst case scenario for the truncate logic, and CI can spend a
     // while draining the lagged tail before the follow-up tool call completes.
     wait_for_event_with_timeout(
-        &test.codex,
+        &test.darwin-code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         UNIFIED_EXEC_LAGGED_OUTPUT_TIMEOUT,
     )
@@ -2104,7 +2104,7 @@ async fn unified_exec_timeout_and_followup_poll() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -2154,7 +2154,7 @@ async fn unified_exec_timeout_and_followup_poll() -> Result<()> {
     submit_unified_exec_turn(&test, "check timeout", SandboxPolicy::DangerFullAccess).await?;
 
     loop {
-        let event = test.codex.next_event().await.expect("event");
+        let event = test.darwin-code.next_event().await.expect("event");
         if matches!(event.msg, EventMsg::TurnComplete(_)) {
             break;
         }
@@ -2193,7 +2193,7 @@ async fn unified_exec_formats_large_output_summary() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -2234,7 +2234,7 @@ PY
     )
     .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2269,14 +2269,14 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
             .expect("test config should allow feature update");
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -2303,7 +2303,7 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "summarize large output".into(),
@@ -2324,7 +2324,7 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -2344,11 +2344,11 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
-    use codex_config::Constrained;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
+    use darwin_code_config::Constrained;
+    use darwin_code_protocol::permissions::FileSystemAccessMode;
+    use darwin_code_protocol::permissions::FileSystemPath;
+    use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+    use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
 
     skip_if_no_network!(Ok(()));
     skip_if_sandbox!(Ok(()));
@@ -2356,7 +2356,7 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
     let server = start_mock_server().await;
     let read_only_policy = SandboxPolicy::new_read_only_policy();
     let read_only_policy_for_config = read_only_policy.clone();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -2373,8 +2373,8 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
             });
         config.permissions.file_system_sandbox_policy = file_system_sandbox_policy;
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -2412,7 +2412,7 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
     let request_log = mount_sse_sequence(&server, responses).await;
 
     let session_model = session_configured.model.clone();
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "read the fixture files".into(),
@@ -2432,7 +2432,7 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -2483,15 +2483,15 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
             .enable(Feature::UnifiedExec)
             .expect("test config should allow feature update");
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         session_configured,
         ..
@@ -2540,7 +2540,7 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "start python under seatbelt".into(),
@@ -2560,7 +2560,7 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -2607,7 +2607,7 @@ async fn unified_exec_runs_on_all_platforms() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::UnifiedExec)
@@ -2640,7 +2640,7 @@ async fn unified_exec_runs_on_all_platforms() -> Result<()> {
     )
     .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2670,7 +2670,7 @@ async fn unified_exec_prunes_exited_sessions_first() -> Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.use_experimental_unified_exec_tool = true;
         config
             .features
@@ -2758,7 +2758,7 @@ async fn unified_exec_prunes_exited_sessions_first() -> Result<()> {
 
     submit_unified_exec_turn(&test, "fill session cache", SandboxPolicy::DangerFullAccess).await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

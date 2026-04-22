@@ -2,24 +2,24 @@ use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadArchivedNotification;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnarchiveResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_core::find_thread_path_by_id_str;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadArchiveParams;
+use darwin_code_app_server_protocol::ThreadArchiveResponse;
+use darwin_code_app_server_protocol::ThreadArchivedNotification;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::ThreadUnarchiveParams;
+use darwin_code_app_server_protocol::ThreadUnarchiveResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput;
+use darwin_code_core::ARCHIVED_SESSIONS_SUBDIR;
+use darwin_code_core::find_thread_path_by_id_str;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -30,10 +30,10 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_archive_requires_materialized_rollout() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a thread.
@@ -58,7 +58,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         rollout_path.display()
     );
     assert!(
-        find_thread_path_by_id_str(codex_home.path(), &thread.id)
+        find_thread_path_by_id_str(darwin_code_home.path(), &thread.id)
             .await?
             .is_none(),
         "thread id should not be discoverable before rollout materialization"
@@ -113,7 +113,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         rollout_path.display()
     );
 
-    let discovered_path = find_thread_path_by_id_str(codex_home.path(), &thread.id)
+    let discovered_path = find_thread_path_by_id_str(darwin_code_home.path(), &thread.id)
         .await?
         .expect("expected rollout path for thread id to exist after materialization");
     assert_paths_match_on_disk(&discovered_path, &rollout_path)?;
@@ -142,7 +142,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
     assert_eq!(archived_notification.thread_id, thread.id);
 
     // Verify file moved.
-    let archived_directory = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
+    let archived_directory = darwin_code_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     // The archived file keeps the original filename (rollout-...-<id>.jsonl).
     let archived_rollout_path =
         archived_directory.join(rollout_path.file_name().expect("rollout file name"));
@@ -163,10 +163,10 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
 #[tokio::test]
 async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
@@ -205,7 +205,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     .await??;
     primary.clear_message_buffer();
 
-    let mut secondary = McpProcess::new(codex_home.path()).await?;
+    let mut secondary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let archive_id = primary
@@ -294,8 +294,8 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     Ok(())
 }
 
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(config_toml, config_contents(server_uri))
 }
 

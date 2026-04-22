@@ -13,9 +13,9 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::ThreadId;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use tokio::fs;
 use tokio::process::Command;
 use tokio::sync::watch;
@@ -36,7 +36,7 @@ const EXCLUDED_EXPORT_VARS: &[&str] = &["PWD", "OLDPWD"];
 
 impl ShellSnapshot {
     pub fn start_snapshotting(
-        codex_home: AbsolutePathBuf,
+        darwin_code_home: AbsolutePathBuf,
         session_id: ThreadId,
         session_cwd: AbsolutePathBuf,
         shell: &mut Shell,
@@ -46,7 +46,7 @@ impl ShellSnapshot {
         shell.shell_snapshot = shell_snapshot_rx;
 
         Self::spawn_snapshot_task(
-            codex_home,
+            darwin_code_home,
             session_id,
             session_cwd,
             shell.clone(),
@@ -58,7 +58,7 @@ impl ShellSnapshot {
     }
 
     pub fn refresh_snapshot(
-        codex_home: AbsolutePathBuf,
+        darwin_code_home: AbsolutePathBuf,
         session_id: ThreadId,
         session_cwd: AbsolutePathBuf,
         shell: Shell,
@@ -66,7 +66,7 @@ impl ShellSnapshot {
         session_telemetry: SessionTelemetry,
     ) {
         Self::spawn_snapshot_task(
-            codex_home,
+            darwin_code_home,
             session_id,
             session_cwd,
             shell,
@@ -76,7 +76,7 @@ impl ShellSnapshot {
     }
 
     fn spawn_snapshot_task(
-        codex_home: AbsolutePathBuf,
+        darwin_code_home: AbsolutePathBuf,
         session_id: ThreadId,
         session_cwd: AbsolutePathBuf,
         snapshot_shell: Shell,
@@ -86,9 +86,9 @@ impl ShellSnapshot {
         let snapshot_span = info_span!("shell_snapshot", thread_id = %session_id);
         tokio::spawn(
             async move {
-                let timer = session_telemetry.start_timer("codex.shell_snapshot.duration_ms", &[]);
+                let timer = session_telemetry.start_timer("darwin-code.shell_snapshot.duration_ms", &[]);
                 let snapshot =
-                    ShellSnapshot::try_new(&codex_home, session_id, &session_cwd, &snapshot_shell)
+                    ShellSnapshot::try_new(&darwin_code_home, session_id, &session_cwd, &snapshot_shell)
                         .await
                         .map(Arc::new);
                 let success = snapshot.is_ok();
@@ -98,7 +98,7 @@ impl ShellSnapshot {
                 if let Some(failure_reason) = snapshot.as_ref().err() {
                     counter_tags.push(("failure_reason", *failure_reason));
                 }
-                session_telemetry.counter("codex.shell_snapshot", /*inc*/ 1, &counter_tags);
+                session_telemetry.counter("darwin-code.shell_snapshot", /*inc*/ 1, &counter_tags);
                 let _ = shell_snapshot_tx.send(snapshot.ok());
             }
             .instrument(snapshot_span),
@@ -106,7 +106,7 @@ impl ShellSnapshot {
     }
 
     async fn try_new(
-        codex_home: &AbsolutePathBuf,
+        darwin_code_home: &AbsolutePathBuf,
         session_id: ThreadId,
         session_cwd: &AbsolutePathBuf,
         shell: &Shell,
@@ -120,18 +120,18 @@ impl ShellSnapshot {
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|duration| duration.as_nanos())
             .unwrap_or(0);
-        let path = codex_home
+        let path = darwin_code_home
             .join(SNAPSHOT_DIR)
             .join(format!("{session_id}.{nonce}.{extension}"));
-        let temp_path = codex_home
+        let temp_path = darwin_code_home
             .join(SNAPSHOT_DIR)
             .join(format!("{session_id}.tmp-{nonce}"));
 
         // Clean the (unlikely) leaked snapshot files.
-        let codex_home = codex_home.clone();
+        let darwin_code_home = darwin_code_home.clone();
         let cleanup_session_id = session_id;
         tokio::spawn(async move {
-            if let Err(err) = cleanup_stale_snapshots(&codex_home, cleanup_session_id).await {
+            if let Err(err) = cleanup_stale_snapshots(&darwin_code_home, cleanup_session_id).await {
                 tracing::warn!("Failed to clean up shell snapshots: {err:?}");
             }
         });
@@ -283,7 +283,7 @@ async fn run_script_with_timeout(
     #[cfg(unix)]
     unsafe {
         handler.pre_exec(|| {
-            codex_utils_pty::process_group::detach_from_tty()?;
+            darwin_code_utils_pty::process_group::detach_from_tty()?;
             Ok(())
         });
     }
@@ -489,10 +489,10 @@ $envVars | ForEach-Object {
 /// whose rollouts have not been updated within the retention window.
 /// The active session id is exempt from cleanup.
 pub async fn cleanup_stale_snapshots(
-    codex_home: &AbsolutePathBuf,
+    darwin_code_home: &AbsolutePathBuf,
     active_session_id: ThreadId,
 ) -> Result<()> {
-    let snapshot_dir = codex_home.join(SNAPSHOT_DIR);
+    let snapshot_dir = darwin_code_home.join(SNAPSHOT_DIR);
 
     let mut entries = match fs::read_dir(&snapshot_dir).await {
         Ok(entries) => entries,
@@ -520,7 +520,7 @@ pub async fn cleanup_stale_snapshots(
             continue;
         }
 
-        let rollout_path = find_thread_path_by_id_str(codex_home, session_id).await?;
+        let rollout_path = find_thread_path_by_id_str(darwin_code_home, session_id).await?;
         let Some(rollout_path) = rollout_path else {
             remove_snapshot_file(&path).await;
             continue;

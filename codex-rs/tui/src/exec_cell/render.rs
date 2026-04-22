@@ -12,11 +12,11 @@ use crate::shimmer::shimmer_spans;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use crate::wrapping::adaptive_wrap_lines;
-use codex_ansi_escape::ansi_escape_line;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_shell_command::bash::extract_bash_command;
-use codex_utils_elapsed::format_duration;
+use darwin_code_ansi_escape::ansi_escape_line;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_shell_command::bash::extract_bash_command;
+use darwin_code_utils_elapsed::format_duration;
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ratatui::style::Modifier;
@@ -713,7 +713,7 @@ const EXEC_DISPLAY_LAYOUT: ExecDisplayLayout = ExecDisplayLayout::new(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::protocol::ExecCommandSource;
+    use darwin_code_protocol::protocol::ExecCommandSource;
     use pretty_assertions::assert_eq;
 
     fn render_line_text(line: &Line<'static>) -> String {

@@ -19,10 +19,10 @@ impl ToolHandler for TestHandler {
 fn handler_looks_up_namespaced_aliases_explicitly() {
     let plain_handler = Arc::new(TestHandler) as Arc<dyn AnyToolHandler>;
     let namespaced_handler = Arc::new(TestHandler) as Arc<dyn AnyToolHandler>;
-    let namespace = "mcp__codex_apps__gmail";
+    let namespace = "mcp__darwin_code_apps__gmail";
     let tool_name = "gmail_get_recent_emails";
-    let plain_name = codex_tools::ToolName::plain(tool_name);
-    let namespaced_name = codex_tools::ToolName::namespaced(namespace, tool_name);
+    let plain_name = darwin_code_tools::ToolName::plain(tool_name);
+    let namespaced_name = darwin_code_tools::ToolName::namespaced(namespace, tool_name);
     let registry = ToolRegistry::new(HashMap::from([
         (plain_name.clone(), Arc::clone(&plain_handler)),
         (namespaced_name.clone(), Arc::clone(&namespaced_handler)),
@@ -30,8 +30,8 @@ fn handler_looks_up_namespaced_aliases_explicitly() {
 
     let plain = registry.handler(&plain_name);
     let namespaced = registry.handler(&namespaced_name);
-    let missing_namespaced = registry.handler(&codex_tools::ToolName::namespaced(
-        "mcp__codex_apps__calendar",
+    let missing_namespaced = registry.handler(&darwin_code_tools::ToolName::namespaced(
+        "mcp__darwin_code_apps__calendar",
         tool_name,
     ));
 

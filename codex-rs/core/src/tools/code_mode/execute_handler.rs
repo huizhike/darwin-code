@@ -21,7 +21,7 @@ impl CodeModeExecuteHandler {
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {
         let args =
-            codex_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
+            darwin_code_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
         let exec = ExecContext { session, turn };
         let enabled_tools = build_enabled_tools(&exec).await;
         let stored_values = exec
@@ -35,7 +35,7 @@ impl CodeModeExecuteHandler {
             .session
             .services
             .code_mode_service
-            .execute(codex_code_mode::ExecuteRequest {
+            .execute(darwin_code_code_mode::ExecuteRequest {
                 tool_call_id: call_id,
                 enabled_tools,
                 source: args.code,

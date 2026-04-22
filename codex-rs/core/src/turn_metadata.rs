@@ -9,14 +9,14 @@ use serde_json::Value;
 use tokio::task::JoinHandle;
 
 use crate::sandbox_tags::sandbox_tag;
-use codex_git_utils::get_git_remote_urls_assume_git_repo;
-use codex_git_utils::get_git_repo_root;
-use codex_git_utils::get_has_changes;
-use codex_git_utils::get_head_commit_hash;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_git_utils::get_git_remote_urls_assume_git_repo;
+use darwin_code_git_utils::get_git_repo_root;
+use darwin_code_git_utils::get_has_changes;
+use darwin_code_git_utils::get_head_commit_hash;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Clone, Debug, Default)]
 struct WorkspaceGitMetadata {

@@ -1,4 +1,4 @@
-use codex_state::Stage1Output;
+use darwin_code_state::Stage1Output;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::path::Path;
@@ -177,7 +177,7 @@ pub(crate) fn rollout_summary_file_stem(memory: &Stage1Output) -> String {
 }
 
 pub(super) fn rollout_summary_file_stem_from_parts(
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
     source_updated_at: chrono::DateTime<chrono::Utc>,
     rollout_slug: Option<&str>,
 ) -> String {

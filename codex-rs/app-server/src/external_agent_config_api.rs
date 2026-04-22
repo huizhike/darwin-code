@@ -1,17 +1,17 @@
 use crate::error_code::INTERNAL_ERROR_CODE;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigDetectResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportParams;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::MigrationDetails;
-use codex_app_server_protocol::PluginsMigration;
-use codex_core::external_agent_config::ExternalAgentConfigDetectOptions;
-use codex_core::external_agent_config::ExternalAgentConfigMigrationItem as CoreMigrationItem;
-use codex_core::external_agent_config::ExternalAgentConfigMigrationItemType as CoreMigrationItemType;
-use codex_core::external_agent_config::ExternalAgentConfigService;
-use codex_core::external_agent_config::PendingPluginImport;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigDetectResponse;
+use darwin_code_app_server_protocol::ExternalAgentConfigImportParams;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::MigrationDetails;
+use darwin_code_app_server_protocol::PluginsMigration;
+use darwin_code_core::external_agent_config::ExternalAgentConfigDetectOptions;
+use darwin_code_core::external_agent_config::ExternalAgentConfigMigrationItem as CoreMigrationItem;
+use darwin_code_core::external_agent_config::ExternalAgentConfigMigrationItemType as CoreMigrationItemType;
+use darwin_code_core::external_agent_config::ExternalAgentConfigService;
+use darwin_code_core::external_agent_config::PendingPluginImport;
 use std::io;
 use std::path::PathBuf;
 
@@ -21,9 +21,9 @@ pub(crate) struct ExternalAgentConfigApi {
 }
 
 impl ExternalAgentConfigApi {
-    pub(crate) fn new(codex_home: PathBuf) -> Self {
+    pub(crate) fn new(darwin_code_home: PathBuf) -> Self {
         Self {
-            migration_service: ExternalAgentConfigService::new(codex_home),
+            migration_service: ExternalAgentConfigService::new(darwin_code_home),
         }
     }
 
@@ -108,12 +108,12 @@ impl ExternalAgentConfigApi {
                         description: migration_item.description,
                         cwd: migration_item.cwd,
                         details: migration_item.details.map(|details| {
-                            codex_core::external_agent_config::MigrationDetails {
+                            darwin_code_core::external_agent_config::MigrationDetails {
                                 plugins: details
                                     .plugins
                                     .into_iter()
                                     .map(|plugin| {
-                                        codex_core::external_agent_config::PluginsMigration {
+                                        darwin_code_core::external_agent_config::PluginsMigration {
                                             marketplace_name: plugin.marketplace_name,
                                             plugin_names: plugin.plugin_names,
                                         }

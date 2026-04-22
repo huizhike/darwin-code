@@ -31,10 +31,10 @@
 //! `MessageProcessor` with overload or internal errors so approval flows do
 //! not hang indefinitely.
 //!
-//! # Relationship to `codex-app-server-client`
+//! # Relationship to `darwin-code-app-server-client`
 //!
 //! This module provides the low-level runtime handle ([`InProcessClientHandle`]).
-//! Higher-level callers (TUI, exec) should go through `codex-app-server-client`,
+//! Higher-level callers (TUI, exec) should go through `darwin-code-app-server-client`,
 //! which wraps this module behind a worker task with async request/response
 //! helpers, surface-specific startup policy, and bounded shutdown.
 
@@ -64,23 +64,23 @@ use crate::outgoing_message::QueuedOutgoingMessage;
 use crate::transport::CHANNEL_CAPACITY;
 use crate::transport::OutboundConnectionState;
 use crate::transport::route_outgoing_envelope;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::LoaderOverrides;
-use codex_exec_server::EnvironmentManager;
-use codex_login::AuthManager;
-use codex_protocol::protocol::SessionSource;
-pub use codex_state::log_db::LogDbLayer;
+use darwin_code_app_server_protocol::ClientNotification;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::InitializeParams;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::Result;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_core::config::Config;
+use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::LoaderOverrides;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_login::AuthManager;
+use darwin_code_protocol::protocol::SessionSource;
+pub use darwin_code_state::log_db::LogDbLayer;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
@@ -115,7 +115,7 @@ pub struct InProcessStartArgs {
     /// Preloaded cloud requirements provider.
     pub cloud_requirements: CloudRequirementsLoader,
     /// Feedback sink used by app-server/core telemetry and logs.
-    pub feedback: CodexFeedback,
+    pub feedback: DarwinCodeFeedback,
     /// SQLite tracing layer used to flush recently emitted logs before feedback upload.
     pub log_db: Option<LogDbLayer>,
     /// Environment manager used by core execution and filesystem operations.
@@ -124,8 +124,8 @@ pub struct InProcessStartArgs {
     pub config_warnings: Vec<ConfigWarningNotification>,
     /// Session source stamped into thread/session metadata.
     pub session_source: SessionSource,
-    /// Whether auth loading should honor the `CODEX_API_KEY` environment variable.
-    pub enable_codex_api_key_env: bool,
+    /// Whether auth loading should honor the `DARWIN_CODE_API_KEY` environment variable.
+    pub enable_darwin_code_api_key_env: bool,
     /// Initialize params used for initial handshake.
     pub initialize: InitializeParams,
     /// Capacity used for all runtime queues (clamped to at least 1).
@@ -237,7 +237,7 @@ impl InProcessClientSender {
 /// Handle used by an in-process client to call app-server and consume events.
 ///
 /// This is the low-level runtime handle. Higher-level callers should usually go
-/// through `codex-app-server-client`, which adds worker-task buffering,
+/// through `darwin-code-app-server-client`, which adds worker-task buffering,
 /// request/response helpers, and surface-specific startup policy.
 pub struct InProcessClientHandle {
     client: InProcessClientSender,
@@ -384,7 +384,7 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
 
         let processor_outgoing = Arc::clone(&outgoing_message_sender);
         let auth_manager =
-            AuthManager::shared_from_config(args.config.as_ref(), args.enable_codex_api_key_env);
+            AuthManager::shared_from_config(args.config.as_ref(), args.enable_darwin_code_api_key_env);
         let (processor_tx, mut processor_rx) = mpsc::channel::<ProcessorCommand>(channel_capacity);
         let mut processor_handle = tokio::spawn(async move {
             let processor = Arc::new(MessageProcessor::new(MessageProcessorArgs {
@@ -699,15 +699,15 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ClientInfo;
-    use codex_app_server_protocol::ConfigRequirementsReadResponse;
-    use codex_app_server_protocol::SessionSource as ApiSessionSource;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_core::config::ConfigBuilder;
+    use darwin_code_app_server_protocol::ClientInfo;
+    use darwin_code_app_server_protocol::ConfigRequirementsReadResponse;
+    use darwin_code_app_server_protocol::SessionSource as ApiSessionSource;
+    use darwin_code_app_server_protocol::ThreadStartParams;
+    use darwin_code_app_server_protocol::ThreadStartResponse;
+    use darwin_code_app_server_protocol::Turn;
+    use darwin_code_app_server_protocol::TurnCompletedNotification;
+    use darwin_code_app_server_protocol::TurnStatus;
+    use darwin_code_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
 
     async fn build_test_config() -> Config {
@@ -729,15 +729,15 @@ mod tests {
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
             cloud_requirements: CloudRequirementsLoader::default(),
-            feedback: CodexFeedback::new(),
+            feedback: DarwinCodeFeedback::new(),
             log_db: None,
             environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
             config_warnings: Vec::new(),
             session_source,
-            enable_codex_api_key_env: false,
+            enable_darwin_code_api_key_env: false,
             initialize: InitializeParams {
                 client_info: ClientInfo {
-                    name: "codex-in-process-test".to_string(),
+                    name: "darwin-code-in-process-test".to_string(),
                     title: None,
                     version: "0.0.0".to_string(),
                 },

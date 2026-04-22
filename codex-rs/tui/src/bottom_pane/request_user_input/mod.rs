@@ -32,11 +32,11 @@ use crate::history_cell;
 use crate::render::renderable::Renderable;
 
 #[cfg(test)]
-use codex_protocol::protocol::Op;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputEvent;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_protocol::user_input::TextElement;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_protocol::user_input::TextElement;
 use unicode_width::UnicodeWidthStr;
 
 const NOTES_PLACEHOLDER: &str = "Add notes";
@@ -181,7 +181,7 @@ impl RequestUserInputOverlay {
 
     fn current_question(
         &self,
-    ) -> Option<&codex_protocol::request_user_input::RequestUserInputQuestion> {
+    ) -> Option<&darwin_code_protocol::request_user_input::RequestUserInputQuestion> {
         self.request.questions.get(self.current_index())
     }
 
@@ -587,7 +587,7 @@ impl RequestUserInputOverlay {
     }
 
     fn options_len_for_question(
-        question: &codex_protocol::request_user_input::RequestUserInputQuestion,
+        question: &darwin_code_protocol::request_user_input::RequestUserInputQuestion,
     ) -> usize {
         let options_len = question
             .options
@@ -602,7 +602,7 @@ impl RequestUserInputOverlay {
     }
 
     fn other_option_enabled_for_question(
-        question: &codex_protocol::request_user_input::RequestUserInputQuestion,
+        question: &darwin_code_protocol::request_user_input::RequestUserInputQuestion,
     ) -> bool {
         question.is_other
             && question
@@ -612,7 +612,7 @@ impl RequestUserInputOverlay {
     }
 
     fn option_label_for_index(
-        question: &codex_protocol::request_user_input::RequestUserInputQuestion,
+        question: &darwin_code_protocol::request_user_input::RequestUserInputQuestion,
         idx: usize,
     ) -> Option<String> {
         let options = question.options.as_ref()?;
@@ -1306,8 +1306,8 @@ mod tests {
     use crate::app_event::AppEvent;
     use crate::bottom_pane::selection_popup_common::menu_surface_inset;
     use crate::render::renderable::Renderable;
-    use codex_protocol::request_user_input::RequestUserInputQuestion;
-    use codex_protocol::request_user_input::RequestUserInputQuestionOption;
+    use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
+    use darwin_code_protocol::request_user_input::RequestUserInputQuestionOption;
     use pretty_assertions::assert_eq;
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
@@ -1325,8 +1325,8 @@ mod tests {
 
     fn expect_interrupt_only(rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>) {
         let event = rx.try_recv().expect("expected interrupt AppEvent");
-        let AppEvent::CodexOp(op) = event else {
-            panic!("expected CodexOp");
+        let AppEvent::DarwinCodeOp(op) = event else {
+            panic!("expected DarwinCodeOp");
         };
         assert_eq!(op, Op::Interrupt);
         assert!(
@@ -1683,7 +1683,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { id, response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { id, response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         assert_eq!(id, "turn-1");
@@ -1705,7 +1705,7 @@ mod tests {
         overlay.handle_key_event(KeyEvent::from(KeyCode::Enter));
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -1741,7 +1741,7 @@ mod tests {
 
         overlay.handle_key_event(KeyEvent::from(KeyCode::Enter));
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let mut expected = HashMap::new();
@@ -1774,7 +1774,7 @@ mod tests {
         overlay.handle_key_event(KeyEvent::from(KeyCode::Char('2')));
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2024,7 +2024,7 @@ mod tests {
         overlay.handle_key_event(KeyEvent::from(KeyCode::Enter));
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2324,7 +2324,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2349,7 +2349,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2392,7 +2392,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2428,7 +2428,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");
@@ -2513,7 +2513,7 @@ mod tests {
         overlay.submit_answers();
 
         let event = rx.try_recv().expect("expected AppEvent");
-        let AppEvent::CodexOp(Op::UserInputAnswer { response, .. }) = event else {
+        let AppEvent::DarwinCodeOp(Op::UserInputAnswer { response, .. }) = event else {
             panic!("expected UserInputAnswer");
         };
         let answer = response.answers.get("q1").expect("answer missing");

@@ -2,18 +2,18 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use codex_core::ThreadManager;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecutorFileSystem;
-use codex_login::CodexAuth;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_core::ThreadManager;
+use darwin_code_exec_server::CreateDirectoryOptions;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -22,7 +22,7 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -50,8 +50,8 @@ async fn write_repo_skill(
     Ok(())
 }
 
-fn write_home_skill(codex_home: &Path, dir: &str, name: &str, description: &str) -> Result<()> {
-    let skill_dir = codex_home.join("skills").join(dir);
+fn write_home_skill(darwin_code_home: &Path, dir: &str, name: &str, description: &str) -> Result<()> {
+    let skill_dir = darwin_code_home.join("skills").join(dir);
     fs::create_dir_all(&skill_dir)?;
     let contents = format!("---\nname: {name}\ndescription: {description}\n---\n\n# Body\n");
     fs::write(skill_dir.join("SKILL.md"), contents)?;
@@ -72,7 +72,7 @@ async fn user_turn_includes_skill_instructions() -> Result<()> {
 
     let server = start_mock_server().await;
     let skill_body = "skill body";
-    let mut builder = test_codex().with_workspace_setup(move |cwd, fs| async move {
+    let mut builder = test_darwin_code().with_workspace_setup(move |cwd, fs| async move {
         write_repo_skill(cwd, fs, "demo", "demo skill", skill_body).await
     });
     let test = builder.build_remote_aware(&server).await?;
@@ -96,7 +96,7 @@ async fn user_turn_includes_skill_instructions() -> Result<()> {
     .await;
 
     let session_model = test.session_configured.model.clone();
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![
                 UserInput::Text {
@@ -122,8 +122,8 @@ async fn user_turn_includes_skill_instructions() -> Result<()> {
         })
         .await?;
 
-    core_test_support::wait_for_event(test.codex.as_ref(), |event| {
-        matches!(event, codex_protocol::protocol::EventMsg::TurnComplete(_))
+    core_test_support::wait_for_event(test.darwin-code.as_ref(), |event| {
+        matches!(event, darwin_code_protocol::protocol::EventMsg::TurnComplete(_))
     })
     .await;
 
@@ -148,7 +148,7 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             write_home_skill(home, "home-demo", "home-demo", "from home")
                 .expect("write home skill");
@@ -158,15 +158,15 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
         });
     let test = builder.build_remote_aware(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::ListSkills {
             cwds: Vec::new(),
             force_reload: true,
         })
         .await?;
     let response =
-        core_test_support::wait_for_event_match(test.codex.as_ref(), |event| match event {
-            codex_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
+        core_test_support::wait_for_event_match(test.darwin-code.as_ref(), |event| match event {
+            darwin_code_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
                 Some(response.clone())
             }
             _ => None,
@@ -185,7 +185,7 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
         .iter()
         .find(|skill| skill.name == "repo-demo")
         .expect("expected repo skill");
-    assert_eq!(repo_skill.scope, codex_protocol::protocol::SkillScope::Repo);
+    assert_eq!(repo_skill.scope, darwin_code_protocol::protocol::SkillScope::Repo);
     let repo_path = repo_skill.path.to_string_lossy().replace('\\', "/");
     assert!(
         repo_path.ends_with("/.agents/skills/repo-demo/SKILL.md"),
@@ -196,7 +196,7 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
         .iter()
         .find(|skill| skill.name == "home-demo")
         .expect("expected home skill");
-    assert_eq!(home_skill.scope, codex_protocol::protocol::SkillScope::User);
+    assert_eq!(home_skill.scope, darwin_code_protocol::protocol::SkillScope::User);
     let home_path = home_skill.path.to_string_lossy().replace('\\', "/");
     assert!(
         home_path.ends_with("/skills/home-demo/SKILL.md"),
@@ -208,10 +208,10 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn list_skills_skips_cwd_roots_when_environment_disabled() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
     write_home_skill(
-        codex_home.path(),
+        darwin_code_home.path(),
         "home-disabled",
         "home-disabled",
         "from home",
@@ -226,12 +226,12 @@ async fn list_skills_skips_cwd_roots_when_environment_disabled() -> Result<()> {
         repo_skill_dir.join("SKILL.md"),
         "---\nname: repo-disabled\ndescription: from repo\n---\n\n# Body\n",
     )?;
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let mut config = load_default_config_for_test(&darwin_code_home).await;
     config.cwd = AbsolutePathBuf::from_absolute_path_checked(cwd.path())?;
 
     let thread_manager = ThreadManager::new(
         &config,
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("dummy")),
+        darwin_code_core::test_support::auth_manager_from_auth(DarwinCodeAuth::from_api_key("dummy")),
         SessionSource::Exec,
         CollaborationModesConfig::default(),
         Arc::new(EnvironmentManager::new(Some("none".to_string()))),
@@ -249,7 +249,7 @@ async fn list_skills_skips_cwd_roots_when_environment_disabled() -> Result<()> {
         .await?;
     let response =
         core_test_support::wait_for_event_match(new_thread.thread.as_ref(), |event| match event {
-            codex_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
+            darwin_code_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
                 Some(response.clone())
             }
             _ => None,
@@ -280,22 +280,22 @@ async fn skill_load_errors_surface_in_session_configured() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_pre_build_hook(|home| {
+    let mut builder = test_darwin_code().with_pre_build_hook(|home| {
         let skill_dir = home.join("skills").join("broken");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(skill_dir.join("SKILL.md"), "not yaml").unwrap();
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::ListSkills {
             cwds: Vec::new(),
             force_reload: false,
         })
         .await?;
     let response =
-        core_test_support::wait_for_event_match(test.codex.as_ref(), |event| match event {
-            codex_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
+        core_test_support::wait_for_event_match(test.darwin-code.as_ref(), |event| match event {
+            darwin_code_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
                 Some(response.clone())
             }
             _ => None,
@@ -336,7 +336,7 @@ async fn list_skills_includes_system_cache_entries() -> Result<()> {
     const SYSTEM_SKILL_NAME: &str = "skill-creator";
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_pre_build_hook(|home| {
+    let mut builder = test_darwin_code().with_pre_build_hook(|home| {
         let system_skill_path = system_skill_md_path(home, SYSTEM_SKILL_NAME);
         assert!(
             !system_skill_path.exists(),
@@ -345,7 +345,7 @@ async fn list_skills_includes_system_cache_entries() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    let system_skill_path = system_skill_md_path(test.codex_home_path(), SYSTEM_SKILL_NAME);
+    let system_skill_path = system_skill_md_path(test.darwin_code_home_path(), SYSTEM_SKILL_NAME);
     assert!(
         system_skill_path.exists(),
         "expected embedded system skills installed to {system_skill_path:?}"
@@ -357,15 +357,15 @@ async fn list_skills_includes_system_cache_entries() -> Result<()> {
         "expected embedded system skill file, got:\n{system_skill_contents}"
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::ListSkills {
             cwds: Vec::new(),
             force_reload: true,
         })
         .await?;
     let response =
-        core_test_support::wait_for_event_match(test.codex.as_ref(), |event| match event {
-            codex_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
+        core_test_support::wait_for_event_match(test.darwin-code.as_ref(), |event| match event {
+            darwin_code_protocol::protocol::EventMsg::ListSkillsResponse(response) => {
                 Some(response.clone())
             }
             _ => None,
@@ -384,7 +384,7 @@ async fn list_skills_includes_system_cache_entries() -> Result<()> {
         .iter()
         .find(|skill| skill.name == SYSTEM_SKILL_NAME)
         .expect("expected system skill to be present");
-    assert_eq!(skill.scope, codex_protocol::protocol::SkillScope::System);
+    assert_eq!(skill.scope, darwin_code_protocol::protocol::SkillScope::System);
     let path_str = skill.path.to_string_lossy().replace('\\', "/");
     let expected_path_suffix = format!("/skills/.system/{SYSTEM_SKILL_NAME}/SKILL.md");
     assert!(

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Unified entry point for the Codex CLI.
+// Unified entry point for the Darwin-Code CLI.
 
 import { spawn } from "node:child_process";
 import { existsSync } from "fs";
@@ -134,7 +134,7 @@ function getUpdatedPath(newDirs) {
 }
 
 /**
- * Use heuristics to detect the package manager that was used to install Codex
+ * Use heuristics to detect the package manager that was used to install Darwin-Code
  * in order to give the user a hint about how to update it.
  */
 function detectPackageManager() {
@@ -168,8 +168,8 @@ const updatedPath = getUpdatedPath(additionalDirs);
 const env = { ...process.env, PATH: updatedPath };
 const packageManagerEnvVar =
   detectPackageManager() === "bun"
-    ? "CODEX_MANAGED_BY_BUN"
-    : "CODEX_MANAGED_BY_NPM";
+    ? "DARWIN_CODE_MANAGED_BY_BUN"
+    : "DARWIN_CODE_MANAGED_BY_NPM";
 env[packageManagerEnvVar] = "1";
 
 const child = spawn(binaryPath, process.argv.slice(2), {

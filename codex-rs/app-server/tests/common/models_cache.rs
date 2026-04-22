@@ -1,14 +1,14 @@
 use chrono::DateTime;
 use chrono::Utc;
-use codex_core::test_support::all_model_presets;
-use codex_models_manager::client_version_to_whole;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
+use darwin_code_core::test_support::all_model_presets;
+use darwin_code_models_manager::client_version_to_whole;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::default_input_modalities;
 use serde_json::json;
 use std::path::Path;
 
@@ -52,11 +52,11 @@ fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
     }
 }
 
-/// Write a models_cache.json file to the codex home directory.
+/// Write a models_cache.json file to the darwin-code home directory.
 /// This prevents ModelsManager from making network requests to refresh models.
 /// The cache will be treated as fresh (within TTL) and used instead of fetching from the network.
 /// Uses bundled-catalog-derived presets, converted to ModelInfo format.
-pub fn write_models_cache(codex_home: &Path) -> std::io::Result<()> {
+pub fn write_models_cache(darwin_code_home: &Path) -> std::io::Result<()> {
     // Get a stable bundled-catalog-derived preset list and filter for picker-visible entries.
     let presets: Vec<&ModelPreset> = all_model_presets()
         .iter()
@@ -74,16 +74,16 @@ pub fn write_models_cache(codex_home: &Path) -> std::io::Result<()> {
         })
         .collect();
 
-    write_models_cache_with_models(codex_home, models)
+    write_models_cache_with_models(darwin_code_home, models)
 }
 
 /// Write a models_cache.json file with specific models.
 /// Useful when tests need specific models to be available.
 pub fn write_models_cache_with_models(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     models: Vec<ModelInfo>,
 ) -> std::io::Result<()> {
-    let cache_path = codex_home.join("models_cache.json");
+    let cache_path = darwin_code_home.join("models_cache.json");
     // DateTime<Utc> serializes to RFC3339 format by default with serde
     let fetched_at: DateTime<Utc> = Utc::now();
     let client_version = client_version_to_whole();

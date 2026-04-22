@@ -1,22 +1,22 @@
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::ReasoningItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::models::is_image_close_tag_text;
-use codex_protocol::models::is_image_open_tag_text;
-use codex_protocol::models::is_local_image_close_tag_text;
-use codex_protocol::models::is_local_image_open_tag_text;
-use codex_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
-use codex_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
-use codex_protocol::user_input::UserInput;
+use darwin_code_protocol::items::AgentMessageContent;
+use darwin_code_protocol::items::AgentMessageItem;
+use darwin_code_protocol::items::ReasoningItem;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::items::UserMessageItem;
+use darwin_code_protocol::items::WebSearchItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ReasoningItemContent;
+use darwin_code_protocol::models::ReasoningItemReasoningSummary;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::models::WebSearchAction;
+use darwin_code_protocol::models::is_image_close_tag_text;
+use darwin_code_protocol::models::is_image_open_tag_text;
+use darwin_code_protocol::models::is_local_image_close_tag_text;
+use darwin_code_protocol::models::is_local_image_open_tag_text;
+use darwin_code_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
+use darwin_code_protocol::protocol::REALTIME_CONVERSATION_OPEN_TAG;
+use darwin_code_protocol::user_input::UserInput;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -196,7 +196,7 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
             revised_prompt,
             result,
         } => Some(TurnItem::ImageGeneration(
-            codex_protocol::items::ImageGenerationItem {
+            darwin_code_protocol::items::ImageGenerationItem {
                 id: id.clone(),
                 status: status.clone(),
                 revised_prompt: revised_prompt.clone(),

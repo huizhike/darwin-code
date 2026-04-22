@@ -11,12 +11,12 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::CollaborationModeListParams;
-use codex_app_server_protocol::CollaborationModeListResponse;
-use codex_app_server_protocol::CollaborationModeMask;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_core::test_support::builtin_collaboration_mode_presets;
+use darwin_code_app_server_protocol::CollaborationModeListParams;
+use darwin_code_app_server_protocol::CollaborationModeListResponse;
+use darwin_code_app_server_protocol::CollaborationModeMask;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_core::test_support::builtin_collaboration_mode_presets;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -28,8 +28,8 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 /// Confirms the server returns the default collaboration mode presets in a stable order.
 #[tokio::test]
 async fn list_collaboration_modes_returns_presets() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 

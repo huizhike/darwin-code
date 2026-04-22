@@ -7,7 +7,7 @@ async fn resumed_initial_messages_render_history() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -38,7 +38,7 @@ async fn resumed_initial_messages_render_history() {
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -69,7 +69,7 @@ async fn resumed_initial_messages_render_history() {
 async fn thread_snapshot_replay_does_not_duplicate_agent_message_history() {
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "turn-1".into(),
         msg: EventMsg::ItemCompleted(ItemCompletedEvent {
             thread_id: ThreadId::new(),
@@ -84,7 +84,7 @@ async fn thread_snapshot_replay_does_not_duplicate_agent_message_history() {
             }),
         }),
     });
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "turn-1".into(),
         msg: EventMsg::AgentMessage(AgentMessageEvent {
             message: "assistant reply".to_string(),
@@ -120,7 +120,7 @@ async fn replayed_user_message_preserves_text_elements_and_local_images() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -144,7 +144,7 @@ async fn replayed_user_message_preserves_text_elements_and_local_images() {
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -181,7 +181,7 @@ async fn replayed_user_message_preserves_remote_image_urls() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -205,7 +205,7 @@ async fn replayed_user_message_preserves_remote_image_urls() {
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -249,7 +249,7 @@ async fn session_configured_syncs_widget_config_permissions_and_cwd() {
 
     let expected_sandbox = SandboxPolicy::new_read_only_policy();
     let expected_cwd = test_path_buf("/home/user/sub-agent").abs();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: ThreadId::new(),
         forked_from_id: None,
         thread_name: None,
@@ -268,7 +268,7 @@ async fn session_configured_syncs_widget_config_permissions_and_cwd() {
         rollout_path: None,
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "session-configured".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -292,7 +292,7 @@ async fn replayed_user_message_with_only_remote_images_renders_history_cell() {
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -316,7 +316,7 @@ async fn replayed_user_message_with_only_remote_images_renders_history_cell() {
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -345,7 +345,7 @@ async fn replayed_user_message_with_only_local_images_does_not_render_history_ce
 
     let conversation_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = codex_protocol::protocol::SessionConfiguredEvent {
+    let configured = darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: conversation_id,
         forked_from_id: None,
         thread_name: None,
@@ -369,7 +369,7 @@ async fn replayed_user_message_with_only_local_images_does_not_render_history_ce
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "initial".into(),
         msg: EventMsg::SessionConfigured(configured),
     });
@@ -392,8 +392,8 @@ async fn forked_thread_history_line_includes_name_and_id_snapshot() {
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
     let temp = tempdir().expect("tempdir");
-    chat.config.codex_home =
-        codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
+    chat.config.darwin_code_home =
+        darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
             .expect("temp dir is absolute");
 
     let forked_from_id =
@@ -431,8 +431,8 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
     let (chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let mut chat = chat;
     let temp = tempdir().expect("tempdir");
-    chat.config.codex_home =
-        codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
+    chat.config.darwin_code_home =
+        darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(temp.path())
             .expect("temp dir is absolute");
 
     let forked_from_id =
@@ -459,7 +459,7 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
 async fn thread_snapshot_replay_preserves_agent_message_during_review_mode() {
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "review-start".into(),
         msg: EventMsg::EnteredReviewMode(ReviewRequest {
             target: ReviewTarget::UncommittedChanges,
@@ -468,7 +468,7 @@ async fn thread_snapshot_replay_preserves_agent_message_during_review_mode() {
     });
     let _ = drain_insert_history(&mut rx);
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "review-message".into(),
         msg: EventMsg::AgentMessage(AgentMessageEvent {
             message: "Review progress update".to_string(),
@@ -516,7 +516,7 @@ async fn live_legacy_agent_message_after_item_completed_does_not_duplicate_assis
     assert_eq!(inserted.len(), 1);
     assert!(lines_to_single_string(&inserted[0]).contains("hello"));
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "legacy-live".into(),
         msg: EventMsg::AgentMessage(AgentMessageEvent {
             message: "hello".into(),
@@ -553,7 +553,7 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "Reconnecting... 1/5".to_string(),
-                codex_error_info: None,
+                darwin_code_error_info: None,
                 additional_details: Some("Idle timeout waiting for SSE".to_string()),
             },
             will_retry: true,
@@ -591,7 +591,7 @@ async fn replayed_thread_closed_notification_does_not_exit_tui() {
 async fn replayed_reasoning_item_hides_raw_reasoning_when_disabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = false;
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "configured".into(),
         msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
             session_id: ThreadId::new(),
@@ -638,7 +638,7 @@ async fn replayed_reasoning_item_hides_raw_reasoning_when_disabled() {
 async fn replayed_reasoning_item_shows_raw_reasoning_when_enabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = true;
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "configured".into(),
         msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
             session_id: ThreadId::new(),
@@ -754,7 +754,7 @@ async fn replayed_turn_started_does_not_mark_task_running() {
 async fn thread_snapshot_replayed_turn_started_marks_task_running() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "turn-1".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -806,7 +806,7 @@ async fn replayed_stream_error_does_not_set_retry_status_or_status_indicator() {
 
     chat.replay_initial_messages(vec![EventMsg::StreamError(StreamErrorEvent {
         message: "Reconnecting... 2/5".to_string(),
-        codex_error_info: Some(CodexErrorInfo::Other),
+        darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
         additional_details: Some("Idle timeout waiting for SSE".to_string()),
     })]);
 
@@ -824,7 +824,7 @@ async fn replayed_stream_error_does_not_set_retry_status_or_status_indicator() {
 async fn thread_snapshot_replayed_stream_recovery_restores_previous_status_header() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "task".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -835,17 +835,17 @@ async fn thread_snapshot_replayed_stream_recovery_restores_previous_status_heade
     });
     drain_insert_history(&mut rx);
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "retry".into(),
         msg: EventMsg::StreamError(StreamErrorEvent {
             message: "Reconnecting... 1/5".to_string(),
-            codex_error_info: Some(CodexErrorInfo::Other),
+            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             additional_details: None,
         }),
     });
     drain_insert_history(&mut rx);
 
-    chat.handle_codex_event_replay(Event {
+    chat.handle_darwin_code_event_replay(Event {
         id: "delta".into(),
         msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
             delta: "hello".to_string(),
@@ -875,7 +875,7 @@ async fn resume_replay_interrupted_reconnect_does_not_leave_stale_working_state(
         }),
         EventMsg::StreamError(StreamErrorEvent {
             message: "Reconnecting... 1/5".to_string(),
-            codex_error_info: Some(CodexErrorInfo::Other),
+            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             additional_details: None,
         }),
         EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
@@ -907,7 +907,7 @@ async fn replayed_interrupted_reconnect_footer_row_snapshot() {
         }),
         EventMsg::StreamError(StreamErrorEvent {
             message: "Reconnecting... 2/5".to_string(),
-            codex_error_info: Some(CodexErrorInfo::Other),
+            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             additional_details: Some("Idle timeout waiting for SSE".to_string()),
         }),
     ]);
@@ -923,7 +923,7 @@ async fn replayed_interrupted_reconnect_footer_row_snapshot() {
 #[tokio::test]
 async fn stream_recovery_restores_previous_status_header() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "task".into(),
         msg: EventMsg::TurnStarted(TurnStartedEvent {
             turn_id: "turn-1".to_string(),
@@ -933,16 +933,16 @@ async fn stream_recovery_restores_previous_status_header() {
         }),
     });
     drain_insert_history(&mut rx);
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "retry".into(),
         msg: EventMsg::StreamError(StreamErrorEvent {
             message: "Reconnecting... 1/5".to_string(),
-            codex_error_info: Some(CodexErrorInfo::Other),
+            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             additional_details: None,
         }),
     });
     drain_insert_history(&mut rx);
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "delta".into(),
         msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
             delta: "hello".to_string(),

@@ -5,12 +5,12 @@ use pretty_assertions::assert_eq;
 fn top_cli_parses_resume_prompt_after_config_flag() {
     const PROMPT: &str = "echo resume-with-global-flags-after-subcommand";
     let cli = TopCli::parse_from([
-        "codex-exec",
+        "darwin-code-exec",
         "resume",
         "--last",
         "--json",
         "--model",
-        "gpt-5.2-codex",
+        "gpt-5.2-darwin-code",
         "--config",
         "reasoning_level=xhigh",
         "--dangerously-bypass-approvals-and-sandbox",
@@ -18,7 +18,7 @@ fn top_cli_parses_resume_prompt_after_config_flag() {
         PROMPT,
     ]);
 
-    let Some(codex_exec::Command::Resume(args)) = cli.inner.command else {
+    let Some(darwin_code_exec::Command::Resume(args)) = cli.inner.command else {
         panic!("expected resume command");
     };
     let effective_prompt = args.prompt.clone().or_else(|| {

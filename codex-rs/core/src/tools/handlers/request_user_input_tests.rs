@@ -3,8 +3,8 @@ use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ async fn multi_agent_v2_request_user_input_rejects_subagent_threads() {
         turn: Arc::new(turn),
         tracker: Arc::new(Mutex::new(TurnDiffTracker::default())),
         call_id: "call-1".to_string(),
-        tool_name: codex_tools::ToolName::plain(REQUEST_USER_INPUT_TOOL_NAME),
+        tool_name: darwin_code_tools::ToolName::plain(REQUEST_USER_INPUT_TOOL_NAME),
         payload: ToolPayload::Function {
             arguments: json!({
                 "questions": [{

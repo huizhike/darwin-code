@@ -1,15 +1,15 @@
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnSteerParams;
+use darwin_code_app_server_protocol::TurnSteerResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -37,14 +37,14 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -87,10 +87,10 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
 
     let request = response_mock.single_request();
     let metadata = request
-        .header("x-codex-turn-metadata")
+        .header("x-darwin-code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing x-codex-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing x-darwin-code-turn-metadata header"));
     assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
     assert_eq!(metadata["origin"].as_str(), Some("gaas"));
     assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
@@ -103,7 +103,7 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
 async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
     let server = responses::start_mock_server().await;
     let first_response = responses::sse_response(responses::sse(vec![
@@ -121,12 +121,12 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         responses::mount_response_sequence(&server, vec![first_response, second_response]).await;
 
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         /*supports_websockets*/ false,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -198,10 +198,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 2);
     let first_metadata = requests[0]
-        .header("x-codex-turn-metadata")
+        .header("x-darwin-code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing first x-codex-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing first x-darwin-code-turn-metadata header"));
     assert_eq!(
         first_metadata["fiber_run_id"].as_str(),
         Some("fiber-start-123")
@@ -209,10 +209,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     assert_eq!(first_metadata["turn_id"].as_str(), Some(turn_id.as_str()));
 
     let second_metadata = requests[1]
-        .header("x-codex-turn-metadata")
+        .header("x-darwin-code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing second x-codex-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing second x-darwin-code-turn-metadata header"));
     assert_eq!(
         second_metadata["fiber_run_id"].as_str(),
         Some("fiber-steer-456")
@@ -241,14 +241,14 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
     ]])
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &websocket_server.uri().replacen("ws://", "http://", 1),
         /*supports_websockets*/ true,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -303,10 +303,10 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
     assert_eq!(request["type"].as_str(), Some("response.create"));
     assert_eq!(request["previous_response_id"].as_str(), Some("warm-1"));
 
-    let metadata = request["client_metadata"]["x-codex-turn-metadata"]
+    let metadata = request["client_metadata"]["x-darwin-code-turn-metadata"]
         .as_str()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing websocket x-codex-turn-metadata client metadata"));
+        .unwrap_or_else(|| panic!("missing websocket x-darwin-code-turn-metadata client metadata"));
     assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
     assert_eq!(metadata["origin"].as_str(), Some("gaas"));
     assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
@@ -317,11 +317,11 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
 }
 
 fn create_config_toml(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     supports_websockets: bool,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

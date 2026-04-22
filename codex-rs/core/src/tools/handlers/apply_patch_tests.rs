@@ -1,9 +1,9 @@
 use super::*;
-use codex_apply_patch::MaybeApplyPatchVerified;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_apply_patch::MaybeApplyPatchVerified;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
@@ -87,7 +87,7 @@ async fn approval_keys_include_move_destination() {
 +new content
 *** End Patch"#;
     let argv = vec!["apply_patch".to_string(), patch.to_string()];
-    let action = match codex_apply_patch::maybe_parse_apply_patch_verified(
+    let action = match darwin_code_apply_patch::maybe_parse_apply_patch_verified(
         &argv,
         &cwd,
         LOCAL_FS.as_ref(),

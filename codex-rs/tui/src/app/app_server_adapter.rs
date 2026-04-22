@@ -19,92 +19,92 @@ use crate::app_server_session::app_server_rate_limit_snapshot_to_core;
 use crate::app_server_session::status_account_display_from_auth_mode;
 #[cfg(test)]
 use crate::exec_command::split_command_string;
-use codex_app_server_client::AppServerEvent;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
+use darwin_code_app_server_client::AppServerEvent;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
 #[cfg(test)]
-use codex_app_server_protocol::Thread;
+use darwin_code_app_server_protocol::Thread;
 #[cfg(test)]
-use codex_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadItem;
 #[cfg(test)]
-use codex_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::Turn;
 #[cfg(test)]
-use codex_app_server_protocol::TurnStatus;
-use codex_protocol::ThreadId;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_protocol::ThreadId;
 #[cfg(test)]
-use codex_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::ModeKind;
 #[cfg(test)]
-use codex_protocol::items::AgentMessageContent;
+use darwin_code_protocol::items::AgentMessageContent;
 #[cfg(test)]
-use codex_protocol::items::AgentMessageItem;
+use darwin_code_protocol::items::AgentMessageItem;
 #[cfg(test)]
-use codex_protocol::items::ContextCompactionItem;
+use darwin_code_protocol::items::ContextCompactionItem;
 #[cfg(test)]
-use codex_protocol::items::ImageGenerationItem;
+use darwin_code_protocol::items::ImageGenerationItem;
 #[cfg(test)]
-use codex_protocol::items::PlanItem;
+use darwin_code_protocol::items::PlanItem;
 #[cfg(test)]
-use codex_protocol::items::ReasoningItem;
+use darwin_code_protocol::items::ReasoningItem;
 #[cfg(test)]
-use codex_protocol::items::TurnItem;
+use darwin_code_protocol::items::TurnItem;
 #[cfg(test)]
-use codex_protocol::items::UserMessageItem;
+use darwin_code_protocol::items::UserMessageItem;
 #[cfg(test)]
-use codex_protocol::items::WebSearchItem;
+use darwin_code_protocol::items::WebSearchItem;
 #[cfg(test)]
-use codex_protocol::protocol::AgentMessageDeltaEvent;
+use darwin_code_protocol::protocol::AgentMessageDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningDeltaEvent;
+use darwin_code_protocol::protocol::AgentReasoningDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningRawContentDeltaEvent;
+use darwin_code_protocol::protocol::AgentReasoningRawContentDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::ErrorEvent;
 #[cfg(test)]
-use codex_protocol::protocol::Event;
+use darwin_code_protocol::protocol::Event;
 #[cfg(test)]
-use codex_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::EventMsg;
 #[cfg(test)]
-use codex_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
+use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ExecCommandStatus;
+use darwin_code_protocol::protocol::ExecCommandStatus;
 #[cfg(test)]
-use codex_protocol::protocol::ExecOutputStream;
+use darwin_code_protocol::protocol::ExecOutputStream;
 #[cfg(test)]
-use codex_protocol::protocol::ItemCompletedEvent;
+use darwin_code_protocol::protocol::ItemCompletedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ItemStartedEvent;
+use darwin_code_protocol::protocol::ItemStartedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::PlanDeltaEvent;
+use darwin_code_protocol::protocol::PlanDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::RealtimeConversationClosedEvent;
+use darwin_code_protocol::protocol::RealtimeConversationClosedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent;
 #[cfg(test)]
-use codex_protocol::protocol::RealtimeConversationStartedEvent;
+use darwin_code_protocol::protocol::RealtimeConversationStartedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ThreadNameUpdatedEvent;
+use darwin_code_protocol::protocol::ThreadNameUpdatedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::TokenCountEvent;
+use darwin_code_protocol::protocol::TokenCountEvent;
 #[cfg(test)]
-use codex_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsage;
 #[cfg(test)]
-use codex_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TokenUsageInfo;
 #[cfg(test)]
-use codex_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::TurnAbortReason;
 #[cfg(test)]
-use codex_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
 #[cfg(test)]
-use codex_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::protocol::TurnStartedEvent;
 #[cfg(test)]
 use std::time::Duration;
 
@@ -282,7 +282,7 @@ impl App {
     async fn reject_app_server_request(
         &self,
         app_server_client: &AppServerSession,
-        request_id: codex_app_server_protocol::RequestId,
+        request_id: darwin_code_app_server_protocol::RequestId,
         reason: String,
     ) -> std::result::Result<(), String> {
         app_server_client
@@ -504,10 +504,10 @@ fn server_notification_thread_events(
                 id: String::new(),
                 msg: EventMsg::Error(ErrorEvent {
                     message: notification.error.message,
-                    codex_error_info: notification
+                    darwin_code_error_info: notification
                         .error
-                        .codex_error_info
-                        .and_then(app_server_codex_error_info_to_core),
+                        .darwin_code_error_info
+                        .and_then(app_server_darwin_code_error_info_to_core),
                 }),
             }],
         )),
@@ -656,7 +656,7 @@ fn server_notification_thread_events(
             vec![Event {
                 id: String::new(),
                 msg: EventMsg::RealtimeConversationSdp(
-                    codex_protocol::protocol::RealtimeConversationSdpEvent {
+                    darwin_code_protocol::protocol::RealtimeConversationSdpEvent {
                         sdp: notification.sdp,
                     },
                 ),
@@ -686,7 +686,7 @@ fn server_notification_thread_events(
 
 #[cfg(test)]
 fn token_usage_from_app_server(
-    value: codex_app_server_protocol::TokenUsageBreakdown,
+    value: darwin_code_app_server_protocol::TokenUsageBreakdown,
 ) -> TokenUsage {
     TokenUsage {
         input_tokens: value.input_tokens,
@@ -799,10 +799,10 @@ fn append_terminal_turn_events(events: &mut Vec<Event>, turn: &Turn, include_fai
                     id: String::new(),
                     msg: EventMsg::Error(ErrorEvent {
                         message: error.message.clone(),
-                        codex_error_info: error
-                            .codex_error_info
+                        darwin_code_error_info: error
+                            .darwin_code_error_info
                             .clone()
-                            .and_then(app_server_codex_error_info_to_core),
+                            .and_then(app_server_darwin_code_error_info_to_core),
                     }),
                 });
             }
@@ -830,7 +830,7 @@ fn thread_item_to_core(item: &ThreadItem) -> Option<TurnItem> {
             content: content
                 .iter()
                 .cloned()
-                .map(codex_app_server_protocol::UserInput::into_core)
+                .map(darwin_code_app_server_protocol::UserInput::into_core)
                 .collect(),
         })),
         ThreadItem::AgentMessage {
@@ -843,12 +843,12 @@ fn thread_item_to_core(item: &ThreadItem) -> Option<TurnItem> {
             content: vec![AgentMessageContent::Text { text: text.clone() }],
             phase: phase.clone(),
             memory_citation: memory_citation.clone().map(|citation| {
-                codex_protocol::memory_citation::MemoryCitation {
+                darwin_code_protocol::memory_citation::MemoryCitation {
                     entries: citation
                         .entries
                         .into_iter()
                         .map(
-                            |entry| codex_protocol::memory_citation::MemoryCitationEntry {
+                            |entry| darwin_code_protocol::memory_citation::MemoryCitationEntry {
                                 path: entry.path,
                                 line_start: entry.line_start,
                                 line_end: entry.line_end,
@@ -937,7 +937,7 @@ fn command_execution_started_event(turn_id: &str, item: &ThreadItem) -> Option<V
             parsed_cmd: command_actions
                 .iter()
                 .cloned()
-                .map(codex_app_server_protocol::CommandAction::into_core)
+                .map(darwin_code_app_server_protocol::CommandAction::into_core)
                 .collect(),
             source: source.to_core(),
             interaction_input: None,
@@ -965,18 +965,18 @@ fn command_execution_completed_event(turn_id: &str, item: &ThreadItem) -> Option
 
     if matches!(
         status,
-        codex_app_server_protocol::CommandExecutionStatus::InProgress
+        darwin_code_app_server_protocol::CommandExecutionStatus::InProgress
     ) {
         return Some(Vec::new());
     }
 
     let status = match status {
-        codex_app_server_protocol::CommandExecutionStatus::InProgress => return Some(Vec::new()),
-        codex_app_server_protocol::CommandExecutionStatus::Completed => {
+        darwin_code_app_server_protocol::CommandExecutionStatus::InProgress => return Some(Vec::new()),
+        darwin_code_app_server_protocol::CommandExecutionStatus::Completed => {
             ExecCommandStatus::Completed
         }
-        codex_app_server_protocol::CommandExecutionStatus::Failed => ExecCommandStatus::Failed,
-        codex_app_server_protocol::CommandExecutionStatus::Declined => ExecCommandStatus::Declined,
+        darwin_code_app_server_protocol::CommandExecutionStatus::Failed => ExecCommandStatus::Failed,
+        darwin_code_app_server_protocol::CommandExecutionStatus::Declined => ExecCommandStatus::Declined,
     };
 
     let duration = Duration::from_millis(
@@ -997,7 +997,7 @@ fn command_execution_completed_event(turn_id: &str, item: &ThreadItem) -> Option
             parsed_cmd: command_actions
                 .iter()
                 .cloned()
-                .map(codex_app_server_protocol::CommandAction::into_core)
+                .map(darwin_code_app_server_protocol::CommandAction::into_core)
                 .collect(),
             source: source.to_core(),
             interaction_input: None,
@@ -1023,28 +1023,28 @@ fn command_execution_snapshot_events(turn_id: &str, item: &ThreadItem) -> Option
 
 #[cfg(test)]
 fn app_server_web_search_action_to_core(
-    action: codex_app_server_protocol::WebSearchAction,
-) -> Option<codex_protocol::models::WebSearchAction> {
+    action: darwin_code_app_server_protocol::WebSearchAction,
+) -> Option<darwin_code_protocol::models::WebSearchAction> {
     match action {
-        codex_app_server_protocol::WebSearchAction::Search { query, queries } => {
-            Some(codex_protocol::models::WebSearchAction::Search { query, queries })
+        darwin_code_app_server_protocol::WebSearchAction::Search { query, queries } => {
+            Some(darwin_code_protocol::models::WebSearchAction::Search { query, queries })
         }
-        codex_app_server_protocol::WebSearchAction::OpenPage { url } => {
-            Some(codex_protocol::models::WebSearchAction::OpenPage { url })
+        darwin_code_app_server_protocol::WebSearchAction::OpenPage { url } => {
+            Some(darwin_code_protocol::models::WebSearchAction::OpenPage { url })
         }
-        codex_app_server_protocol::WebSearchAction::FindInPage { url, pattern } => {
-            Some(codex_protocol::models::WebSearchAction::FindInPage { url, pattern })
+        darwin_code_app_server_protocol::WebSearchAction::FindInPage { url, pattern } => {
+            Some(darwin_code_protocol::models::WebSearchAction::FindInPage { url, pattern })
         }
-        codex_app_server_protocol::WebSearchAction::Other => {
-            Some(codex_protocol::models::WebSearchAction::Other)
+        darwin_code_app_server_protocol::WebSearchAction::Other => {
+            Some(darwin_code_protocol::models::WebSearchAction::Other)
         }
     }
 }
 
 #[cfg(test)]
-fn app_server_codex_error_info_to_core(
-    value: codex_app_server_protocol::CodexErrorInfo,
-) -> Option<codex_protocol::protocol::CodexErrorInfo> {
+fn app_server_darwin_code_error_info_to_core(
+    value: darwin_code_app_server_protocol::DarwinCodeErrorInfo,
+) -> Option<darwin_code_protocol::protocol::DarwinCodeErrorInfo> {
     serde_json::from_value(serde_json::to_value(value).ok()?).ok()
 }
 
@@ -1056,36 +1056,36 @@ mod tests {
     use super::server_notification_thread_target;
     use super::thread_snapshot_events;
     use super::turn_snapshot_events;
-    use codex_app_server_protocol::AgentMessageDeltaNotification;
-    use codex_app_server_protocol::CodexErrorInfo;
-    use codex_app_server_protocol::CommandAction;
-    use codex_app_server_protocol::CommandExecutionOutputDeltaNotification;
-    use codex_app_server_protocol::CommandExecutionSource;
-    use codex_app_server_protocol::CommandExecutionStatus;
-    use codex_app_server_protocol::ItemCompletedNotification;
-    use codex_app_server_protocol::ItemStartedNotification;
-    use codex_app_server_protocol::ReasoningSummaryTextDeltaNotification;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_app_server_protocol::Thread;
-    use codex_app_server_protocol::ThreadItem;
-    use codex_app_server_protocol::ThreadStatus;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnError;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_app_server_protocol::WarningNotification;
-    use codex_protocol::ThreadId;
-    use codex_protocol::items::AgentMessageContent;
-    use codex_protocol::items::AgentMessageItem;
-    use codex_protocol::items::TurnItem;
-    use codex_protocol::models::MessagePhase;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::ExecCommandSource;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::TurnAbortReason;
-    use codex_protocol::protocol::TurnAbortedEvent;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_app_server_protocol::AgentMessageDeltaNotification;
+    use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
+    use darwin_code_app_server_protocol::CommandAction;
+    use darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification;
+    use darwin_code_app_server_protocol::CommandExecutionSource;
+    use darwin_code_app_server_protocol::CommandExecutionStatus;
+    use darwin_code_app_server_protocol::ItemCompletedNotification;
+    use darwin_code_app_server_protocol::ItemStartedNotification;
+    use darwin_code_app_server_protocol::ReasoningSummaryTextDeltaNotification;
+    use darwin_code_app_server_protocol::ServerNotification;
+    use darwin_code_app_server_protocol::Thread;
+    use darwin_code_app_server_protocol::ThreadItem;
+    use darwin_code_app_server_protocol::ThreadStatus;
+    use darwin_code_app_server_protocol::Turn;
+    use darwin_code_app_server_protocol::TurnCompletedNotification;
+    use darwin_code_app_server_protocol::TurnError;
+    use darwin_code_app_server_protocol::TurnStatus;
+    use darwin_code_app_server_protocol::WarningNotification;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::items::AgentMessageContent;
+    use darwin_code_protocol::items::AgentMessageItem;
+    use darwin_code_protocol::items::TurnItem;
+    use darwin_code_protocol::models::MessagePhase;
+    use darwin_code_protocol::protocol::EventMsg;
+    use darwin_code_protocol::protocol::ExecCommandSource;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::TurnAbortReason;
+    use darwin_code_protocol::protocol::TurnAbortedEvent;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1408,7 +1408,7 @@ mod tests {
                     status: TurnStatus::Failed,
                     error: Some(TurnError {
                         message: "request failed".to_string(),
-                        codex_error_info: Some(CodexErrorInfo::Other),
+                        darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
                         additional_details: None,
                     }),
                     started_at: None,
@@ -1502,7 +1502,7 @@ mod tests {
                         items: vec![
                             ThreadItem::UserMessage {
                                 id: "user-1".to_string(),
-                                content: vec![codex_app_server_protocol::UserInput::Text {
+                                content: vec![darwin_code_app_server_protocol::UserInput::Text {
                                     text: "hello".to_string(),
                                     text_elements: Vec::new(),
                                 }],
@@ -1535,7 +1535,7 @@ mod tests {
                         status: TurnStatus::Failed,
                         error: Some(TurnError {
                             message: "request failed".to_string(),
-                            codex_error_info: Some(CodexErrorInfo::Other),
+                            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
                             additional_details: None,
                         }),
                         started_at: None,
@@ -1567,8 +1567,8 @@ mod tests {
         };
         assert_eq!(error.message, "request failed");
         assert_eq!(
-            error.codex_error_info,
-            Some(codex_protocol::protocol::CodexErrorInfo::Other)
+            error.darwin_code_error_info,
+            Some(darwin_code_protocol::protocol::DarwinCodeErrorInfo::Other)
         );
         assert!(matches!(events[8].msg, EventMsg::TurnComplete(_)));
     }
@@ -1588,7 +1588,7 @@ mod tests {
                     ThreadItem::WebSearch {
                         id: "search-1".to_string(),
                         query: "ratatui stylize".to_string(),
-                        action: Some(codex_app_server_protocol::WebSearchAction::Other),
+                        action: Some(darwin_code_app_server_protocol::WebSearchAction::Other),
                     },
                     ThreadItem::ImageGeneration {
                         id: "image-1".to_string(),
@@ -1623,7 +1623,7 @@ mod tests {
         assert_eq!(web_search.query, "ratatui stylize");
         assert_eq!(
             web_search.action,
-            codex_protocol::models::WebSearchAction::Other
+            darwin_code_protocol::models::WebSearchAction::Other
         );
         let EventMsg::ImageGenerationEnd(image_generation) = &events[3].msg else {
             panic!("expected image generation replay");

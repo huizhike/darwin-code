@@ -3,24 +3,24 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_core::config::Constrained;
-use codex_core::config_loader::ConfigLayerStack;
-use codex_core::config_loader::ConfigLayerStackOrdering;
-use codex_core::config_loader::NetworkConstraints;
-use codex_core::config_loader::NetworkRequirementsToml;
-use codex_core::config_loader::RequirementSource;
-use codex_core::config_loader::Sourced;
-use codex_features::Feature;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::config::Constrained;
+use darwin_code_core::config_loader::ConfigLayerStack;
+use darwin_code_core::config_loader::ConfigLayerStackOrdering;
+use darwin_code_core::config_loader::NetworkConstraints;
+use darwin_code_core::config_loader::NetworkRequirementsToml;
+use darwin_code_core::config_loader::RequirementSource;
+use darwin_code_core::config_loader::Sourced;
+use darwin_code_features::Feature;
+use darwin_code_protocol::items::parse_hook_prompt_fragment;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -34,7 +34,7 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -622,7 +622,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = write_stop_hook(
                 home,
@@ -634,7 +634,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -657,7 +657,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
         "third request should retain hook prompts in user history",
     );
 
-    let hook_inputs = read_stop_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_stop_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 3);
     let stop_turn_ids = hook_inputs
         .iter()
@@ -694,7 +694,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
         vec![false, true, true],
     );
 
-    let rollout_path = test.codex.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
     let rollout_text = fs::read_to_string(&rollout_path)?;
     let hook_prompt_texts = rollout_hook_prompt_texts(&rollout_text)?;
     assert!(
@@ -724,7 +724,7 @@ async fn session_start_hook_sees_materialized_transcript_path() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = write_session_start_hook_recording_transcript(home) {
                 panic!("failed to write session start hook test fixture: {error}");
@@ -733,14 +733,14 @@ async fn session_start_hook_sees_materialized_transcript_path() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
 
     test.submit_turn("hello").await?;
 
-    let hook_inputs = read_session_start_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_session_start_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]
@@ -776,7 +776,7 @@ async fn resumed_thread_keeps_stop_continuation_prompt_in_history() -> Result<()
     )
     .await;
 
-    let mut initial_builder = test_codex()
+    let mut initial_builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = write_stop_hook(home, &[FIRST_CONTINUATION_PROMPT]) {
                 panic!("failed to write stop hook test fixture: {error}");
@@ -785,7 +785,7 @@ async fn resumed_thread_keeps_stop_continuation_prompt_in_history() -> Result<()
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let initial = initial_builder.build(&server).await?;
@@ -810,10 +810,10 @@ async fn resumed_thread_keeps_stop_continuation_prompt_in_history() -> Result<()
     )
     .await;
 
-    let mut resume_builder = test_codex().with_config(|config| {
+    let mut resume_builder = test_darwin_code().with_config(|config| {
         config
             .features
-            .enable(Feature::CodexHooks)
+            .enable(Feature::DarwinCodeHooks)
             .expect("test config should allow feature update");
     });
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
@@ -852,7 +852,7 @@ async fn multiple_blocking_stop_hooks_persist_multiple_hook_prompt_fragments() -
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = write_parallel_stop_hooks(
                 home,
@@ -864,7 +864,7 @@ async fn multiple_blocking_stop_hooks_persist_multiple_hook_prompt_fragments() -
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -882,7 +882,7 @@ async fn multiple_blocking_stop_hooks_persist_multiple_hook_prompt_fragments() -
         "second request should receive one user hook prompt message with both fragments",
     );
 
-    let rollout_path = test.codex.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
     let rollout_text = fs::read_to_string(&rollout_path)?;
     assert_eq!(
         rollout_hook_prompt_texts(&rollout_text)?,
@@ -911,7 +911,7 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_user_prompt_submit_hook(home, "blocked first prompt", BLOCKED_PROMPT_CONTEXT)
@@ -922,7 +922,7 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -952,7 +952,7 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
         "second request should include the accepted prompt",
     );
 
-    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_user_prompt_submit_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 2);
     assert_eq!(
         hook_inputs
@@ -1017,7 +1017,7 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
     let (server, _completions) =
         start_streaming_sse_server(vec![first_chunks, second_chunks]).await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_model("gpt-5.1")
         .with_pre_build_hook(|home| {
             if let Err(error) =
@@ -1029,12 +1029,12 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build_with_streaming_server(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "initial prompt".to_string(),
@@ -1045,13 +1045,13 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
         })
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::AgentMessageContentDelta(_))
     })
     .await;
 
     for text in ["accepted queued prompt", "blocked queued prompt"] {
-        test.codex
+        test.darwin-code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: text.to_string(),
@@ -1094,7 +1094,7 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
         "second request should not include the blocked queued prompt",
     );
 
-    let hook_inputs = read_user_prompt_submit_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_user_prompt_submit_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 3);
     assert_eq!(
         hook_inputs
@@ -1172,7 +1172,7 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = install_allow_permission_request_hook(home) {
                 panic!("failed to write permission request hook test fixture: {error}");
@@ -1181,7 +1181,7 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1191,7 +1191,7 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
     test.submit_turn_with_policies(
         "run the shell command after hook approval",
         AskForApproval::OnRequest,
-        codex_protocol::protocol::SandboxPolicy::DangerFullAccess,
+        darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess,
     )
     .await?;
 
@@ -1204,7 +1204,7 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
     );
 
     let hook_inputs = assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &command,
         /*description*/ None,
     )?;
@@ -1257,7 +1257,7 @@ async fn permission_request_hook_sees_raw_exec_command_input() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = install_allow_permission_request_hook(home) {
                 panic!("failed to write permission request hook test fixture: {error}");
@@ -1267,7 +1267,7 @@ async fn permission_request_hook_sees_raw_exec_command_input() -> Result<()> {
             config.use_experimental_unified_exec_tool = true;
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
             config
                 .features
@@ -1281,7 +1281,7 @@ async fn permission_request_hook_sees_raw_exec_command_input() -> Result<()> {
     test.submit_turn_with_policies(
         "run the exec command after hook approval",
         AskForApproval::OnRequest,
-        codex_protocol::protocol::SandboxPolicy::new_read_only_policy(),
+        darwin_code_protocol::protocol::SandboxPolicy::new_read_only_policy(),
     )
     .await?;
 
@@ -1294,7 +1294,7 @@ async fn permission_request_hook_sees_raw_exec_command_input() -> Result<()> {
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &command,
         Some(justification),
     )?;
@@ -1322,7 +1322,7 @@ allow_local_binding = true
 "#,
     )?;
     let call_id = "permissionrequest-network-approval";
-    let command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://codex-network-test.invalid', timeout=2).read().decode(errors='replace'))""#;
+    let command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://darwin-code-network-test.invalid', timeout=2).read().decode(errors='replace'))""#;
     let args = serde_json::json!({ "command": command });
     let _responses = mount_sse_sequence(
         &server,
@@ -1350,7 +1350,7 @@ allow_local_binding = true
         exclude_slash_tmp: false,
     };
     let sandbox_policy_for_config = sandbox_policy.clone();
-    let test = test_codex()
+    let test = test_darwin_code()
         .with_home(Arc::clone(&home))
         .with_pre_build_hook(|home| {
             if let Err(error) = install_allow_permission_request_hook(home) {
@@ -1360,7 +1360,7 @@ allow_local_binding = true
         .with_config(move |config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
             config.permissions.approval_policy = Constrained::allow_any(approval_policy);
             config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
@@ -1417,7 +1417,7 @@ allow_local_binding = true
     timeout(Duration::from_secs(10), async {
         loop {
             if test
-                .codex_home_path()
+                .darwin_code_home_path()
                 .join("permission_request_hook_log.jsonl")
                 .exists()
             {
@@ -1432,7 +1432,7 @@ allow_local_binding = true
     assert!(
         timeout(
             Duration::from_secs(2),
-            wait_for_event(&test.codex, |event| matches!(
+            wait_for_event(&test.darwin-code, |event| matches!(
                 event,
                 EventMsg::ExecApprovalRequest(_)
             ))
@@ -1443,13 +1443,13 @@ allow_local_binding = true
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         command,
-        Some("network-access http://codex-network-test.invalid:80"),
+        Some("network-access http://darwin-code-network-test.invalid:80"),
     )?;
 
-    test.codex.submit(Op::Shutdown {}).await?;
-    wait_for_event(&test.codex, |event| {
+    test.darwin-code.submit(Op::Shutdown {}).await?;
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::ShutdownComplete)
     })
     .await;
@@ -1488,7 +1488,7 @@ async fn permission_request_hook_sees_retry_context_after_sandbox_denial() -> Re
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = install_allow_permission_request_hook(home) {
                 panic!("failed to write permission request hook test fixture: {error}");
@@ -1497,7 +1497,7 @@ async fn permission_request_hook_sees_retry_context_after_sandbox_denial() -> Re
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1507,7 +1507,7 @@ async fn permission_request_hook_sees_retry_context_after_sandbox_denial() -> Re
     test.submit_turn_with_policies(
         "retry the shell command after sandbox denial",
         AskForApproval::OnFailure,
-        codex_protocol::protocol::SandboxPolicy::new_read_only_policy(),
+        darwin_code_protocol::protocol::SandboxPolicy::new_read_only_policy(),
     )
     .await?;
 
@@ -1520,7 +1520,7 @@ async fn permission_request_hook_sees_retry_context_after_sandbox_denial() -> Re
     );
 
     assert_single_permission_request_hook_input(
-        test.codex_home_path(),
+        test.darwin_code_home_path(),
         &command,
         /*description*/ None,
     )?;
@@ -1558,7 +1558,7 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_pre_tool_use_hook(home, Some("^Bash$"), "json_deny", "blocked by pre hook")
@@ -1569,7 +1569,7 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1580,7 +1580,7 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
 
     test.submit_turn_with_policy(
         "run the blocked shell command",
-        codex_protocol::protocol::SandboxPolicy::DangerFullAccess,
+        darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess,
     )
     .await?;
 
@@ -1604,7 +1604,7 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
         "blocked command should not create marker file"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["hook_event_name"], "PreToolUse");
     assert_eq!(hook_inputs[0]["tool_name"], "Bash");
@@ -1663,7 +1663,7 @@ async fn pre_tool_use_blocks_local_shell_before_execution() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_pre_tool_use_hook(home, Some("^Bash$"), "json_deny", "blocked local shell")
@@ -1674,7 +1674,7 @@ async fn pre_tool_use_blocks_local_shell_before_execution() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1700,7 +1700,7 @@ async fn pre_tool_use_blocks_local_shell_before_execution() -> Result<()> {
     assert!(
         output.contains(&format!(
             "Command: {}",
-            codex_shell_command::parse_command::shlex_join(&command)
+            darwin_code_shell_command::parse_command::shlex_join(&command)
         )),
         "blocked local shell output should surface the blocked command",
     );
@@ -1709,11 +1709,11 @@ async fn pre_tool_use_blocks_local_shell_before_execution() -> Result<()> {
         "blocked local shell command should not execute"
     );
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_input"]["command"],
-        codex_shell_command::parse_command::shlex_join(&command),
+        darwin_code_shell_command::parse_command::shlex_join(&command),
     );
     assert!(
         hook_inputs[0]["turn_id"]
@@ -1754,7 +1754,7 @@ async fn pre_tool_use_blocks_exec_command_before_execution() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_pre_tool_use_hook(home, Some("^Bash$"), "exit_2", "blocked exec command")
@@ -1766,7 +1766,7 @@ async fn pre_tool_use_blocks_exec_command_before_execution() -> Result<()> {
             config.use_experimental_unified_exec_tool = true;
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
             config
                 .features
@@ -1798,7 +1798,7 @@ async fn pre_tool_use_blocks_exec_command_before_execution() -> Result<()> {
     );
     assert!(!marker.exists(), "blocked exec command should not execute");
 
-    let hook_inputs = read_pre_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_pre_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
@@ -1844,7 +1844,7 @@ async fn pre_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_pre_tool_use_hook(home, /*matcher*/ None, "json_deny", "should not fire")
@@ -1855,7 +1855,7 @@ async fn pre_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1874,7 +1874,7 @@ async fn pre_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
         "non-shell tool output should not be blocked by PreToolUse",
     );
 
-    let hook_log_path = test.codex_home_path().join("pre_tool_use_hook_log.jsonl");
+    let hook_log_path = test.darwin_code_home_path().join("pre_tool_use_hook_log.jsonl");
     assert!(
         !hook_log_path.exists(),
         "non-shell tools should not trigger pre tool use hooks",
@@ -1913,7 +1913,7 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
     .await;
 
     let post_context = "Remember the bash post-tool note.";
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_post_tool_use_hook(home, Some("^Bash$"), "context", post_context)
@@ -1924,7 +1924,7 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -1950,7 +1950,7 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
         "shell command output should still reach the model",
     );
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["hook_event_name"], "PostToolUse");
     assert_eq!(hook_inputs[0]["tool_name"], "Bash");
@@ -2010,7 +2010,7 @@ async fn post_tool_use_block_decision_replaces_shell_command_output_with_reason(
     .await;
 
     let reason = "bash output looked sketchy";
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_post_tool_use_hook(home, Some("^Bash$"), "decision_block", reason)
@@ -2021,7 +2021,7 @@ async fn post_tool_use_block_decision_replaces_shell_command_output_with_reason(
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -2038,7 +2038,7 @@ async fn post_tool_use_block_decision_replaces_shell_command_output_with_reason(
         .expect("shell command output string");
     assert_eq!(output, reason);
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_response"],
@@ -2079,7 +2079,7 @@ async fn post_tool_use_continue_false_replaces_shell_command_output_with_stop_re
     .await;
 
     let stop_reason = "Execution halted by post-tool hook";
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_post_tool_use_hook(home, Some("^Bash$"), "continue_false", stop_reason)
@@ -2090,7 +2090,7 @@ async fn post_tool_use_continue_false_replaces_shell_command_output_with_stop_re
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -2107,7 +2107,7 @@ async fn post_tool_use_continue_false_replaces_shell_command_output_with_stop_re
         .expect("shell command output string");
     assert_eq!(output, stop_reason);
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_response"],
@@ -2150,7 +2150,7 @@ async fn post_tool_use_records_additional_context_for_local_shell() -> Result<()
     .await;
 
     let post_context = "Remember the local shell post-tool note.";
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_post_tool_use_hook(home, Some("^Bash$"), "context", post_context)
@@ -2161,7 +2161,7 @@ async fn post_tool_use_records_additional_context_for_local_shell() -> Result<()
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -2177,11 +2177,11 @@ async fn post_tool_use_records_additional_context_for_local_shell() -> Result<()
             .contains(&post_context.to_string()),
         "follow-up request should include local shell post tool use additional context",
     );
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(
         hook_inputs[0]["tool_input"]["command"],
-        codex_shell_command::parse_command::shlex_join(&command),
+        darwin_code_shell_command::parse_command::shlex_join(&command),
     );
     assert_eq!(
         hook_inputs[0]["tool_response"],
@@ -2221,7 +2221,7 @@ async fn post_tool_use_exit_two_replaces_one_shot_exec_command_output_with_feedb
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) =
                 write_post_tool_use_hook(home, Some("^Bash$"), "exit_2", "blocked by post hook")
@@ -2233,7 +2233,7 @@ async fn post_tool_use_exit_two_replaces_one_shot_exec_command_output_with_feedb
             config.use_experimental_unified_exec_tool = true;
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
             config
                 .features
@@ -2254,7 +2254,7 @@ async fn post_tool_use_exit_two_replaces_one_shot_exec_command_output_with_feedb
         .expect("exec command output string");
     assert_eq!(output, "blocked by post hook");
 
-    let hook_inputs = read_post_tool_use_hook_inputs(test.codex_home_path())?;
+    let hook_inputs = read_post_tool_use_hook_inputs(test.darwin_code_home_path())?;
     assert_eq!(hook_inputs.len(), 1);
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
@@ -2299,7 +2299,7 @@ async fn post_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
+    let mut builder = test_darwin_code()
         .with_pre_build_hook(|home| {
             if let Err(error) = write_post_tool_use_hook(
                 home,
@@ -2313,7 +2313,7 @@ async fn post_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
         .with_config(|config| {
             config
                 .features
-                .enable(Feature::CodexHooks)
+                .enable(Feature::DarwinCodeHooks)
                 .expect("test config should allow feature update");
         });
     let test = builder.build(&server).await?;
@@ -2332,7 +2332,7 @@ async fn post_tool_use_does_not_fire_for_non_shell_tools() -> Result<()> {
         "non-shell tool output should not be affected by PostToolUse",
     );
 
-    let hook_log_path = test.codex_home_path().join("post_tool_use_hook_log.jsonl");
+    let hook_log_path = test.darwin_code_home_path().join("post_tool_use_hook_log.jsonl");
     assert!(
         !hook_log_path.exists(),
         "non-shell tools should not trigger post tool use hooks",

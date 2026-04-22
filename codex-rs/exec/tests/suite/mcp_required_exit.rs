@@ -2,16 +2,16 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use core_test_support::responses;
-use core_test_support::test_codex_exec::test_codex_exec;
+use core_test_support::test_darwin_code_exec::test_darwin_code_exec;
 use predicates::str::contains;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exits_non_zero_when_required_mcp_server_fails_to_initialize() -> anyhow::Result<()> {
-    let test = test_codex_exec();
+    let test = test_darwin_code_exec();
 
     let config_toml = r#"
         [mcp_servers.required_broken]
-        command = "codex-definitely-not-a-real-binary"
+        command = "darwin-code-definitely-not-a-real-binary"
         required = true
     "#;
     std::fs::write(test.home_path().join("config.toml"), config_toml)?;

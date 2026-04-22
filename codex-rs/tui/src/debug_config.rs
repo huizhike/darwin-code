@@ -10,8 +10,8 @@ use crate::legacy_core::config_loader::RequirementSource;
 use crate::legacy_core::config_loader::ResidencyRequirement;
 use crate::legacy_core::config_loader::SandboxModeRequirement;
 use crate::legacy_core::config_loader::WebSearchModeRequirement;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_protocol::protocol::SessionNetworkProxyRuntime;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use toml::Value as TomlValue;
@@ -340,10 +340,10 @@ fn format_config_layer_source(source: &ConfigLayerSource) -> String {
         ConfigLayerSource::User { file } => {
             format!("user ({})", file.as_path().display())
         }
-        ConfigLayerSource::Project { dot_codex_folder } => {
+        ConfigLayerSource::Project { dot_darwin_code_folder } => {
             format!(
                 "project ({}/config.toml)",
-                dot_codex_folder.as_path().display()
+                dot_darwin_code_folder.as_path().display()
             )
         }
         ConfigLayerSource::SessionFlags => "session-flags".to_string(),
@@ -487,12 +487,12 @@ mod tests {
     use crate::legacy_core::config_loader::SandboxModeRequirement;
     use crate::legacy_core::config_loader::Sourced;
     use crate::legacy_core::config_loader::WebSearchModeRequirement;
-    use codex_app_server_protocol::ConfigLayerSource;
-    use codex_protocol::config_types::ApprovalsReviewer;
-    use codex_protocol::config_types::WebSearchMode;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_app_server_protocol::ConfigLayerSource;
+    use darwin_code_protocol::config_types::ApprovalsReviewer;
+    use darwin_code_protocol::config_types::WebSearchMode;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use ratatui::text::Line;
     use std::collections::BTreeMap;
     use toml::Value as TomlValue;
@@ -521,14 +521,14 @@ mod tests {
     #[test]
     fn debug_config_output_lists_all_layers_including_disabled() {
         let system_file = if cfg!(windows) {
-            absolute_path("C:\\etc\\codex\\config.toml")
+            absolute_path("C:\\etc\\darwin-code\\config.toml")
         } else {
-            absolute_path("/etc/codex/config.toml")
+            absolute_path("/etc/darwin-code/config.toml")
         };
         let project_folder = if cfg!(windows) {
-            absolute_path("C:\\repo\\.codex")
+            absolute_path("C:\\repo\\.darwin-code")
         } else {
-            absolute_path("/repo/.codex")
+            absolute_path("/repo/.darwin-code")
         };
 
         let layers = vec![
@@ -538,7 +538,7 @@ mod tests {
             ),
             ConfigLayerEntry::new_disabled(
                 ConfigLayerSource::Project {
-                    dot_codex_folder: project_folder,
+                    dot_darwin_code_folder: project_folder,
                 },
                 empty_toml_table(),
                 "project is untrusted",
@@ -562,9 +562,9 @@ mod tests {
     #[test]
     fn debug_config_output_lists_requirement_sources() {
         let requirements_file = if cfg!(windows) {
-            absolute_path("C:\\ProgramData\\OpenAI\\Codex\\requirements.toml")
+            absolute_path("C:\\ProgramData\\OpenAI\\Darwin-Code\\requirements.toml")
         } else {
-            absolute_path("/etc/codex/requirements.toml")
+            absolute_path("/etc/darwin-code/requirements.toml")
         };
         let denied_path = if cfg!(windows) {
             absolute_path("C:\\Users\\alice\\.gitconfig")
@@ -592,7 +592,7 @@ mod tests {
                     "docs".to_string(),
                     McpServerRequirement {
                         identity: McpServerIdentity::Command {
-                            command: "codex-mcp".to_string(),
+                            command: "darwin-code-mcp".to_string(),
                         },
                     },
                 )]),
@@ -649,7 +649,7 @@ mod tests {
                 "docs".to_string(),
                 McpServerRequirement {
                     identity: McpServerIdentity::Command {
-                        command: "codex-mcp".to_string(),
+                        command: "darwin-code-mcp".to_string(),
                     },
                 },
             )])),
@@ -661,9 +661,9 @@ mod tests {
         };
 
         let user_file = if cfg!(windows) {
-            absolute_path("C:\\users\\alice\\.codex\\config.toml")
+            absolute_path("C:\\users\\alice\\.darwin-code\\config.toml")
         } else {
-            absolute_path("/home/alice/.codex/config.toml")
+            absolute_path("/home/alice/.darwin-code/config.toml")
         };
         let stack = ConfigLayerStack::new(
             vec![ConfigLayerEntry::new(
@@ -745,7 +745,7 @@ mod tests {
                     unix_sockets: Some(NetworkUnixSocketPermissionsToml {
                         entries: BTreeMap::from([
                             (
-                                "/tmp/codex.sock".to_string(),
+                                "/tmp/darwin-code.sock".to_string(),
                                 NetworkUnixSocketPermissionToml::Allow,
                             ),
                             (
@@ -767,7 +767,7 @@ mod tests {
 
         let rendered = render_to_text(&render_debug_config_lines(&stack));
         assert!(rendered.contains(
-            "experimental_network: unix_sockets={/tmp/blocked.sock=none, /tmp/codex.sock=allow} (source: cloud requirements)"
+            "experimental_network: unix_sockets={/tmp/blocked.sock=none, /tmp/darwin-code.sock=allow} (source: cloud requirements)"
         ));
     }
 

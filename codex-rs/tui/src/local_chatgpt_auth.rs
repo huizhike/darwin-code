@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::load_auth_dot_json;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_login::load_auth_dot_json;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LocalChatgptAuth {
@@ -14,11 +14,11 @@ pub(crate) struct LocalChatgptAuth {
 }
 
 pub(crate) fn load_local_chatgpt_auth(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     auth_credentials_store_mode: AuthCredentialsStoreMode,
     forced_chatgpt_workspace_id: Option<&str>,
 ) -> Result<LocalChatgptAuth, String> {
-    let auth = load_auth_dot_json(codex_home, auth_credentials_store_mode)
+    let auth = load_auth_dot_json(darwin_code_home, auth_credentials_store_mode)
         .map_err(|err| format!("failed to load local auth: {err}"))?
         .ok_or_else(|| "no local auth available".to_string())?;
     if matches!(auth.auth_mode, Some(AuthMode::ApiKey)) || auth.openai_api_key.is_some() {
@@ -59,11 +59,11 @@ mod tests {
 
     use base64::Engine;
     use chrono::Utc;
-    use codex_app_server_protocol::AuthMode;
-    use codex_login::AuthDotJson;
-    use codex_login::auth::login_with_chatgpt_auth_tokens;
-    use codex_login::save_auth;
-    use codex_login::token_data::TokenData;
+    use darwin_code_app_server_protocol::AuthMode;
+    use darwin_code_login::AuthDotJson;
+    use darwin_code_login::auth::login_with_chatgpt_auth_tokens;
+    use darwin_code_login::save_auth;
+    use darwin_code_login::token_data::TokenData;
     use pretty_assertions::assert_eq;
     use serde::Serialize;
     use serde_json::json;
@@ -94,14 +94,14 @@ mod tests {
         format!("{header_b64}.{payload_b64}.{signature_b64}")
     }
 
-    fn write_chatgpt_auth(codex_home: &Path, plan_type: &str) {
+    fn write_chatgpt_auth(darwin_code_home: &Path, plan_type: &str) {
         let id_token = fake_jwt("user@example.com", "workspace-1", plan_type);
         let access_token = fake_jwt("user@example.com", "workspace-1", plan_type);
         let auth = AuthDotJson {
             auth_mode: Some(AuthMode::Chatgpt),
             openai_api_key: None,
             tokens: Some(TokenData {
-                id_token: codex_login::token_data::parse_chatgpt_jwt_claims(&id_token)
+                id_token: darwin_code_login::token_data::parse_chatgpt_jwt_claims(&id_token)
                     .expect("id token should parse"),
                 access_token,
                 refresh_token: "refresh-token".to_string(),
@@ -110,17 +110,17 @@ mod tests {
             last_refresh: Some(Utc::now()),
             agent_identity: None,
         };
-        save_auth(codex_home, &auth, AuthCredentialsStoreMode::File)
+        save_auth(darwin_code_home, &auth, AuthCredentialsStoreMode::File)
             .expect("chatgpt auth should save");
     }
 
     #[test]
     fn loads_local_chatgpt_auth_from_managed_auth() {
-        let codex_home = TempDir::new().expect("tempdir");
-        write_chatgpt_auth(codex_home.path(), "business");
+        let darwin_code_home = TempDir::new().expect("tempdir");
+        write_chatgpt_auth(darwin_code_home.path(), "business");
 
         let auth = load_local_chatgpt_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             AuthCredentialsStoreMode::File,
             Some("workspace-1"),
         )
@@ -133,10 +133,10 @@ mod tests {
 
     #[test]
     fn rejects_missing_local_auth() {
-        let codex_home = TempDir::new().expect("tempdir");
+        let darwin_code_home = TempDir::new().expect("tempdir");
 
         let err = load_local_chatgpt_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
         )
@@ -147,9 +147,9 @@ mod tests {
 
     #[test]
     fn rejects_api_key_auth() {
-        let codex_home = TempDir::new().expect("tempdir");
+        let darwin_code_home = TempDir::new().expect("tempdir");
         save_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             &AuthDotJson {
                 auth_mode: Some(AuthMode::ApiKey),
                 openai_api_key: Some("sk-test".to_string()),
@@ -162,7 +162,7 @@ mod tests {
         .expect("api key auth should save");
 
         let err = load_local_chatgpt_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             AuthCredentialsStoreMode::File,
             /*forced_chatgpt_workspace_id*/ None,
         )
@@ -173,10 +173,10 @@ mod tests {
 
     #[test]
     fn prefers_managed_auth_over_external_ephemeral_tokens() {
-        let codex_home = TempDir::new().expect("tempdir");
-        write_chatgpt_auth(codex_home.path(), "business");
+        let darwin_code_home = TempDir::new().expect("tempdir");
+        write_chatgpt_auth(darwin_code_home.path(), "business");
         login_with_chatgpt_auth_tokens(
-            codex_home.path(),
+            darwin_code_home.path(),
             &fake_jwt("user@example.com", "workspace-2", "enterprise"),
             "workspace-2",
             Some("enterprise"),
@@ -184,7 +184,7 @@ mod tests {
         .expect("external auth should save");
 
         let auth = load_local_chatgpt_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             AuthCredentialsStoreMode::File,
             Some("workspace-1"),
         )
@@ -196,11 +196,11 @@ mod tests {
 
     #[test]
     fn preserves_usage_based_plan_type_wire_name() {
-        let codex_home = TempDir::new().expect("tempdir");
-        write_chatgpt_auth(codex_home.path(), "self_serve_business_usage_based");
+        let darwin_code_home = TempDir::new().expect("tempdir");
+        write_chatgpt_auth(darwin_code_home.path(), "self_serve_business_usage_based");
 
         let auth = load_local_chatgpt_auth(
-            codex_home.path(),
+            darwin_code_home.path(),
             AuthCredentialsStoreMode::File,
             Some("workspace-1"),
         )

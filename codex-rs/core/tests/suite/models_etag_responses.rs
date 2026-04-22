@@ -3,13 +3,13 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_login::CodexAuth;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -18,7 +18,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use wiremock::MockServer;
@@ -33,7 +33,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
 
     let server = MockServer::start().await;
 
-    // 1) On spawn, Codex fetches /models and stores the ETag.
+    // 1) On spawn, Darwin-Code fetches /models and stores the ETag.
     let spawn_models_mock = responses::mount_models_once_with_etag(
         &server,
         ModelsResponse { models: Vec::new() },
@@ -41,8 +41,8 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
     )
     .await;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
-    let mut builder = test_codex()
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
+    let mut builder = test_darwin_code()
         .with_auth(auth)
         .with_model("gpt-5")
         .with_config(|config| {
@@ -52,14 +52,14 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
         });
 
     let test = builder.build(&server).await?;
-    let codex = Arc::clone(&test.codex);
+    let darwin-code = Arc::clone(&test.darwin-code);
     let cwd = Arc::clone(&test.cwd);
     let session_model = test.session_configured.model.clone();
 
     assert_eq!(spawn_models_mock.requests().len(), 1);
     assert_eq!(spawn_models_mock.single_request_path(), "/v1/models");
 
-    // 2) If the server sends a different X-Models-Etag on /responses, Codex refreshes /models.
+    // 2) If the server sends a different X-Models-Etag on /responses, Darwin-Code refreshes /models.
     let refresh_models_mock = responses::mount_models_once_with_etag(
         &server,
         ModelsResponse { models: Vec::new() },
@@ -80,7 +80,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
     )
     .await;
 
-    // Second /responses request (tool output) includes the same X-Models-Etag; Codex should not
+    // Second /responses request (tool output) includes the same X-Models-Etag; Darwin-Code should not
     // refetch /models again after it has already refreshed the catalog.
     let completion_response_body = sse(vec![
         ev_response_created("resp-2"),
@@ -93,7 +93,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please run a tool".into(),
@@ -113,7 +113,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
         })
         .await?;
 
-    let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Assert /models was refreshed exactly once after the X-Models-Etag mismatch.
     assert_eq!(refresh_models_mock.requests().len(), 1);
@@ -123,7 +123,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
         .into_iter()
         .next()
         .expect("one request");
-    // Ensure Codex includes client_version on refresh. (This is a stable signal that we're using the /models client.)
+    // Ensure Darwin-Code includes client_version on refresh. (This is a stable signal that we're using the /models client.)
     assert!(
         refresh_req
             .url

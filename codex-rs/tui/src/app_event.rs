@@ -10,22 +10,22 @@
 
 use std::path::PathBuf;
 
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_file_search::FileMatch;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::GetHistoryEntryResponseEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_approval_presets::ApprovalPreset;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_app_server_protocol::McpServerStatus;
+use darwin_code_app_server_protocol::PluginInstallResponse;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::PluginReadParams;
+use darwin_code_app_server_protocol::PluginReadResponse;
+use darwin_code_app_server_protocol::PluginUninstallResponse;
+use darwin_code_app_server_protocol::SkillsListResponse;
+use darwin_code_file_search::FileMatch;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::protocol::GetHistoryEntryResponseEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_approval_presets::ApprovalPreset;
 
 use crate::bottom_pane::ApprovalRequest;
 use crate::bottom_pane::StatusLineItem;
@@ -33,14 +33,14 @@ use crate::bottom_pane::TerminalTitleItem;
 use crate::history_cell::HistoryCell;
 use crate::legacy_core::plugins::PluginCapabilitySummary;
 
-use codex_config::types::ApprovalsReviewer;
-use codex_features::Feature;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_config::types::ApprovalsReviewer;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RealtimeAudioDeviceKind {
@@ -155,7 +155,7 @@ pub(crate) enum AppEvent {
 
     /// Forward an `Op` to the Agent. Using an `AppEvent` for this avoids
     /// bubbling channels through layers of widgets.
-    CodexOp(Op),
+    DarwinCodeOp(Op),
 
     /// Kick off an asynchronous file search for the given query (text after
     /// the `@`). Previous searches may be cancelled by the app layer so there

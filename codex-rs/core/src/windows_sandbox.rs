@@ -1,15 +1,15 @@
 use crate::config::Config;
 use crate::config::edit::ConfigEditsBuilder;
-use codex_config::config_toml::ConfigToml;
-use codex_config::profile_toml::ConfigProfile;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_features::Feature;
-use codex_features::Features;
-use codex_features::FeaturesToml;
-use codex_login::default_client::originator;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::profile_toml::ConfigProfile;
+use darwin_code_config::types::WindowsSandboxModeToml;
+use darwin_code_features::Feature;
+use darwin_code_features::Features;
+use darwin_code_features::FeaturesToml;
+use darwin_code_login::default_client::originator;
+use darwin_code_otel::sanitize_metric_tag_value;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::Path;
@@ -130,20 +130,20 @@ pub fn legacy_windows_sandbox_mode_from_entries(
 }
 
 #[cfg(target_os = "windows")]
-pub fn sandbox_setup_is_complete(codex_home: &Path) -> bool {
-    codex_windows_sandbox::sandbox_setup_is_complete(codex_home)
+pub fn sandbox_setup_is_complete(darwin_code_home: &Path) -> bool {
+    darwin_code_windows_sandbox::sandbox_setup_is_complete(darwin_code_home)
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn sandbox_setup_is_complete(_codex_home: &Path) -> bool {
+pub fn sandbox_setup_is_complete(_darwin_code_home: &Path) -> bool {
     false
 }
 
 #[cfg(target_os = "windows")]
 pub fn elevated_setup_failure_details(err: &anyhow::Error) -> Option<(String, String)> {
-    let failure = codex_windows_sandbox::extract_setup_failure(err)?;
+    let failure = darwin_code_windows_sandbox::extract_setup_failure(err)?;
     let code = failure.code.as_str().to_string();
-    let message = codex_windows_sandbox::sanitize_setup_metric_tag_value(&failure.message);
+    let message = darwin_code_windows_sandbox::sanitize_setup_metric_tag_value(&failure.message);
     Some((code, message))
 }
 
@@ -154,15 +154,15 @@ pub fn elevated_setup_failure_details(_err: &anyhow::Error) -> Option<(String, S
 
 #[cfg(target_os = "windows")]
 pub fn elevated_setup_failure_metric_name(err: &anyhow::Error) -> &'static str {
-    if codex_windows_sandbox::extract_setup_failure(err).is_some_and(|failure| {
+    if darwin_code_windows_sandbox::extract_setup_failure(err).is_some_and(|failure| {
         matches!(
             failure.code,
-            codex_windows_sandbox::SetupErrorCode::OrchestratorHelperLaunchCanceled
+            darwin_code_windows_sandbox::SetupErrorCode::OrchestratorHelperLaunchCanceled
         )
     }) {
-        "codex.windows_sandbox.elevated_setup_canceled"
+        "darwin-code.windows_sandbox.elevated_setup_canceled"
     } else {
-        "codex.windows_sandbox.elevated_setup_failure"
+        "darwin-code.windows_sandbox.elevated_setup_failure"
     }
 }
 
@@ -177,18 +177,18 @@ pub fn run_elevated_setup(
     policy_cwd: &Path,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) -> anyhow::Result<()> {
-    codex_windows_sandbox::run_elevated_setup(
-        codex_windows_sandbox::SandboxSetupRequest {
+    darwin_code_windows_sandbox::run_elevated_setup(
+        darwin_code_windows_sandbox::SandboxSetupRequest {
             policy,
             policy_cwd,
             command_cwd,
             env_map,
-            codex_home,
+            darwin_code_home,
             proxy_enforced: false,
         },
-        codex_windows_sandbox::SetupRootOverrides::default(),
+        darwin_code_windows_sandbox::SetupRootOverrides::default(),
     )
 }
 
@@ -198,7 +198,7 @@ pub fn run_elevated_setup(
     _policy_cwd: &Path,
     _command_cwd: &Path,
     _env_map: &HashMap<String, String>,
-    _codex_home: &Path,
+    _darwin_code_home: &Path,
 ) -> anyhow::Result<()> {
     anyhow::bail!("elevated Windows sandbox setup is only supported on Windows")
 }
@@ -209,12 +209,12 @@ pub fn run_legacy_setup_preflight(
     policy_cwd: &Path,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) -> anyhow::Result<()> {
-    codex_windows_sandbox::run_windows_sandbox_legacy_preflight(
+    darwin_code_windows_sandbox::run_windows_sandbox_legacy_preflight(
         policy,
         policy_cwd,
-        codex_home,
+        darwin_code_home,
         command_cwd,
         env_map,
     )
@@ -226,15 +226,15 @@ pub fn run_setup_refresh_with_extra_read_roots(
     policy_cwd: &Path,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     extra_read_roots: Vec<PathBuf>,
 ) -> anyhow::Result<()> {
-    codex_windows_sandbox::run_setup_refresh_with_extra_read_roots(
+    darwin_code_windows_sandbox::run_setup_refresh_with_extra_read_roots(
         policy,
         policy_cwd,
         command_cwd,
         env_map,
-        codex_home,
+        darwin_code_home,
         extra_read_roots,
         /*proxy_enforced*/ false,
     )
@@ -246,7 +246,7 @@ pub fn run_legacy_setup_preflight(
     _policy_cwd: &Path,
     _command_cwd: &Path,
     _env_map: &HashMap<String, String>,
-    _codex_home: &Path,
+    _darwin_code_home: &Path,
 ) -> anyhow::Result<()> {
     anyhow::bail!("legacy Windows sandbox setup is only supported on Windows")
 }
@@ -257,7 +257,7 @@ pub fn run_setup_refresh_with_extra_read_roots(
     _policy_cwd: &Path,
     _command_cwd: &Path,
     _env_map: &HashMap<String, String>,
-    _codex_home: &Path,
+    _darwin_code_home: &Path,
     _extra_read_roots: Vec<PathBuf>,
 ) -> anyhow::Result<()> {
     anyhow::bail!("Windows sandbox read-root refresh is only supported on Windows")
@@ -276,7 +276,7 @@ pub struct WindowsSandboxSetupRequest {
     pub policy_cwd: PathBuf,
     pub command_cwd: PathBuf,
     pub env_map: HashMap<String, String>,
-    pub codex_home: PathBuf,
+    pub darwin_code_home: PathBuf,
     pub active_profile: Option<String>,
 }
 
@@ -315,20 +315,20 @@ async fn run_windows_sandbox_setup_and_persist(
     let policy_cwd = request.policy_cwd;
     let command_cwd = request.command_cwd;
     let env_map = request.env_map;
-    let codex_home = request.codex_home;
+    let darwin_code_home = request.darwin_code_home;
     let active_profile = request.active_profile;
-    let setup_codex_home = codex_home.clone();
+    let setup_darwin_code_home = darwin_code_home.clone();
 
     let setup_result = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         match mode {
             WindowsSandboxSetupMode::Elevated => {
-                if !sandbox_setup_is_complete(setup_codex_home.as_path()) {
+                if !sandbox_setup_is_complete(setup_darwin_code_home.as_path()) {
                     run_elevated_setup(
                         &policy,
                         policy_cwd.as_path(),
                         command_cwd.as_path(),
                         &env_map,
-                        setup_codex_home.as_path(),
+                        setup_darwin_code_home.as_path(),
                     )?;
                 }
             }
@@ -338,7 +338,7 @@ async fn run_windows_sandbox_setup_and_persist(
                     policy_cwd.as_path(),
                     command_cwd.as_path(),
                     &env_map,
-                    setup_codex_home.as_path(),
+                    setup_darwin_code_home.as_path(),
                 )?;
             }
         }
@@ -349,7 +349,7 @@ async fn run_windows_sandbox_setup_and_persist(
 
     setup_result?;
 
-    ConfigEditsBuilder::new(codex_home.as_path())
+    ConfigEditsBuilder::new(darwin_code_home.as_path())
         .with_profile(active_profile.as_deref())
         .set_windows_sandbox_mode(windows_sandbox_setup_mode_tag(mode))
         .clear_legacy_windows_sandbox_keys()
@@ -363,12 +363,12 @@ fn emit_windows_sandbox_setup_success_metrics(
     originator_tag: &str,
     duration: std::time::Duration,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = darwin_code_otel::global() else {
         return;
     };
     let mode_tag = windows_sandbox_setup_mode_tag(mode);
     let _ = metrics.record_duration(
-        "codex.windows_sandbox.setup_duration_ms",
+        "darwin-code.windows_sandbox.setup_duration_ms",
         duration,
         &[
             ("result", "success"),
@@ -377,7 +377,7 @@ fn emit_windows_sandbox_setup_success_metrics(
         ],
     );
     let _ = metrics.counter(
-        "codex.windows_sandbox.setup_success",
+        "darwin-code.windows_sandbox.setup_success",
         /*inc*/ 1,
         &[("originator", originator_tag), ("mode", mode_tag)],
     );
@@ -389,12 +389,12 @@ fn emit_windows_sandbox_setup_failure_metrics(
     duration: std::time::Duration,
     _err: &anyhow::Error,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = darwin_code_otel::global() else {
         return;
     };
     let mode_tag = windows_sandbox_setup_mode_tag(mode);
     let _ = metrics.record_duration(
-        "codex.windows_sandbox.setup_duration_ms",
+        "darwin-code.windows_sandbox.setup_duration_ms",
         duration,
         &[
             ("result", "failure"),
@@ -403,7 +403,7 @@ fn emit_windows_sandbox_setup_failure_metrics(
         ],
     );
     let _ = metrics.counter(
-        "codex.windows_sandbox.setup_failure",
+        "darwin-code.windows_sandbox.setup_failure",
         /*inc*/ 1,
         &[("originator", originator_tag), ("mode", mode_tag)],
     );
@@ -432,7 +432,7 @@ fn emit_windows_sandbox_setup_failure_metrics(
         }
     } else {
         let _ = metrics.counter(
-            "codex.windows_sandbox.legacy_setup_preflight_failed",
+            "darwin-code.windows_sandbox.legacy_setup_preflight_failed",
             /*inc*/ 1,
             &[("originator", originator_tag)],
         );

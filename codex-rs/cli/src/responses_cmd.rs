@@ -1,7 +1,7 @@
 use clap::Parser;
-use codex_core::config::Config;
-use codex_model_provider::create_model_provider;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_core::config::Config;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_utils_cli::CliConfigOverrides;
 use serde_json::json;
 use tokio::io::AsyncReadExt;
 
@@ -20,21 +20,21 @@ pub(crate) async fn run_responses_command(
     let payload: serde_json::Value = serde_json::from_str(&payload_text)
         .map_err(|err| anyhow::anyhow!("failed to parse Responses API JSON payload: {err}"))?;
     if payload.get("stream").and_then(serde_json::Value::as_bool) != Some(true) {
-        anyhow::bail!("codex responses expects a streaming payload with `\"stream\": true`");
+        anyhow::bail!("darwin-code responses expects a streaming payload with `\"stream\": true`");
     }
 
     let cli_overrides = root_config_overrides
         .parse_overrides()
         .map_err(anyhow::Error::msg)?;
     let config = Config::load_with_cli_overrides(cli_overrides).await?;
-    let base_auth_manager = codex_login::AuthManager::shared_from_config(
-        &config, /*enable_codex_api_key_env*/ true,
+    let base_auth_manager = darwin_code_login::AuthManager::shared_from_config(
+        &config, /*enable_darwin_code_api_key_env*/ true,
     );
     let model_provider = create_model_provider(config.model_provider, Some(base_auth_manager));
     let api_provider = model_provider.api_provider().await?;
     let api_auth = model_provider.api_auth().await?;
-    let client = codex_api::ResponsesClient::new(
-        codex_api::ReqwestTransport::new(codex_login::default_client::build_reqwest_client()),
+    let client = darwin_code_api::ResponsesClient::new(
+        darwin_code_api::ReqwestTransport::new(darwin_code_login::default_client::build_reqwest_client()),
         api_provider,
         api_auth,
     );
@@ -43,7 +43,7 @@ pub(crate) async fn run_responses_command(
         .stream(
             payload,
             Default::default(),
-            codex_api::Compression::None,
+            darwin_code_api::Compression::None,
             /*turn_state*/ None,
         )
         .await?;
@@ -55,24 +55,24 @@ pub(crate) async fn run_responses_command(
     Ok(())
 }
 
-fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value {
+fn response_event_to_json(event: darwin_code_api::ResponseEvent) -> serde_json::Value {
     match event {
-        codex_api::ResponseEvent::Created => {
+        darwin_code_api::ResponseEvent::Created => {
             json!({ "type": "response.created", "response": {} })
         }
-        codex_api::ResponseEvent::OutputItemDone(item) => {
+        darwin_code_api::ResponseEvent::OutputItemDone(item) => {
             json!({ "type": "response.output_item.done", "item": item })
         }
-        codex_api::ResponseEvent::OutputItemAdded(item) => {
+        darwin_code_api::ResponseEvent::OutputItemAdded(item) => {
             json!({ "type": "response.output_item.added", "item": item })
         }
-        codex_api::ResponseEvent::ServerModel(model) => {
+        darwin_code_api::ResponseEvent::ServerModel(model) => {
             json!({ "type": "response.server_model", "model": model })
         }
-        codex_api::ResponseEvent::ServerReasoningIncluded(included) => {
+        darwin_code_api::ResponseEvent::ServerReasoningIncluded(included) => {
             json!({ "type": "response.server_reasoning_included", "included": included })
         }
-        codex_api::ResponseEvent::Completed {
+        darwin_code_api::ResponseEvent::Completed {
             response_id,
             token_usage,
         } => {
@@ -95,10 +95,10 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
             };
             json!({ "type": "response.completed", "response": response })
         }
-        codex_api::ResponseEvent::OutputTextDelta(delta) => {
+        darwin_code_api::ResponseEvent::OutputTextDelta(delta) => {
             json!({ "type": "response.output_text.delta", "delta": delta })
         }
-        codex_api::ResponseEvent::ToolCallInputDelta {
+        darwin_code_api::ResponseEvent::ToolCallInputDelta {
             item_id,
             call_id,
             delta,
@@ -110,7 +110,7 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
                 "delta": delta,
             })
         }
-        codex_api::ResponseEvent::ReasoningSummaryDelta {
+        darwin_code_api::ResponseEvent::ReasoningSummaryDelta {
             delta,
             summary_index,
         } => json!({
@@ -118,7 +118,7 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
             "delta": delta,
             "summary_index": summary_index,
         }),
-        codex_api::ResponseEvent::ReasoningContentDelta {
+        darwin_code_api::ResponseEvent::ReasoningContentDelta {
             delta,
             content_index,
         } => json!({
@@ -126,16 +126,16 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
             "delta": delta,
             "content_index": content_index,
         }),
-        codex_api::ResponseEvent::ReasoningSummaryPartAdded { summary_index } => {
+        darwin_code_api::ResponseEvent::ReasoningSummaryPartAdded { summary_index } => {
             json!({
                 "type": "response.reasoning_summary_part.added",
                 "summary_index": summary_index,
             })
         }
-        codex_api::ResponseEvent::RateLimits(rate_limits) => {
+        darwin_code_api::ResponseEvent::RateLimits(rate_limits) => {
             json!({ "type": "response.rate_limits", "rate_limits": rate_limits })
         }
-        codex_api::ResponseEvent::ModelsEtag(etag) => {
+        darwin_code_api::ResponseEvent::ModelsEtag(etag) => {
             json!({ "type": "response.models_etag", "etag": etag })
         }
     }
@@ -144,16 +144,16 @@ fn response_event_to_json(event: codex_api::ResponseEvent) -> serde_json::Value 
 #[cfg(test)]
 mod tests {
     use super::response_event_to_json;
-    use codex_protocol::protocol::TokenUsage;
+    use darwin_code_protocol::protocol::TokenUsage;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
     #[test]
     fn response_events_keep_replayable_response_envelopes() {
-        let created = response_event_to_json(codex_api::ResponseEvent::Created);
+        let created = response_event_to_json(darwin_code_api::ResponseEvent::Created);
         assert_eq!(created, json!({"type": "response.created", "response": {}}));
 
-        let completed = response_event_to_json(codex_api::ResponseEvent::Completed {
+        let completed = response_event_to_json(darwin_code_api::ResponseEvent::Completed {
             response_id: "resp-1".to_string(),
             token_usage: Some(TokenUsage {
                 input_tokens: 10,
@@ -184,7 +184,7 @@ mod tests {
             })
         );
 
-        let completed_without_usage = response_event_to_json(codex_api::ResponseEvent::Completed {
+        let completed_without_usage = response_event_to_json(darwin_code_api::ResponseEvent::Completed {
             response_id: "resp-2".to_string(),
             token_usage: None,
         });
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn reasoning_deltas_use_responses_event_names() {
-        let summary = response_event_to_json(codex_api::ResponseEvent::ReasoningSummaryDelta {
+        let summary = response_event_to_json(darwin_code_api::ResponseEvent::ReasoningSummaryDelta {
             delta: "plan".to_string(),
             summary_index: 1,
         });
@@ -209,7 +209,7 @@ mod tests {
             })
         );
 
-        let content = response_event_to_json(codex_api::ResponseEvent::ReasoningContentDelta {
+        let content = response_event_to_json(darwin_code_api::ResponseEvent::ReasoningContentDelta {
             delta: "detail".to_string(),
             content_index: 2,
         });
@@ -225,7 +225,7 @@ mod tests {
 
     #[test]
     fn tool_call_input_delta_uses_responses_event_name() {
-        let delta = response_event_to_json(codex_api::ResponseEvent::ToolCallInputDelta {
+        let delta = response_event_to_json(darwin_code_api::ResponseEvent::ToolCallInputDelta {
             item_id: "item-1".to_string(),
             call_id: Some("call-1".to_string()),
             delta: "patch".to_string(),

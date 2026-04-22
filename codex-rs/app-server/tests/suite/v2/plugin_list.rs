@@ -6,19 +6,19 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::PluginSummary;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::set_project_trust_level;
-use codex_protocol::config_types::TrustLevel;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::PluginAuthPolicy;
+use darwin_code_app_server_protocol::PluginInstallPolicy;
+use darwin_code_app_server_protocol::PluginListParams;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::PluginMarketplaceEntry;
+use darwin_code_app_server_protocol::PluginSource;
+use darwin_code_app_server_protocol::PluginSummary;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_core::config::set_project_trust_level;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -37,9 +37,9 @@ const STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE: &str = ".tmp/app-server-remote-plu
 const ALTERNATE_MARKETPLACE_RELATIVE_PATH: &str = ".claude-plugin/marketplace.json";
 const ALTERNATE_PLUGIN_MANIFEST_RELATIVE_PATH: &str = ".claude-plugin/plugin.json";
 
-fn write_plugins_enabled_config(codex_home: &std::path::Path) -> std::io::Result<()> {
+fn write_plugins_enabled_config(darwin_code_home: &std::path::Path) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"[features]
 plugins = true
 "#,
@@ -48,18 +48,18 @@ plugins = true
 
 #[tokio::test]
 async fn plugin_list_skips_invalid_marketplace_file_and_reports_error() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    write_plugins_enabled_config(codex_home.path())?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
     let marketplace_path =
         AbsolutePathBuf::try_from(repo_root.path().join(".agents/plugins/marketplace.json"))?;
     std::fs::write(marketplace_path.as_path(), "{not json")?;
 
-    let home = codex_home.path().to_string_lossy().into_owned();
+    let home = darwin_code_home.path().to_string_lossy().into_owned();
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -105,8 +105,8 @@ async fn plugin_list_skips_invalid_marketplace_file_and_reports_error() -> Resul
 
 #[tokio::test]
 async fn plugin_list_rejects_relative_cwds() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -132,7 +132,7 @@ async fn plugin_list_rejects_relative_cwds() -> Result<()> {
 #[tokio::test]
 async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_load() -> Result<()>
 {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let valid_repo_root = TempDir::new()?;
     let invalid_repo_root = TempDir::new()?;
     std::fs::create_dir_all(valid_repo_root.path().join(".git"))?;
@@ -140,11 +140,11 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
     std::fs::create_dir_all(
         valid_repo_root
             .path()
-            .join("plugins/valid-plugin/.codex-plugin"),
+            .join("plugins/valid-plugin/.darwin-code-plugin"),
     )?;
     std::fs::create_dir_all(invalid_repo_root.path().join(".git"))?;
     std::fs::create_dir_all(invalid_repo_root.path().join(".agents/plugins"))?;
-    write_plugins_enabled_config(codex_home.path())?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
 
     let valid_marketplace_path = AbsolutePathBuf::try_from(
         valid_repo_root
@@ -177,14 +177,14 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
     std::fs::write(
         valid_repo_root
             .path()
-            .join("plugins/valid-plugin/.codex-plugin/plugin.json"),
+            .join("plugins/valid-plugin/.darwin-code-plugin/plugin.json"),
         r#"{"name":"valid-plugin"}"#,
     )?;
     std::fs::write(invalid_marketplace_path.as_path(), "{not json")?;
 
-    let home = codex_home.path().to_string_lossy().into_owned();
+    let home = darwin_code_home.path().to_string_lossy().into_owned();
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -248,7 +248,7 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
 #[tokio::test]
 async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverable_plugins()
 -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let valid_plugin_root = repo_root.path().join("plugins/valid-plugin");
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
@@ -265,7 +265,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
             .parent()
             .unwrap(),
     )?;
-    write_plugins_enabled_config(codex_home.path())?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
 
     let marketplace_path =
         AbsolutePathBuf::try_from(repo_root.path().join(ALTERNATE_MARKETPLACE_RELATIVE_PATH))?;
@@ -297,9 +297,9 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
 }"#,
     )?;
 
-    let home = codex_home.path().to_string_lossy().into_owned();
+    let home = darwin_code_home.path().to_string_lossy().into_owned();
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -338,7 +338,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                     enabled: false,
                     install_policy: PluginInstallPolicy::Available,
                     auth_policy: PluginAuthPolicy::OnInstall,
-                    interface: Some(codex_app_server_protocol::PluginInterface {
+                    interface: Some(darwin_code_app_server_protocol::PluginInterface {
                         display_name: Some("Valid Plugin".to_string()),
                         short_description: None,
                         long_description: None,
@@ -381,13 +381,13 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
 
 #[tokio::test]
 async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    std::fs::create_dir_all(codex_home.path().join(".agents/plugins"))?;
-    write_plugins_enabled_config(codex_home.path())?;
+    let darwin_code_home = TempDir::new()?;
+    std::fs::create_dir_all(darwin_code_home.path().join(".agents/plugins"))?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
-        codex_home.path().join(".agents/plugins/marketplace.json"),
+        darwin_code_home.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "plugins": [
     {
       "name": "home-plugin",
@@ -399,9 +399,9 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
   ]
 }"#,
     )?;
-    let home = codex_home.path().to_string_lossy().into_owned();
+    let home = darwin_code_home.path().to_string_lossy().into_owned();
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -425,16 +425,16 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
 
 #[tokio::test]
 async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    write_installed_plugin(&codex_home, "codex-curated", "enabled-plugin")?;
-    write_installed_plugin(&codex_home, "codex-curated", "disabled-plugin")?;
+    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "enabled-plugin")?;
+    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "disabled-plugin")?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "interface": {
     "displayName": "ChatGPT Official"
   },
@@ -464,19 +464,19 @@ async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<
 }"#,
     )?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        darwin_code_home.path().join("config.toml"),
         r#"[features]
 plugins = true
 
-[plugins."enabled-plugin@codex-curated"]
+[plugins."enabled-plugin@darwin-code-curated"]
 enabled = true
 
-[plugins."disabled-plugin@codex-curated"]
+[plugins."disabled-plugin@darwin-code-curated"]
 enabled = false
 "#,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -506,7 +506,7 @@ enabled = false
         })
         .expect("expected repo marketplace entry");
 
-    assert_eq!(marketplace.name, "codex-curated");
+    assert_eq!(marketplace.name, "darwin-code-curated");
     assert_eq!(
         marketplace
             .interface
@@ -515,7 +515,7 @@ enabled = false
         Some("ChatGPT Official")
     );
     assert_eq!(marketplace.plugins.len(), 3);
-    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@codex-curated");
+    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@darwin-code-curated");
     assert_eq!(marketplace.plugins[0].name, "enabled-plugin");
     assert_eq!(marketplace.plugins[0].installed, true);
     assert_eq!(marketplace.plugins[0].enabled, true);
@@ -527,7 +527,7 @@ enabled = false
         marketplace.plugins[0].auth_policy,
         PluginAuthPolicy::OnInstall
     );
-    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@codex-curated");
+    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@darwin-code-curated");
     assert_eq!(marketplace.plugins[1].name, "disabled-plugin");
     assert_eq!(marketplace.plugins[1].installed, true);
     assert_eq!(marketplace.plugins[1].enabled, false);
@@ -541,7 +541,7 @@ enabled = false
     );
     assert_eq!(
         marketplace.plugins[2].id,
-        "uninstalled-plugin@codex-curated"
+        "uninstalled-plugin@darwin-code-curated"
     );
     assert_eq!(marketplace.plugins[2].name, "uninstalled-plugin");
     assert_eq!(marketplace.plugins[2].installed, false);
@@ -559,13 +559,13 @@ enabled = false
 
 #[tokio::test]
 async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    std::fs::create_dir_all(codex_home.path().join(".agents/plugins"))?;
-    write_installed_plugin(&codex_home, "codex-curated", "shared-plugin")?;
+    let darwin_code_home = TempDir::new()?;
+    std::fs::create_dir_all(darwin_code_home.path().join(".agents/plugins"))?;
+    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "shared-plugin")?;
     std::fs::write(
-        codex_home.path().join(".agents/plugins/marketplace.json"),
+        darwin_code_home.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -578,11 +578,11 @@ async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
 }"#,
     )?;
     std::fs::write(
-        codex_home.path().join("config.toml"),
+        darwin_code_home.path().join("config.toml"),
         r#"[features]
 plugins = true
 
-[plugins."shared-plugin@codex-curated"]
+[plugins."shared-plugin@darwin-code-curated"]
 enabled = true
 "#,
     )?;
@@ -595,7 +595,7 @@ enabled = true
             .path()
             .join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -607,23 +607,23 @@ enabled = true
   ]
 }"#,
     )?;
-    std::fs::create_dir_all(workspace_enabled.path().join(".codex"))?;
+    std::fs::create_dir_all(workspace_enabled.path().join(".darwin-code"))?;
     std::fs::write(
-        workspace_enabled.path().join(".codex/config.toml"),
-        r#"[plugins."shared-plugin@codex-curated"]
+        workspace_enabled.path().join(".darwin-code/config.toml"),
+        r#"[plugins."shared-plugin@darwin-code-curated"]
 enabled = false
 "#,
     )?;
     set_project_trust_level(
-        codex_home.path(),
+        darwin_code_home.path(),
         workspace_enabled.path(),
         TrustLevel::Trusted,
     )?;
 
     let workspace_default = TempDir::new()?;
-    let home = codex_home.path().to_string_lossy().into_owned();
+    let home = darwin_code_home.path().to_string_lossy().into_owned();
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("HOME", Some(home.as_str())),
             ("USERPROFILE", Some(home.as_str())),
@@ -654,7 +654,7 @@ enabled = false
         .flat_map(|marketplace| marketplace.plugins.iter())
         .find(|plugin| plugin.name == "shared-plugin")
         .expect("expected shared-plugin entry");
-    assert_eq!(shared_plugin.id, "shared-plugin@codex-curated");
+    assert_eq!(shared_plugin.id, "shared-plugin@darwin-code-curated");
     assert_eq!(shared_plugin.installed, true);
     assert_eq!(shared_plugin.enabled, true);
     Ok(())
@@ -662,17 +662,17 @@ enabled = false
 
 #[tokio::test]
 async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let plugin_root = repo_root.path().join("plugins/demo-plugin");
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
-    write_plugins_enabled_config(codex_home.path())?;
+    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -690,7 +690,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r##"{
   "name": "demo-plugin",
   "interface": {
@@ -715,7 +715,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
 }"##,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -738,7 +738,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
         .find(|plugin| plugin.name == "demo-plugin")
         .expect("expected demo-plugin entry");
 
-    assert_eq!(plugin.id, "demo-plugin@codex-curated");
+    assert_eq!(plugin.id, "demo-plugin@darwin-code-curated");
     assert_eq!(plugin.installed, false);
     assert_eq!(plugin.enabled, false);
     assert_eq!(plugin.install_policy, PluginInstallPolicy::Available);
@@ -795,17 +795,17 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
 
 #[tokio::test]
 async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let plugin_root = repo_root.path().join("plugins/demo-plugin");
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
-    write_plugins_enabled_config(codex_home.path())?;
+    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
+    write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "darwin-code-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -818,7 +818,7 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".codex-plugin/plugin.json"),
+        plugin_root.join(".darwin-code-plugin/plugin.json"),
         r##"{
   "name": "demo-plugin",
   "interface": {
@@ -827,7 +827,7 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 }"##,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -861,18 +861,18 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 
 #[tokio::test]
 async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(codex_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
     write_chatgpt_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .account_id("account-123")
             .chatgpt_user_id("user-123")
             .chatgpt_account_id("account-123"),
         AuthCredentialsStoreMode::File,
     )?;
-    write_openai_curated_marketplace(codex_home.path(), &["linear"])?;
+    write_openai_curated_marketplace(darwin_code_home.path(), &["linear"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/list"))
@@ -887,19 +887,19 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
         .await;
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "codex"))
+        .and(query_param("platform", "darwin-code"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
         .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
         .mount(&server)
         .await;
 
-    let marker_path = codex_home
+    let marker_path = darwin_code_home
         .path()
         .join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE);
 
     {
-        let mut mcp = McpProcess::new(codex_home.path()).await?;
+        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
         timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
         wait_for_path_exists(&marker_path).await?;
@@ -931,11 +931,11 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
             .await?;
     }
 
-    let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
 
     {
-        let mut mcp = McpProcess::new(codex_home.path()).await?;
+        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
         timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     }
 
@@ -946,19 +946,19 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
 
 #[tokio::test]
 async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(codex_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(codex_home.path(), &["linear", "gmail"])?;
+    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_openai_curated_marketplace(darwin_code_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "codex"))
+        .and(query_param("platform", "darwin-code"))
         .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -981,20 +981,20 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
 
 #[tokio::test]
 async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() -> Result<()> {
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(codex_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(codex_home.path(), &["linear", "gmail"])?;
+    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_openai_curated_marketplace(darwin_code_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "codex"))
+        .and(query_param("platform", "darwin-code"))
         .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
         .expect(1)
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     wait_for_featured_plugin_request_count(&server, /*expected_count*/ 1).await?;
 
@@ -1068,16 +1068,16 @@ async fn wait_for_path_exists(path: &std::path::Path) -> Result<()> {
 }
 
 fn write_installed_plugin(
-    codex_home: &TempDir,
+    darwin_code_home: &TempDir,
     marketplace_name: &str,
     plugin_name: &str,
 ) -> Result<()> {
-    let plugin_root = codex_home
+    let plugin_root = darwin_code_home
         .path()
         .join("plugins/cache")
         .join(marketplace_name)
         .join(plugin_name)
-        .join("local/.codex-plugin");
+        .join("local/.darwin-code-plugin");
     std::fs::create_dir_all(&plugin_root)?;
     std::fs::write(
         plugin_root.join("plugin.json"),
@@ -1086,9 +1086,9 @@ fn write_installed_plugin(
     Ok(())
 }
 
-fn write_plugin_sync_config(codex_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_plugin_sync_config(darwin_code_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
     std::fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         format!(
             r#"
 chatgpt_base_url = "{base_url}"
@@ -1110,10 +1110,10 @@ enabled = true
 }
 
 fn write_openai_curated_marketplace(
-    codex_home: &std::path::Path,
+    darwin_code_home: &std::path::Path,
     plugin_names: &[&str],
 ) -> std::io::Result<()> {
-    let curated_root = codex_home.join(".tmp/plugins");
+    let curated_root = darwin_code_home.join(".tmp/plugins");
     std::fs::create_dir_all(curated_root.join(".git"))?;
     std::fs::create_dir_all(curated_root.join(".agents/plugins"))?;
     let plugins = plugin_names
@@ -1144,16 +1144,16 @@ fn write_openai_curated_marketplace(
     )?;
 
     for plugin_name in plugin_names {
-        let plugin_root = curated_root.join(format!("plugins/{plugin_name}/.codex-plugin"));
+        let plugin_root = curated_root.join(format!("plugins/{plugin_name}/.darwin-code-plugin"));
         std::fs::create_dir_all(&plugin_root)?;
         std::fs::write(
             plugin_root.join("plugin.json"),
             format!(r#"{{"name":"{plugin_name}"}}"#),
         )?;
     }
-    std::fs::create_dir_all(codex_home.join(".tmp"))?;
+    std::fs::create_dir_all(darwin_code_home.join(".tmp"))?;
     std::fs::write(
-        codex_home.join(".tmp/plugins.sha"),
+        darwin_code_home.join(".tmp/plugins.sha"),
         format!("{TEST_CURATED_PLUGIN_SHA}\n"),
     )?;
     Ok(())

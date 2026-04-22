@@ -16,11 +16,11 @@ use crate::tools::js_repl::JS_REPL_PRAGMA_PREFIX;
 use crate::tools::js_repl::JsReplArgs;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_features::Feature;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::protocol::ExecCommandSource;
+use darwin_code_features::Feature;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::protocol::ExecCommandSource;
 
 pub struct JsReplHandler;
 pub struct JsReplResetHandler;
@@ -205,7 +205,7 @@ impl ToolHandler for JsReplResetHandler {
 fn parse_freeform_args(input: &str) -> Result<JsReplArgs, FunctionCallError> {
     if input.trim().is_empty() {
         return Err(FunctionCallError::RespondToModel(
-            "js_repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// codex-js-repl: ...`."
+            "js_repl expects raw JavaScript tool input (non-empty). Provide JS source text, optionally with first-line `// darwin-code-js-repl: ...`."
                 .to_string(),
         ));
     }
@@ -272,7 +272,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), FunctionCallError> {
     let trimmed = code.trim();
     if trimmed.starts_with("```") {
         return Err(FunctionCallError::RespondToModel(
-            "js_repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// codex-js-repl: ...`)."
+            "js_repl expects raw JavaScript source, not markdown code fences. Resend plain JS only (optional first line `// darwin-code-js-repl: ...`)."
                 .to_string(),
         ));
     }
@@ -281,7 +281,7 @@ fn reject_json_or_quoted_source(code: &str) -> Result<(), FunctionCallError> {
     };
     match value {
         JsonValue::Object(_) | JsonValue::String(_) => Err(FunctionCallError::RespondToModel(
-            "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// codex-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences."
+            "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// darwin-code-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences."
                 .to_string(),
         )),
         _ => Ok(()),

@@ -88,7 +88,7 @@
       "description": "Analytics settings loaded from config.toml. Fields are optional so we can apply defaults.",
       "properties": {
         "enabled": {
-          "description": "When `false`, disables analytics across Codex product surfaces in this profile.",
+          "description": "When `false`, disables analytics across Darwin-Code product surfaces in this profile.",
           "type": "boolean"
         }
       },
@@ -116,7 +116,7 @@
         },
         "enabled": {
           "default": true,
-          "description": "When `false`, Codex does not surface this app.",
+          "description": "When `false`, Darwin-Code does not surface this app.",
           "type": "boolean"
         },
         "open_world_enabled": {
@@ -214,7 +214,7 @@
       "type": "object"
     },
     "AskForApproval": {
-      "description": "Determines the conditions under which the user is consulted to approve running the command proposed by Codex.",
+      "description": "Determines the conditions under which the user is consulted to approve running the command proposed by Darwin-Code.",
       "oneOf": [
         {
           "description": "Under this policy, only \"known safe\" commands—as determined by `is_safe_command()`—that **only read files** are auto‑approved. Everything else will ask the user to approve.",
@@ -260,10 +260,10 @@
       ]
     },
     "AuthCredentialsStoreMode": {
-      "description": "Determine where Codex should store CLI auth credentials.",
+      "description": "Determine where Darwin-Code should store CLI auth credentials.",
       "oneOf": [
         {
-          "description": "Persist credentials in CODEX_HOME/auth.json.",
+          "description": "Persist credentials in DARWIN_CODE_HOME/auth.json.",
           "enum": [
             "file"
           ],
@@ -277,7 +277,7 @@
           "type": "string"
         },
         {
-          "description": "Use keyring when available; otherwise, fall back to a file in CODEX_HOME.",
+          "description": "Use keyring when available; otherwise, fall back to a file in DARWIN_CODE_HOME.",
           "enum": [
             "auto"
           ],
@@ -350,10 +350,10 @@
             "code_mode_only": {
               "type": "boolean"
             },
-            "codex_git_commit": {
+            "darwin_code_git_commit": {
               "type": "boolean"
             },
-            "codex_hooks": {
+            "darwin_code_hooks": {
               "type": "boolean"
             },
             "collab": {
@@ -641,7 +641,7 @@
     },
     "ExternalConfigMigrationPrompts": {
       "additionalProperties": false,
-      "description": "Settings for notices we display to users via the tui and app-server clients (primarily the Codex IDE extension). NOTE: these are different from notifications - notices are warnings, NUX screens, acknowledgements, etc.",
+      "description": "Settings for notices we display to users via the tui and app-server clients (primarily the Darwin-Code IDE extension). NOTE: these are different from notifications - notices are warnings, NUX screens, acknowledgements, etc.",
       "properties": {
         "home": {
           "description": "Tracks whether home-level external config migration prompts are hidden.",
@@ -686,7 +686,7 @@
       "additionalProperties": false,
       "properties": {
         "enabled": {
-          "description": "When `false`, disables the feedback flow across Codex product surfaces.",
+          "description": "When `false`, disables the feedback flow across Darwin-Code product surfaces.",
           "type": "boolean"
         }
       },
@@ -786,7 +786,7 @@
     },
     "History": {
       "additionalProperties": false,
-      "description": "Settings that govern if and what will be written to `~/.codex/history.jsonl`.",
+      "description": "Settings that govern if and what will be written to `~/.darwin-code/history.jsonl`.",
       "properties": {
         "max_bytes": {
           "description": "If set, the maximum size of the history file in bytes. The oldest entries are dropped once the file exceeds this limit.",
@@ -831,12 +831,12 @@
       "properties": {
         "last_revision": {
           "default": null,
-          "description": "Git revision Codex last successfully activated for this marketplace.",
+          "description": "Git revision Darwin-Code last successfully activated for this marketplace.",
           "type": "string"
         },
         "last_updated": {
           "default": null,
-          "description": "Last time Codex successfully added or refreshed this marketplace.",
+          "description": "Last time Darwin-Code successfully added or refreshed this marketplace.",
           "type": "string"
         },
         "ref": {
@@ -1209,8 +1209,8 @@
           "description": "Tracks whether the user has acknowledged the full access warning prompt.",
           "type": "boolean"
         },
-        "hide_gpt-5.1-codex-max_migration_prompt": {
-          "description": "Tracks whether the user has seen the gpt-5.1-codex-max migration prompt",
+        "hide_gpt-5.1-darwin-code-max_migration_prompt": {
+          "description": "Tracks whether the user has seen the gpt-5.1-darwin-code-max migration prompt",
           "type": "boolean"
         },
         "hide_gpt5_1_migration_prompt": {
@@ -1276,17 +1276,17 @@
       ]
     },
     "OAuthCredentialsStoreMode": {
-      "description": "Determine where Codex should store and read MCP credentials.",
+      "description": "Determine where Darwin-Code should store and read MCP credentials.",
       "oneOf": [
         {
-          "description": "`Keyring` when available; otherwise, `File`. Credentials stored in the keyring will only be readable by Codex unless the user explicitly grants access via OS-level keyring access.",
+          "description": "`Keyring` when available; otherwise, `File`. Credentials stored in the keyring will only be readable by Darwin-Code unless the user explicitly grants access via OS-level keyring access.",
           "enum": [
             "auto"
           ],
           "type": "string"
         },
         {
-          "description": "CODEX_HOME/.credentials.json This file will be readable to Codex and other applications running as the same user.",
+          "description": "DARWIN_CODE_HOME/.credentials.json This file will be readable to Darwin-Code and other applications running as the same user.",
           "enum": [
             "file"
           ],
@@ -2024,7 +2024,7 @@
         },
         "theme": {
           "default": null,
-          "description": "Syntax highlighting theme name (kebab-case).\n\nWhen set, overrides automatic light/dark theme detection. Use `/theme` in the TUI or see `$CODEX_HOME/themes` for custom themes.",
+          "description": "Syntax highlighting theme name (kebab-case).\n\nWhen set, overrides automatic light/dark theme detection. Use `/theme` in the TUI or see `$DARWIN_CODE_HOME/themes` for custom themes.",
           "type": "string"
         }
       },
@@ -2144,7 +2144,7 @@
       ]
     }
   },
-  "description": "Base config deserialized from ~/.codex/config.toml.",
+  "description": "Base config deserialized from ~/.darwin-code/config.toml.",
   "properties": {
     "agents": {
       "allOf": [
@@ -2164,7 +2164,7 @@
           "$ref": "#/definitions/AnalyticsConfigToml"
         }
       ],
-      "description": "When `false`, disables analytics across Codex product surfaces in this machine. Defaults to `true`."
+      "description": "When `false`, disables analytics across Darwin-Code product surfaces in this machine. Defaults to `true`."
     },
     "approval_policy": {
       "allOf": [
@@ -2211,7 +2211,7 @@
       "type": "string"
     },
     "check_for_update_on_startup": {
-      "description": "When `true`, checks for Codex updates on startup and surfaces update prompts. Set to `false` only if your Codex updates are centrally managed. Defaults to `true`.",
+      "description": "When `true`, checks for Darwin-Code updates on startup and surfaces update prompts. Set to `false` only if your Darwin-Code updates are centrally managed. Defaults to `true`.",
       "type": "boolean"
     },
     "cli_auth_credentials_store": {
@@ -2221,7 +2221,7 @@
         }
       ],
       "default": null,
-      "description": "Preferred backend for storing CLI auth credentials. file (default): Use a file in the Codex home directory. keyring: Use an OS-specific keyring service. auto: Use the keyring if available, otherwise use a file."
+      "description": "Preferred backend for storing CLI auth credentials. file (default): Use a file in the Darwin-Code home directory. keyring: Use an OS-specific keyring service. auto: Use the keyring if available, otherwise use a file."
     },
     "commit_attribution": {
       "description": "Optional commit attribution text for commit message co-author trailers.\n\nSet to an empty string to disable automatic commit attribution.",
@@ -2296,10 +2296,10 @@
         "code_mode_only": {
           "type": "boolean"
         },
-        "codex_git_commit": {
+        "darwin_code_git_commit": {
           "type": "boolean"
         },
-        "codex_hooks": {
+        "darwin_code_hooks": {
           "type": "boolean"
         },
         "collab": {
@@ -2494,7 +2494,7 @@
           "$ref": "#/definitions/FeedbackConfigToml"
         }
       ],
-      "description": "When `false`, disables feedback collection across Codex product surfaces. Defaults to `true`."
+      "description": "When `false`, disables feedback collection across Darwin-Code product surfaces. Defaults to `true`."
     },
     "file_opener": {
       "allOf": [
@@ -2538,7 +2538,7 @@
         }
       ],
       "default": null,
-      "description": "Settings that govern if and what will be written to `~/.codex/history.jsonl`."
+      "description": "Settings that govern if and what will be written to `~/.darwin-code/history.jsonl`."
     },
     "include_apps_instructions": {
       "description": "Whether to inject the `<apps_instructions>` developer block.",
@@ -2577,7 +2577,7 @@
           "$ref": "#/definitions/AbsolutePathBuf"
         }
       ],
-      "description": "Directory where Codex writes log files, for example `codex-tui.log`. Defaults to `$CODEX_HOME/log`."
+      "description": "Directory where Darwin-Code writes log files, for example `darwin-code-tui.log`. Defaults to `$DARWIN_CODE_HOME/log`."
     },
     "marketplaces": {
       "additionalProperties": {
@@ -2588,7 +2588,7 @@
       "type": "object"
     },
     "mcp_oauth_callback_port": {
-      "description": "Optional fixed port for the local HTTP callback server used during MCP OAuth login. When unset, Codex will bind to an ephemeral port chosen by the OS.",
+      "description": "Optional fixed port for the local HTTP callback server used during MCP OAuth login. When unset, Darwin-Code will bind to an ephemeral port chosen by the OS.",
       "format": "uint16",
       "minimum": 0.0,
       "type": "integer"
@@ -2604,14 +2604,14 @@
         }
       ],
       "default": null,
-      "description": "Preferred backend for storing MCP OAuth credentials. keyring: Use an OS-specific keyring service. https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth.rs#L2 file: Use a file in the Codex home directory. auto (default): Use the OS-specific keyring service if available, otherwise use a file."
+      "description": "Preferred backend for storing MCP OAuth credentials. keyring: Use an OS-specific keyring service. https://github.com/openai/darwin-code/blob/main/darwin-code-rs/rmcp-client/src/oauth.rs#L2 file: Use a file in the Darwin-Code home directory. auto (default): Use the OS-specific keyring service if available, otherwise use a file."
     },
     "mcp_servers": {
       "additionalProperties": {
         "$ref": "#/definitions/RawMcpServerConfig"
       },
       "default": {},
-      "description": "Definition for MCP servers that Codex can reach out to for tool calls.",
+      "description": "Definition for MCP servers that Darwin-Code can reach out to for tool calls.",
       "type": "object"
     },
     "memories": {
@@ -2650,7 +2650,7 @@
           "$ref": "#/definitions/AbsolutePathBuf"
         }
       ],
-      "description": "Optional path to a file containing model instructions that will override the built-in instructions for the selected model. Users are STRONGLY DISCOURAGED from using this field, as deviating from the instructions sanctioned by Codex will likely degrade model performance."
+      "description": "Optional path to a file containing model instructions that will override the built-in instructions for the selected model. Users are STRONGLY DISCOURAGED from using this field, as deviating from the instructions sanctioned by Darwin-Code will likely degrade model performance."
     },
     "model_provider": {
       "description": "Provider to use from the model_providers map.",
@@ -2769,7 +2769,7 @@
     },
     "project_root_markers": {
       "default": null,
-      "description": "Markers used to detect the project root when searching parent directories for `.codex` folders. Defaults to [\".git\"] when unset.",
+      "description": "Markers used to detect the project root when searching parent directories for `.darwin-code` folders. Defaults to [\".git\"] when unset.",
       "items": {
         "type": "string"
       },
@@ -2851,7 +2851,7 @@
           "$ref": "#/definitions/AbsolutePathBuf"
         }
       ],
-      "description": "Directory where Codex stores the SQLite state DB. Defaults to `$CODEX_SQLITE_HOME` when set. Otherwise uses `$CODEX_HOME`."
+      "description": "Directory where Darwin-Code stores the SQLite state DB. Defaults to `$DARWIN_CODE_SQLITE_HOME` when set. Otherwise uses `$DARWIN_CODE_HOME`."
     },
     "suppress_unstable_features_warning": {
       "description": "Suppress warnings about unstable (under development) features.",

@@ -1,11 +1,11 @@
-use codex_instructions::AGENTS_MD_FRAGMENT;
-use codex_instructions::ContextualUserFragmentDefinition;
-use codex_instructions::SKILL_FRAGMENT;
-use codex_protocol::items::HookPromptItem;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
-use codex_protocol::protocol::ENVIRONMENT_CONTEXT_CLOSE_TAG;
-use codex_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
+use darwin_code_instructions::AGENTS_MD_FRAGMENT;
+use darwin_code_instructions::ContextualUserFragmentDefinition;
+use darwin_code_instructions::SKILL_FRAGMENT;
+use darwin_code_protocol::items::HookPromptItem;
+use darwin_code_protocol::items::parse_hook_prompt_fragment;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::protocol::ENVIRONMENT_CONTEXT_CLOSE_TAG;
+use darwin_code_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
 
 pub(crate) const USER_SHELL_COMMAND_OPEN_TAG: &str = "<user_shell_command>";
 pub(crate) const USER_SHELL_COMMAND_CLOSE_TAG: &str = "</user_shell_command>";

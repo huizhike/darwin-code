@@ -1,14 +1,14 @@
 use super::*;
 
 use super::tests::make_session_and_context;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::ResumedHistory;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::ResumedHistory;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 
@@ -129,7 +129,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -137,7 +137,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -146,7 +146,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -194,7 +194,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -202,7 +202,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 1 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -213,7 +213,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
         RolloutItem::ResponseItem(turn_one_user.clone()),
         RolloutItem::ResponseItem(turn_one_assistant.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: first_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -221,7 +221,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: rolled_back_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -229,7 +229,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 2 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -240,7 +240,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
         RolloutItem::ResponseItem(turn_two_user),
         RolloutItem::ResponseItem(turn_two_assistant),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: rolled_back_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -248,7 +248,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
             },
         )),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -290,7 +290,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -298,7 +298,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 1 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -309,7 +309,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
         RolloutItem::ResponseItem(turn_one_user.clone()),
         RolloutItem::ResponseItem(turn_one_assistant.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: first_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -317,7 +317,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: incomplete_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -325,7 +325,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 2 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -334,7 +334,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
         )),
         RolloutItem::ResponseItem(turn_two_user),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -379,7 +379,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -387,7 +387,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 1 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -398,7 +398,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
         RolloutItem::ResponseItem(turn_one_user.clone()),
         RolloutItem::ResponseItem(turn_one_assistant.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: first_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -406,7 +406,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: second_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -414,7 +414,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 2 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -424,7 +424,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
         RolloutItem::ResponseItem(turn_two_user),
         RolloutItem::ResponseItem(turn_two_assistant),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: second_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -432,7 +432,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: standalone_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -441,7 +441,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
         )),
         RolloutItem::ResponseItem(standalone_assistant),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: standalone_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -449,7 +449,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
             },
         )),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -494,7 +494,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: first_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -502,7 +502,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "turn 1 user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -513,7 +513,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
         RolloutItem::ResponseItem(user_message("turn 1 user")),
         RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: first_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -521,7 +521,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: assistant_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -532,7 +532,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
         RolloutItem::ResponseItem(assistant_instruction),
         RolloutItem::ResponseItem(assistant_reply),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: assistant_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -540,7 +540,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -580,7 +580,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
         .expect("turn context should have turn_id");
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: only_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -588,7 +588,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "only user".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -599,7 +599,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
         RolloutItem::ResponseItem(user_message("only user")),
         RolloutItem::ResponseItem(assistant_message("only assistant")),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: only_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -607,7 +607,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
             },
         )),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 99 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 99 },
         )),
     ];
 
@@ -631,7 +631,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
     let standalone_turn_id = "standalone-task-turn".to_string();
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: user_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -639,7 +639,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -648,7 +648,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: user_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -657,7 +657,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
         )),
         // Standalone task turn (no UserMessage) should not consume rollback skips.
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: standalone_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -665,7 +665,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: standalone_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -673,7 +673,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
             },
         )),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -701,7 +701,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -709,7 +709,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -718,7 +718,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
         )),
         RolloutItem::TurnContext(previous_context_item.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -726,7 +726,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: incomplete_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -734,7 +734,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "rolled back".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -746,7 +746,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
             replacement_history: Some(Vec::new()),
         }),
         RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
-            codex_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
+            darwin_code_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
 
@@ -857,7 +857,7 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
             replacement_history: None,
         }),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: current_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -865,7 +865,7 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "after legacy compact".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -874,7 +874,7 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
         )),
         RolloutItem::TurnContext(current_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: current_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -922,7 +922,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
         .expect("turn context should have turn_id");
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -930,7 +930,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -944,7 +944,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
         }),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1030,7 +1030,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1038,7 +1038,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1047,7 +1047,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1055,7 +1055,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: aborted_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1063,7 +1063,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "aborted".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1071,7 +1071,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnAborted(
-            codex_protocol::protocol::TurnAbortedEvent {
+            darwin_code_protocol::protocol::TurnAbortedEvent {
                 turn_id: None,
                 reason: TurnAbortReason::Interrupted,
                 completed_at: None,
@@ -1138,7 +1138,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1146,7 +1146,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1155,7 +1155,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1163,7 +1163,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: current_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1171,7 +1171,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "current".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1179,7 +1179,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnAborted(
-            codex_protocol::protocol::TurnAbortedEvent {
+            darwin_code_protocol::protocol::TurnAbortedEvent {
                 turn_id: Some(unmatched_abort_turn_id),
                 reason: TurnAbortReason::Interrupted,
                 completed_at: None,
@@ -1188,7 +1188,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
         )),
         RolloutItem::TurnContext(current_context_item.clone()),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: current_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1254,7 +1254,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1262,7 +1262,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1271,7 +1271,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1279,7 +1279,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: incomplete_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1287,7 +1287,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "incomplete".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1329,7 +1329,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_preserves_turn_
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: current_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1337,7 +1337,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_preserves_turn_
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "incomplete".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1405,7 +1405,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
 
     let rollout_items = vec![
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: previous_turn_id.clone(),
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1413,7 +1413,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "seed".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1422,7 +1422,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
         )),
         RolloutItem::TurnContext(previous_context_item),
         RolloutItem::EventMsg(EventMsg::TurnComplete(
-            codex_protocol::protocol::TurnCompleteEvent {
+            darwin_code_protocol::protocol::TurnCompleteEvent {
                 turn_id: previous_turn_id,
                 last_agent_message: None,
                 completed_at: None,
@@ -1430,7 +1430,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
             },
         )),
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: compacted_incomplete_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -1438,7 +1438,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
             },
         )),
         RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            darwin_code_protocol::protocol::UserMessageEvent {
                 message: "compacted".to_string(),
                 images: None,
                 local_images: Vec::new(),
@@ -1452,7 +1452,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
         // A newer TurnStarted replaces the incomplete compacted turn without a matching
         // completion/abort for the old one.
         RolloutItem::EventMsg(EventMsg::TurnStarted(
-            codex_protocol::protocol::TurnStartedEvent {
+            darwin_code_protocol::protocol::TurnStartedEvent {
                 turn_id: replacing_turn_id,
                 started_at: None,
                 model_context_window: Some(128_000),

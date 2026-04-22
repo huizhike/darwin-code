@@ -1,50 +1,50 @@
 use crate::SkillsManager;
 use crate::agent::AgentControl;
-use crate::codex_thread::CodexThread;
+use crate::darwin_code_thread::DarwinCodeThread;
 use crate::config::Config;
 use crate::file_watcher::FileWatcher;
 use crate::mcp::McpManager;
 use crate::plugins::PluginsManager;
 use crate::rollout::RolloutRecorder;
 use crate::rollout::truncation;
-use crate::session::Codex;
-use crate::session::CodexSpawnArgs;
-use crate::session::CodexSpawnOk;
+use crate::session::Darwin-Code;
+use crate::session::DarwinCodeSpawnArgs;
+use crate::session::DarwinCodeSpawnOk;
 use crate::session::INITIAL_SUBMIT_ID;
 use crate::shell_snapshot::ShellSnapshot;
 use crate::skills_watcher::SkillsWatcher;
 use crate::skills_watcher::SkillsWatcherEvent;
 use crate::tasks::interrupted_turn_history_marker;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::TurnStatus;
-use codex_exec_server::EnvironmentManager;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_models_manager::manager::ModelsManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
+use darwin_code_app_server_protocol::ThreadHistoryBuilder;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::OPENAI_PROVIDER_ID;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
 #[cfg(test)]
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::McpServerRefreshConfig;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionConfiguredEvent;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_state::DirectionalThreadSpawnEdgeStatus;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use std::collections::HashMap;
@@ -79,11 +79,11 @@ fn should_use_test_thread_manager_behavior() -> bool {
     FORCE_TEST_THREAD_MANAGER_BEHAVIOR.load(Ordering::Relaxed)
 }
 
-struct TempCodexHomeGuard {
+struct TempDarwinCodeHomeGuard {
     path: PathBuf,
 }
 
-impl Drop for TempCodexHomeGuard {
+impl Drop for TempDarwinCodeHomeGuard {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.path);
     }
@@ -130,11 +130,11 @@ fn build_skills_watcher(skills_manager: Arc<SkillsManager>) -> Arc<SkillsWatcher
     skills_watcher
 }
 
-/// Represents a newly created Codex thread (formerly called a conversation), including the first event
+/// Represents a newly created Darwin-Code thread (formerly called a conversation), including the first event
 /// (which is [`EventMsg::SessionConfigured`]).
 pub struct NewThread {
     pub thread_id: ThreadId,
-    pub thread: Arc<CodexThread>,
+    pub thread: Arc<DarwinCodeThread>,
     pub session_configured: SessionConfiguredEvent,
 }
 
@@ -194,14 +194,14 @@ enum ShutdownOutcome {
 /// them in memory.
 pub struct ThreadManager {
     state: Arc<ThreadManagerState>,
-    _test_codex_home_guard: Option<TempCodexHomeGuard>,
+    _test_darwin_code_home_guard: Option<TempDarwinCodeHomeGuard>,
 }
 
 /// Shared, `Arc`-owned state for [`ThreadManager`]. This `Arc` is required to have a single
 /// `Arc` reference that can be downgraded to by `AgentControl` while preventing every single
 /// function to require an `Arc<&Self>`.
 pub(crate) struct ThreadManagerState {
-    threads: Arc<RwLock<HashMap<ThreadId, Arc<CodexThread>>>>,
+    threads: Arc<RwLock<HashMap<ThreadId, Arc<DarwinCodeThread>>>>,
     thread_created_tx: broadcast::Sender<ThreadId>,
     auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
@@ -225,7 +225,7 @@ impl ThreadManager {
         environment_manager: Arc<EnvironmentManager>,
         analytics_events_client: Option<AnalyticsEventsClient>,
     ) -> Self {
-        let codex_home = config.codex_home.clone();
+        let darwin_code_home = config.darwin_code_home.clone();
         let restriction_product = session_source.restriction_product();
         let openai_models_provider = config
             .model_providers
@@ -234,12 +234,12 @@ impl ThreadManager {
             .unwrap_or_else(|| ModelProviderInfo::create_openai_provider(/*base_url*/ None));
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let plugins_manager = Arc::new(PluginsManager::new_with_restriction_product(
-            codex_home.to_path_buf(),
+            darwin_code_home.to_path_buf(),
             restriction_product,
         ));
         let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
         let skills_manager = Arc::new(SkillsManager::new_with_restriction_product(
-            codex_home.clone(),
+            darwin_code_home.clone(),
             config.bundled_skills_enabled(),
             restriction_product,
         ));
@@ -249,7 +249,7 @@ impl ThreadManager {
                 threads: Arc::new(RwLock::new(HashMap::new())),
                 thread_created_tx,
                 models_manager: Arc::new(ModelsManager::new_with_provider(
-                    codex_home.to_path_buf(),
+                    darwin_code_home.to_path_buf(),
                     auth_manager.clone(),
                     config.model_catalog.clone(),
                     collaboration_modes_config,
@@ -266,56 +266,56 @@ impl ThreadManager {
                 ops_log: should_use_test_thread_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
-            _test_codex_home_guard: None,
+            _test_darwin_code_home_guard: None,
         }
     }
 
-    /// Construct with a dummy AuthManager containing the provided CodexAuth.
+    /// Construct with a dummy AuthManager containing the provided DarwinCodeAuth.
     /// Used for integration tests: should not be used by ordinary business logic.
     pub(crate) fn with_models_provider_for_tests(
-        auth: CodexAuth,
+        auth: DarwinCodeAuth,
         provider: ModelProviderInfo,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
-        let codex_home = std::env::temp_dir().join(format!(
-            "codex-thread-manager-test-{}",
+        let darwin_code_home = std::env::temp_dir().join(format!(
+            "darwin-code-thread-manager-test-{}",
             uuid::Uuid::new_v4()
         ));
-        std::fs::create_dir_all(&codex_home)
-            .unwrap_or_else(|err| panic!("temp codex home dir create failed: {err}"));
+        std::fs::create_dir_all(&darwin_code_home)
+            .unwrap_or_else(|err| panic!("temp darwin-code home dir create failed: {err}"));
         let mut manager = Self::with_models_provider_and_home_for_tests(
             auth,
             provider,
-            codex_home.clone(),
+            darwin_code_home.clone(),
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
         );
-        manager._test_codex_home_guard = Some(TempCodexHomeGuard { path: codex_home });
+        manager._test_darwin_code_home_guard = Some(TempDarwinCodeHomeGuard { path: darwin_code_home });
         manager
     }
 
-    /// Construct with a dummy AuthManager containing the provided CodexAuth and codex home.
+    /// Construct with a dummy AuthManager containing the provided DarwinCodeAuth and darwin-code home.
     /// Used for integration tests: should not be used by ordinary business logic.
     pub(crate) fn with_models_provider_and_home_for_tests(
-        auth: CodexAuth,
+        auth: DarwinCodeAuth,
         provider: ModelProviderInfo,
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         environment_manager: Arc<EnvironmentManager>,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let auth_manager = AuthManager::from_auth_for_testing(auth);
-        let skills_codex_home = match AbsolutePathBuf::from_absolute_path_checked(&codex_home) {
-            Ok(codex_home) => codex_home,
-            Err(err) => panic!("test codex_home should be absolute: {err}"),
+        let skills_darwin_code_home = match AbsolutePathBuf::from_absolute_path_checked(&darwin_code_home) {
+            Ok(darwin_code_home) => darwin_code_home,
+            Err(err) => panic!("test darwin_code_home should be absolute: {err}"),
         };
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let restriction_product = SessionSource::Exec.restriction_product();
         let plugins_manager = Arc::new(PluginsManager::new_with_restriction_product(
-            codex_home.clone(),
+            darwin_code_home.clone(),
             restriction_product,
         ));
         let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
         let skills_manager = Arc::new(SkillsManager::new_with_restriction_product(
-            skills_codex_home,
+            skills_darwin_code_home,
             /*bundled_skills_enabled*/ true,
             restriction_product,
         ));
@@ -325,7 +325,7 @@ impl ThreadManager {
                 threads: Arc::new(RwLock::new(HashMap::new())),
                 thread_created_tx,
                 models_manager: Arc::new(ModelsManager::with_provider_for_tests(
-                    codex_home,
+                    darwin_code_home,
                     auth_manager.clone(),
                     provider,
                 )),
@@ -340,7 +340,7 @@ impl ThreadManager {
                 ops_log: should_use_test_thread_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
-            _test_codex_home_guard: None,
+            _test_darwin_code_home_guard: None,
         }
     }
 
@@ -412,7 +412,7 @@ impl ThreadManager {
         self.state.thread_created_tx.subscribe()
     }
 
-    pub async fn get_thread(&self, thread_id: ThreadId) -> CodexResult<Arc<CodexThread>> {
+    pub async fn get_thread(&self, thread_id: ThreadId) -> DarwinCodeResult<Arc<DarwinCodeThread>> {
         self.state.get_thread(thread_id).await
     }
 
@@ -420,7 +420,7 @@ impl ThreadManager {
     pub async fn list_agent_subtree_thread_ids(
         &self,
         thread_id: ThreadId,
-    ) -> CodexResult<Vec<ThreadId>> {
+    ) -> DarwinCodeResult<Vec<ThreadId>> {
         let thread = self.state.get_thread(thread_id).await?;
 
         let mut subtree_thread_ids = Vec::new();
@@ -437,7 +437,7 @@ impl ThreadManager {
                     .list_thread_spawn_descendants_with_status(thread_id, status)
                     .await
                     .map_err(|err| {
-                        CodexErr::Fatal(format!("failed to load thread-spawn descendants: {err}"))
+                        DarwinCodeErr::Fatal(format!("failed to load thread-spawn descendants: {err}"))
                     })?
                 {
                     if seen_thread_ids.insert(descendant_id) {
@@ -448,7 +448,7 @@ impl ThreadManager {
         }
 
         for descendant_id in thread
-            .codex
+            .darwin-code
             .session
             .services
             .agent_control
@@ -463,7 +463,7 @@ impl ThreadManager {
         Ok(subtree_thread_ids)
     }
 
-    pub async fn start_thread(&self, config: Config) -> CodexResult<NewThread> {
+    pub async fn start_thread(&self, config: Config) -> DarwinCodeResult<NewThread> {
         // Box delegated thread-spawn futures so these convenience wrappers do
         // not inline the full spawn path into every caller's async state.
         Box::pin(self.start_thread_with_tools(
@@ -477,9 +477,9 @@ impl ThreadManager {
     pub async fn start_thread_with_tools(
         &self,
         config: Config,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
         persist_extended_history: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.start_thread_with_tools_and_service_name(
             config,
             InitialHistory::New,
@@ -495,11 +495,11 @@ impl ThreadManager {
         &self,
         config: Config,
         initial_history: InitialHistory,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
         persist_extended_history: bool,
         metrics_service_name: Option<String>,
         parent_trace: Option<W3cTraceContext>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.state.spawn_thread(
             config,
             initial_history,
@@ -520,7 +520,7 @@ impl ThreadManager {
         rollout_path: PathBuf,
         auth_manager: Arc<AuthManager>,
         parent_trace: Option<W3cTraceContext>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         let initial_history = RolloutRecorder::get_rollout_history(&rollout_path).await?;
         Box::pin(self.resume_thread_with_history(
             config,
@@ -539,7 +539,7 @@ impl ThreadManager {
         auth_manager: Arc<AuthManager>,
         persist_extended_history: bool,
         parent_trace: Option<W3cTraceContext>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.state.spawn_thread(
             config,
             initial_history,
@@ -558,7 +558,7 @@ impl ThreadManager {
         &self,
         config: Config,
         user_shell_override: crate::shell::Shell,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.state.spawn_thread(
             config,
             InitialHistory::New,
@@ -579,7 +579,7 @@ impl ThreadManager {
         rollout_path: PathBuf,
         auth_manager: Arc<AuthManager>,
         user_shell_override: crate::shell::Shell,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         let initial_history = RolloutRecorder::get_rollout_history(&rollout_path).await?;
         Box::pin(self.state.spawn_thread(
             config,
@@ -596,9 +596,9 @@ impl ThreadManager {
     }
 
     /// Removes the thread from the manager's internal map, though the thread is stored
-    /// as `Arc<CodexThread>`, it is possible that other references to it exist elsewhere.
+    /// as `Arc<DarwinCodeThread>`, it is possible that other references to it exist elsewhere.
     /// Returns the thread if the thread was found and removed.
-    pub async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<CodexThread>> {
+    pub async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<DarwinCodeThread>> {
         self.state.threads.write().await.remove(thread_id)
     }
 
@@ -664,7 +664,7 @@ impl ThreadManager {
         path: PathBuf,
         persist_extended_history: bool,
         parent_trace: Option<W3cTraceContext>,
-    ) -> CodexResult<NewThread>
+    ) -> DarwinCodeResult<NewThread>
     where
         S: Into<ForkSnapshot>,
     {
@@ -723,16 +723,16 @@ impl ThreadManagerState {
     }
 
     /// Fetch a thread by ID or return ThreadNotFound.
-    pub(crate) async fn get_thread(&self, thread_id: ThreadId) -> CodexResult<Arc<CodexThread>> {
+    pub(crate) async fn get_thread(&self, thread_id: ThreadId) -> DarwinCodeResult<Arc<DarwinCodeThread>> {
         let threads = self.threads.read().await;
         threads
             .get(&thread_id)
             .cloned()
-            .ok_or_else(|| CodexErr::ThreadNotFound(thread_id))
+            .ok_or_else(|| DarwinCodeErr::ThreadNotFound(thread_id))
     }
 
     /// Send an operation to a thread by ID.
-    pub(crate) async fn send_op(&self, thread_id: ThreadId, op: Op) -> CodexResult<String> {
+    pub(crate) async fn send_op(&self, thread_id: ThreadId, op: Op) -> DarwinCodeResult<String> {
         let thread = self.get_thread(thread_id).await?;
         if let Some(ops_log) = &self.ops_log
             && let Ok(mut log) = ops_log.lock()
@@ -748,13 +748,13 @@ impl ThreadManagerState {
         &self,
         thread_id: ThreadId,
         message: ResponseItem,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         let thread = self.get_thread(thread_id).await?;
         thread.append_message(message).await
     }
 
     /// Remove a thread from the manager by ID, returning it when present.
-    pub(crate) async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<CodexThread>> {
+    pub(crate) async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<DarwinCodeThread>> {
         self.threads.write().await.remove(thread_id)
     }
 
@@ -763,7 +763,7 @@ impl ThreadManagerState {
         &self,
         config: Config,
         agent_control: AgentControl,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.spawn_new_thread_with_source(
             config,
             agent_control,
@@ -786,7 +786,7 @@ impl ThreadManagerState {
         metrics_service_name: Option<String>,
         inherited_shell_snapshot: Option<Arc<ShellSnapshot>>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.spawn_thread_with_source(
             config,
             InitialHistory::New,
@@ -812,7 +812,7 @@ impl ThreadManagerState {
         session_source: SessionSource,
         inherited_shell_snapshot: Option<Arc<ShellSnapshot>>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         let initial_history = RolloutRecorder::get_rollout_history(&rollout_path).await?;
         Box::pin(self.spawn_thread_with_source(
             config,
@@ -841,7 +841,7 @@ impl ThreadManagerState {
         persist_extended_history: bool,
         inherited_shell_snapshot: Option<Arc<ShellSnapshot>>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
@@ -867,12 +867,12 @@ impl ThreadManagerState {
         initial_history: InitialHistory,
         auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
         persist_extended_history: bool,
         metrics_service_name: Option<String>,
         parent_trace: Option<W3cTraceContext>,
         user_shell_override: Option<crate::shell::Shell>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
@@ -898,19 +898,19 @@ impl ThreadManagerState {
         auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
         session_source: SessionSource,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
         persist_extended_history: bool,
         metrics_service_name: Option<String>,
         inherited_shell_snapshot: Option<Arc<ShellSnapshot>>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
         parent_trace: Option<W3cTraceContext>,
         user_shell_override: Option<crate::shell::Shell>,
-    ) -> CodexResult<NewThread> {
+    ) -> DarwinCodeResult<NewThread> {
         let environment = self
             .environment_manager
             .current()
             .await
-            .map_err(|err| CodexErr::Fatal(format!("failed to create environment: {err}")))?;
+            .map_err(|err| DarwinCodeErr::Fatal(format!("failed to create environment: {err}")))?;
         let watch_registration = match environment.as_ref() {
             Some(environment) if !environment.is_remote() => {
                 self.skills_watcher
@@ -924,9 +924,9 @@ impl ThreadManagerState {
             }
             Some(_) | None => crate::file_watcher::WatchRegistration::default(),
         };
-        let CodexSpawnOk {
-            codex, thread_id, ..
-        } = Codex::spawn(CodexSpawnArgs {
+        let DarwinCodeSpawnOk {
+            darwin-code, thread_id, ..
+        } = Darwin-Code::spawn(DarwinCodeSpawnArgs {
             config,
             auth_manager,
             models_manager: Arc::clone(&self.models_manager),
@@ -948,29 +948,29 @@ impl ThreadManagerState {
             analytics_events_client: self.analytics_events_client.clone(),
         })
         .await?;
-        self.finalize_thread_spawn(codex, thread_id, watch_registration)
+        self.finalize_thread_spawn(darwin-code, thread_id, watch_registration)
             .await
     }
 
     async fn finalize_thread_spawn(
         &self,
-        codex: Codex,
+        darwin-code: Darwin-Code,
         thread_id: ThreadId,
         watch_registration: crate::file_watcher::WatchRegistration,
-    ) -> CodexResult<NewThread> {
-        let event = codex.next_event().await?;
+    ) -> DarwinCodeResult<NewThread> {
+        let event = darwin-code.next_event().await?;
         let session_configured = match event {
             Event {
                 id,
                 msg: EventMsg::SessionConfigured(session_configured),
             } if id == INITIAL_SUBMIT_ID => session_configured,
             _ => {
-                return Err(CodexErr::SessionConfiguredNotFirstEvent);
+                return Err(DarwinCodeErr::SessionConfiguredNotFirstEvent);
             }
         };
 
-        let thread = Arc::new(CodexThread::new(
-            codex,
+        let thread = Arc::new(DarwinCodeThread::new(
+            darwin-code,
             session_configured.rollout_path.clone(),
             watch_registration,
         ));

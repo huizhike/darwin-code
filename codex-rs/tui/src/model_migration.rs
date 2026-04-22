@@ -82,7 +82,7 @@ pub(crate) fn migration_copy_for_models(
     }
 
     let heading_text = Span::from(format!(
-        "Codex just got an upgrade. Introducing {target_display_name}."
+        "Darwin-Code just got an upgrade. Introducing {target_display_name}."
     ))
     .bold();
     let description_line: Line<'static>;
@@ -341,7 +341,7 @@ impl ModelMigrationScreen {
     fn render_menu(&self, column: &mut ColumnRenderable) {
         column.push(Line::from(""));
         column.push(
-            Paragraph::new("Choose how you'd like Codex to proceed.")
+            Paragraph::new("Choose how you'd like Darwin-Code to proceed.")
                 .wrap(Wrap { trim: false })
                 .inset(Insets::tlbr(
                     /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
@@ -430,16 +430,16 @@ mod tests {
         let screen = ModelMigrationScreen::new(
             FrameRequester::test_dummy(),
             migration_copy_for_models(
-                "gpt-5.1-codex-mini",
-                "gpt-5.1-codex-max",
+                "gpt-5.1-darwin-code-mini",
+                "gpt-5.1-darwin-code-max",
                 /*model_link*/ None,
                 Some(
-                    "Upgrade to gpt-5.2-codex for the latest and greatest agentic coding model."
+                    "Upgrade to gpt-5.2-darwin-code for the latest and greatest agentic coding model."
                         .to_string(),
                 ),
                 /*migration_markdown*/ None,
-                "gpt-5.1-codex-max".to_string(),
-                Some("Codex-optimized flagship for deep and fast reasoning.".to_string()),
+                "gpt-5.1-darwin-code-max".to_string(),
+                Some("DarwinCode-optimized flagship for deep and fast reasoning.".to_string()),
                 /*can_opt_out*/ true,
             ),
         );
@@ -464,7 +464,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-5",
                 "gpt-5.1",
-                Some("https://www.codex.com/models/gpt-5.1".to_string()),
+                Some("https://www.darwin-code.com/models/gpt-5.1".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-5.1".to_string(),
@@ -481,7 +481,7 @@ mod tests {
     }
 
     #[test]
-    fn prompt_snapshot_gpt5_codex() {
+    fn prompt_snapshot_gpt5_darwin_code() {
         let backend = VT100Backend::new(/*width*/ 60, /*height*/ 22);
         let mut terminal = Terminal::with_options(backend).expect("terminal");
         terminal.set_viewport_area(Rect::new(0, 0, 60, 22));
@@ -489,13 +489,13 @@ mod tests {
         let screen = ModelMigrationScreen::new(
             FrameRequester::test_dummy(),
             migration_copy_for_models(
-                "gpt-5-codex",
-                "gpt-5.1-codex-max",
-                Some("https://www.codex.com/models/gpt-5.1-codex-max".to_string()),
+                "gpt-5-darwin-code",
+                "gpt-5.1-darwin-code-max",
+                Some("https://www.darwin-code.com/models/gpt-5.1-darwin-code-max".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
-                "gpt-5.1-codex-max".to_string(),
-                Some("Codex-optimized flagship for deep and fast reasoning.".to_string()),
+                "gpt-5.1-darwin-code-max".to_string(),
+                Some("DarwinCode-optimized flagship for deep and fast reasoning.".to_string()),
                 /*can_opt_out*/ false,
             ),
         );
@@ -504,11 +504,11 @@ mod tests {
             frame.render_widget_ref(&screen, frame.area());
         }
         terminal.flush().expect("flush");
-        assert_snapshot!("model_migration_prompt_gpt5_codex", terminal.backend());
+        assert_snapshot!("model_migration_prompt_gpt5_darwin_code", terminal.backend());
     }
 
     #[test]
-    fn prompt_snapshot_gpt5_codex_mini() {
+    fn prompt_snapshot_gpt5_darwin_code_mini() {
         let backend = VT100Backend::new(/*width*/ 60, /*height*/ 22);
         let mut terminal = Terminal::with_options(backend).expect("terminal");
         terminal.set_viewport_area(Rect::new(0, 0, 60, 22));
@@ -516,13 +516,13 @@ mod tests {
         let screen = ModelMigrationScreen::new(
             FrameRequester::test_dummy(),
             migration_copy_for_models(
-                "gpt-5-codex-mini",
-                "gpt-5.1-codex-mini",
-                Some("https://www.codex.com/models/gpt-5.1-codex-mini".to_string()),
+                "gpt-5-darwin-code-mini",
+                "gpt-5.1-darwin-code-mini",
+                Some("https://www.darwin-code.com/models/gpt-5.1-darwin-code-mini".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
-                "gpt-5.1-codex-mini".to_string(),
-                Some("Optimized for codex. Cheaper, faster, but less capable.".to_string()),
+                "gpt-5.1-darwin-code-mini".to_string(),
+                Some("Optimized for darwin-code. Cheaper, faster, but less capable.".to_string()),
                 /*can_opt_out*/ false,
             ),
         );
@@ -531,7 +531,7 @@ mod tests {
             frame.render_widget_ref(&screen, frame.area());
         }
         terminal.flush().expect("flush");
-        assert_snapshot!("model_migration_prompt_gpt5_codex_mini", terminal.backend());
+        assert_snapshot!("model_migration_prompt_gpt5_darwin_code_mini", terminal.backend());
     }
 
     #[test]
@@ -541,7 +541,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-old",
                 "gpt-new",
-                Some("https://www.codex.com/models/gpt-new".to_string()),
+                Some("https://www.darwin-code.com/models/gpt-new".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-new".to_string(),
@@ -570,7 +570,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-old",
                 "gpt-new",
-                Some("https://www.codex.com/models/gpt-new".to_string()),
+                Some("https://www.darwin-code.com/models/gpt-new".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-new".to_string(),

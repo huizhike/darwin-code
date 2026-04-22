@@ -2,31 +2,31 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_hooks::PermissionRequestDecision;
-use codex_hooks::PermissionRequestOutcome;
-use codex_hooks::PermissionRequestRequest;
-use codex_hooks::PostToolUseOutcome;
-use codex_hooks::PostToolUseRequest;
-use codex_hooks::PreToolUseOutcome;
-use codex_hooks::PreToolUseRequest;
-use codex_hooks::SessionStartOutcome;
-use codex_hooks::UserPromptSubmitOutcome;
-use codex_hooks::UserPromptSubmitRequest;
-use codex_otel::HOOK_RUN_DURATION_METRIC;
-use codex_otel::HOOK_RUN_METRIC;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::HookStartedEvent;
-use codex_protocol::user_input::UserInput;
+use darwin_code_hooks::PermissionRequestDecision;
+use darwin_code_hooks::PermissionRequestOutcome;
+use darwin_code_hooks::PermissionRequestRequest;
+use darwin_code_hooks::PostToolUseOutcome;
+use darwin_code_hooks::PostToolUseRequest;
+use darwin_code_hooks::PreToolUseOutcome;
+use darwin_code_hooks::PreToolUseRequest;
+use darwin_code_hooks::SessionStartOutcome;
+use darwin_code_hooks::UserPromptSubmitOutcome;
+use darwin_code_hooks::UserPromptSubmitRequest;
+use darwin_code_otel::HOOK_RUN_DURATION_METRIC;
+use darwin_code_otel::HOOK_RUN_METRIC;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::HookCompletedEvent;
+use darwin_code_protocol::protocol::HookEventName;
+use darwin_code_protocol::protocol::HookRunStatus;
+use darwin_code_protocol::protocol::HookRunSummary;
+use darwin_code_protocol::protocol::HookSource;
+use darwin_code_protocol::protocol::HookStartedEvent;
+use darwin_code_protocol::user_input::UserInput;
 use serde_json::Value;
 
 use crate::event_mapping::parse_turn_item;
@@ -104,7 +104,7 @@ pub(crate) async fn run_pending_session_start_hooks(
         return false;
     };
 
-    let request = codex_hooks::SessionStartRequest {
+    let request = darwin_code_hooks::SessionStartRequest {
         session_id: sess.conversation_id,
         cwd: turn_context.cwd.clone(),
         transcript_path: sess.hook_transcript_path().await,
@@ -469,23 +469,23 @@ fn hook_permission_mode(turn_context: &TurnContext) -> String {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::protocol::HookEventName;
-    use codex_protocol::protocol::HookExecutionMode;
-    use codex_protocol::protocol::HookHandlerType;
-    use codex_protocol::protocol::HookRunStatus;
-    use codex_protocol::protocol::HookScope;
-    use codex_protocol::protocol::HookSource;
+    use darwin_code_protocol::models::ContentItem;
+    use darwin_code_protocol::protocol::HookEventName;
+    use darwin_code_protocol::protocol::HookExecutionMode;
+    use darwin_code_protocol::protocol::HookHandlerType;
+    use darwin_code_protocol::protocol::HookRunStatus;
+    use darwin_code_protocol::protocol::HookScope;
+    use darwin_code_protocol::protocol::HookSource;
     use pretty_assertions::assert_eq;
 
     use super::additional_context_messages;
     use super::hook_run_analytics_payload;
     use super::hook_run_metric_tags;
     use crate::session::tests::make_session_and_context;
-    use codex_protocol::protocol::HookCompletedEvent;
-    use codex_protocol::protocol::HookRunSummary;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_protocol::protocol::HookCompletedEvent;
+    use darwin_code_protocol::protocol::HookRunSummary;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
 
     #[test]
     fn additional_context_messages_stay_separate_and_ordered() {
@@ -499,7 +499,7 @@ mod tests {
             messages
                 .iter()
                 .map(|message| match message {
-                    codex_protocol::models::ResponseItem::Message { role, content, .. } => {
+                    darwin_code_protocol::models::ResponseItem::Message { role, content, .. } => {
                         let text = content
                             .iter()
                             .map(|item| match item {

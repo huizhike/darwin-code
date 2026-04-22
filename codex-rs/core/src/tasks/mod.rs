@@ -30,26 +30,26 @@ use crate::session::turn_context::TurnContext;
 use crate::state::ActiveTurn;
 use crate::state::RunningTask;
 use crate::state::TaskKind;
-use codex_login::AuthManager;
-use codex_models_manager::manager::ModelsManager;
-use codex_otel::SessionTelemetry;
-use codex_otel::TURN_E2E_DURATION_METRIC;
-use codex_otel::TURN_NETWORK_PROXY_METRIC;
-use codex_otel::TURN_TOKEN_USAGE_METRIC;
-use codex_otel::TURN_TOOL_CALL_METRIC;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
+use darwin_code_login::AuthManager;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::TURN_E2E_DURATION_METRIC;
+use darwin_code_otel::TURN_NETWORK_PROXY_METRIC;
+use darwin_code_otel::TURN_TOKEN_USAGE_METRIC;
+use darwin_code_otel::TURN_TOOL_CALL_METRIC;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::user_input::UserInput;
 
-use codex_features::Feature;
+use darwin_code_features::Feature;
 pub(crate) use compact::CompactTask;
 pub(crate) use ghost_snapshot::GhostSnapshotTask;
 pub(crate) use regular::RegularTask;
@@ -121,7 +121,7 @@ impl SessionTaskContext {
 
 /// Async task that drives a [`Session`] turn.
 ///
-/// Implementations encapsulate a specific Codex workflow (regular chat,
+/// Implementations encapsulate a specific Darwin-Code workflow (regular chat,
 /// reviews, ghost snapshots, etc.). Each task instance is owned by a
 /// [`Session`] and executed on a background Tokio task. The trait is
 /// intentionally small: implementers identify themselves via
@@ -309,7 +309,7 @@ impl Session {
                         ctx_for_finish.as_ref(),
                         EventMsg::Warning(WarningEvent {
                             message: format!(
-                                "Failed to save the conversation transcript; Codex will continue retrying. Error: {err}"
+                                "Failed to save the conversation transcript; Darwin-Code will continue retrying. Error: {err}"
                             ),
                         }),
                     )

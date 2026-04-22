@@ -4,36 +4,36 @@ use crate::shell::ShellType;
 use crate::test_support::construct_model_info_offline;
 use crate::tools::ToolRouter;
 use crate::tools::router::ToolRouterParams;
-use codex_app_server_protocol::AppInfo;
-use codex_features::Feature;
-use codex_features::Features;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::model_info::with_config_overrides;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_tools::AdditionalProperties;
-use codex_tools::ConfiguredToolSpec;
-use codex_tools::DiscoverableTool;
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ShellCommandBackendConfig;
-use codex_tools::TOOL_SEARCH_TOOL_NAME;
-use codex_tools::TOOL_SUGGEST_TOOL_NAME;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::ToolsConfig;
-use codex_tools::ToolsConfigParams;
-use codex_tools::UnifiedExecShellMode;
-use codex_tools::ZshForkConfig;
-use codex_tools::mcp_call_tool_result_output_schema;
-use codex_tools::mcp_tool_to_deferred_responses_api_tool;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_features::Feature;
+use darwin_code_features::Features;
+use darwin_code_mcp::DARWIN_CODE_APPS_MCP_SERVER_NAME;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_models_manager::model_info::with_config_overrides;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_tools::AdditionalProperties;
+use darwin_code_tools::ConfiguredToolSpec;
+use darwin_code_tools::DiscoverableTool;
+use darwin_code_tools::JsonSchema;
+use darwin_code_tools::ResponsesApiNamespaceTool;
+use darwin_code_tools::ResponsesApiTool;
+use darwin_code_tools::ShellCommandBackendConfig;
+use darwin_code_tools::TOOL_SEARCH_TOOL_NAME;
+use darwin_code_tools::TOOL_SUGGEST_TOOL_NAME;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolSpec;
+use darwin_code_tools::ToolsConfig;
+use darwin_code_tools::ToolsConfigParams;
+use darwin_code_tools::UnifiedExecShellMode;
+use darwin_code_tools::ZshForkConfig;
+use darwin_code_tools::mcp_call_tool_result_output_schema;
+use darwin_code_tools::mcp_tool_to_deferred_responses_api_tool;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::assert_regex_match;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
@@ -109,7 +109,7 @@ fn discoverable_connector(id: &str, name: &str, description: &str) -> Discoverab
 
 async fn search_capable_model_info() -> ModelInfo {
     let config = test_config().await;
-    let mut model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let mut model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     model_info.supports_search_tool = true;
     model_info
 }
@@ -131,7 +131,7 @@ fn deferred_responses_api_tool_serializes_with_defer_loading() {
 
     let serialized = serde_json::to_value(ToolSpec::Function(
         mcp_tool_to_deferred_responses_api_tool(
-            &ToolName::namespaced("mcp__codex_apps__", "lookup_order"),
+            &ToolName::namespaced("mcp__darwin_code_apps__", "lookup_order"),
             &tool,
         )
         .expect("convert deferred tool"),
@@ -218,7 +218,7 @@ fn find_namespace_function_tool<'a>(
 
 async fn multi_agent_v2_tools_config() -> ToolsConfig {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::Collab);
     features.enable(Feature::MultiAgentV2);
@@ -297,7 +297,7 @@ fn build_specs_with_unavailable_tools(
 
 #[tokio::test]
 async fn model_provided_unified_exec_is_blocked_for_windows_sandboxed_policies() {
-    let mut model_info = model_info_from_models_json("gpt-5-codex").await;
+    let mut model_info = model_info_from_models_json("gpt-5-darwin-code").await;
     model_info.shell_type = ConfigShellToolType::UnifiedExec;
     let features = Features::with_defaults();
     let available_models = Vec::new();
@@ -323,7 +323,7 @@ async fn model_provided_unified_exec_is_blocked_for_windows_sandboxed_policies()
 #[tokio::test]
 async fn get_memory_requires_feature_flag() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.disable(Feature::MemoryTool);
     let available_models = Vec::new();
@@ -405,10 +405,10 @@ async fn assert_default_model_tools(
 }
 
 #[tokio::test]
-async fn test_build_specs_gpt5_codex_default() {
+async fn test_build_specs_gpt5_darwin_code_default() {
     let features = Features::with_defaults();
     assert_default_model_tools(
-        "gpt-5-codex",
+        "gpt-5-darwin-code",
         &features,
         Some(WebSearchMode::Cached),
         "shell_command",
@@ -430,10 +430,10 @@ async fn test_build_specs_gpt5_codex_default() {
 }
 
 #[tokio::test]
-async fn test_build_specs_gpt51_codex_default() {
+async fn test_build_specs_gpt51_darwin_code_default() {
     let features = Features::with_defaults();
     assert_default_model_tools(
-        "gpt-5.1-codex",
+        "gpt-5.1-darwin-code",
         &features,
         Some(WebSearchMode::Cached),
         "shell_command",
@@ -455,11 +455,11 @@ async fn test_build_specs_gpt51_codex_default() {
 }
 
 #[tokio::test]
-async fn test_build_specs_gpt5_codex_unified_exec_web_search() {
+async fn test_build_specs_gpt5_darwin_code_unified_exec_web_search() {
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     assert_model_tools(
-        "gpt-5-codex",
+        "gpt-5-darwin-code",
         &features,
         Some(WebSearchMode::Live),
         &[
@@ -482,11 +482,11 @@ async fn test_build_specs_gpt5_codex_unified_exec_web_search() {
 }
 
 #[tokio::test]
-async fn test_build_specs_gpt51_codex_unified_exec_web_search() {
+async fn test_build_specs_gpt51_darwin_code_unified_exec_web_search() {
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     assert_model_tools(
-        "gpt-5.1-codex",
+        "gpt-5.1-darwin-code",
         &features,
         Some(WebSearchMode::Live),
         &[
@@ -509,10 +509,10 @@ async fn test_build_specs_gpt51_codex_unified_exec_web_search() {
 }
 
 #[tokio::test]
-async fn test_gpt_5_1_codex_max_defaults() {
+async fn test_gpt_5_1_darwin_code_max_defaults() {
     let features = Features::with_defaults();
     assert_default_model_tools(
-        "gpt-5.1-codex-max",
+        "gpt-5.1-darwin-code-max",
         &features,
         Some(WebSearchMode::Cached),
         "shell_command",
@@ -534,10 +534,10 @@ async fn test_gpt_5_1_codex_max_defaults() {
 }
 
 #[tokio::test]
-async fn test_codex_5_1_mini_defaults() {
+async fn test_darwin_code_5_1_mini_defaults() {
     let features = Features::with_defaults();
     assert_default_model_tools(
-        "gpt-5.1-codex-mini",
+        "gpt-5.1-darwin-code-mini",
         &features,
         Some(WebSearchMode::Cached),
         "shell_command",
@@ -608,11 +608,11 @@ async fn test_gpt_5_1_defaults() {
 }
 
 #[tokio::test]
-async fn test_gpt_5_1_codex_max_unified_exec_web_search() {
+async fn test_gpt_5_1_darwin_code_max_unified_exec_web_search() {
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     assert_model_tools(
-        "gpt-5.1-codex-max",
+        "gpt-5.1-darwin-code-max",
         &features,
         Some(WebSearchMode::Live),
         &[
@@ -706,22 +706,22 @@ async fn shell_zsh_fork_prefers_shell_command_over_unified_exec() {
             .with_unified_exec_shell_mode_for_session(
                 tool_user_shell_type(&user_shell),
                 Some(&PathBuf::from(if cfg!(windows) {
-                    r"C:\opt\codex\zsh"
+                    r"C:\opt\darwin-code\zsh"
                 } else {
-                    "/opt/codex/zsh"
+                    "/opt/darwin-code/zsh"
                 })),
                 Some(&PathBuf::from(if cfg!(windows) {
-                    r"C:\opt\codex\codex-execve-wrapper"
+                    r"C:\opt\darwin-code\darwin-code-execve-wrapper"
                 } else {
-                    "/opt/codex/codex-execve-wrapper"
+                    "/opt/darwin-code/darwin-code-execve-wrapper"
                 })),
             )
             .unified_exec_shell_mode,
         if cfg!(unix) {
             UnifiedExecShellMode::ZshFork(ZshForkConfig {
-                shell_zsh_path: AbsolutePathBuf::from_absolute_path("/opt/codex/zsh").unwrap(),
+                shell_zsh_path: AbsolutePathBuf::from_absolute_path("/opt/darwin-code/zsh").unwrap(),
                 main_execve_wrapper_exe: AbsolutePathBuf::from_absolute_path(
-                    "/opt/codex/codex-execve-wrapper",
+                    "/opt/darwin-code/darwin-code-execve-wrapper",
                 )
                 .unwrap(),
             })
@@ -881,11 +881,11 @@ async fn search_tool_description_falls_back_to_connector_name_without_descriptio
         &tools_config,
         /*mcp_tools*/ None,
         Some(HashMap::from([(
-            "mcp__codex_apps__calendar_create_event".to_string(),
+            "mcp__darwin_code_apps__calendar_create_event".to_string(),
             ToolInfo {
-                server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+                server_name: DARWIN_CODE_APPS_MCP_SERVER_NAME.to_string(),
                 callable_name: "_create_event".to_string(),
-                callable_namespace: "mcp__codex_apps__calendar".to_string(),
+                callable_namespace: "mcp__darwin_code_apps__calendar".to_string(),
                 server_instructions: None,
                 tool: mcp_tool(
                     "calendar_create_event",
@@ -933,11 +933,11 @@ async fn search_tool_registers_namespaced_mcp_tool_aliases() {
         /*mcp_tools*/ None,
         Some(HashMap::from([
             (
-                "mcp__codex_apps__calendar_create_event".to_string(),
+                "mcp__darwin_code_apps__calendar_create_event".to_string(),
                 ToolInfo {
-                    server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+                    server_name: DARWIN_CODE_APPS_MCP_SERVER_NAME.to_string(),
                     callable_name: "_create_event".to_string(),
-                    callable_namespace: "mcp__codex_apps__calendar".to_string(),
+                    callable_namespace: "mcp__darwin_code_apps__calendar".to_string(),
                     server_instructions: None,
                     tool: mcp_tool(
                         "calendar-create-event",
@@ -951,11 +951,11 @@ async fn search_tool_registers_namespaced_mcp_tool_aliases() {
                 },
             ),
             (
-                "mcp__codex_apps__calendar_list_events".to_string(),
+                "mcp__darwin_code_apps__calendar_list_events".to_string(),
                 ToolInfo {
-                    server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
+                    server_name: DARWIN_CODE_APPS_MCP_SERVER_NAME.to_string(),
                     callable_name: "_list_events".to_string(),
-                    callable_namespace: "mcp__codex_apps__calendar".to_string(),
+                    callable_namespace: "mcp__darwin_code_apps__calendar".to_string(),
                     server_instructions: None,
                     tool: mcp_tool(
                         "calendar-list-events",
@@ -987,7 +987,7 @@ async fn search_tool_registers_namespaced_mcp_tool_aliases() {
     )
     .build();
 
-    let app_alias = ToolName::namespaced("mcp__codex_apps__calendar", "_create_event");
+    let app_alias = ToolName::namespaced("mcp__darwin_code_apps__calendar", "_create_event");
     let mcp_alias = ToolName::namespaced("mcp__rmcp__", "echo");
 
     assert!(registry.has_handler(&ToolName::plain(TOOL_SEARCH_TOOL_NAME)));
@@ -998,7 +998,7 @@ async fn search_tool_registers_namespaced_mcp_tool_aliases() {
 #[tokio::test]
 async fn direct_mcp_tools_register_namespaced_handlers() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1035,7 +1035,7 @@ async fn direct_mcp_tools_register_namespaced_handlers() {
 #[tokio::test]
 async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1050,7 +1050,7 @@ async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
         windows_sandbox_level: WindowsSandboxLevel::Disabled,
     });
 
-    let unavailable_tool = ToolName::namespaced("mcp__codex_apps__calendar", "_create_event");
+    let unavailable_tool = ToolName::namespaced("mcp__darwin_code_apps__calendar", "_create_event");
     let (tools, registry) = build_specs_with_unavailable_tools(
         &tools_config,
         /*mcp_tools*/ None,
@@ -1060,7 +1060,7 @@ async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
     )
     .build();
 
-    let tool = find_tool(&tools, "mcp__codex_apps__calendar_create_event");
+    let tool = find_tool(&tools, "mcp__darwin_code_apps__calendar_create_event");
     let ToolSpec::Function(ResponsesApiTool {
         description,
         parameters,
@@ -1075,16 +1075,16 @@ async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
         Some(AdditionalProperties::Boolean(false))
     );
     assert!(registry.has_handler(&ToolName::namespaced(
-        "mcp__codex_apps__calendar",
+        "mcp__darwin_code_apps__calendar",
         "_create_event"
     )));
-    assert!(!registry.has_handler(&ToolName::plain("mcp__codex_apps__calendar_create_event")));
+    assert!(!registry.has_handler(&ToolName::plain("mcp__darwin_code_apps__calendar_create_event")));
 }
 
 #[tokio::test]
 async fn test_mcp_tool_property_missing_type_defaults_to_string() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1147,7 +1147,7 @@ async fn test_mcp_tool_property_missing_type_defaults_to_string() {
 #[tokio::test]
 async fn test_mcp_tool_preserves_integer_schema() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1208,7 +1208,7 @@ async fn test_mcp_tool_preserves_integer_schema() {
 #[tokio::test]
 async fn test_mcp_tool_array_without_items_gets_default_string_items() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     features.enable(Feature::ApplyPatchFreeform);
@@ -1273,7 +1273,7 @@ async fn test_mcp_tool_array_without_items_gets_default_string_items() {
 #[tokio::test]
 async fn test_mcp_tool_anyof_defaults_to_string() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1342,7 +1342,7 @@ async fn test_mcp_tool_anyof_defaults_to_string() {
 #[tokio::test]
 async fn test_get_openai_tools_mcp_tools_with_additional_properties_schema() {
     let config = test_config().await;
-    let model_info = construct_model_info_offline("gpt-5-codex", &config);
+    let model_info = construct_model_info_offline("gpt-5-darwin-code", &config);
     let mut features = Features::with_defaults();
     features.enable(Feature::UnifiedExec);
     let available_models = Vec::new();
@@ -1461,7 +1461,7 @@ async fn code_mode_only_restricts_model_tools_to_exec_tools() {
     features.enable(Feature::CodeModeOnly);
 
     assert_model_tools(
-        "gpt-5.1-codex",
+        "gpt-5.1-darwin-code",
         &features,
         Some(WebSearchMode::Live),
         &["exec", "wait"],

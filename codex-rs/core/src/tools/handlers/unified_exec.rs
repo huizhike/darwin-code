@@ -24,15 +24,15 @@ use crate::unified_exec::UnifiedExecError;
 use crate::unified_exec::UnifiedExecProcessManager;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::generate_chunk_id;
-use codex_features::Feature;
-use codex_otel::SessionTelemetry;
-use codex_otel::TOOL_CALL_UNIFIED_EXEC_METRIC;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TerminalInteractionEvent;
-use codex_shell_command::is_safe_command::is_known_safe_command;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_output_truncation::approx_token_count;
+use darwin_code_features::Feature;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::TOOL_CALL_UNIFIED_EXEC_METRIC;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::TerminalInteractionEvent;
+use darwin_code_shell_command::is_safe_command::is_known_safe_command;
+use darwin_code_tools::UnifiedExecShellMode;
+use darwin_code_utils_output_truncation::approx_token_count;
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -211,7 +211,7 @@ impl ToolHandler for UnifiedExecHandler {
                     turn.tools_config.allow_login_shell,
                 )
                 .map_err(FunctionCallError::RespondToModel)?;
-                let command_for_display = codex_shell_command::parse_command::shlex_join(&command);
+                let command_for_display = darwin_code_shell_command::parse_command::shlex_join(&command);
 
                 let ExecCommandArgs {
                     workdir,
@@ -246,7 +246,7 @@ impl ToolHandler for UnifiedExecHandler {
                     && !effective_additional_permissions.permissions_preapproved
                     && !matches!(
                         context.turn.approval_policy.value(),
-                        codex_protocol::protocol::AskForApproval::OnRequest
+                        darwin_code_protocol::protocol::AskForApproval::OnRequest
                     )
                 {
                     let approval_policy = context.turn.approval_policy.value();

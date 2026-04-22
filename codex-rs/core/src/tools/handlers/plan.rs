@@ -6,11 +6,11 @@ use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_protocol::protocol::EventMsg;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::plan_tool::UpdatePlanArgs;
+use darwin_code_protocol::protocol::EventMsg;
 use serde_json::Value as JsonValue;
 
 pub struct PlanHandler;

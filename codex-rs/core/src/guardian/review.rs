@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GuardianAssessmentDecisionSource;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::WarningEvent;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GuardianAssessmentDecisionSource;
+use darwin_code_protocol::protocol::GuardianAssessmentEvent;
+use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+use darwin_code_protocol::protocol::GuardianRiskLevel;
+use darwin_code_protocol::protocol::GuardianUserAuthorization;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::WarningEvent;
 use tokio_util::sync::CancellationToken;
 
 use crate::session::session::Session;
@@ -98,11 +98,11 @@ pub(crate) fn routes_approval_to_guardian(turn: &TurnContext) -> bool {
 }
 
 pub(crate) fn is_guardian_reviewer_source(
-    session_source: &codex_protocol::protocol::SessionSource,
+    session_source: &darwin_code_protocol::protocol::SessionSource,
 ) -> bool {
     matches!(
         session_source,
-        codex_protocol::protocol::SessionSource::SubAgent(SubAgentSource::Other(name))
+        darwin_code_protocol::protocol::SessionSource::SubAgent(SubAgentSource::Other(name))
             if name == GUARDIAN_REVIEWER_NAME
     )
 }
@@ -367,11 +367,11 @@ pub(super) async fn run_guardian_review_session(
     let available_models = session
         .services
         .models_manager
-        .list_models(codex_models_manager::manager::RefreshStrategy::Offline)
+        .list_models(darwin_code_models_manager::manager::RefreshStrategy::Offline)
         .await;
     let preferred_reasoning_effort = |supports_low: bool, fallback| {
         if supports_low {
-            Some(codex_protocol::openai_models::ReasoningEffort::Low)
+            Some(darwin_code_protocol::openai_models::ReasoningEffort::Low)
         } else {
             fallback
         }
@@ -384,7 +384,7 @@ pub(super) async fn run_guardian_review_session(
             preset
                 .supported_reasoning_efforts
                 .iter()
-                .any(|effort| effort.effort == codex_protocol::openai_models::ReasoningEffort::Low),
+                .any(|effort| effort.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low),
             Some(preset.default_reasoning_effort),
         );
         (
@@ -396,7 +396,7 @@ pub(super) async fn run_guardian_review_session(
             turn.model_info
                 .supported_reasoning_levels
                 .iter()
-                .any(|preset| preset.effort == codex_protocol::openai_models::ReasoningEffort::Low),
+                .any(|preset| preset.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low),
             turn.reasoning_effort
                 .or(turn.model_info.default_reasoning_level),
         );

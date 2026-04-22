@@ -1,10 +1,10 @@
 use anyhow::Result;
-use codex_model_provider_info::WireApi;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -12,8 +12,8 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use tokio::time::Duration;
 use tokio::time::timeout;
@@ -40,7 +40,7 @@ async fn websocket_fallback_switches_to_http_on_upgrade_required_connect() -> Re
     )
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let base_url = format!("{}/v1", server.uri());
         move |config| {
             config.model_provider.base_url = Some(base_url);
@@ -86,7 +86,7 @@ async fn websocket_fallback_switches_to_http_after_retries_exhausted() -> Result
     )
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let base_url = format!("{}/v1", server.uri());
         move |config| {
             config.model_provider.base_url = Some(base_url);
@@ -131,7 +131,7 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
     )
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let base_url = format!("{}/v1", server.uri());
         move |config| {
             config.model_provider.base_url = Some(base_url);
@@ -141,14 +141,14 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
             config.model_provider.request_max_retries = Some(0);
         }
     });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         session_configured,
         cwd,
         ..
     } = builder.build(&server).await?;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -170,7 +170,7 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
 
     let mut stream_error_messages = Vec::new();
     loop {
-        let event = timeout(Duration::from_secs(10), codex.next_event())
+        let event = timeout(Duration::from_secs(10), darwin-code.next_event())
             .await
             .expect("timeout waiting for event")
             .expect("event stream ended unexpectedly")
@@ -207,7 +207,7 @@ async fn websocket_fallback_is_sticky_across_turns() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let base_url = format!("{}/v1", server.uri());
         move |config| {
             config.model_provider.base_url = Some(base_url);

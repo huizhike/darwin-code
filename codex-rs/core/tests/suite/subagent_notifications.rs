@@ -1,9 +1,9 @@
 use anyhow::Result;
-use codex_core::ThreadConfigSnapshot;
-use codex_core::config::AgentRoleConfig;
-use codex_features::Feature;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort;
+use darwin_code_core::ThreadConfigSnapshot;
+use darwin_code_core::config::AgentRoleConfig;
+use darwin_code_features::Feature;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -15,8 +15,8 @@ use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::time::Duration;
@@ -29,11 +29,11 @@ const TURN_0_FORK_PROMPT: &str = "seed fork context";
 const TURN_1_PROMPT: &str = "spawn a child and continue";
 const TURN_2_NO_WAIT_PROMPT: &str = "follow up without wait";
 const CHILD_PROMPT: &str = "child: do work";
-const INHERITED_MODEL: &str = "gpt-5.2-codex";
+const INHERITED_MODEL: &str = "gpt-5.2-darwin-code";
 const INHERITED_REASONING_EFFORT: ReasoningEffort = ReasoningEffort::XHigh;
 const REQUESTED_MODEL: &str = "gpt-5.1";
 const REQUESTED_REASONING_EFFORT: ReasoningEffort = ReasoningEffort::Low;
-const ROLE_MODEL: &str = "gpt-5.1-codex-max";
+const ROLE_MODEL: &str = "gpt-5.1-darwin-code-max";
 const ROLE_REASONING_EFFORT: ReasoningEffort = ReasoningEffort::High;
 const SPAWNED_AGENT_DEVELOPER_INSTRUCTIONS: &str = "You are a newly spawned agent in a team of agents collaborating to complete a task. You can spawn sub-agents to handle subtasks, and those sub-agents can spawn their own sub-agents. You are responsible for returning the response to your assigned task in the final channel. When you give your response, the contents of your response in the final channel will be immediately delivered back to your parent agent. The prior conversation history was forked from your parent agent. Treat the next user message as your assigned task, and use the forked history only as background context.";
 
@@ -101,7 +101,7 @@ fn role_block(description: &str, role_name: &str) -> Option<String> {
     Some(block.join("\n"))
 }
 
-async fn wait_for_spawned_thread_id(test: &TestCodex) -> Result<String> {
+async fn wait_for_spawned_thread_id(test: &TestDarwinCode) -> Result<String> {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
         let ids = test.thread_manager.list_thread_ids().await;
@@ -137,7 +137,7 @@ async fn wait_for_requests(
 async fn setup_turn_one_with_spawned_child(
     server: &MockServer,
     child_response_delay: Option<Duration>,
-) -> Result<(TestCodex, String)> {
+) -> Result<(TestDarwinCode, String)> {
     setup_turn_one_with_custom_spawned_child(
         server,
         json!({
@@ -156,9 +156,9 @@ async fn setup_turn_one_with_custom_spawned_child(
     child_response_delay: Option<Duration>,
     wait_for_parent_notification: bool,
     configure_test: impl FnOnce(
-        core_test_support::test_codex::TestCodexBuilder,
-    ) -> core_test_support::test_codex::TestCodexBuilder,
-) -> Result<(TestCodex, String)> {
+        core_test_support::test_darwin_code::TestDarwinCodeBuilder,
+    ) -> core_test_support::test_darwin_code::TestDarwinCodeBuilder,
+) -> Result<(TestDarwinCode, String)> {
     let spawn_args = serde_json::to_string(&spawn_args)?;
 
     mount_sse_once_match(
@@ -209,7 +209,7 @@ async fn setup_turn_one_with_custom_spawned_child(
     .await;
 
     #[allow(clippy::expect_used)]
-    let mut builder = configure_test(test_codex().with_config(|config| {
+    let mut builder = configure_test(test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::Collab)
@@ -222,7 +222,7 @@ async fn setup_turn_one_with_custom_spawned_child(
     if child_response_delay.is_none() && wait_for_parent_notification {
         let _ = wait_for_requests(&child_request_log).await?;
         let rollout_path = test
-            .codex
+            .darwin-code
             .rollout_path()
             .ok_or_else(|| anyhow::anyhow!("expected parent rollout path"))?;
         let deadline = Instant::now() + Duration::from_secs(6);
@@ -250,8 +250,8 @@ async fn spawn_child_and_capture_snapshot(
     server: &MockServer,
     spawn_args: serde_json::Value,
     configure_test: impl FnOnce(
-        core_test_support::test_codex::TestCodexBuilder,
-    ) -> core_test_support::test_codex::TestCodexBuilder,
+        core_test_support::test_darwin_code::TestDarwinCodeBuilder,
+    ) -> core_test_support::test_darwin_code::TestDarwinCodeBuilder,
 ) -> Result<ThreadConfigSnapshot> {
     let (test, spawned_id) = setup_turn_one_with_custom_spawned_child(
         server,
@@ -350,7 +350,7 @@ async fn spawned_child_receives_forked_parent_context() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::Collab)
@@ -457,7 +457,7 @@ async fn spawned_multi_agent_v2_child_receives_xml_tagged_developer_context() ->
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::Collab)
@@ -522,7 +522,7 @@ async fn spawn_agent_role_overrides_requested_model_and_reasoning_settings() -> 
         }),
         |builder| {
             builder.with_config(|config| {
-                let role_path = config.codex_home.join("custom-role.toml");
+                let role_path = config.darwin_code_home.join("custom-role.toml");
                 std::fs::write(
                     &role_path,
                     format!(
@@ -565,12 +565,12 @@ async fn spawn_agent_tool_description_mentions_role_locked_settings() -> Result<
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::Collab)
             .expect("test config should allow feature update");
-        let role_path = config.codex_home.join("custom-role.toml");
+        let role_path = config.darwin_code_home.join("custom-role.toml");
         std::fs::write(
             &role_path,
             format!(
@@ -598,7 +598,7 @@ async fn spawn_agent_tool_description_mentions_role_locked_settings() -> Result<
         role_block(&agent_type_description, "custom").expect("custom role description");
     assert_eq!(
         custom_role_description,
-        "custom: {\nCustom role\n- This role's model is set to `gpt-5.1-codex-max` and its reasoning effort is set to `high`. These settings cannot be changed.\n}"
+        "custom: {\nCustom role\n- This role's model is set to `gpt-5.1-darwin-code-max` and its reasoning effort is set to `high`. These settings cannot be changed.\n}"
     );
 
     Ok(())

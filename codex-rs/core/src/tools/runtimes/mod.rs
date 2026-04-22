@@ -4,13 +4,13 @@ Module: runtimes
 Concrete ToolRuntime implementations for specific tools. Each runtime stays
 small and focused and reuses the orchestrator for approvals + sandbox + retry.
 */
-use crate::exec_env::CODEX_THREAD_ID_ENV_VAR;
+use crate::exec_env::DARWIN_CODE_THREAD_ID_ENV_VAR;
 use crate::path_utils;
 use crate::shell::Shell;
 use crate::tools::sandboxing::ToolError;
-use codex_protocol::models::PermissionProfile;
-use codex_sandboxing::SandboxCommand;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 
 pub(crate) mod apply_patch;
@@ -54,7 +54,7 @@ pub(crate) fn build_sandbox_command(
 /// `explicit_env_overrides` contains policy-driven shell env overrides that
 /// should win after the snapshot is sourced, while `env` is the full live exec
 /// environment. We need access to both so snapshot restore logic can preserve
-/// runtime-only vars like `CODEX_THREAD_ID` without pretending they came from
+/// runtime-only vars like `DARWIN_CODE_THREAD_ID` without pretending they came from
 /// the explicit override policy.
 pub(crate) fn maybe_wrap_shell_lc_with_snapshot(
     command: &[String],
@@ -98,8 +98,8 @@ pub(crate) fn maybe_wrap_shell_lc_with_snapshot(
         .map(|arg| format!(" '{}'", shell_single_quote(arg)))
         .collect::<String>();
     let mut override_env = explicit_env_overrides.clone();
-    if let Some(thread_id) = env.get(CODEX_THREAD_ID_ENV_VAR) {
-        override_env.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.clone());
+    if let Some(thread_id) = env.get(DARWIN_CODE_THREAD_ID_ENV_VAR) {
+        override_env.insert(DARWIN_CODE_THREAD_ID_ENV_VAR.to_string(), thread_id.clone());
     }
     let (override_captures, override_exports) = build_override_exports(&override_env);
     let rewritten_script = if override_exports.is_empty() {
@@ -131,7 +131,7 @@ fn build_override_exports(explicit_env_overrides: &HashMap<String, String>) -> (
         .enumerate()
         .map(|(idx, key)| {
             format!(
-                "__CODEX_SNAPSHOT_OVERRIDE_SET_{idx}=\"${{{key}+x}}\"\n__CODEX_SNAPSHOT_OVERRIDE_{idx}=\"${{{key}-}}\""
+                "__DARWIN_CODE_SNAPSHOT_OVERRIDE_SET_{idx}=\"${{{key}+x}}\"\n__DARWIN_CODE_SNAPSHOT_OVERRIDE_{idx}=\"${{{key}-}}\""
             )
         })
         .collect::<Vec<_>>()
@@ -141,7 +141,7 @@ fn build_override_exports(explicit_env_overrides: &HashMap<String, String>) -> (
         .enumerate()
         .map(|(idx, key)| {
             format!(
-                "if [ -n \"${{__CODEX_SNAPSHOT_OVERRIDE_SET_{idx}}}\" ]; then export {key}=\"${{__CODEX_SNAPSHOT_OVERRIDE_{idx}}}\"; else unset {key}; fi"
+                "if [ -n \"${{__DARWIN_CODE_SNAPSHOT_OVERRIDE_SET_{idx}}}\" ]; then export {key}=\"${{__DARWIN_CODE_SNAPSHOT_OVERRIDE_{idx}}}\"; else unset {key}; fi"
             )
         })
         .collect::<Vec<_>>()

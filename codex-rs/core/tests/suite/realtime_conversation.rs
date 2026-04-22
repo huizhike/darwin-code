@@ -1,37 +1,37 @@
 use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
-use codex_config::config_toml::RealtimeWsVersion;
-use codex_core::test_support::auth_manager_from_auth;
-use codex_login::CodexAuth;
-use codex_login::OPENAI_API_KEY_ENV_VAR;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ConversationStartTransport;
-use codex_protocol::protocol::ConversationTextParams;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::user_input::UserInput;
-use codex_utils_output_truncation::approx_token_count;
+use darwin_code_config::config_toml::RealtimeWsVersion;
+use darwin_code_core::test_support::auth_manager_from_auth;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::OPENAI_API_KEY_ENV_VAR;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::ConversationStartParams;
+use darwin_code_protocol::protocol::ConversationStartTransport;
+use darwin_code_protocol::protocol::ConversationTextParams;
+use darwin_code_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RealtimeAudioFrame;
+use darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeConversationVersion;
+use darwin_code_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeOutputModality;
+use darwin_code_protocol::protocol::RealtimeVoice;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_output_truncation::approx_token_count;
 use core_test_support::responses;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::start_mock_server;
@@ -40,8 +40,8 @@ use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
@@ -61,7 +61,7 @@ use wiremock::ResponseTemplate;
 use wiremock::matchers::method;
 use wiremock::matchers::path_regex;
 
-const STARTUP_CONTEXT_HEADER: &str = "Startup context from Codex.";
+const STARTUP_CONTEXT_HEADER: &str = "Startup context from Darwin-Code.";
 const STARTUP_CONTEXT_OPEN_TAG: &str = "<startup_context>";
 const STARTUP_CONTEXT_CLOSE_TAG: &str = "</startup_context>";
 const REALTIME_BACKEND_PROMPT: &str = include_str!("../../templates/realtime/backend_prompt.md");
@@ -69,7 +69,7 @@ const USER_FIRST_NAME_PLACEHOLDER: &str = "{{ user_first_name }}";
 const MEMORY_PROMPT_PHRASE: &str =
     "You have access to a memory folder with guidance from prior runs.";
 const REALTIME_CONVERSATION_TEST_SUBPROCESS_ENV_VAR: &str =
-    "CODEX_REALTIME_CONVERSATION_TEST_SUBPROCESS";
+    "DARWIN_CODE_REALTIME_CONVERSATION_TEST_SUBPROCESS";
 const WEBSOCKET_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone)]
@@ -194,16 +194,16 @@ fn run_realtime_conversation_test_in_subprocess(
     Ok(())
 }
 async fn seed_recent_thread(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     title: &str,
     first_user_message: &str,
     slug: &str,
 ) -> Result<()> {
-    let db = test.codex.state_db().context("state db enabled")?;
+    let db = test.darwin-code.state_db().context("state db enabled")?;
     let thread_id = ThreadId::new();
     let updated_at = Utc::now();
     let rollout_dir = test
-        .codex_home_path()
+        .darwin_code_home_path()
         .join("sessions")
         .join(updated_at.format("%Y/%m/%d").to_string());
     fs::create_dir_all(&rollout_dir)?;
@@ -211,7 +211,7 @@ async fn seed_recent_thread(
         "rollout-{}-{thread_id}.jsonl",
         updated_at.format("%Y-%m-%dT%H-%M-%S")
     ));
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = darwin_code_state::ThreadMetadataBuilder::new(
         thread_id,
         rollout_path.clone(),
         updated_at,
@@ -299,7 +299,7 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
     ])
     .await;
 
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
     assert!(
         server
@@ -307,7 +307,7 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -317,7 +317,7 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
         }))
         .await?;
 
-    let started = wait_for_event_match(&test.codex, |msg| match msg {
+    let started = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationStarted(started) => Some(Ok(started.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -327,7 +327,7 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
     assert!(started.session_id.is_some());
     assert_eq!(started.version, RealtimeConversationVersion::V1);
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -336,7 +336,7 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
     .await;
     assert_eq!(session_updated, "sess_1");
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationAudio(ConversationAudioParams {
             frame: RealtimeAudioFrame {
                 data: "AQID".to_string(),
@@ -347,13 +347,13 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
             },
         }))
         .await?;
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationText(ConversationTextParams {
             text: "hello".to_string(),
         }))
         .await?;
 
-    let audio_out = wait_for_event_match(&test.codex, |msg| match msg {
+    let audio_out = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::AudioOut(frame),
         }) => Some(frame.clone()),
@@ -413,8 +413,8 @@ async fn conversation_start_audio_text_close_round_trip() -> Result<()> {
         ]
     );
 
-    test.codex.submit(Op::RealtimeConversationClose).await?;
-    let closed = wait_for_event_match(&test.codex, |msg| match msg {
+    test.darwin-code.submit(Op::RealtimeConversationClose).await?;
+    let closed = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
         _ => None,
     })
@@ -435,13 +435,13 @@ async fn conversation_start_defaults_to_v2_and_gpt_realtime_1_5() -> Result<()> 
     let api_server = start_mock_server().await;
     let realtime_server = start_websocket_server(vec![vec![vec![]]]).await;
     let realtime_base_url = realtime_server.uri().to_string();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.experimental_realtime_ws_base_url = Some(realtime_base_url);
         config.experimental_realtime_ws_startup_context = Some(String::new());
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -451,7 +451,7 @@ async fn conversation_start_defaults_to_v2_and_gpt_realtime_1_5() -> Result<()> 
         }))
         .await?;
 
-    let started = wait_for_event_match(&test.codex, |msg| match msg {
+    let started = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationStarted(started) => Some(Ok(started.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -516,7 +516,7 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
     .await;
 
     let realtime_ws_base_url = realtime_server.uri().to_string();
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.experimental_realtime_ws_backend_prompt = Some("backend prompt".to_string());
         config.experimental_realtime_ws_model = Some("realtime-test-model".to_string());
         config.experimental_realtime_ws_startup_context = Some("startup context".to_string());
@@ -525,7 +525,7 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -539,7 +539,7 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
 
     // Phase 1: the client gets the SDP answer that configures its peer connection, and then the
     // normal realtime event stream from the joined sideband WebSocket.
-    let created = wait_for_event_match(&test.codex, |msg| match msg {
+    let created = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationSdp(created) => Some(Ok(created.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -548,7 +548,7 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
     .unwrap_or_else(|err: ErrorEvent| panic!("conversation call create failed: {err:?}"));
     assert_eq!(created.sdp, "v=answer\r\n");
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -574,7 +574,7 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
             .headers
             .get("content-type")
             .and_then(|value| value.to_str().ok()),
-        Some("multipart/form-data; boundary=codex-realtime-call-boundary")
+        Some("multipart/form-data; boundary=darwin-code-realtime-call-boundary")
     );
     let body = String::from_utf8(request.body).context("multipart body should be utf-8")?;
     let session = r#"{"audio":{"input":{"format":{"type":"audio/pcm","rate":24000}},"output":{"voice":"cove"}},"type":"quicksilver","model":"realtime-test-model","instructions":"backend prompt\n\nstartup context"}"#;
@@ -582,18 +582,18 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
     assert_eq!(
         body,
         format!(
-            "--codex-realtime-call-boundary\r\n\
+            "--darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"sdp\"\r\n\
              Content-Type: application/sdp\r\n\
              \r\n\
              v=offer\r\n\
              \r\n\
-             --codex-realtime-call-boundary\r\n\
+             --darwin-code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"session\"\r\n\
              Content-Type: application/json\r\n\
              \r\n\
              {session}\r\n\
-             --codex-realtime-call-boundary--\r\n"
+             --darwin-code-realtime-call-boundary--\r\n"
         )
     );
 
@@ -621,8 +621,8 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
         Some("Bearer dummy")
     );
 
-    test.codex.submit(Op::RealtimeConversationClose).await?;
-    let closed = wait_for_event_match(&test.codex, |msg| match msg {
+    test.darwin-code.submit(Op::RealtimeConversationClose).await?;
+    let closed = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
         _ => None,
     })
@@ -656,7 +656,7 @@ async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> 
     ])
     .await;
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build_with_websocket_server(&server).await?;
     assert!(
         server
@@ -664,7 +664,7 @@ async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> 
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -674,7 +674,7 @@ async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> 
         }))
         .await?;
 
-    let started = wait_for_event_match(&test.codex, |msg| match msg {
+    let started = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationStarted(started) => Some(Ok(started.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -683,7 +683,7 @@ async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> 
     .unwrap_or_else(|err: ErrorEvent| panic!("conversation start failed: {err:?}"));
     assert!(started.session_id.is_some());
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -697,8 +697,8 @@ async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> 
         Some("Bearer env-realtime-key")
     );
 
-    test.codex.submit(Op::RealtimeConversationClose).await?;
-    let _closed = wait_for_event_match(&test.codex, |msg| match msg {
+    test.darwin-code.submit(Op::RealtimeConversationClose).await?;
+    let _closed = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
         _ => None,
     })
@@ -718,7 +718,7 @@ async fn conversation_transport_close_emits_closed_event() -> Result<()> {
     })];
     let server = start_websocket_server(vec![vec![], vec![session_updated]]).await;
 
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
     assert!(
         server
@@ -726,7 +726,7 @@ async fn conversation_transport_close_emits_closed_event() -> Result<()> {
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -736,7 +736,7 @@ async fn conversation_transport_close_emits_closed_event() -> Result<()> {
         }))
         .await?;
 
-    let started = wait_for_event_match(&test.codex, |msg| match msg {
+    let started = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationStarted(started) => Some(Ok(started.clone())),
         EventMsg::Error(err) => Some(Err(err.clone())),
         _ => None,
@@ -745,7 +745,7 @@ async fn conversation_transport_close_emits_closed_event() -> Result<()> {
     .unwrap_or_else(|err: ErrorEvent| panic!("conversation start failed: {err:?}"));
     assert!(started.session_id.is_some());
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -754,7 +754,7 @@ async fn conversation_transport_close_emits_closed_event() -> Result<()> {
     .await;
     assert_eq!(session_updated, "sess_1");
 
-    let closed = wait_for_event_match(&test.codex, |msg| match msg {
+    let closed = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
         _ => None,
     })
@@ -770,10 +770,10 @@ async fn conversation_audio_before_start_emits_error() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_websocket_server(vec![]).await;
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationAudio(ConversationAudioParams {
             frame: RealtimeAudioFrame {
                 data: "AQID".to_string(),
@@ -785,12 +785,12 @@ async fn conversation_audio_before_start_emits_error() -> Result<()> {
         }))
         .await?;
 
-    let err = wait_for_event_match(&test.codex, |msg| match msg {
+    let err = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::Error(err) => Some(err.clone()),
         _ => None,
     })
     .await;
-    assert_eq!(err.codex_error_info, Some(CodexErrorInfo::BadRequest));
+    assert_eq!(err.darwin_code_error_info, Some(DarwinCodeErrorInfo::BadRequest));
     assert_eq!(err.message, "conversation is not running");
 
     server.shutdown().await;
@@ -809,10 +809,10 @@ async fn conversation_start_preflight_failure_emits_realtime_error_only() -> Res
     skip_if_no_network!(Ok(()));
 
     let server = start_websocket_server(vec![]).await;
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build_with_websocket_server(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -822,7 +822,7 @@ async fn conversation_start_preflight_failure_emits_realtime_error_only() -> Res
         }))
         .await?;
 
-    let err = wait_for_event_match(&test.codex, |msg| match msg {
+    let err = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::Error(message),
         }) => Some(message.clone()),
@@ -832,7 +832,7 @@ async fn conversation_start_preflight_failure_emits_realtime_error_only() -> Res
     assert_eq!(err, "realtime conversation requires API key auth");
 
     let closed = timeout(Duration::from_millis(200), async {
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
             _ => None,
         })
@@ -850,13 +850,13 @@ async fn conversation_start_connect_failure_emits_realtime_error_only() -> Resul
     skip_if_no_network!(Ok(()));
 
     let server = start_websocket_server(vec![]).await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.experimental_realtime_ws_base_url = Some("http://127.0.0.1:1".to_string());
         config.realtime.version = RealtimeWsVersion::V1;
     });
     let test = builder.build_with_websocket_server(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -866,7 +866,7 @@ async fn conversation_start_connect_failure_emits_realtime_error_only() -> Resul
         }))
         .await?;
 
-    let err = wait_for_event_match(&test.codex, |msg| match msg {
+    let err = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::Error(message),
         }) => Some(message.clone()),
@@ -876,7 +876,7 @@ async fn conversation_start_connect_failure_emits_realtime_error_only() -> Resul
     assert!(!err.is_empty());
 
     let closed = timeout(Duration::from_millis(200), async {
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
             _ => None,
         })
@@ -894,21 +894,21 @@ async fn conversation_text_before_start_emits_error() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_websocket_server(vec![]).await;
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationText(ConversationTextParams {
             text: "hello".to_string(),
         }))
         .await?;
 
-    let err = wait_for_event_match(&test.codex, |msg| match msg {
+    let err = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::Error(err) => Some(err.clone()),
         _ => None,
     })
     .await;
-    assert_eq!(err.codex_error_info, Some(CodexErrorInfo::BadRequest));
+    assert_eq!(err.darwin_code_error_info, Some(DarwinCodeErrorInfo::BadRequest));
     assert_eq!(err.message, "conversation is not running");
 
     server.shutdown().await;
@@ -939,7 +939,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
         ],
     ])
     .await;
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
     assert!(
         server
@@ -947,7 +947,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("old".to_string())),
@@ -956,7 +956,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
             voice: None,
         }))
         .await?;
-    wait_for_event_match(&test.codex, |msg| match msg {
+    wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_old" => Some(Ok(())),
@@ -966,7 +966,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
     .await
     .unwrap_or_else(|err: ErrorEvent| panic!("first conversation start failed: {err:?}"));
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("new".to_string())),
@@ -975,7 +975,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
             voice: None,
         }))
         .await?;
-    wait_for_event_match(&test.codex, |msg| match msg {
+    wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_new" => Some(Ok(())),
@@ -985,7 +985,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
     .await
     .unwrap_or_else(|err: ErrorEvent| panic!("second conversation start failed: {err:?}"));
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationAudio(ConversationAudioParams {
             frame: RealtimeAudioFrame {
                 data: "AQID".to_string(),
@@ -996,7 +996,7 @@ async fn conversation_second_start_replaces_runtime() -> Result<()> {
             },
         }))
         .await?;
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::AudioOut(frame),
         }) if frame.data == "AQID" => Some(()),
@@ -1042,7 +1042,7 @@ async fn conversation_uses_experimental_realtime_ws_base_url_override() -> Resul
     })]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1056,7 +1056,7 @@ async fn conversation_uses_experimental_realtime_ws_base_url_override() -> Resul
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1066,7 +1066,7 @@ async fn conversation_uses_experimental_realtime_ws_base_url_override() -> Resul
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1103,7 +1103,7 @@ async fn conversation_uses_default_realtime_backend_prompt() -> Result<()> {
     ])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.experimental_realtime_ws_startup_context =
             Some("controlled startup context".to_string());
     });
@@ -1114,7 +1114,7 @@ async fn conversation_uses_default_realtime_backend_prompt() -> Result<()> {
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: None,
@@ -1124,7 +1124,7 @@ async fn conversation_uses_default_realtime_backend_prompt() -> Result<()> {
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1166,7 +1166,7 @@ async fn conversation_uses_empty_instructions_for_null_or_empty_prompt() -> Resu
     ])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.experimental_realtime_ws_startup_context = Some(String::new());
     });
     let test = builder.build_with_websocket_server(&server).await?;
@@ -1180,7 +1180,7 @@ async fn conversation_uses_empty_instructions_for_null_or_empty_prompt() -> Resu
         (Some(None), "sess_null"),
         (Some(Some(String::new())), "sess_empty"),
     ] {
-        test.codex
+        test.darwin-code
             .submit(Op::RealtimeConversationStart(ConversationStartParams {
                 output_modality: RealtimeOutputModality::Audio,
                 prompt,
@@ -1190,7 +1190,7 @@ async fn conversation_uses_empty_instructions_for_null_or_empty_prompt() -> Resu
             }))
             .await?;
 
-        let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+        let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
                 payload: RealtimeEvent::SessionUpdated { session_id, .. },
             }) => Some(session_id.clone()),
@@ -1199,8 +1199,8 @@ async fn conversation_uses_empty_instructions_for_null_or_empty_prompt() -> Resu
         .await;
         assert_eq!(session_updated, expected_session_id);
 
-        test.codex.submit(Op::RealtimeConversationClose).await?;
-        let _closed = wait_for_event_match(&test.codex, |msg| match msg {
+        test.darwin-code.submit(Op::RealtimeConversationClose).await?;
+        let _closed = wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
             _ => None,
         })
@@ -1232,14 +1232,14 @@ async fn conversation_uses_explicit_start_voice() -> Result<()> {
         })]],
     ])
     .await;
-    let test = test_codex().build_with_websocket_server(&server).await?;
+    let test = test_darwin_code().build_with_websocket_server(&server).await?;
     assert!(
         server
             .wait_for_handshakes(/*expected*/ 1, Duration::from_secs(2))
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1249,7 +1249,7 @@ async fn conversation_uses_explicit_start_voice() -> Result<()> {
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1280,7 +1280,7 @@ async fn conversation_uses_configured_realtime_voice() -> Result<()> {
         })]],
     ])
     .await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.realtime.voice = Some(RealtimeVoice::Cove);
     });
     let test = builder.build_with_websocket_server(&server).await?;
@@ -1290,7 +1290,7 @@ async fn conversation_uses_configured_realtime_voice() -> Result<()> {
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1300,7 +1300,7 @@ async fn conversation_uses_configured_realtime_voice() -> Result<()> {
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1324,12 +1324,12 @@ async fn conversation_rejects_voice_for_wrong_realtime_version() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let api_server = start_mock_server().await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.realtime.version = RealtimeWsVersion::V2;
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1339,7 +1339,7 @@ async fn conversation_rejects_voice_for_wrong_realtime_version() -> Result<()> {
         }))
         .await?;
 
-    let error = wait_for_event_match(&test.codex, |msg| match msg {
+    let error = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::Error(message),
         }) => Some(message.clone()),
@@ -1363,7 +1363,7 @@ async fn conversation_uses_experimental_realtime_ws_backend_prompt_override() ->
     ])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.experimental_realtime_ws_backend_prompt = Some("prompt from config".to_string());
     });
     let test = builder.build_with_websocket_server(&server).await?;
@@ -1373,7 +1373,7 @@ async fn conversation_uses_experimental_realtime_ws_backend_prompt_override() ->
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("prompt from op".to_string())),
@@ -1383,7 +1383,7 @@ async fn conversation_uses_experimental_realtime_ws_backend_prompt_override() ->
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1413,7 +1413,7 @@ async fn conversation_uses_experimental_realtime_ws_startup_context_override() -
     })]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1439,7 +1439,7 @@ async fn conversation_uses_experimental_realtime_ws_startup_context_override() -
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("prompt from op".to_string())),
@@ -1478,7 +1478,7 @@ async fn conversation_disables_realtime_startup_context_with_empty_override() ->
     })]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1503,7 +1503,7 @@ async fn conversation_disables_realtime_startup_context_with_empty_override() ->
             .await
     );
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("prompt from op".to_string())),
@@ -1542,7 +1542,7 @@ async fn conversation_start_injects_startup_context_from_thread_history() -> Res
     })]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1560,7 +1560,7 @@ async fn conversation_start_injects_startup_context_from_thread_history() -> Res
     fs::create_dir_all(test.workspace_path("docs"))?;
     fs::write(test.workspace_path("README.md"), "workspace marker")?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1623,7 +1623,7 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
         .collect::<Vec<_>>();
     user_turns.push(latest_long_user_turn.clone());
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1661,20 +1661,20 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
             ]
         })
         .collect::<Vec<_>>();
-    test.codex.shutdown_and_wait().await?;
+    test.darwin-code.shutdown_and_wait().await?;
     let resumed_thread = test
         .thread_manager
         .resume_thread_with_history(
             test.config.clone(),
             InitialHistory::Forked(history),
-            auth_manager_from_auth(CodexAuth::from_api_key("dummy")),
+            auth_manager_from_auth(DarwinCodeAuth::from_api_key("dummy")),
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )
         .await?;
-    let codex = resumed_thread.thread;
+    let darwin-code = resumed_thread.thread;
 
-    codex
+    darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1752,7 +1752,7 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
         (true, Vec::<(String, usize)>::new()),
     );
 
-    codex.shutdown_and_wait().await?;
+    darwin-code.shutdown_and_wait().await?;
     realtime_server.shutdown().await;
     Ok(())
 }
@@ -1768,7 +1768,7 @@ async fn conversation_startup_context_falls_back_to_workspace_map() -> Result<()
     })]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1776,10 +1776,10 @@ async fn conversation_startup_context_falls_back_to_workspace_map() -> Result<()
         }
     });
     let test = builder.build_with_websocket_server(&startup_server).await?;
-    fs::create_dir_all(test.workspace_path("codex-rs/core"))?;
+    fs::create_dir_all(test.workspace_path("darwin-code-rs/core"))?;
     fs::write(test.workspace_path("notes.txt"), "workspace marker")?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1803,7 +1803,7 @@ async fn conversation_startup_context_falls_back_to_workspace_map() -> Result<()
     assert!(startup_context.contains(STARTUP_CONTEXT_HEADER));
     assert!(startup_context.contains("## Machine / Workspace Map"));
     assert!(startup_context.contains("notes.txt"));
-    assert!(startup_context.contains("codex-rs/"));
+    assert!(startup_context.contains("darwin-code-rs/"));
 
     startup_server.shutdown().await;
     realtime_server.shutdown().await;
@@ -1825,7 +1825,7 @@ async fn conversation_startup_context_is_truncated_and_sent_once_per_start() -> 
     .await;
 
     let oversized_summary = "recent work ".repeat(3_500);
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1836,7 +1836,7 @@ async fn conversation_startup_context_is_truncated_and_sent_once_per_start() -> 
     seed_recent_thread(&test, &oversized_summary, "summary", "oversized").await?;
     fs::write(test.workspace_path("marker.txt"), "marker")?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1859,7 +1859,7 @@ async fn conversation_startup_context_is_truncated_and_sent_once_per_start() -> 
     assert!(startup_context.contains(STARTUP_CONTEXT_HEADER));
     assert!(startup_context.len() <= 20_500);
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationText(ConversationTextParams {
             text: "hello".to_string(),
         }))
@@ -1905,7 +1905,7 @@ async fn conversation_user_text_turn_is_sent_to_realtime_when_active() -> Result
     ]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -1914,7 +1914,7 @@ async fn conversation_user_text_turn_is_sent_to_realtime_when_active() -> Result
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -1924,7 +1924,7 @@ async fn conversation_user_text_turn_is_sent_to_realtime_when_active() -> Result
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -1935,7 +1935,7 @@ async fn conversation_user_text_turn_is_sent_to_realtime_when_active() -> Result
 
     let user_text = "typed follow-up for realtime";
     let prefixed_user_text = format!("[USER] {user_text}");
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: user_text.to_string(),
@@ -1946,7 +1946,7 @@ async fn conversation_user_text_turn_is_sent_to_realtime_when_active() -> Result
         })
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2027,7 +2027,7 @@ async fn conversation_user_text_turn_is_capped_when_mirrored_to_realtime() -> Re
     ]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2038,7 +2038,7 @@ async fn conversation_user_text_turn_is_capped_when_mirrored_to_realtime() -> Re
 
     // Phase 1: start realtime so the next normal user turn mirrors over the
     // active WebSocket session.
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2048,7 +2048,7 @@ async fn conversation_user_text_turn_is_capped_when_mirrored_to_realtime() -> Re
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -2064,7 +2064,7 @@ async fn conversation_user_text_turn_is_capped_when_mirrored_to_realtime() -> Re
         "alpha ".repeat(900),
         "omega ".repeat(900),
     );
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: user_text.clone(),
@@ -2075,7 +2075,7 @@ async fn conversation_user_text_turn_is_capped_when_mirrored_to_realtime() -> Re
         })
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2157,7 +2157,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
     ]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2166,7 +2166,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2176,7 +2176,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -2185,7 +2185,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
     .await;
     assert_eq!(session_updated, "sess_1");
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.handoff_id == "handoff_1" => Some(()),
@@ -2193,7 +2193,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
     })
     .await;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2287,7 +2287,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
     ]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2296,7 +2296,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
     });
     let test = builder.build_with_streaming_server(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2306,7 +2306,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_item_done" => Some(()),
@@ -2314,7 +2314,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
     })
     .await;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.handoff_id == "handoff_item_done" => Some(()),
@@ -2338,7 +2338,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
         Some("\"Agent Final Message\":\n\nassistant message 1")
     );
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::ConversationItemDone { item_id },
         }) if item_id == "item_item_done" => Some(()),
@@ -2371,7 +2371,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
     completion
         .await
         .expect("delegated turn request did not complete");
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2432,7 +2432,7 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
     ]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2441,7 +2441,7 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2451,7 +2451,7 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
         }))
         .await?;
 
-    let session_updated = wait_for_event_match(&test.codex, |msg| match msg {
+    let session_updated = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -2460,7 +2460,7 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
     .await;
     assert_eq!(session_updated, "sess_inbound");
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.handoff_id == "handoff_inbound"
@@ -2472,7 +2472,7 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
     })
     .await;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2527,7 +2527,7 @@ async fn inbound_handoff_request_uses_active_transcript() -> Result<()> {
     ]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2536,7 +2536,7 @@ async fn inbound_handoff_request_uses_active_transcript() -> Result<()> {
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2546,7 +2546,7 @@ async fn inbound_handoff_request_uses_active_transcript() -> Result<()> {
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -2554,7 +2554,7 @@ async fn inbound_handoff_request_uses_active_transcript() -> Result<()> {
     })
     .await;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2623,7 +2623,7 @@ async fn inbound_handoff_request_clears_active_transcript_after_each_handoff() -
     ]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2632,7 +2632,7 @@ async fn inbound_handoff_request_clears_active_transcript_after_each_handoff() -
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2642,7 +2642,7 @@ async fn inbound_handoff_request_clears_active_transcript_after_each_handoff() -
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) => Some(session_id.clone()),
@@ -2650,12 +2650,12 @@ async fn inbound_handoff_request_clears_active_transcript_after_each_handoff() -
     })
     .await;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationAudio(ConversationAudioParams {
             frame: RealtimeAudioFrame {
                 data: "AQID".to_string(),
@@ -2667,7 +2667,7 @@ async fn inbound_handoff_request_clears_active_transcript_after_each_handoff() -
         }))
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2717,7 +2717,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
     ]]])
     .await;
 
-    let mut builder = test_codex().with_config({
+    let mut builder = test_darwin_code().with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2726,7 +2726,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
     });
     let test = builder.build(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2736,7 +2736,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_ignore_item" => Some(()),
@@ -2746,7 +2746,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
 
     let audio_out = tokio::time::timeout(
         Duration::from_millis(500),
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
                 payload: RealtimeEvent::AudioOut(frame),
             }) => Some(frame.clone()),
@@ -2759,7 +2759,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
 
     let unexpected_turn_started = tokio::time::timeout(
         Duration::from_millis(200),
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::TurnStarted(_) => Some(()),
             _ => None,
         }),
@@ -2833,7 +2833,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
     ]])
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.1").with_config({
+    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2842,7 +2842,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
     });
     let test = builder.build_with_streaming_server(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2852,7 +2852,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_echo_guard" => Some(()),
@@ -2860,7 +2860,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
     })
     .await;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.input_transcript == "delegate now" => Some(()),
@@ -2897,7 +2897,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
         Some("\"Agent Final Message\":\n\nassistant says hi")
     );
 
-    let audio_out = wait_for_event_match(&test.codex, |msg| match msg {
+    let audio_out = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::AudioOut(frame),
         }) => Some(frame.clone()),
@@ -2925,7 +2925,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
         "[realtime test +{}ms] delegated completion resolved",
         start.elapsed().as_millis()
     );
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -2979,7 +2979,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
     ]]])
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.1").with_config({
+    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -2988,7 +2988,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
     });
     let test = builder.build_with_streaming_server(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -2998,7 +2998,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_non_blocking" => Some(()),
@@ -3006,7 +3006,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
     })
     .await;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.input_transcript == "delegate now" => Some(()),
@@ -3016,7 +3016,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
 
     let audio_out = tokio::time::timeout(
         Duration::from_millis(500),
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
                 payload: RealtimeEvent::AudioOut(frame),
             }) => Some(frame.clone()),
@@ -3035,7 +3035,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
     completion
         .await
         .expect("delegated turn request did not complete");
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -3110,7 +3110,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.1").with_config({
+    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -3119,7 +3119,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
     });
     let test = builder.build_with_streaming_server(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -3128,7 +3128,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
             voice: None,
         }))
         .await?;
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_steer" => Some(()),
@@ -3136,7 +3136,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
     })
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first prompt".to_string(),
@@ -3147,7 +3147,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::AgentMessageContentDelta(_))
     })
     .await;
@@ -3158,7 +3158,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
     )
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationAudio(ConversationAudioParams {
             frame: RealtimeAudioFrame {
                 data: "AQID".to_string(),
@@ -3170,7 +3170,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) if handoff.input_transcript == "steer via realtime" => Some(()),
@@ -3189,7 +3189,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
     second_completion
         .await
         .expect("second request did not complete");
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -3260,7 +3260,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
     ]]])
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.1").with_config({
+    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config({
         let realtime_base_url = realtime_server.uri().to_string();
         move |config| {
             config.experimental_realtime_ws_base_url = Some(realtime_base_url);
@@ -3269,7 +3269,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
     });
     let test = builder.build_with_streaming_server(&api_server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             output_modality: RealtimeOutputModality::Audio,
             prompt: Some(Some("backend prompt".to_string())),
@@ -3279,7 +3279,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
         }))
         .await?;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::SessionUpdated { session_id, .. },
         }) if session_id == "sess_handoff_request" => Some(()),
@@ -3287,7 +3287,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
     })
     .await;
 
-    let _ = wait_for_event_match(&test.codex, |msg| match msg {
+    let _ = wait_for_event_match(&test.darwin-code, |msg| match msg {
         EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
             payload: RealtimeEvent::HandoffRequested(handoff),
         }) => (handoff.handoff_id == "handoff_audio" && handoff.input_transcript == delegated_text)
@@ -3298,7 +3298,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
 
     let audio_out = tokio::time::timeout(
         Duration::from_millis(500),
-        wait_for_event_match(&test.codex, |msg| match msg {
+        wait_for_event_match(&test.darwin-code, |msg| match msg {
             EventMsg::RealtimeConversationRealtime(RealtimeConversationRealtimeEvent {
                 payload: RealtimeEvent::AudioOut(frame),
             }) => Some(frame.clone()),
@@ -3317,7 +3317,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
     completion
         .await
         .expect("delegated turn request did not complete");
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

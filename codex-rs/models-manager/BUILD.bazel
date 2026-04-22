@@ -1,8 +1,8 @@
-load("//:defs.bzl", "codex_rust_crate")
+load("//:defs.bzl", "darwin_code_rust_crate")
 
-codex_rust_crate(
+darwin_code_rust_crate(
     name = "models-manager",
-    crate_name = "codex_models_manager",
+    crate_name = "darwin_code_models_manager",
     compile_data = [
         "models.json",
         "prompt.md",

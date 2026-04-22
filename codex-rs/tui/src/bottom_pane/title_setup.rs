@@ -32,7 +32,7 @@ use crate::render::renderable::Renderable;
 #[derive(EnumIter, EnumString, Display, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[strum(serialize_all = "kebab-case")]
 pub(crate) enum TerminalTitleItem {
-    /// Codex app name.
+    /// Darwin-Code app name.
     AppName,
     /// Project root name, or a compact cwd fallback.
     Project,
@@ -53,7 +53,7 @@ pub(crate) enum TerminalTitleItem {
 impl TerminalTitleItem {
     pub(crate) fn description(self) -> &'static str {
         match self {
-            TerminalTitleItem::AppName => "Codex app name",
+            TerminalTitleItem::AppName => "Darwin-Code app name",
             TerminalTitleItem::Project => "Project name (falls back to current directory name)",
             TerminalTitleItem::Spinner => {
                 "Animated task spinner (omitted while idle or when animations are off)"
@@ -74,13 +74,13 @@ impl TerminalTitleItem {
     /// session.
     pub(crate) fn preview_example(self) -> &'static str {
         match self {
-            TerminalTitleItem::AppName => "codex",
+            TerminalTitleItem::AppName => "darwin-code",
             TerminalTitleItem::Project => "my-project",
             TerminalTitleItem::Spinner => "⠋",
             TerminalTitleItem::Status => "Working",
             TerminalTitleItem::Thread => "Investigate flaky test",
             TerminalTitleItem::GitBranch => "feat/awesome-feature",
-            TerminalTitleItem::Model => "gpt-5.2-codex",
+            TerminalTitleItem::Model => "gpt-5.2-darwin-code",
             TerminalTitleItem::TaskProgress => "Tasks 2/5",
         }
     }

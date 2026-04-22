@@ -152,8 +152,8 @@ mod tests {
 
     #[tokio::test]
     async fn finds_only_old_resources_from_extensions_with_instructions() {
-        let codex_home = TempDir::new().expect("create temp codex home");
-        let memory_root = codex_home.path().join("memories");
+        let darwin_code_home = TempDir::new().expect("create temp darwin-code home");
+        let memory_root = darwin_code_home.path().join("memories");
         let extensions_root = memory_extensions_root(&memory_root);
         let telepathy_resources = extensions_root.join("telepathy/resources");
         tokio::fs::create_dir_all(&telepathy_resources)

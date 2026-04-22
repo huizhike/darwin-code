@@ -25,16 +25,16 @@ use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::default_exec_approval_requirement;
-use codex_hooks::PermissionRequestDecision;
-use codex_otel::ToolDecisionSource;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
+use darwin_code_hooks::PermissionRequestDecision;
+use darwin_code_otel::ToolDecisionSource;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::NetworkPolicyRuleAction;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxType;
 
 pub(crate) struct ToolOrchestrator {
     sandbox: SandboxManager,
@@ -208,7 +208,7 @@ impl ToolOrchestrator {
             enforce_managed_network: managed_network_active,
             manager: &self.sandbox,
             sandbox_cwd: &turn_ctx.cwd,
-            codex_linux_sandbox_exe: turn_ctx.codex_linux_sandbox_exe.as_ref(),
+            darwin_code_linux_sandbox_exe: turn_ctx.darwin_code_linux_sandbox_exe.as_ref(),
             use_legacy_landlock,
             windows_sandbox_level: turn_ctx.windows_sandbox_level,
             windows_sandbox_private_desktop: turn_ctx
@@ -233,7 +233,7 @@ impl ToolOrchestrator {
                     deferred_network_approval: first_deferred_network_approval,
                 })
             }
-            Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+            Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                 output,
                 network_policy_decision,
             }))) => {
@@ -245,13 +245,13 @@ impl ToolOrchestrator {
                     None
                 };
                 if network_policy_decision.is_some() && network_approval_context.is_none() {
-                    return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+                    return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                         output,
                         network_policy_decision,
                     })));
                 }
                 if !tool.escalate_on_failure() {
-                    return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+                    return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                         output,
                         network_policy_decision,
                     })));
@@ -271,7 +271,7 @@ impl ToolOrchestrator {
                                 ExecApprovalRequirement::NeedsApproval { .. }
                             );
                     if !allow_on_request_network_prompt {
-                        return Err(ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied {
+                        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                             output,
                             network_policy_decision,
                         })));
@@ -349,7 +349,7 @@ impl ToolOrchestrator {
                     enforce_managed_network: managed_network_active,
                     manager: &self.sandbox,
                     sandbox_cwd: &turn_ctx.cwd,
-                    codex_linux_sandbox_exe: None,
+                    darwin_code_linux_sandbox_exe: None,
                     use_legacy_landlock,
                     windows_sandbox_level: turn_ctx.windows_sandbox_level,
                     windows_sandbox_private_desktop: turn_ctx
@@ -386,7 +386,7 @@ impl ToolOrchestrator {
         approval_ctx: ApprovalCtx<'_>,
         tool_ctx: &ToolCtx,
         use_guardian: bool,
-        otel: &codex_otel::SessionTelemetry,
+        otel: &darwin_code_otel::SessionTelemetry,
     ) -> Result<ReviewDecision, ToolError>
     where
         T: ToolRuntime<Rq, Out>,

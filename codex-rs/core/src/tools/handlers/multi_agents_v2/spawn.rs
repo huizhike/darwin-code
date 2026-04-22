@@ -5,10 +5,10 @@ use crate::agent::control::render_input_preview;
 use crate::agent::next_thread_spawn_depth;
 use crate::agent::role::DEFAULT_ROLE_NAME;
 use crate::agent::role::apply_role_to_config;
-use codex_protocol::AgentPath;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::Op;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::Op;
 
 pub(crate) struct Handler;
 
@@ -204,7 +204,7 @@ impl ToolHandler for Handler {
         let _ = result?;
         let role_tag = role_name.unwrap_or(DEFAULT_ROLE_NAME);
         turn.session_telemetry.counter(
-            "codex.multi_agent.spawn",
+            "darwin-code.multi_agent.spawn",
             /*inc*/ 1,
             &[("role", role_tag)],
         );

@@ -3,13 +3,13 @@ source: tui/src/model_migration.rs
 expression: terminal.backend()
 ---
 
-> Codex just got an upgrade. Introducing gpt-5.1-codex-max.
+> Darwin-Code just got an upgrade. Introducing gpt-5.1-darwin-code-max.
 
-  We recommend switching from gpt-5-codex to
-  gpt-5.1-codex-max.
+  We recommend switching from gpt-5-darwin-code to
+  gpt-5.1-darwin-code-max.
 
-  Codex-optimized flagship for deep and fast reasoning.
-  Learn more about gpt-5.1-codex-max at
-  https://www.codex.com/models/gpt-5.1-codex-max
+  DarwinCode-optimized flagship for deep and fast reasoning.
+  Learn more about gpt-5.1-darwin-code-max at
+  https://www.darwin-code.com/models/gpt-5.1-darwin-code-max
 
   Press enter to continue

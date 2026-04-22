@@ -3,8 +3,8 @@ use super::RealtimeSessionKind;
 use super::realtime_text_from_handoff_request;
 use super::wrap_realtime_delegation_input;
 use async_channel::bounded;
-use codex_protocol::protocol::RealtimeHandoffRequested;
-use codex_protocol::protocol::RealtimeTranscriptEntry;
+use darwin_code_protocol::protocol::RealtimeHandoffRequested;
+use darwin_code_protocol::protocol::RealtimeTranscriptEntry;
 use pretty_assertions::assert_eq;
 
 #[test]

@@ -25,7 +25,7 @@ async fn exec_approval_emits_proposed_command_and_decision_history() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-short".into(),
         msg: EventMsg::ExecApprovalRequest(ev),
     });
@@ -99,9 +99,9 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
             item_id: "item-1".to_string(),
             approval_id: Some("approval-1".to_string()),
             reason: None,
-            network_approval_context: Some(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context: Some(darwin_code_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
             }),
             command: Some("ls".to_string()),
             cwd: Some(test_path_buf("/tmp").abs()),
@@ -124,9 +124,9 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
 
     assert_eq!(
         request.network_approval_context,
-        Some(codex_protocol::protocol::NetworkApprovalContext {
+        Some(darwin_code_protocol::protocol::NetworkApprovalContext {
             host: "example.com".to_string(),
-            protocol: codex_protocol::protocol::NetworkApprovalProtocol::Socks5Tcp,
+            protocol: darwin_code_protocol::protocol::NetworkApprovalProtocol::Socks5Tcp,
         })
     );
     assert_eq!(
@@ -155,7 +155,7 @@ fn app_server_request_permissions_preserves_file_system_permissions() {
         turn_id: "turn-1".to_string(),
         item_id: "item-1".to_string(),
         reason: Some("Select a workspace root".to_string()),
-        permissions: codex_app_server_protocol::RequestPermissionProfile {
+        permissions: darwin_code_app_server_protocol::RequestPermissionProfile {
             network: Some(AppServerAdditionalNetworkPermissions {
                 enabled: Some(true),
             }),
@@ -184,7 +184,7 @@ fn app_server_request_permissions_preserves_file_system_permissions() {
 async fn exec_approval_uses_approval_id_when_present() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-short".into(),
         msg: EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
             call_id: "call-parent".into(),
@@ -214,7 +214,7 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, codex_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
             found = true;
             break;
         }
@@ -242,7 +242,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-multi".into(),
         msg: EventMsg::ExecApprovalRequest(ev_multi),
     });
@@ -295,7 +295,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         available_decisions: None,
         parsed_cmd: vec![],
     };
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "sub-long".into(),
         msg: EventMsg::ExecApprovalRequest(ev_long),
     });

@@ -1,9 +1,9 @@
-use codex_app_server_protocol::DynamicToolCallOutputContentItem;
-use codex_app_server_protocol::DynamicToolCallResponse;
-use codex_core::CodexThread;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
-use codex_protocol::protocol::Op;
+use darwin_code_app_server_protocol::DynamicToolCallOutputContentItem;
+use darwin_code_app_server_protocol::DynamicToolCallResponse;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
+use darwin_code_protocol::protocol::Op;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tracing::error;
@@ -14,7 +14,7 @@ use crate::server_request_error::is_turn_transition_server_request_error;
 pub(crate) async fn on_call_response(
     call_id: String,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DarwinCodeThread>,
 ) {
     let response = receiver.await;
     let (response, _error) = match response {

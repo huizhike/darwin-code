@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::time::Instant;
 
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::McpElicitationObjectType;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::McpElicitationObjectType;
+use darwin_code_app_server_protocol::McpElicitationSchema;
+use darwin_code_app_server_protocol::McpServerElicitationRequest;
+use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
 use tracing::error;
 
 use crate::arc_monitor::ArcMonitorOutcome;
@@ -30,29 +30,29 @@ use crate::mcp_tool_approval_templates::RenderedMcpToolApprovalParam;
 use crate::mcp_tool_approval_templates::render_mcp_tool_approval_template;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_config::types::AppToolApproval;
-use codex_features::Feature;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::SandboxState;
-use codex_mcp::declared_openai_file_input_param_names;
-use codex_mcp::mcp_permission_prompt_is_auto_approved;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::state_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::types::AppToolApproval;
+use darwin_code_features::Feature;
+use darwin_code_mcp::DARWIN_CODE_APPS_MCP_SERVER_NAME;
+use darwin_code_mcp::SandboxState;
+use darwin_code_mcp::declared_openai_file_input_param_names;
+use darwin_code_mcp::mcp_permission_prompt_is_auto_approved;
+use darwin_code_otel::sanitize_metric_tag_value;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::McpInvocation;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestionOption;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_rmcp_client::ElicitationAction;
+use darwin_code_rmcp_client::ElicitationResponse;
+use darwin_code_rollout::state_db;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use rmcp::model::ToolAnnotations;
 use serde::Deserialize;
 use serde::Serialize;
@@ -63,8 +63,8 @@ use tracing::Span;
 use tracing::field::Empty;
 use url::Url;
 
-const MCP_CALL_COUNT_METRIC: &str = "codex.mcp.call";
-const MCP_CALL_DURATION_METRIC: &str = "codex.mcp.call.duration_ms";
+const MCP_CALL_COUNT_METRIC: &str = "darwin-code.mcp.call";
+const MCP_CALL_DURATION_METRIC: &str = "darwin-code.mcp.call.duration_ms";
 
 /// Handles the specified tool call dispatches the appropriate
 /// `McpToolCallBegin` and `McpToolCallEnd` events to the `Session`.
@@ -101,7 +101,7 @@ pub(crate) async fn handle_mcp_tool_call(
     let mcp_app_resource_uri = metadata
         .as_ref()
         .and_then(|metadata| metadata.mcp_app_resource_uri.clone());
-    let app_tool_policy = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let app_tool_policy = if server == DARWIN_CODE_APPS_MCP_SERVER_NAME {
         connectors::app_tool_policy(
             &turn_context.config,
             metadata
@@ -118,13 +118,13 @@ pub(crate) async fn handle_mcp_tool_call(
     } else {
         connectors::AppToolPolicy::default()
     };
-    let approval_mode = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let approval_mode = if server == DARWIN_CODE_APPS_MCP_SERVER_NAME {
         app_tool_policy.approval
     } else {
         custom_mcp_tool_approval_mode(turn_context.as_ref(), &server, &tool_name)
     };
 
-    if server == CODEX_APPS_MCP_SERVER_NAME && !app_tool_policy.enabled {
+    if server == DARWIN_CODE_APPS_MCP_SERVER_NAME && !app_tool_policy.enabled {
         let result = notify_mcp_tool_call_skip(
             sess.as_ref(),
             turn_context.as_ref(),
@@ -225,7 +225,7 @@ pub(crate) async fn handle_mcp_tool_call(
                     tool_call_end_event.clone(),
                 )
                 .await;
-                maybe_track_codex_app_used(
+                maybe_track_darwin_code_app_used(
                     sess.as_ref(),
                     turn_context.as_ref(),
                     &server,
@@ -342,7 +342,7 @@ pub(crate) async fn handle_mcp_tool_call(
         tool_call_end_event.clone(),
     )
     .await;
-    maybe_track_codex_app_used(sess.as_ref(), turn_context.as_ref(), &server, &tool_name).await;
+    maybe_track_darwin_code_app_used(sess.as_ref(), turn_context.as_ref(), &server, &tool_name).await;
 
     let status = if result.is_ok() { "ok" } else { "error" };
     emit_mcp_call_metrics(
@@ -511,7 +511,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
 
     let sandbox_state = serde_json::to_value(SandboxState {
         sandbox_policy: turn_context.sandbox_policy.get().clone(),
-        codex_linux_sandbox_exe: turn_context.codex_linux_sandbox_exe.clone(),
+        darwin_code_linux_sandbox_exe: turn_context.darwin_code_linux_sandbox_exe.clone(),
         sandbox_cwd: turn_context.cwd.to_path_buf(),
         use_legacy_landlock: turn_context.features.use_legacy_landlock(),
     })?;
@@ -519,7 +519,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
     match meta.as_mut() {
         Some(serde_json::Value::Object(map)) => {
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                darwin_code_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
         }
@@ -527,7 +527,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
         None => {
             let mut map = serde_json::Map::new();
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                darwin_code_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
             meta = Some(serde_json::Value::Object(map));
@@ -589,13 +589,13 @@ struct McpAppUsageMetadata {
     app_name: Option<String>,
 }
 
-async fn maybe_track_codex_app_used(
+async fn maybe_track_darwin_code_app_used(
     sess: &Session,
     turn_context: &TurnContext,
     server: &str,
     tool_name: &str,
 ) {
-    if server != CODEX_APPS_MCP_SERVER_NAME {
+    if server != DARWIN_CODE_APPS_MCP_SERVER_NAME {
         return;
     }
     let metadata = lookup_mcp_app_usage_metadata(sess, server, tool_name).await;
@@ -646,11 +646,11 @@ pub(crate) struct McpToolApprovalMetadata {
     tool_title: Option<String>,
     tool_description: Option<String>,
     mcp_app_resource_uri: Option<String>,
-    codex_apps_meta: Option<serde_json::Map<String, serde_json::Value>>,
+    darwin_code_apps_meta: Option<serde_json::Map<String, serde_json::Value>>,
     openai_file_input_params: Option<Vec<String>>,
 }
 
-const MCP_TOOL_CODEX_APPS_META_KEY: &str = "_codex_apps";
+const MCP_TOOL_DARWIN_CODE_APPS_META_KEY: &str = "_darwin_code_apps";
 const MCP_TOOL_OPENAI_OUTPUT_TEMPLATE_META_KEY: &str = "openai/outputTemplate";
 const MCP_TOOL_UI_RESOURCE_URI_META_KEY: &str = "ui/resourceUri";
 
@@ -667,7 +667,7 @@ fn custom_mcp_tool_approval_mode(
         .and_then(|table| table.get("mcp_servers"))
         .cloned()
         .and_then(|value| {
-            HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+            HashMap::<String, darwin_code_config::types::McpServerConfig>::deserialize(value).ok()
         })
         .and_then(|servers| {
             let server_config = servers.get(server)?;
@@ -689,18 +689,18 @@ fn build_mcp_tool_call_request_meta(
 
     if let Some(turn_metadata) = turn_context.turn_metadata_state.current_meta_value() {
         request_meta.insert(
-            crate::X_CODEX_TURN_METADATA_HEADER.to_string(),
+            crate::X_DARWIN_CODE_TURN_METADATA_HEADER.to_string(),
             turn_metadata,
         );
     }
 
-    if server == CODEX_APPS_MCP_SERVER_NAME
-        && let Some(codex_apps_meta) =
-            metadata.and_then(|metadata| metadata.codex_apps_meta.clone())
+    if server == DARWIN_CODE_APPS_MCP_SERVER_NAME
+        && let Some(darwin_code_apps_meta) =
+            metadata.and_then(|metadata| metadata.darwin_code_apps_meta.clone())
     {
         request_meta.insert(
-            MCP_TOOL_CODEX_APPS_META_KEY.to_string(),
-            serde_json::Value::Object(codex_apps_meta),
+            MCP_TOOL_DARWIN_CODE_APPS_META_KEY.to_string(),
+            serde_json::Value::Object(darwin_code_apps_meta),
         );
     }
 
@@ -730,10 +730,10 @@ pub(crate) const MCP_TOOL_APPROVAL_ACCEPT_FOR_SESSION: &str = "Allow for this se
 // RequestUserInput compatibility path. That legacy MCP prompt has allow/cancel labels but no
 // real "Decline" answer, so this lets guardian denials round-trip distinctly from user cancel.
 // This is not a user-facing option.
-pub(crate) const MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC: &str = "__codex_mcp_decline__";
+pub(crate) const MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC: &str = "__darwin_code_mcp_decline__";
 const MCP_TOOL_APPROVAL_ACCEPT_AND_REMEMBER: &str = "Allow and don't ask me again";
 const MCP_TOOL_APPROVAL_CANCEL: &str = "Cancel";
-const MCP_TOOL_APPROVAL_KIND_KEY: &str = "codex_approval_kind";
+const MCP_TOOL_APPROVAL_KIND_KEY: &str = "darwin_code_approval_kind";
 const MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL: &str = "mcp_tool_call";
 const MCP_TOOL_APPROVAL_PERSIST_KEY: &str = "persist";
 const MCP_TOOL_APPROVAL_PERSIST_SESSION: &str = "session";
@@ -988,7 +988,7 @@ fn session_mcp_tool_approval_key(
     }
 
     let connector_id = metadata.and_then(|metadata| metadata.connector_id.clone());
-    if invocation.server == CODEX_APPS_MCP_SERVER_NAME && connector_id.is_none() {
+    if invocation.server == DARWIN_CODE_APPS_MCP_SERVER_NAME && connector_id.is_none() {
         return None;
     }
 
@@ -1080,7 +1080,7 @@ pub(crate) async fn lookup_mcp_tool_metadata(
     let tool_info = tools
         .into_values()
         .find(|tool_info| tool_info.server_name == server && tool_info.tool.name == tool_name)?;
-    let connector_description = if server == CODEX_APPS_MCP_SERVER_NAME {
+    let connector_description = if server == DARWIN_CODE_APPS_MCP_SERVER_NAME {
         let connectors = match connectors::list_cached_accessible_connectors_from_mcp_tools(
             turn_context.config.as_ref(),
         )
@@ -1112,11 +1112,11 @@ pub(crate) async fn lookup_mcp_tool_metadata(
         tool_title: tool_info.tool.title,
         tool_description: tool_info.tool.description.map(std::borrow::Cow::into_owned),
         mcp_app_resource_uri: get_mcp_app_resource_uri(tool_info.tool.meta.as_deref()),
-        codex_apps_meta: tool_info
+        darwin_code_apps_meta: tool_info
             .tool
             .meta
             .as_ref()
-            .and_then(|meta| meta.get(MCP_TOOL_CODEX_APPS_META_KEY))
+            .and_then(|meta| meta.get(MCP_TOOL_DARWIN_CODE_APPS_META_KEY))
             .and_then(serde_json::Value::as_object)
             .cloned(),
         openai_file_input_params: Some(declared_openai_file_input_param_names(
@@ -1227,7 +1227,7 @@ fn build_mcp_tool_approval_fallback_message(
         .filter(|name| !name.is_empty())
         .map(ToString::to_string)
         .unwrap_or_else(|| {
-            if server == CODEX_APPS_MCP_SERVER_NAME {
+            if server == DARWIN_CODE_APPS_MCP_SERVER_NAME {
                 "this app".to_string()
             } else {
                 format!("the {server} MCP server")
@@ -1339,7 +1339,7 @@ fn build_mcp_tool_approval_elicitation_meta(
                 serde_json::Value::String(tool_description.clone()),
             );
         }
-        if server == CODEX_APPS_MCP_SERVER_NAME
+        if server == DARWIN_CODE_APPS_MCP_SERVER_NAME
             && (metadata.connector_id.is_some()
                 || metadata.connector_name.is_some()
                 || metadata.connector_description.is_some())
@@ -1567,12 +1567,12 @@ async fn maybe_persist_mcp_tool_approval(
 ) {
     let tool_name = key.tool_name.clone();
 
-    let persist_result = if key.server == CODEX_APPS_MCP_SERVER_NAME {
+    let persist_result = if key.server == DARWIN_CODE_APPS_MCP_SERVER_NAME {
         let Some(connector_id) = key.connector_id.clone() else {
             remember_mcp_tool_approval(sess, key).await;
             return;
         };
-        persist_codex_app_tool_approval(&turn_context.config.codex_home, &connector_id, &tool_name)
+        persist_darwin_code_app_tool_approval(&turn_context.config.darwin_code_home, &connector_id, &tool_name)
             .await
     } else {
         persist_custom_mcp_tool_approval(&turn_context.config, &key.server, &tool_name).await
@@ -1593,12 +1593,12 @@ async fn maybe_persist_mcp_tool_approval(
     remember_mcp_tool_approval(sess, key).await;
 }
 
-async fn persist_codex_app_tool_approval(
-    codex_home: &AbsolutePathBuf,
+async fn persist_darwin_code_app_tool_approval(
+    darwin_code_home: &AbsolutePathBuf,
     connector_id: &str,
     tool_name: &str,
 ) -> anyhow::Result<()> {
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(darwin_code_home)
         .with_edits([ConfigEdit::SetPath {
             segments: vec![
                 "apps".to_string(),
@@ -1623,11 +1623,11 @@ async fn persist_custom_mcp_tool_approval(
     {
         project_config_folder
     } else {
-        let servers = load_global_mcp_servers(&config.codex_home).await?;
+        let servers = load_global_mcp_servers(&config.darwin_code_home).await?;
         if !servers.contains_key(server) {
             anyhow::bail!("MCP server `{server}` is not configured in config.toml");
         }
-        config.codex_home.clone()
+        config.darwin_code_home.clone()
     };
 
     ConfigEditsBuilder::new(&config_folder)
@@ -1664,7 +1664,7 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, darwin_code_config::types::McpServerConfig>::deserialize(value).ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

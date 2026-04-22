@@ -14,12 +14,12 @@ use wiremock::matchers::path;
 
 use super::*;
 use crate::session::tests::make_session_and_context;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::LocalShellAction;
+use darwin_code_protocol::models::LocalShellExecAction;
+use darwin_code_protocol::models::LocalShellStatus;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ResponseItem;
 
 struct EnvVarGuard {
     key: &'static str,
@@ -186,8 +186,8 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
         request,
         ArcMonitorRequest {
             metadata: ArcMonitorMetadata {
-                codex_thread_id: session.conversation_id.to_string(),
-                codex_turn_id: turn_context.sub_id.clone(),
+                darwin_code_thread_id: session.conversation_id.to_string(),
+                darwin_code_turn_id: turn_context.sub_id.clone(),
                 conversation_id: Some(session.conversation_id.to_string()),
                 protection_client_callsite: Some("normal".to_string()),
             },
@@ -253,7 +253,7 @@ async fn monitor_action_posts_expected_arc_request() {
     let server = MockServer::start().await;
     let (session, mut turn_context) = make_session_and_context().await;
     turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing(),
+        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
     ));
     turn_context.developer_instructions = Some("Developer policy".to_string());
     turn_context.user_instructions = Some("User policy".to_string());
@@ -278,13 +278,13 @@ async fn monitor_action_posts_expected_arc_request() {
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/codex/safety/arc"))
+        .and(path("/darwin-code/safety/arc"))
         .and(header("authorization", "Bearer Access Token"))
         .and(header("chatgpt-account-id", "account_id"))
         .and(body_json(serde_json::json!({
             "metadata": {
-                "codex_thread_id": session.conversation_id.to_string(),
-                "codex_turn_id": turn_context.sub_id.clone(),
+                "darwin_code_thread_id": session.conversation_id.to_string(),
+                "darwin_code_turn_id": turn_context.sub_id.clone(),
                 "conversation_id": session.conversation_id.to_string(),
                 "protection_client_callsite": "normal",
             },
@@ -337,10 +337,10 @@ async fn monitor_action_posts_expected_arc_request() {
 async fn monitor_action_uses_env_url_and_token_overrides() {
     let server = MockServer::start().await;
     let _url_guard = EnvVarGuard::set(
-        CODEX_ARC_MONITOR_ENDPOINT_OVERRIDE,
+        DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE,
         OsStr::new(&format!("{}/override/arc", server.uri())),
     );
-    let _token_guard = EnvVarGuard::set(CODEX_ARC_MONITOR_TOKEN, OsStr::new("override-token"));
+    let _token_guard = EnvVarGuard::set(DARWIN_CODE_ARC_MONITOR_TOKEN, OsStr::new("override-token"));
 
     let (session, turn_context) = make_session_and_context().await;
     session
@@ -395,7 +395,7 @@ async fn monitor_action_uses_env_url_and_token_overrides() {
 async fn monitor_action_rejects_legacy_response_fields() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
-        .and(path("/codex/safety/arc"))
+        .and(path("/darwin-code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "reason": "legacy high-risk action",
@@ -407,7 +407,7 @@ async fn monitor_action_rejects_legacy_response_fields() {
 
     let (session, mut turn_context) = make_session_and_context().await;
     turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing(),
+        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
     ));
     let mut config = (*turn_context.config).clone();
     config.chatgpt_base_url = server.uri();

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::models::ResponseItem;
 
 use crate::contextual_user_message::USER_SHELL_COMMAND_FRAGMENT;
 use crate::session::turn_context::TurnContext;

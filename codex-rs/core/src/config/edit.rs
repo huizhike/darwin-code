@@ -1,13 +1,13 @@
 use crate::path_utils::resolve_symlink_write_paths;
 use crate::path_utils::write_atomically;
 use anyhow::Context;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::types::McpServerConfig;
-use codex_features::FEATURES;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::openai_models::ReasoningEffort;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_features::FEATURES;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::Path;
@@ -134,10 +134,10 @@ pub fn model_availability_nux_count_edits(shown_count: &HashMap<String, u32>) ->
 
 // TODO(jif) move to a dedicated file
 mod document_helpers {
-    use codex_config::types::AppToolApproval;
-    use codex_config::types::McpServerConfig;
-    use codex_config::types::McpServerToolConfig;
-    use codex_config::types::McpServerTransportConfig;
+    use darwin_code_config::types::AppToolApproval;
+    use darwin_code_config::types::McpServerConfig;
+    use darwin_code_config::types::McpServerToolConfig;
+    use darwin_code_config::types::McpServerTransportConfig;
     use toml_edit::Array as TomlArray;
     use toml_edit::InlineTable;
     use toml_edit::Item as TomlItem;
@@ -841,7 +841,7 @@ fn write_skill_config_selector(table: &mut TomlTable, selector: &SkillConfigSele
 
 /// Persist edits using a blocking strategy.
 pub fn apply_blocking(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     profile: Option<&str>,
     edits: &[ConfigEdit],
 ) -> anyhow::Result<()> {
@@ -849,7 +849,7 @@ pub fn apply_blocking(
         return Ok(());
     }
 
-    let config_path = codex_home.join(CONFIG_TOML_FILE);
+    let config_path = darwin_code_home.join(CONFIG_TOML_FILE);
     let write_paths = resolve_symlink_write_paths(&config_path)?;
     let serialized = match write_paths.read_path {
         Some(path) => match std::fs::read_to_string(&path) {
@@ -895,13 +895,13 @@ pub fn apply_blocking(
 
 /// Persist edits asynchronously by offloading the blocking writer.
 pub async fn apply(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     profile: Option<&str>,
     edits: Vec<ConfigEdit>,
 ) -> anyhow::Result<()> {
-    let codex_home = codex_home.to_path_buf();
+    let darwin_code_home = darwin_code_home.to_path_buf();
     let profile = profile.map(ToOwned::to_owned);
-    task::spawn_blocking(move || apply_blocking(&codex_home, profile.as_deref(), &edits))
+    task::spawn_blocking(move || apply_blocking(&darwin_code_home, profile.as_deref(), &edits))
         .await
         .context("config persistence task panicked")?
 }
@@ -909,15 +909,15 @@ pub async fn apply(
 /// Fluent builder to batch config edits and apply them atomically.
 #[derive(Default)]
 pub struct ConfigEditsBuilder {
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     profile: Option<String>,
     edits: Vec<ConfigEdit>,
 }
 
 impl ConfigEditsBuilder {
-    pub fn new(codex_home: &Path) -> Self {
+    pub fn new(darwin_code_home: &Path) -> Self {
         Self {
-            codex_home: codex_home.to_path_buf(),
+            darwin_code_home: darwin_code_home.to_path_buf(),
             profile: None,
             edits: Vec::new(),
         }
@@ -1151,13 +1151,13 @@ impl ConfigEditsBuilder {
 
     /// Apply edits on a blocking thread.
     pub fn apply_blocking(self) -> anyhow::Result<()> {
-        apply_blocking(&self.codex_home, self.profile.as_deref(), &self.edits)
+        apply_blocking(&self.darwin_code_home, self.profile.as_deref(), &self.edits)
     }
 
     /// Apply edits asynchronously via a blocking offload.
     pub async fn apply(self) -> anyhow::Result<()> {
         task::spawn_blocking(move || {
-            apply_blocking(&self.codex_home, self.profile.as_deref(), &self.edits)
+            apply_blocking(&self.darwin_code_home, self.profile.as_deref(), &self.edits)
         })
         .await
         .context("config persistence task panicked")?

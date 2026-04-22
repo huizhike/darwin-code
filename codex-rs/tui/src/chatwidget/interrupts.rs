@@ -1,16 +1,16 @@
 use std::collections::VecDeque;
 
 use crate::app::app_server_requests::ResolvedAppServerRequest;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_user_input::RequestUserInputEvent;
+use darwin_code_protocol::approvals::ElicitationRequestEvent;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::PatchApplyEndEvent;
+use darwin_code_protocol::request_permissions::RequestPermissionsEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputEvent;
 
 use super::ChatWidget;
 
@@ -148,11 +148,11 @@ impl QueuedInterrupt {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::approvals::ExecApprovalRequestEvent;
-    use codex_protocol::protocol::ExecCommandBeginEvent;
-    use codex_protocol::protocol::ExecCommandSource;
-    use codex_protocol::request_user_input::RequestUserInputEvent;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::approvals::ExecApprovalRequestEvent;
+    use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+    use darwin_code_protocol::protocol::ExecCommandSource;
+    use darwin_code_protocol::request_user_input::RequestUserInputEvent;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     use super::*;

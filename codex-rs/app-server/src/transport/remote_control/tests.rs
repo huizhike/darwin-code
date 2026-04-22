@@ -14,20 +14,20 @@ use crate::outgoing_message::QueuedOutgoingMessage;
 use crate::transport::CHANNEL_CAPACITY;
 use crate::transport::TransportEvent;
 use base64::Engine;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::ServerNotification;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::test_support::auth_manager_from_auth;
-use codex_core::test_support::auth_manager_from_auth_with_home;
-use codex_login::AuthDotJson;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::save_auth;
-use codex_login::token_data::TokenData;
-use codex_login::token_data::parse_chatgpt_jwt_claims;
-use codex_state::StateRuntime;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_core::test_support::auth_manager_from_auth;
+use darwin_code_core::test_support::auth_manager_from_auth_with_home;
+use darwin_code_login::AuthDotJson;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::save_auth;
+use darwin_code_login::token_data::TokenData;
+use darwin_code_login::token_data::parse_chatgpt_jwt_claims;
+use darwin_code_state::StateRuntime;
 use futures::SinkExt;
 use futures::StreamExt;
 use gethostname::gethostname;
@@ -53,13 +53,13 @@ use tokio_tungstenite::tungstenite;
 use tokio_util::sync::CancellationToken;
 
 fn remote_control_auth_manager() -> Arc<AuthManager> {
-    auth_manager_from_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    auth_manager_from_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
 }
 
-fn remote_control_auth_manager_with_home(codex_home: &TempDir) -> Arc<AuthManager> {
+fn remote_control_auth_manager_with_home(darwin_code_home: &TempDir) -> Arc<AuthManager> {
     auth_manager_from_auth_with_home(
-        CodexAuth::create_dummy_chatgpt_auth_for_testing(),
-        codex_home.path().to_path_buf(),
+        DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
+        darwin_code_home.path().to_path_buf(),
     )
 }
 
@@ -101,8 +101,8 @@ fn remote_control_auth_dot_json(account_id: Option<&str>) -> AuthDotJson {
     }
 }
 
-async fn remote_control_state_runtime(codex_home: &TempDir) -> Arc<StateRuntime> {
-    StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string())
+async fn remote_control_state_runtime(darwin_code_home: &TempDir) -> Arc<StateRuntime> {
+    StateRuntime::init(darwin_code_home.path().to_path_buf(), "test-provider".to_string())
         .await
         .expect("state runtime should initialize")
 }
@@ -120,13 +120,13 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let (transport_event_tx, mut transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
     let shutdown_token = CancellationToken::new();
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
-        Some(remote_control_state_runtime(&codex_home).await),
+        Some(remote_control_state_runtime(&darwin_code_home).await),
         remote_control_auth_manager(),
         transport_event_tx,
         shutdown_token.clone(),
@@ -174,7 +174,7 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         ClientEnvelope {
             event: ClientEvent::ClientMessage {
                 message: JSONRPCMessage::Notification(
-                    codex_app_server_protocol::JSONRPCNotification {
+                    darwin_code_app_server_protocol::JSONRPCNotification {
                         method: "initialized".to_string(),
                         params: None,
                     },
@@ -194,8 +194,8 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         "non-initialize client messages should be ignored before connection creation"
     );
 
-    let initialize_message = JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-        id: codex_app_server_protocol::RequestId::Integer(1),
+    let initialize_message = JSONRPCMessage::Request(darwin_code_app_server_protocol::JSONRPCRequest {
+        id: darwin_code_app_server_protocol::RequestId::Integer(1),
         method: "initialize".to_string(),
         params: Some(json!({
             "clientInfo": {
@@ -248,7 +248,7 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
     }
 
     let followup_message =
-        JSONRPCMessage::Notification(codex_app_server_protocol::JSONRPCNotification {
+        JSONRPCMessage::Notification(darwin_code_app_server_protocol::JSONRPCNotification {
             method: "initialized".to_string(),
             params: None,
         });
@@ -385,13 +385,13 @@ async fn remote_control_transport_reconnects_after_disconnect() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let (transport_event_tx, mut transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
     let shutdown_token = CancellationToken::new();
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
-        Some(remote_control_state_runtime(&codex_home).await),
+        Some(remote_control_state_runtime(&darwin_code_home).await),
         remote_control_auth_manager(),
         transport_event_tx,
         shutdown_token.clone(),
@@ -423,8 +423,8 @@ async fn remote_control_transport_reconnects_after_disconnect() {
         &mut second_websocket,
         ClientEnvelope {
             event: ClientEvent::ClientMessage {
-                message: JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-                    id: codex_app_server_protocol::RequestId::Integer(2),
+                message: JSONRPCMessage::Request(darwin_code_app_server_protocol::JSONRPCRequest {
+                    id: darwin_code_app_server_protocol::RequestId::Integer(2),
                     method: "initialize".to_string(),
                     params: Some(json!({
                         "clientInfo": {
@@ -486,10 +486,10 @@ async fn remote_control_start_allows_missing_auth_when_enabled() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let auth_manager = AuthManager::shared(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        darwin_code_home.path().to_path_buf(),
+        /*enable_darwin_code_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
     );
     let (transport_event_tx, _transport_event_rx) =
@@ -524,13 +524,13 @@ async fn remote_control_handle_set_enabled_stops_and_restarts_connections() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let (transport_event_tx, _transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
     let shutdown_token = CancellationToken::new();
     let (remote_task, remote_handle) = start_remote_control(
         remote_control_url,
-        Some(remote_control_state_runtime(&codex_home).await),
+        Some(remote_control_state_runtime(&darwin_code_home).await),
         remote_control_auth_manager(),
         transport_event_tx,
         shutdown_token.clone(),
@@ -577,13 +577,13 @@ async fn remote_control_transport_clears_outgoing_buffer_when_backend_acks() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let (transport_event_tx, mut transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
     let shutdown_token = CancellationToken::new();
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
-        Some(remote_control_state_runtime(&codex_home).await),
+        Some(remote_control_state_runtime(&darwin_code_home).await),
         remote_control_auth_manager(),
         transport_event_tx,
         shutdown_token.clone(),
@@ -602,8 +602,8 @@ async fn remote_control_transport_clears_outgoing_buffer_when_backend_acks() {
     let mut first_websocket = accept_remote_control_connection(&listener).await;
 
     let client_id = ClientId("client-1".to_string());
-    let initialize_message = JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-        id: codex_app_server_protocol::RequestId::Integer(1),
+    let initialize_message = JSONRPCMessage::Request(darwin_code_app_server_protocol::JSONRPCRequest {
+        id: darwin_code_app_server_protocol::RequestId::Integer(1),
         method: "initialize".to_string(),
         params: Some(json!({
             "clientInfo": {
@@ -744,14 +744,14 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     let (transport_event_tx, mut transport_event_rx) =
         mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
     let expected_server_name = gethostname().to_string_lossy().trim().to_string();
     let shutdown_token = CancellationToken::new();
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
-        Some(remote_control_state_runtime(&codex_home).await),
+        Some(remote_control_state_runtime(&darwin_code_home).await),
         remote_control_auth_manager(),
         transport_event_tx,
         shutdown_token.clone(),
@@ -807,23 +807,23 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
         Some(&"account_id".to_string())
     );
     assert_eq!(
-        handshake_request.headers.get("x-codex-server-id"),
+        handshake_request.headers.get("x-darwin-code-server-id"),
         Some(&"srv_e_test".to_string())
     );
     assert_eq!(
-        handshake_request.headers.get("x-codex-name"),
+        handshake_request.headers.get("x-darwin-code-name"),
         Some(&base64::engine::general_purpose::STANDARD.encode(&expected_server_name))
     );
     assert_eq!(
-        handshake_request.headers.get("x-codex-protocol-version"),
+        handshake_request.headers.get("x-darwin-code-protocol-version"),
         Some(&REMOTE_CONTROL_PROTOCOL_VERSION.to_string())
     );
 
     let backend_client_id = ClientId("backend-test-client".to_string());
     let writer = {
         let initialize_message =
-            JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-                id: codex_app_server_protocol::RequestId::Integer(11),
+            JSONRPCMessage::Request(darwin_code_app_server_protocol::JSONRPCRequest {
+                id: darwin_code_app_server_protocol::RequestId::Integer(11),
                 method: "initialize".to_string(),
                 params: Some(json!({
                     "clientInfo": {
@@ -881,9 +881,9 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
     writer
         .send(QueuedOutgoingMessage::new(OutgoingMessage::Response(
             crate::outgoing_message::OutgoingResponse {
-                id: codex_app_server_protocol::RequestId::Integer(11),
+                id: darwin_code_app_server_protocol::RequestId::Integer(11),
                 result: json!({
-                    "userAgent": "codex-test-agent"
+                    "userAgent": "darwin-code-test-agent"
                 }),
             },
         )))
@@ -898,7 +898,7 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
             "message": {
                 "id": 11,
                 "result": {
-                    "userAgent": "codex-test-agent",
+                    "userAgent": "darwin-code-test-agent",
                 }
             }
         })
@@ -943,8 +943,8 @@ async fn remote_control_http_mode_reuses_persisted_enrollment_before_reenrolling
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
-    let state_db = remote_control_state_runtime(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
+    let state_db = remote_control_state_runtime(&darwin_code_home).await;
     let remote_control_target =
         normalize_remote_control_url(&remote_control_url).expect("target should parse");
     let persisted_enrollment = RemoteControlEnrollment {
@@ -969,7 +969,7 @@ async fn remote_control_http_mode_reuses_persisted_enrollment_before_reenrolling
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
         Some(state_db.clone()),
-        remote_control_auth_manager_with_home(&codex_home),
+        remote_control_auth_manager_with_home(&darwin_code_home),
         transport_event_tx,
         shutdown_token.clone(),
         /*app_server_client_name_rx*/ None,
@@ -984,7 +984,7 @@ async fn remote_control_http_mode_reuses_persisted_enrollment_before_reenrolling
         "/backend-api/wham/remote/control/server"
     );
     assert_eq!(
-        handshake_request.headers.get("x-codex-server-id"),
+        handshake_request.headers.get("x-darwin-code-server-id"),
         Some(&persisted_enrollment.server_id)
     );
     assert_eq!(
@@ -1008,8 +1008,8 @@ async fn remote_control_stdio_mode_waits_for_client_name_before_connecting() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
-    let state_db = remote_control_state_runtime(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
+    let state_db = remote_control_state_runtime(&darwin_code_home).await;
     let remote_control_target =
         normalize_remote_control_url(&remote_control_url).expect("target should parse");
     let app_server_client_name = "stdio-client";
@@ -1036,7 +1036,7 @@ async fn remote_control_stdio_mode_waits_for_client_name_before_connecting() {
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
         Some(state_db.clone()),
-        remote_control_auth_manager_with_home(&codex_home),
+        remote_control_auth_manager_with_home(&darwin_code_home),
         transport_event_tx,
         shutdown_token.clone(),
         Some(app_server_client_name_rx),
@@ -1052,7 +1052,7 @@ async fn remote_control_stdio_mode_waits_for_client_name_before_connecting() {
     let _ = app_server_client_name_tx.send(app_server_client_name.to_string());
     let (handshake_request, _websocket) = accept_remote_control_backend_connection(&listener).await;
     assert_eq!(
-        handshake_request.headers.get("x-codex-server-id"),
+        handshake_request.headers.get("x-darwin-code-server-id"),
         Some(&persisted_enrollment.server_id)
     );
 
@@ -1066,17 +1066,17 @@ async fn remote_control_waits_for_account_id_before_enrolling() {
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
     save_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         &remote_control_auth_dot_json(/*account_id*/ None),
         AuthCredentialsStoreMode::File,
     )
     .expect("auth without account id should save");
-    let state_db = remote_control_state_runtime(&codex_home).await;
+    let state_db = remote_control_state_runtime(&darwin_code_home).await;
     let auth_manager = AuthManager::shared(
-        codex_home.path().to_path_buf(),
-        /*enable_codex_api_key_env*/ false,
+        darwin_code_home.path().to_path_buf(),
+        /*enable_darwin_code_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
     );
     let expected_server_name = gethostname().to_string_lossy().trim().to_string();
@@ -1107,7 +1107,7 @@ async fn remote_control_waits_for_account_id_before_enrolling() {
         .expect_err("remote control should wait for account id before enrolling");
 
     save_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         &remote_control_auth_dot_json(Some("account_id")),
         AuthCredentialsStoreMode::File,
     )
@@ -1129,7 +1129,7 @@ async fn remote_control_waits_for_account_id_before_enrolling() {
 
     let (handshake_request, _websocket) = accept_remote_control_backend_connection(&listener).await;
     assert_eq!(
-        handshake_request.headers.get("x-codex-server-id"),
+        handshake_request.headers.get("x-darwin-code-server-id"),
         Some(&expected_enrollment.server_id)
     );
 
@@ -1143,8 +1143,8 @@ async fn remote_control_http_mode_clears_stale_persisted_enrollment_after_404() 
         .await
         .expect("listener should bind");
     let remote_control_url = remote_control_url_for_listener(&listener);
-    let codex_home = TempDir::new().expect("temp dir should create");
-    let state_db = remote_control_state_runtime(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("temp dir should create");
+    let state_db = remote_control_state_runtime(&darwin_code_home).await;
     let remote_control_target =
         normalize_remote_control_url(&remote_control_url).expect("target should parse");
     let expected_server_name = gethostname().to_string_lossy().trim().to_string();
@@ -1176,7 +1176,7 @@ async fn remote_control_http_mode_clears_stale_persisted_enrollment_after_404() 
     let (remote_task, _remote_handle) = start_remote_control(
         remote_control_url,
         Some(state_db.clone()),
-        remote_control_auth_manager_with_home(&codex_home),
+        remote_control_auth_manager_with_home(&darwin_code_home),
         transport_event_tx,
         shutdown_token.clone(),
         /*app_server_client_name_rx*/ None,
@@ -1191,7 +1191,7 @@ async fn remote_control_http_mode_clears_stale_persisted_enrollment_after_404() 
         "GET /backend-api/wham/remote/control/server HTTP/1.1"
     );
     assert_eq!(
-        websocket_request.headers.get("x-codex-server-id"),
+        websocket_request.headers.get("x-darwin-code-server-id"),
         Some(&stale_enrollment.server_id)
     );
     respond_with_status(websocket_request.stream, "404 Not Found", "").await;
@@ -1212,7 +1212,7 @@ async fn remote_control_http_mode_clears_stale_persisted_enrollment_after_404() 
 
     let (handshake_request, _websocket) = accept_remote_control_backend_connection(&listener).await;
     assert_eq!(
-        handshake_request.headers.get("x-codex-server-id"),
+        handshake_request.headers.get("x-darwin-code-server-id"),
         Some(&refreshed_enrollment.server_id)
     );
     assert_eq!(

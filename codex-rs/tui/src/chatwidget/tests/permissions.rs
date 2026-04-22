@@ -236,7 +236,7 @@ async fn approvals_popup_navigation_skips_disabled() {
     assert!(
         app_events.iter().any(|ev| matches!(
             ev,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::DarwinCodeOp(Op::OverrideTurnContext {
                 approval_policy: Some(AskForApproval::OnRequest),
                 personality: None,
                 ..
@@ -247,7 +247,7 @@ async fn approvals_popup_navigation_skips_disabled() {
     assert!(
         !app_events.iter().any(|ev| matches!(
             ev,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::DarwinCodeOp(Op::OverrideTurnContext {
                 approval_policy: Some(AskForApproval::Never),
                 personality: None,
                 ..
@@ -451,7 +451,7 @@ async fn permissions_selection_marks_guardian_approvals_current_after_session_co
         .features
         .set_enabled(Feature::GuardianApproval, /*enabled*/ true);
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "session-configured".to_string(),
         msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
             session_id: ThreadId::new(),
@@ -499,7 +499,7 @@ async fn permissions_selection_marks_guardian_approvals_current_with_custom_work
 
     let extra_root = test_path_buf("/tmp/guardian-approvals-extra").abs();
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "session-configured-custom-workspace".to_string(),
         msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
             session_id: ThreadId::new(),
@@ -620,7 +620,7 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
 
     let op = std::iter::from_fn(|| rx.try_recv().ok())
         .find_map(|event| match event {
-            AppEvent::CodexOp(op @ Op::OverrideTurnContext { .. }) => Some(op),
+            AppEvent::DarwinCodeOp(op @ Op::OverrideTurnContext { .. }) => Some(op),
             _ => None,
         })
         .expect("expected OverrideTurnContext op");

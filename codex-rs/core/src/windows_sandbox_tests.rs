@@ -1,7 +1,7 @@
 use super::*;
-use codex_config::types::WindowsToml;
-use codex_features::Features;
-use codex_features::FeaturesToml;
+use darwin_code_config::types::WindowsToml;
+use darwin_code_features::Features;
+use darwin_code_features::FeaturesToml;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 

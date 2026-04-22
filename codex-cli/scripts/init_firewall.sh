@@ -3,7 +3,7 @@ set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
 # Read allowed domains from file
-ALLOWED_DOMAINS_FILE="/etc/codex/allowed_domains.txt"
+ALLOWED_DOMAINS_FILE="/etc/darwin-code/allowed_domains.txt"
 if [ -f "$ALLOWED_DOMAINS_FILE" ]; then
     ALLOWED_DOMAINS=()
     while IFS= read -r domain; do

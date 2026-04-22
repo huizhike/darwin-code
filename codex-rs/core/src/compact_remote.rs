@@ -9,19 +9,19 @@ use crate::compact::insert_initial_context_before_last_real_user_or_summary;
 use crate::context_manager::ContextManager;
 use crate::context_manager::TotalTokenUsageBreakdown;
 use crate::context_manager::estimate_response_item_model_visible_bytes;
-use crate::context_manager::is_codex_generated_item;
+use crate::context_manager::is_darwin_code_generated_item;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
 use crate::session::turn_context::TurnContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::items::ContextCompactionItem;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::TurnStartedEvent;
 use futures::TryFutureExt;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -33,7 +33,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
     phase: CompactionPhase,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     run_remote_compact_task_inner(
         &sess,
         &turn_context,
@@ -49,7 +49,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
 pub(crate) async fn run_remote_compact_task(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let start_event = EventMsg::TurnStarted(TurnStartedEvent {
         turn_id: turn_context.sub_id.clone(),
         started_at: turn_context.turn_timing_state.started_at_unix_secs().await,
@@ -76,7 +76,7 @@ async fn run_remote_compact_task_inner(
     trigger: CompactionTrigger,
     reason: CompactionReason,
     phase: CompactionPhase,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let attempt = CompactionAnalyticsAttempt::begin(
         sess.as_ref(),
         turn_context.as_ref(),
@@ -109,7 +109,7 @@ async fn run_remote_compact_task_inner_impl(
     sess: &Arc<Session>,
     turn_context: &Arc<TurnContext>,
     initial_context_injection: InitialContextInjection,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let compaction_item = TurnItem::ContextCompaction(ContextCompactionItem::new());
     sess.emit_turn_item_started(turn_context, &compaction_item)
         .await;
@@ -295,7 +295,7 @@ fn log_remote_compact_failure(
     turn_context: &TurnContext,
     log_data: &CompactRequestLogData,
     total_usage_breakdown: TotalTokenUsageBreakdown,
-    err: &CodexErr,
+    err: &DarwinCodeErr,
 ) {
     error!(
         turn_id = %turn_context.sub_id,
@@ -327,7 +327,7 @@ fn trim_function_call_history_to_fit_context_window(
         let Some(last_item) = history.raw_items().last() else {
             break;
         };
-        if !is_codex_generated_item(last_item) {
+        if !is_darwin_code_generated_item(last_item) {
             break;
         }
         if !history.remove_last_item() {

@@ -21,68 +21,68 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::config_toml::RealtimeAudioConfig;
-use codex_config::config_toml::RealtimeConfig;
-use codex_config::config_toml::validate_model_providers;
-use codex_config::profile_toml::ConfigProfile;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_config::types::DEFAULT_OTEL_ENVIRONMENT;
-use codex_config::types::History;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerDisabledReason;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::MemoriesConfig;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_config::types::Notice;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_config::types::OtelConfig;
-use codex_config::types::OtelConfigToml;
-use codex_config::types::OtelExporterKind;
-use codex_config::types::ShellEnvironmentPolicy;
-use codex_config::types::ToolSuggestConfig;
-use codex_config::types::ToolSuggestDiscoverable;
-use codex_config::types::TuiNotificationSettings;
-use codex_config::types::UriBasedFileOpener;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::LOCAL_FS;
-use codex_features::Feature;
-use codex_features::FeatureConfigSource;
-use codex_features::FeatureOverrides;
-use codex_features::FeatureToml;
-use codex_features::Features;
-use codex_features::FeaturesToml;
-use codex_features::MultiAgentV2ConfigToml;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_login::AuthManagerConfig;
-use codex_mcp::McpConfig;
-use codex_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::ModelsManagerConfig;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchConfig;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_config::config_toml::RealtimeAudioConfig;
+use darwin_code_config::config_toml::RealtimeConfig;
+use darwin_code_config::config_toml::validate_model_providers;
+use darwin_code_config::profile_toml::ConfigProfile;
+use darwin_code_config::types::ApprovalsReviewer;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_config::types::DEFAULT_OTEL_ENVIRONMENT;
+use darwin_code_config::types::History;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerDisabledReason;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_config::types::MemoriesConfig;
+use darwin_code_config::types::ModelAvailabilityNuxConfig;
+use darwin_code_config::types::Notice;
+use darwin_code_config::types::OAuthCredentialsStoreMode;
+use darwin_code_config::types::OtelConfig;
+use darwin_code_config::types::OtelConfigToml;
+use darwin_code_config::types::OtelExporterKind;
+use darwin_code_config::types::ShellEnvironmentPolicy;
+use darwin_code_config::types::ToolSuggestConfig;
+use darwin_code_config::types::ToolSuggestDiscoverable;
+use darwin_code_config::types::TuiNotificationSettings;
+use darwin_code_config::types::UriBasedFileOpener;
+use darwin_code_config::types::WindowsSandboxModeToml;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_features::Feature;
+use darwin_code_features::FeatureConfigSource;
+use darwin_code_features::FeatureOverrides;
+use darwin_code_features::FeatureToml;
+use darwin_code_features::Features;
+use darwin_code_features::FeaturesToml;
+use darwin_code_features::MultiAgentV2ConfigToml;
+use darwin_code_git_utils::resolve_root_git_project_for_trust;
+use darwin_code_login::AuthManagerConfig;
+use darwin_code_mcp::McpConfig;
+use darwin_code_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
+use darwin_code_model_provider_info::built_in_model_providers;
+use darwin_code_models_manager::ModelsManagerConfig;
+use darwin_code_protocol::config_types::AltScreenMode;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::config_types::Verbosity;
+use darwin_code_protocol::config_types::WebSearchConfig;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -91,9 +91,9 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::config::permissions::compile_permission_profile;
-use crate::config::permissions::get_readable_roots_required_for_codex_runtime;
+use crate::config::permissions::get_readable_roots_required_for_darwin_code_runtime;
 use crate::config::permissions::network_proxy_config_from_profile_network;
-use codex_network_proxy::NetworkProxyConfig;
+use darwin_code_network_proxy::NetworkProxyConfig;
 use toml::Value as TomlValue;
 use toml_edit::DocumentMut;
 
@@ -105,11 +105,11 @@ mod permissions;
 #[cfg(test)]
 mod schema;
 pub(crate) mod service;
-pub use codex_config::Constrained;
-pub use codex_config::ConstraintError;
-pub use codex_config::ConstraintResult;
-pub use codex_network_proxy::NetworkProxyAuditMetadata;
-pub use codex_sandboxing::system_bwrap_warning;
+pub use darwin_code_config::Constrained;
+pub use darwin_code_config::ConstraintError;
+pub use darwin_code_config::ConstraintResult;
+pub use darwin_code_network_proxy::NetworkProxyAuditMetadata;
+pub use darwin_code_sandboxing::system_bwrap_warning;
 pub use managed_features::ManagedFeatures;
 pub use network_proxy_spec::NetworkProxySpec;
 pub use network_proxy_spec::StartedNetworkProxy;
@@ -117,7 +117,7 @@ pub(crate) use permissions::resolve_permission_profile;
 pub use service::ConfigService;
 pub use service::ConfigServiceError;
 
-pub use codex_git_utils::GhostSnapshotConfig;
+pub use darwin_code_git_utils::GhostSnapshotConfig;
 
 /// Maximum number of bytes of the documentation that will be embedded. Larger
 /// files are *silently truncated* to this size so we do not take up too much of
@@ -131,7 +131,7 @@ const LOCAL_DEV_BUILD_VERSION: &str = "0.0.0";
 pub const CONFIG_TOML_FILE: &str = "config.toml";
 
 fn resolve_sqlite_home_env(resolved_cwd: &Path) -> Option<PathBuf> {
-    let raw = std::env::var(codex_state::SQLITE_HOME_ENV).ok()?;
+    let raw = std::env::var(darwin_code_state::SQLITE_HOME_ENV).ok()?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -172,11 +172,11 @@ fn resolve_mcp_oauth_credentials_store_mode(
 
 #[cfg(test)]
 pub(crate) async fn test_config() -> Config {
-    let codex_home = tempfile::tempdir().expect("create temp dir");
+    let darwin_code_home = tempfile::tempdir().expect("create temp dir");
     Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         ConfigOverrides::default(),
-        AbsolutePathBuf::from_absolute_path(codex_home.path()).expect("temp dir should resolve"),
+        AbsolutePathBuf::from_absolute_path(darwin_code_home.path()).expect("temp dir should resolve"),
     )
     .await
     .expect("load default test config")
@@ -300,28 +300,28 @@ pub struct Config {
 
     /// Optional commit attribution text for commit message co-author trailers.
     ///
-    /// - `None`: use default attribution (`Codex <noreply@openai.com>`)
+    /// - `None`: use default attribution (`Darwin-Code <noreply@openai.com>`)
     /// - `Some("")` or whitespace-only: disable commit attribution
     /// - `Some("...")`: use the provided attribution text verbatim
     pub commit_attribution: Option<String>,
 
-    /// Optional external notifier command. When set, Codex will spawn this
+    /// Optional external notifier command. When set, Darwin-Code will spawn this
     /// program after each completed *turn* (i.e. when the agent finishes
     /// processing a user submission). The value must be the full command
-    /// broken into argv tokens **without** the trailing JSON argument - Codex
+    /// broken into argv tokens **without** the trailing JSON argument - Darwin-Code
     /// appends one extra argument containing a JSON payload describing the
     /// event.
     ///
-    /// Example `~/.codex/config.toml` snippet:
+    /// Example `~/.darwin-code/config.toml` snippet:
     ///
     /// ```toml
-    /// notify = ["notify-send", "Codex"]
+    /// notify = ["notify-send", "Darwin-Code"]
     /// ```
     ///
     /// which will be invoked as:
     ///
     /// ```shell
-    /// notify-send Codex '{"type":"agent-turn-complete","turn-id":"12345"}'
+    /// notify-send Darwin-Code '{"type":"agent-turn-complete","turn-id":"12345"}'
     /// ```
     ///
     /// If unset the feature is disabled.
@@ -368,26 +368,26 @@ pub struct Config {
     pub cwd: AbsolutePathBuf,
 
     /// Preferred store for CLI auth credentials.
-    /// file (default): Use a file in the Codex home directory.
+    /// file (default): Use a file in the Darwin-Code home directory.
     /// keyring: Use an OS-specific keyring service.
     /// auto: Use the OS-specific keyring service if available, otherwise use a file.
     pub cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
 
-    /// Definition for MCP servers that Codex can reach out to for tool calls.
+    /// Definition for MCP servers that Darwin-Code can reach out to for tool calls.
     pub mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
 
     /// Preferred store for MCP OAuth credentials.
     /// keyring: Use an OS-specific keyring service.
-    ///          Credentials stored in the keyring will only be readable by Codex unless the user explicitly grants access via OS-level keyring access.
-    ///          https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth.rs#L2
-    /// file: CODEX_HOME/.credentials.json
-    ///       This file will be readable to Codex and other applications running as the same user.
+    ///          Credentials stored in the keyring will only be readable by Darwin-Code unless the user explicitly grants access via OS-level keyring access.
+    ///          https://github.com/openai/darwin-code/blob/main/darwin-code-rs/rmcp-client/src/oauth.rs#L2
+    /// file: DARWIN_CODE_HOME/.credentials.json
+    ///       This file will be readable to Darwin-Code and other applications running as the same user.
     /// auto (default): keyring if available, otherwise file.
     pub mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
 
     /// Optional fixed port to use for the local HTTP callback server used during MCP OAuth login.
     ///
-    /// When unset, Codex will bind to an ephemeral port chosen by the OS.
+    /// When unset, Darwin-Code will bind to an ephemeral port chosen by the OS.
     pub mcp_oauth_callback_port: Option<u16>,
 
     /// Optional redirect URI to use during MCP OAuth login.
@@ -423,17 +423,17 @@ pub struct Config {
     /// Memories subsystem settings.
     pub memories: MemoriesConfig,
 
-    /// Directory containing all Codex state (defaults to `~/.codex` but can be
-    /// overridden by the `CODEX_HOME` environment variable).
-    pub codex_home: AbsolutePathBuf,
+    /// Directory containing all Darwin-Code state (defaults to `~/.darwin-code` but can be
+    /// overridden by the `DARWIN_CODE_HOME` environment variable).
+    pub darwin_code_home: AbsolutePathBuf,
 
-    /// Directory where Codex stores the SQLite state DB.
+    /// Directory where Darwin-Code stores the SQLite state DB.
     pub sqlite_home: PathBuf,
 
-    /// Directory where Codex writes log files (defaults to `$CODEX_HOME/log`).
+    /// Directory where Darwin-Code writes log files (defaults to `$DARWIN_CODE_HOME/log`).
     pub log_dir: PathBuf,
 
-    /// Settings that govern if and what will be written to `~/.codex/history.jsonl`.
+    /// Settings that govern if and what will be written to `~/.darwin-code/history.jsonl`.
     pub history: History,
 
     /// When true, session is not persisted on disk. Default to `false`
@@ -443,19 +443,19 @@ pub struct Config {
     /// output will be hyperlinked using the specified URI scheme.
     pub file_opener: UriBasedFileOpener,
 
-    /// Path to the current Codex executable. This cannot be set in the config
+    /// Path to the current Darwin-Code executable. This cannot be set in the config
     /// file: it must be set in code via [`ConfigOverrides`].
-    pub codex_self_exe: Option<PathBuf>,
+    pub darwin_code_self_exe: Option<PathBuf>,
 
-    /// Path to the `codex-linux-sandbox` executable. This must be set if
-    /// [`codex_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
+    /// Path to the `darwin-code-linux-sandbox` executable. This must be set if
+    /// [`darwin_code_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
     /// cannot be set in the config file: it must be set in code via
     /// [`ConfigOverrides`].
     ///
-    /// When this program is invoked, arg0 will be set to `codex-linux-sandbox`.
-    pub codex_linux_sandbox_exe: Option<PathBuf>,
+    /// When this program is invoked, arg0 will be set to `darwin-code-linux-sandbox`.
+    pub darwin_code_linux_sandbox_exe: Option<PathBuf>,
 
-    /// Path to the `codex-execve-wrapper` executable used for shell
+    /// Path to the `darwin-code-execve-wrapper` executable used for shell
     /// escalation. This cannot be set in the config file: it must be set in
     /// code via [`ConfigOverrides`].
     pub main_execve_wrapper_exe: Option<PathBuf>,
@@ -572,8 +572,8 @@ pub struct Config {
     /// Collection of various notices we show the user
     pub notices: Notice,
 
-    /// When `true`, checks for Codex updates on startup and surfaces update prompts.
-    /// Set to `false` only if your Codex updates are centrally managed.
+    /// When `true`, checks for Darwin-Code updates on startup and surfaces update prompts.
+    /// Set to `false` only if your Darwin-Code updates are centrally managed.
     /// Defaults to `true`.
     pub check_for_update_on_startup: bool,
 
@@ -582,11 +582,11 @@ pub struct Config {
     /// or placeholder replacement will occur for fast keypress bursts.
     pub disable_paste_burst: bool,
 
-    /// When `false`, disables analytics across Codex product surfaces in this machine.
+    /// When `false`, disables analytics across Darwin-Code product surfaces in this machine.
     /// Voluntarily left as Optional because the default value might depend on the client.
     pub analytics_enabled: Option<bool>,
 
-    /// When `false`, disables feedback collection across Codex product surfaces.
+    /// When `false`, disables feedback collection across Darwin-Code product surfaces.
     /// Defaults to `true`.
     pub feedback_enabled: bool,
 
@@ -594,7 +594,7 @@ pub struct Config {
     pub tool_suggest: ToolSuggestConfig,
 
     /// OTEL configuration (exporter type, endpoint, headers, etc.).
-    pub otel: codex_config::types::OtelConfig,
+    pub otel: darwin_code_config::types::OtelConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -615,8 +615,8 @@ impl Default for MultiAgentV2Config {
 }
 
 impl AuthManagerConfig for Config {
-    fn codex_home(&self) -> PathBuf {
-        self.codex_home.to_path_buf()
+    fn darwin_code_home(&self) -> PathBuf {
+        self.darwin_code_home.to_path_buf()
     }
 
     fn cli_auth_credentials_store_mode(&self) -> AuthCredentialsStoreMode {
@@ -630,7 +630,7 @@ impl AuthManagerConfig for Config {
 
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
-    codex_home: Option<PathBuf>,
+    darwin_code_home: Option<PathBuf>,
     cli_overrides: Option<Vec<(String, TomlValue)>>,
     harness_overrides: Option<ConfigOverrides>,
     loader_overrides: Option<LoaderOverrides>,
@@ -639,8 +639,8 @@ pub struct ConfigBuilder {
 }
 
 impl ConfigBuilder {
-    pub fn codex_home(mut self, codex_home: PathBuf) -> Self {
-        self.codex_home = Some(codex_home);
+    pub fn darwin_code_home(mut self, darwin_code_home: PathBuf) -> Self {
+        self.darwin_code_home = Some(darwin_code_home);
         self
     }
 
@@ -671,16 +671,16 @@ impl ConfigBuilder {
 
     pub async fn build(self) -> std::io::Result<Config> {
         let Self {
-            codex_home,
+            darwin_code_home,
             cli_overrides,
             harness_overrides,
             loader_overrides,
             cloud_requirements,
             fallback_cwd,
         } = self;
-        let codex_home = match codex_home {
-            Some(codex_home) => AbsolutePathBuf::from_absolute_path(codex_home)?,
-            None => find_codex_home()?,
+        let darwin_code_home = match darwin_code_home {
+            Some(darwin_code_home) => AbsolutePathBuf::from_absolute_path(darwin_code_home)?,
+            None => find_darwin_code_home()?,
         };
         let cli_overrides = cli_overrides.unwrap_or_default();
         let mut harness_overrides = harness_overrides.unwrap_or_default();
@@ -693,7 +693,7 @@ impl ConfigBuilder {
         harness_overrides.cwd = Some(cwd.to_path_buf());
         let config_layer_stack = load_config_layers_state(
             LOCAL_FS.as_ref(),
-            &codex_home,
+            &darwin_code_home,
             Some(cwd),
             &cli_overrides,
             loader_overrides,
@@ -725,7 +725,7 @@ impl ConfigBuilder {
             LOCAL_FS.as_ref(),
             config_toml,
             harness_overrides,
-            codex_home,
+            darwin_code_home,
             config_layer_stack,
         )
         .await
@@ -762,7 +762,7 @@ impl Config {
 
         McpConfig {
             chatgpt_base_url: self.chatgpt_base_url.clone(),
-            codex_home: self.codex_home.to_path_buf(),
+            darwin_code_home: self.darwin_code_home.to_path_buf(),
             mcp_oauth_credentials_store_mode: self.mcp_oauth_credentials_store_mode,
             mcp_oauth_callback_port: self.mcp_oauth_callback_port,
             mcp_oauth_callback_url: self.mcp_oauth_callback_url.clone(),
@@ -770,7 +770,7 @@ impl Config {
                 .features
                 .enabled(Feature::SkillMcpDependencyInstall),
             approval_policy: self.permissions.approval_policy.clone(),
-            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.clone(),
+            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.clone(),
             use_legacy_landlock: self.features.use_legacy_landlock(),
             apps_enabled: self.features.enabled(Feature::Apps),
             configured_mcp_servers,
@@ -792,18 +792,18 @@ impl Config {
     pub async fn load_default_with_cli_overrides(
         cli_overrides: Vec<(String, TomlValue)>,
     ) -> std::io::Result<Self> {
-        let codex_home = find_codex_home()?;
-        Self::load_default_with_cli_overrides_for_codex_home(
-            codex_home.to_path_buf(),
+        let darwin_code_home = find_darwin_code_home()?;
+        Self::load_default_with_cli_overrides_for_darwin_code_home(
+            darwin_code_home.to_path_buf(),
             cli_overrides,
         )
         .await
     }
 
-    /// Load a default configuration for a specific Codex home without reading
+    /// Load a default configuration for a specific Darwin-Code home without reading
     /// user, project, or system config layers.
-    pub async fn load_default_with_cli_overrides_for_codex_home(
-        codex_home: PathBuf,
+    pub async fn load_default_with_cli_overrides_for_darwin_code_home(
+        darwin_code_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
     ) -> std::io::Result<Self> {
         let mut merged = toml::Value::try_from(ConfigToml::default()).map_err(|e| {
@@ -814,13 +814,13 @@ impl Config {
         })?;
         let cli_layer = crate::config_loader::build_cli_overrides_layer(&cli_overrides);
         crate::config_loader::merge_toml_values(&mut merged, &cli_layer);
-        let codex_home = AbsolutePathBuf::from_absolute_path_checked(codex_home)?;
-        let config_toml = deserialize_config_toml_with_base(merged, &codex_home)?;
+        let darwin_code_home = AbsolutePathBuf::from_absolute_path_checked(darwin_code_home)?;
+        let config_toml = deserialize_config_toml_with_base(merged, &darwin_code_home)?;
         Self::load_config_with_layer_stack(
             LOCAL_FS.as_ref(),
             config_toml,
             ConfigOverrides::default(),
-            codex_home,
+            darwin_code_home,
             ConfigLayerStack::default(),
         )
         .await
@@ -828,11 +828,11 @@ impl Config {
 
     /// This is a secondary way of creating [Config], which is appropriate when
     /// the harness is meant to be used with a specific configuration that
-    /// ignores user settings. For example, the `codex exec` subcommand is
+    /// ignores user settings. For example, the `darwin-code exec` subcommand is
     /// designed to use [AskForApproval::Never] exclusively.
     ///
     /// Further, [ConfigOverrides] contains some options that are not supported
-    /// in [ConfigToml], such as `cwd`, `codex_self_exe`, `codex_linux_sandbox_exe`, and
+    /// in [ConfigToml], such as `cwd`, `darwin_code_self_exe`, `darwin_code_linux_sandbox_exe`, and
     /// `main_execve_wrapper_exe`.
     pub async fn load_with_cli_overrides_and_harness_overrides(
         cli_overrides: Vec<(String, TomlValue)>,
@@ -850,13 +850,13 @@ impl Config {
 /// with [ConfigToml] directly means that [ConfigRequirements] have not been
 /// applied yet, which risks failing to enforce required constraints.
 pub async fn load_config_as_toml_with_cli_overrides(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
     cli_overrides: Vec<(String, TomlValue)>,
 ) -> std::io::Result<ConfigToml> {
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        codex_home,
+        darwin_code_home,
         cwd.cloned(),
         &cli_overrides,
         LoaderOverrides::default(),
@@ -865,7 +865,7 @@ pub async fn load_config_as_toml_with_cli_overrides(
     .await?;
 
     let merged_toml = config_layer_stack.effective_config();
-    let cfg = deserialize_config_toml_with_base(merged_toml, codex_home).map_err(|e| {
+    let cfg = deserialize_config_toml_with_base(merged_toml, darwin_code_home).map_err(|e| {
         tracing::error!("Failed to deserialize overridden config: {e}");
         e
     })?;
@@ -1012,7 +1012,7 @@ fn mcp_server_matches_requirement(
 }
 
 pub async fn load_global_mcp_servers(
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) -> std::io::Result<BTreeMap<String, McpServerConfig>> {
     // In general, Config::load_with_cli_overrides() should be used to load the
     // full config with requirements.toml applied, but in this case, we need
@@ -1023,11 +1023,11 @@ pub async fn load_global_mcp_servers(
     // result.
     let cli_overrides = Vec::<(String, TomlValue)>::new();
     // There is no cwd/project context for this query, so this will not include
-    // MCP servers defined in in-repo .codex/ folders.
+    // MCP servers defined in in-repo .darwin-code/ folders.
     let cwd: Option<AbsolutePathBuf> = None;
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        codex_home,
+        darwin_code_home,
         cwd,
         &cli_overrides,
         LoaderOverrides::default(),
@@ -1137,23 +1137,23 @@ pub(crate) fn set_project_trust_level_inner(
     Ok(())
 }
 
-/// Patch `CODEX_HOME/config.toml` project state to set trust level.
+/// Patch `DARWIN_CODE_HOME/config.toml` project state to set trust level.
 /// Use with caution.
 pub fn set_project_trust_level(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     project_path: &Path,
     trust_level: TrustLevel,
 ) -> anyhow::Result<()> {
     use crate::config::edit::ConfigEditsBuilder;
 
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(darwin_code_home)
         .set_project_trust_level(project_path, trust_level)
         .apply_blocking()
 }
 
 /// Save the default OSS provider preference to config.toml
-pub fn set_default_oss_provider(codex_home: &Path, provider: &str) -> std::io::Result<()> {
-    codex_config::config_toml::validate_oss_provider(provider)?;
+pub fn set_default_oss_provider(darwin_code_home: &Path, provider: &str) -> std::io::Result<()> {
+    darwin_code_config::config_toml::validate_oss_provider(provider)?;
     use toml_edit::value;
 
     let edits = [ConfigEdit::SetPath {
@@ -1161,7 +1161,7 @@ pub fn set_default_oss_provider(codex_home: &Path, provider: &str) -> std::io::R
         value: value(provider),
     }];
 
-    ConfigEditsBuilder::new(codex_home)
+    ConfigEditsBuilder::new(darwin_code_home)
         .with_edits(edits)
         .apply_blocking()
         .map_err(|err| std::io::Error::other(format!("failed to persist config.toml: {err}")))
@@ -1256,19 +1256,19 @@ fn apply_managed_filesystem_constraints(
 ) {
     for deny_read in &filesystem_constraints.deny_read {
         let deny_entry = if deny_read.contains_glob() {
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::GlobPattern {
+            darwin_code_protocol::permissions::FileSystemSandboxEntry {
+                path: darwin_code_protocol::permissions::FileSystemPath::GlobPattern {
                     pattern: deny_read.as_str().to_string(),
                 },
-                access: codex_protocol::permissions::FileSystemAccessMode::None,
+                access: darwin_code_protocol::permissions::FileSystemAccessMode::None,
             }
         } else {
             let Ok(path) = AbsolutePathBuf::try_from(deny_read.as_str()) else {
                 continue;
             };
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::Path { path },
-                access: codex_protocol::permissions::FileSystemAccessMode::None,
+            darwin_code_protocol::permissions::FileSystemSandboxEntry {
+                path: darwin_code_protocol::permissions::FileSystemPath::Path { path },
+                access: darwin_code_protocol::permissions::FileSystemAccessMode::None,
             }
         };
         if !file_system_sandbox_policy
@@ -1293,8 +1293,8 @@ pub struct ConfigOverrides {
     pub model_provider: Option<String>,
     pub service_tier: Option<Option<ServiceTier>>,
     pub config_profile: Option<String>,
-    pub codex_self_exe: Option<PathBuf>,
-    pub codex_linux_sandbox_exe: Option<PathBuf>,
+    pub darwin_code_self_exe: Option<PathBuf>,
+    pub darwin_code_linux_sandbox_exe: Option<PathBuf>,
     pub main_execve_wrapper_exe: Option<PathBuf>,
     pub js_repl_node_path: Option<PathBuf>,
     pub js_repl_node_module_dirs: Option<Vec<PathBuf>>,
@@ -1455,7 +1455,7 @@ impl Config {
     async fn load_from_base_config_with_overrides(
         cfg: ConfigToml,
         overrides: ConfigOverrides,
-        codex_home: AbsolutePathBuf,
+        darwin_code_home: AbsolutePathBuf,
     ) -> std::io::Result<Self> {
         // Note this ignores requirements.toml enforcement for tests.
         let config_layer_stack = ConfigLayerStack::default();
@@ -1463,7 +1463,7 @@ impl Config {
             LOCAL_FS.as_ref(),
             cfg,
             overrides,
-            codex_home,
+            darwin_code_home,
             config_layer_stack,
         )
         .await
@@ -1473,7 +1473,7 @@ impl Config {
         fs: &dyn ExecutorFileSystem,
         cfg: ConfigToml,
         overrides: ConfigOverrides,
-        codex_home: AbsolutePathBuf,
+        darwin_code_home: AbsolutePathBuf,
         config_layer_stack: ConfigLayerStack,
     ) -> std::io::Result<Self> {
         // Keep the large config-construction future off small test thread stacks.
@@ -1495,7 +1495,7 @@ impl Config {
             filesystem: filesystem_requirements,
         } = config_layer_stack.requirements().clone();
 
-        let user_instructions = AgentsMdManager::load_global_instructions(Some(&codex_home))
+        let user_instructions = AgentsMdManager::load_global_instructions(Some(&darwin_code_home))
             .map(|loaded| loaded.contents);
         let mut startup_warnings = Vec::new();
 
@@ -1510,8 +1510,8 @@ impl Config {
             model_provider,
             service_tier: service_tier_override,
             config_profile: config_profile_key,
-            codex_self_exe,
-            codex_linux_sandbox_exe,
+            darwin_code_self_exe,
+            darwin_code_linux_sandbox_exe,
             main_execve_wrapper_exe,
             js_repl_node_path: js_repl_node_path_override,
             js_repl_node_module_dirs: js_repl_node_module_dirs_override,
@@ -1628,7 +1628,7 @@ impl Config {
             Some(WindowsSandboxModeToml::Unelevated) => WindowsSandboxLevel::RestrictedToken,
             None => WindowsSandboxLevel::from_features(&features),
         };
-        let memories_root = memory_root(&codex_home);
+        let memories_root = memory_root(&darwin_code_home);
         std::fs::create_dir_all(&memories_root)?;
         if !additional_writable_roots
             .iter()
@@ -1987,13 +1987,13 @@ impl Config {
             .log_dir
             .as_ref()
             .map(AbsolutePathBuf::to_path_buf)
-            .unwrap_or_else(|| codex_home.join("log").to_path_buf());
+            .unwrap_or_else(|| darwin_code_home.join("log").to_path_buf());
         let sqlite_home = cfg
             .sqlite_home
             .as_ref()
             .map(AbsolutePathBuf::to_path_buf)
             .or_else(|| resolve_sqlite_home_env(&resolved_cwd))
-            .unwrap_or_else(|| codex_home.to_path_buf());
+            .unwrap_or_else(|| darwin_code_home.to_path_buf());
         let original_sandbox_policy = sandbox_policy.clone();
 
         apply_requirement_constrained_value(
@@ -2077,8 +2077,8 @@ impl Config {
         } else {
             network.enabled().then_some(network)
         };
-        let helper_readable_roots = get_readable_roots_required_for_codex_runtime(
-            &codex_home,
+        let helper_readable_roots = get_readable_roots_required_for_darwin_code_runtime(
+            &darwin_code_home,
             zsh_path.as_ref(),
             main_execve_wrapper_exe.as_ref(),
         );
@@ -2180,15 +2180,15 @@ impl Config {
             agent_roles,
             memories: cfg.memories.unwrap_or_default().into(),
             agent_job_max_runtime_seconds,
-            codex_home,
+            darwin_code_home,
             sqlite_home,
             log_dir,
             config_layer_stack,
             history,
             ephemeral: ephemeral.unwrap_or_default(),
             file_opener: cfg.file_opener.unwrap_or(UriBasedFileOpener::VsCode),
-            codex_self_exe,
-            codex_linux_sandbox_exe,
+            darwin_code_self_exe,
+            darwin_code_linux_sandbox_exe,
             main_execve_wrapper_exe,
             js_repl_node_path,
             js_repl_node_module_dirs,
@@ -2422,19 +2422,19 @@ fn toml_uses_deprecated_instructions_file(value: &TomlValue) -> bool {
     })
 }
 
-/// Returns the path to the Codex configuration directory, which can be
-/// specified by the `CODEX_HOME` environment variable. If not set, defaults to
-/// `~/.codex`.
+/// Returns the path to the Darwin-Code configuration directory, which can be
+/// specified by the `DARWIN_CODE_HOME` environment variable. If not set, defaults to
+/// `~/.darwin-code`.
 ///
-/// - If `CODEX_HOME` is set, the value must exist and be a directory. The
+/// - If `DARWIN_CODE_HOME` is set, the value must exist and be a directory. The
 ///   value will be canonicalized and this function will Err otherwise.
-/// - If `CODEX_HOME` is not set, this function does not verify that the
+/// - If `DARWIN_CODE_HOME` is not set, this function does not verify that the
 ///   directory exists.
-pub fn find_codex_home() -> std::io::Result<AbsolutePathBuf> {
-    codex_utils_home_dir::find_codex_home()
+pub fn find_darwin_code_home() -> std::io::Result<AbsolutePathBuf> {
+    darwin_code_utils_home_dir::find_darwin_code_home()
 }
 
-/// Returns the path to the folder where Codex logs are stored. Does not verify
+/// Returns the path to the folder where Darwin-Code logs are stored. Does not verify
 /// that the directory exists.
 pub fn log_dir(cfg: &Config) -> std::io::Result<PathBuf> {
     Ok(cfg.log_dir.clone())

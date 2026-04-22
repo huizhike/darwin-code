@@ -1,4 +1,4 @@
-//! Transcript/history cells for the Codex TUI.
+//! Transcript/history cells for the Darwin-Code TUI.
 //!
 //! A `HistoryCell` is the unit of display in the conversation UI, representing both committed
 //! transcript entries and, transiently, an in-flight active cell that can mutate in place while
@@ -38,40 +38,40 @@ use crate::text_formatting::truncate_text;
 use crate::tooltips;
 use crate::ui_consts::LIVE_PREFIX_COLS;
 use crate::update_action::UpdateAction;
-use crate::version::CODEX_CLI_VERSION;
+use crate::version::DARWIN_CODE_CLI_VERSION;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use crate::wrapping::adaptive_wrap_lines;
 use base64::Engine;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_config::types::McpServerTransportConfig;
+use darwin_code_app_server_protocol::McpServerStatus;
+use darwin_code_app_server_protocol::McpServerStatusDetail;
+use darwin_code_config::types::McpServerTransportConfig;
 #[cfg(test)]
-use codex_mcp::qualified_mcp_tool_name_prefix;
-use codex_otel::RuntimeMetricsSummary;
-use codex_protocol::account::PlanType;
-use codex_protocol::config_types::ServiceTier;
+use darwin_code_mcp::qualified_mcp_tool_name_prefix;
+use darwin_code_otel::RuntimeMetricsSummary;
+use darwin_code_protocol::account::PlanType;
+use darwin_code_protocol::config_types::ServiceTier;
 #[cfg(test)]
-use codex_protocol::mcp::Resource;
+use darwin_code_protocol::mcp::Resource;
 #[cfg(test)]
-use codex_protocol::mcp::ResourceTemplate;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::models::local_image_label_text;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::plan_tool::PlanItemArg;
-use codex_protocol::plan_tool::StepStatus;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::McpAuthStatus;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::user_input::TextElement;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::format_env_display;
+use darwin_code_protocol::mcp::ResourceTemplate;
+use darwin_code_protocol::models::WebSearchAction;
+use darwin_code_protocol::models::local_image_label_text;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::plan_tool::PlanItemArg;
+use darwin_code_protocol::plan_tool::StepStatus;
+use darwin_code_protocol::plan_tool::UpdatePlanArgs;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::McpAuthStatus;
+use darwin_code_protocol::protocol::McpInvocation;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionConfiguredEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
+use darwin_code_protocol::user_input::TextElement;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_cli::format_env_display;
 use image::DynamicImage;
 use image::ImageReader;
 use ratatui::prelude::*;
@@ -530,7 +530,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/openai/codex".cyan().underlined(),
+                "https://github.com/openai/darwin-code".cyan().underlined(),
                 " for installation options."
             ]
         };
@@ -540,12 +540,12 @@ impl HistoryCell for UpdateAvailableHistoryCell {
                 padded_emoji("✨").bold().cyan(),
                 "Update available!".bold().cyan(),
                 " ",
-                format!("{CODEX_CLI_VERSION} -> {}", self.latest_version).bold(),
+                format!("{DARWIN_CODE_CLI_VERSION} -> {}", self.latest_version).bold(),
             ],
             update_instruction,
             "",
             "See full release notes:",
-            "https://github.com/openai/codex/releases/latest"
+            "https://github.com/openai/darwin-code/releases/latest"
                 .cyan()
                 .underlined(),
         ];
@@ -810,11 +810,11 @@ fn exec_snippet(command: &[String]) -> String {
 
 pub fn new_approval_decision_cell(
     command: Vec<String>,
-    decision: codex_protocol::protocol::ReviewDecision,
+    decision: darwin_code_protocol::protocol::ReviewDecision,
     actor: ApprovalDecisionActor,
 ) -> Box<dyn HistoryCell> {
-    use codex_protocol::protocol::NetworkPolicyRuleAction;
-    use codex_protocol::protocol::ReviewDecision::*;
+    use darwin_code_protocol::protocol::NetworkPolicyRuleAction;
+    use darwin_code_protocol::protocol::ReviewDecision::*;
 
     let (symbol, summary): (Span<'static>, Vec<Span<'static>>) = match decision {
         Approved => {
@@ -824,7 +824,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to run ".into(),
+                    " darwin-code to run ".into(),
                     snippet,
                     " this time".bold(),
                 ],
@@ -839,7 +839,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to always run commands that start with ".into(),
+                    " darwin-code to always run commands that start with ".into(),
                     snippet,
                 ],
             )
@@ -851,7 +851,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to run ".into(),
+                    " darwin-code to run ".into(),
                     snippet,
                     " every time this session".bold(),
                 ],
@@ -865,7 +865,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "persisted".bold(),
-                    " Codex network access to ".into(),
+                    " Darwin-Code network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                 ],
             ),
@@ -874,7 +874,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "denied".bold(),
-                    " codex network access to ".into(),
+                    " darwin-code network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                     " and saved that rule".into(),
                 ],
@@ -886,13 +886,13 @@ pub fn new_approval_decision_cell(
                 ApprovalDecisionActor::User => vec![
                     actor.subject().into(),
                     "did not approve".bold(),
-                    " codex to run ".into(),
+                    " darwin-code to run ".into(),
                     snippet,
                 ],
                 ApprovalDecisionActor::Guardian => vec![
                     "Request ".into(),
                     "denied".bold(),
-                    " for codex to run ".into(),
+                    " for darwin-code to run ".into(),
                     snippet,
                 ],
             };
@@ -905,7 +905,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     "Review ".into(),
                     "timed out".bold(),
-                    " before codex could run ".into(),
+                    " before darwin-code could run ".into(),
                     snippet,
                 ],
             )
@@ -950,7 +950,7 @@ pub fn new_guardian_denied_patch_request(files: Vec<String>) -> Box<dyn HistoryC
     let mut summary = vec![
         "Request ".into(),
         "denied".bold(),
-        " for codex to apply ".into(),
+        " for darwin-code to apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -992,7 +992,7 @@ pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn Histo
     let mut summary = vec![
         "Review ".into(),
         "timed out".bold(),
-        " before codex could apply ".into(),
+        " before darwin-code could apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -1198,7 +1198,7 @@ pub(crate) fn new_session_info(
         reasoning_effort,
         show_fast_status,
         config.cwd.to_path_buf(),
-        CODEX_CLI_VERSION,
+        DARWIN_CODE_CLI_VERSION,
     )
     .with_yolo_mode(has_yolo_permissions(approval_policy, &sandbox_policy));
     let mut parts: Vec<Box<dyn HistoryCell>> = vec![Box::new(header)];
@@ -1213,7 +1213,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/init".into(),
-                " - create an AGENTS.md file with instructions for Codex".dim(),
+                " - create an AGENTS.md file with instructions for Darwin-Code".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1223,7 +1223,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/permissions".into(),
-                " - choose what Codex is allowed to do".dim(),
+                " - choose what Darwin-Code is allowed to do".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1389,10 +1389,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
-        // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
+        // Title line rendered inside the box: ">_ OpenAI Darwin-Code (vX)"
         let title_spans: Vec<Span<'static>> = vec![
             Span::from(">_ ").dim(),
-            Span::from("OpenAI Codex").bold(),
+            Span::from("OpenAI Darwin-Code").bold(),
             Span::from(" ").dim(),
             Span::from(format!("(v{})", self.version)).dim(),
         ];
@@ -1493,7 +1493,7 @@ pub(crate) struct McpToolCallCell {
     invocation: McpInvocation,
     start_time: Instant,
     duration: Option<Duration>,
-    result: Option<Result<codex_protocol::mcp::CallToolResult, String>>,
+    result: Option<Result<darwin_code_protocol::mcp::CallToolResult, String>>,
     animations_enabled: bool,
 }
 
@@ -1520,7 +1520,7 @@ impl McpToolCallCell {
     pub(crate) fn complete(
         &mut self,
         duration: Duration,
-        result: Result<codex_protocol::mcp::CallToolResult, String>,
+        result: Result<darwin_code_protocol::mcp::CallToolResult, String>,
     ) -> Option<Box<dyn HistoryCell>> {
         let image_cell = try_new_completed_mcp_tool_call_with_image_output(&result)
             .map(|cell| Box::new(cell) as Box<dyn HistoryCell>);
@@ -1617,7 +1617,7 @@ impl HistoryCell for McpToolCallCell {
 
         if let Some(result) = &self.result {
             match result {
-                Ok(codex_protocol::mcp::CallToolResult { content, .. }) => {
+                Ok(darwin_code_protocol::mcp::CallToolResult { content, .. }) => {
                     if !content.is_empty() {
                         for block in content {
                             let text = Self::render_content_block(block, detail_wrap_width);
@@ -1777,13 +1777,13 @@ pub(crate) fn new_web_search_call(
 /// exists” affordance separate from the main MCP tool call cell.
 ///
 /// Manual testing tip:
-/// - Run the rmcp stdio test server (`codex-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
-///   register it as an MCP server via `codex mcp add`.
+/// - Run the rmcp stdio test server (`darwin-code-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
+///   register it as an MCP server via `darwin-code mcp add`.
 /// - Use its `image_scenario` tool with cases like `text_then_image`,
 ///   `invalid_base64_then_image`, or `invalid_image_bytes_then_image` to ensure this path triggers
 ///   even when the first block is not a valid image.
 fn try_new_completed_mcp_tool_call_with_image_output(
-    result: &Result<codex_protocol::mcp::CallToolResult, String>,
+    result: &Result<darwin_code_protocol::mcp::CallToolResult, String>,
 ) -> Option<CompletedMcpToolCallWithImageOutput> {
     let image = result
         .as_ref()
@@ -1878,7 +1878,7 @@ pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
         "  • No MCP servers configured.".italic().into(),
         Line::from(vec![
             "    See the ".into(),
-            "\u{1b}]8;;https://developers.openai.com/codex/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
+            "\u{1b}]8;;https://developers.openai.com/darwin-code/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
                 .underlined(),
             " to configure them.".into(),
         ])
@@ -1892,7 +1892,7 @@ pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
 /// Render MCP tools grouped by connection using the fully-qualified tool names.
 pub(crate) fn new_mcp_tools_output(
     config: &Config,
-    tools: HashMap<String, codex_protocol::mcp::Tool>,
+    tools: HashMap<String, darwin_code_protocol::mcp::Tool>,
     resources: HashMap<String, Vec<Resource>>,
     resource_templates: HashMap<String, Vec<ResourceTemplate>>,
     auth_statuses: &HashMap<String, McpAuthStatus>,
@@ -2099,10 +2099,10 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
         lines.push(header.into());
         let auth_status = status
             .map(|status| match status.auth_status {
-                codex_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                codex_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                codex_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
-                codex_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
+                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
+                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
+                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             })
             .unwrap_or(McpAuthStatus::Unsupported);
         lines.push(vec!["    • Auth: ".into(), auth_status.to_string().into()].into());
@@ -2861,34 +2861,34 @@ mod tests {
     use crate::exec_cell::ExecCell;
     use crate::legacy_core::config::Config;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_config::types::McpServerConfig;
-    use codex_config::types::McpServerDisabledReason;
-    use codex_otel::RuntimeMetricTotals;
-    use codex_otel::RuntimeMetricsSummary;
-    use codex_protocol::ThreadId;
-    use codex_protocol::account::PlanType;
-    use codex_protocol::models::WebSearchAction;
-    use codex_protocol::parse_command::ParsedCommand;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::McpAuthStatus;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionConfiguredEvent;
+    use darwin_code_config::types::McpServerConfig;
+    use darwin_code_config::types::McpServerDisabledReason;
+    use darwin_code_otel::RuntimeMetricTotals;
+    use darwin_code_otel::RuntimeMetricsSummary;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::account::PlanType;
+    use darwin_code_protocol::models::WebSearchAction;
+    use darwin_code_protocol::parse_command::ParsedCommand;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::McpAuthStatus;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SessionConfiguredEvent;
     use dirs::home_dir;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::HashMap;
     use std::path::PathBuf;
 
-    use codex_protocol::mcp::CallToolResult;
-    use codex_protocol::mcp::Tool;
-    use codex_protocol::protocol::ExecCommandSource;
+    use darwin_code_protocol::mcp::CallToolResult;
+    use darwin_code_protocol::mcp::Tool;
+    use darwin_code_protocol::protocol::ExecCommandSource;
     use rmcp::model::Content;
 
     const SMALL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
     async fn test_config() -> Config {
-        let codex_home = std::env::temp_dir();
+        let darwin_code_home = std::env::temp_dir();
         ConfigBuilder::default()
-            .codex_home(codex_home.clone())
+            .darwin_code_home(darwin_code_home.clone())
             .build()
             .await
             .expect("config")
@@ -3059,7 +3059,7 @@ mod tests {
             model_provider_id: "test-provider".to_string(),
             service_tier: None,
             approval_policy: AskForApproval::Never,
-            approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer::User,
+            approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer::User,
             sandbox_policy: SandboxPolicy::new_read_only_policy(),
             cwd: test_path_buf("/tmp/project").abs(),
             reasoning_effort: None,
@@ -3433,7 +3433,7 @@ mod tests {
             )]),
             resources: Vec::new(),
             resource_templates: Vec::new(),
-            auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+            auth_status: darwin_code_app_server_protocol::McpAuthStatus::Unsupported,
         }];
 
         let cell = new_mcp_tools_output_from_statuses(
@@ -3458,7 +3458,7 @@ mod tests {
         let summary = Line::from(vec![
             "You ".into(),
             "approved".bold(),
-            " codex to run ".into(),
+            " darwin-code to run ".into(),
             "echo something really long to ensure wrapping happens".dim(),
             " this time".bold(),
         ]);
@@ -3467,7 +3467,7 @@ mod tests {
         assert_eq!(
             rendered,
             vec![
-                "✔ You approved codex to".to_string(),
+                "✔ You approved darwin-code to".to_string(),
                 "  run echo something".to_string(),
                 "  really long to ensure".to_string(),
                 "  wrapping happens this".to_string(),
@@ -4173,7 +4173,7 @@ mod tests {
     #[test]
     fn multiline_command_wraps_with_extra_indent_on_subsequent_lines() {
         // Create a completed exec cell with a multiline command
-        let cmd = "set -o pipefail\ncargo test -p codex-tui --quiet".to_string();
+        let cmd = "set -o pipefail\ncargo test -p darwin-code-tui --quiet".to_string();
         let call_id = "c1".to_string();
         let mut cell = ExecCell::new(
             ExecCall {

@@ -5,16 +5,16 @@ use super::last_assistant_message_from_item;
 use super::response_item_may_include_external_context;
 use super::save_image_generation_result;
 use crate::session::tests::make_session_and_context;
-use codex_protocol::error::CodexErr;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_utils_absolute_path::test_support::PathExt;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::LocalShellAction;
+use darwin_code_protocol::models::LocalShellExecAction;
+use darwin_code_protocol::models::LocalShellStatus;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 
 fn assistant_output_text(text: &str) -> ResponseItem {
@@ -130,7 +130,7 @@ async fn handle_non_tool_response_item_strips_citations_from_assistant_message()
         .content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            darwin_code_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect::<String>();
     assert_eq!(text, "hello world");
@@ -210,14 +210,14 @@ fn completed_item_defers_mailbox_delivery_for_image_generation_calls() {
 }
 
 #[tokio::test]
-async fn save_image_generation_result_saves_base64_to_png_in_codex_home() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let expected_path = image_generation_artifact_path(&codex_home, "session-1", "ig_save_base64");
+async fn save_image_generation_result_saves_base64_to_png_in_darwin_code_home() {
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
+    let expected_path = image_generation_artifact_path(&darwin_code_home, "session-1", "ig_save_base64");
     let _ = std::fs::remove_file(&expected_path);
 
     let saved_path =
-        save_image_generation_result(&codex_home, "session-1", "ig_save_base64", "Zm9v")
+        save_image_generation_result(&darwin_code_home, "session-1", "ig_save_base64", "Zm9v")
             .await
             .expect("image should be saved");
 
@@ -229,20 +229,20 @@ async fn save_image_generation_result_saves_base64_to_png_in_codex_home() {
 #[tokio::test]
 async fn save_image_generation_result_rejects_data_url_payload() {
     let result = "data:image/jpeg;base64,Zm9v";
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
 
-    let err = save_image_generation_result(&codex_home, "session-1", "ig_456", result)
+    let err = save_image_generation_result(&darwin_code_home, "session-1", "ig_456", result)
         .await
         .expect_err("data url payload should error");
-    assert!(matches!(err, CodexErr::InvalidRequest(_)));
+    assert!(matches!(err, DarwinCodeErr::InvalidRequest(_)));
 }
 
 #[tokio::test]
 async fn save_image_generation_result_overwrites_existing_file() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let existing_path = image_generation_artifact_path(&codex_home, "session-1", "ig_overwrite");
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
+    let existing_path = image_generation_artifact_path(&darwin_code_home, "session-1", "ig_overwrite");
     std::fs::create_dir_all(
         existing_path
             .parent()
@@ -251,7 +251,7 @@ async fn save_image_generation_result_overwrites_existing_file() {
     .expect("create image output dir");
     std::fs::write(&existing_path, b"existing").expect("seed existing image");
 
-    let saved_path = save_image_generation_result(&codex_home, "session-1", "ig_overwrite", "Zm9v")
+    let saved_path = save_image_generation_result(&darwin_code_home, "session-1", "ig_overwrite", "Zm9v")
         .await
         .expect("image should be saved");
 
@@ -261,13 +261,13 @@ async fn save_image_generation_result_overwrites_existing_file() {
 }
 
 #[tokio::test]
-async fn save_image_generation_result_sanitizes_call_id_for_codex_home_output_path() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let expected_path = image_generation_artifact_path(&codex_home, "session-1", "../ig/..");
+async fn save_image_generation_result_sanitizes_call_id_for_darwin_code_home_output_path() {
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
+    let expected_path = image_generation_artifact_path(&darwin_code_home, "session-1", "../ig/..");
     let _ = std::fs::remove_file(&expected_path);
 
-    let saved_path = save_image_generation_result(&codex_home, "session-1", "../ig/..", "Zm9v")
+    let saved_path = save_image_generation_result(&darwin_code_home, "session-1", "../ig/..", "Zm9v")
         .await
         .expect("image should be saved");
 
@@ -278,25 +278,25 @@ async fn save_image_generation_result_sanitizes_call_id_for_codex_home_output_pa
 
 #[tokio::test]
 async fn save_image_generation_result_rejects_non_standard_base64() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
-    let err = save_image_generation_result(&codex_home, "session-1", "ig_urlsafe", "_-8")
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
+    let err = save_image_generation_result(&darwin_code_home, "session-1", "ig_urlsafe", "_-8")
         .await
         .expect_err("non-standard base64 should error");
-    assert!(matches!(err, CodexErr::InvalidRequest(_)));
+    assert!(matches!(err, DarwinCodeErr::InvalidRequest(_)));
 }
 
 #[tokio::test]
 async fn save_image_generation_result_rejects_non_base64_data_urls() {
-    let codex_home = tempfile::tempdir().expect("create codex home");
-    let codex_home = codex_home.path().abs();
+    let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+    let darwin_code_home = darwin_code_home.path().abs();
     let err = save_image_generation_result(
-        &codex_home,
+        &darwin_code_home,
         "session-1",
         "ig_svg",
         "data:image/svg+xml,<svg/>",
     )
     .await
     .expect_err("non-base64 data url should error");
-    assert!(matches!(err, CodexErr::InvalidRequest(_)));
+    assert!(matches!(err, DarwinCodeErr::InvalidRequest(_)));
 }

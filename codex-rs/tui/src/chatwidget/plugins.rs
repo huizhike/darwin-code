@@ -18,16 +18,16 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::shimmer::shimmer_spans;
 use crate::tui::FrameRequester;
-use codex_app_server_protocol::PluginDetail;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginSummary;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_features::Feature;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::PluginDetail;
+use darwin_code_app_server_protocol::PluginInstallPolicy;
+use darwin_code_app_server_protocol::PluginInstallResponse;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::PluginMarketplaceEntry;
+use darwin_code_app_server_protocol::PluginReadResponse;
+use darwin_code_app_server_protocol::PluginSummary;
+use darwin_code_app_server_protocol::PluginUninstallResponse;
+use darwin_code_features::Feature;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
@@ -1132,7 +1132,7 @@ impl ChatWidget {
                     });
                     tx.send(AppEvent::FetchPluginDetail {
                         cwd: cwd.clone(),
-                        params: codex_app_server_protocol::PluginReadParams {
+                        params: darwin_code_app_server_protocol::PluginReadParams {
                             marketplace_path: Some(marketplace_path.clone()),
                             remote_marketplace_name: None,
                             plugin_name: plugin_name.clone(),

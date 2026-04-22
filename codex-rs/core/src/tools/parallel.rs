@@ -20,9 +20,9 @@ use crate::tools::registry::ToolArgumentDiffConsumer;
 use crate::tools::router::ToolCall;
 use crate::tools::router::ToolCallSource;
 use crate::tools::router::ToolRouter;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::ResponseInputItem;
-use codex_tools::ToolSpec;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_tools::ToolSpec;
 
 #[derive(Clone)]
 pub(crate) struct ToolCallRuntime {
@@ -49,13 +49,13 @@ impl ToolCallRuntime {
         }
     }
 
-    pub(crate) fn find_spec(&self, tool_name: &codex_tools::ToolName) -> Option<ToolSpec> {
+    pub(crate) fn find_spec(&self, tool_name: &darwin_code_tools::ToolName) -> Option<ToolSpec> {
         self.router.find_spec(tool_name)
     }
 
     pub(crate) fn create_diff_consumer(
         &self,
-        tool_name: &codex_tools::ToolName,
+        tool_name: &darwin_code_tools::ToolName,
     ) -> Option<Box<dyn ToolArgumentDiffConsumer>> {
         self.router.create_diff_consumer(tool_name)
     }
@@ -65,14 +65,14 @@ impl ToolCallRuntime {
         self,
         call: ToolCall,
         cancellation_token: CancellationToken,
-    ) -> impl std::future::Future<Output = Result<ResponseInputItem, CodexErr>> {
+    ) -> impl std::future::Future<Output = Result<ResponseInputItem, DarwinCodeErr>> {
         let error_call = call.clone();
         let future =
             self.handle_tool_call_with_source(call, ToolCallSource::Direct, cancellation_token);
         async move {
             match future.await {
                 Ok(response) => Ok(response.into_response()),
-                Err(FunctionCallError::Fatal(message)) => Err(CodexErr::Fatal(message)),
+                Err(FunctionCallError::Fatal(message)) => Err(DarwinCodeErr::Fatal(message)),
                 Err(other) => Ok(Self::failure_response(error_call, other)),
             }
         }
@@ -154,15 +154,15 @@ impl ToolCallRuntime {
             ToolPayload::Custom { .. } => ResponseInputItem::CustomToolCallOutput {
                 call_id: call.call_id,
                 name: None,
-                output: codex_protocol::models::FunctionCallOutputPayload {
-                    body: codex_protocol::models::FunctionCallOutputBody::Text(message),
+                output: darwin_code_protocol::models::FunctionCallOutputPayload {
+                    body: darwin_code_protocol::models::FunctionCallOutputBody::Text(message),
                     success: Some(false),
                 },
             },
             _ => ResponseInputItem::FunctionCallOutput {
                 call_id: call.call_id,
-                output: codex_protocol::models::FunctionCallOutputPayload {
-                    body: codex_protocol::models::FunctionCallOutputBody::Text(message),
+                output: darwin_code_protocol::models::FunctionCallOutputPayload {
+                    body: darwin_code_protocol::models::FunctionCallOutputBody::Text(message),
                     success: Some(false),
                 },
             },

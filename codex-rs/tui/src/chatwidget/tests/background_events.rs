@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 async fn background_event_updates_status_header() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "bg-1".into(),
         msg: EventMsg::BackgroundEvent(BackgroundEventEvent {
             message: "Waiting for `vim`".to_string(),

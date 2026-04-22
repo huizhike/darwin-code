@@ -2,7 +2,7 @@
 #![allow(clippy::expect_used)]
 
 use anyhow::Result;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -13,10 +13,10 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::ApplyPatchModelOutput;
-use core_test_support::test_codex::ShellModelOutput;
-use core_test_support::test_codex::TestCodexBuilder;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::ApplyPatchModelOutput;
+use core_test_support::test_darwin_code::ShellModelOutput;
+use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -99,15 +99,15 @@ fn shell_responses(
 }
 
 fn configure_shell_model(
-    builder: TestCodexBuilder,
+    builder: TestDarwinCodeBuilder,
     output_type: ShellModelOutput,
     include_apply_patch_tool: bool,
-) -> TestCodexBuilder {
+) -> TestDarwinCodeBuilder {
     let builder = match (output_type, include_apply_patch_tool) {
-        (ShellModelOutput::ShellCommand, _) => builder.with_model("test-gpt-5-codex"),
-        (ShellModelOutput::LocalShell, true) => builder.with_model("gpt-5.1-codex"),
-        (ShellModelOutput::Shell, true) => builder.with_model("gpt-5.1-codex"),
-        (ShellModelOutput::LocalShell, false) => builder.with_model("codex-mini-latest"),
+        (ShellModelOutput::ShellCommand, _) => builder.with_model("test-gpt-5-darwin-code"),
+        (ShellModelOutput::LocalShell, true) => builder.with_model("gpt-5.1-darwin-code"),
+        (ShellModelOutput::Shell, true) => builder.with_model("gpt-5.1-darwin-code"),
+        (ShellModelOutput::LocalShell, false) => builder.with_model("darwin-code-mini-latest"),
         (ShellModelOutput::Shell, false) => builder.with_model("gpt-5"),
     };
 
@@ -126,7 +126,7 @@ async fn shell_output_stays_json_without_freeform_apply_patch(
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ false,
     );
@@ -182,7 +182,7 @@ async fn shell_output_is_structured_with_freeform_apply_patch(
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ true,
     );
@@ -231,7 +231,7 @@ async fn shell_output_preserves_fixture_json_without_serialization(
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ false,
     );
@@ -299,7 +299,7 @@ async fn shell_output_structures_fixture_with_serialization(
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ true,
     );
@@ -362,7 +362,7 @@ async fn shell_output_for_freeform_tool_records_duration(
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ true,
     );
@@ -416,7 +416,7 @@ async fn shell_output_reserializes_truncated_content(output_type: ShellModelOutp
 
     let server = start_mock_server().await;
     let mut builder = configure_shell_model(
-        test_codex(),
+        test_darwin_code(),
         output_type,
         /*include_apply_patch_tool*/ true,
     )
@@ -716,8 +716,8 @@ async fn shell_output_is_structured_for_nonzero_exit(output_type: ShellModelOutp
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.1-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1-darwin-code")
         .with_config(move |config| {
             config.include_apply_patch_tool = true;
         });
@@ -754,7 +754,7 @@ async fn shell_command_output_is_freeform() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.include_apply_patch_tool = true;
     });
     let test = builder.build(&server).await?;
@@ -808,7 +808,7 @@ async fn shell_command_output_is_not_truncated_under_10k_bytes() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5.1");
+    let mut builder = test_darwin_code().with_model("gpt-5.1");
     let test = builder.build(&server).await?;
 
     let call_id = "shell-command";
@@ -859,7 +859,7 @@ async fn shell_command_output_is_not_truncated_over_10k_bytes() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5.1");
+    let mut builder = test_darwin_code().with_model("gpt-5.1");
     let test = builder.build(&server).await?;
 
     let call_id = "shell-command";
@@ -910,8 +910,8 @@ async fn local_shell_call_output_is_structured() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.1-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1-darwin-code")
         .with_config(|config| {
             config.include_apply_patch_tool = true;
         });

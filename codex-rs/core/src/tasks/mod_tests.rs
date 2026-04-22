@@ -1,10 +1,10 @@
 use super::emit_turn_network_proxy_metric;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::SessionTelemetry;
-use codex_otel::TURN_NETWORK_PROXY_METRIC;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use darwin_code_otel::MetricsClient;
+use darwin_code_otel::MetricsConfig;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::TURN_NETWORK_PROXY_METRIC;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SessionSource;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 fn test_session_telemetry() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
+        MetricsConfig::in_memory("test", "darwin-code-core", env!("CARGO_PKG_VERSION"), exporter)
             .with_runtime_reader(),
     )
     .expect("in-memory metrics client");

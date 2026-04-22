@@ -2,10 +2,10 @@
 source: tui/src/chatwidget/tests/guardian.rs
 expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
 ---
-✔ Auto-reviewer approved codex to run rm -f /tmp/guardian-approved.sqlite this
+✔ Auto-reviewer approved darwin-code to run rm -f /tmp/guardian-approved.sqlite this
   time
 
 
-› Ask Codex to do anything
+› Ask Darwin-Code to do anything
 
-  gpt-5.3-codex default · /tmp/project
+  gpt-5.3-darwin-code default · /tmp/project

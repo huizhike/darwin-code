@@ -1,7 +1,7 @@
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_models_manager::collaboration_mode_presets::builtin_collaboration_mode_presets;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::openai_models::ModelPreset;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_models_manager::collaboration_mode_presets::builtin_collaboration_mode_presets;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::openai_models::ModelPreset;
 use std::convert::Infallible;
 
 #[derive(Debug, Clone)]

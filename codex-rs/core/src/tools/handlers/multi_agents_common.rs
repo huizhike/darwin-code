@@ -6,21 +6,21 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
-use codex_features::Feature;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::protocol::CollabAgentRef;
-use codex_protocol::protocol::CollabAgentStatusEntry;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::user_input::UserInput;
+use darwin_code_features::Feature;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::protocol::CollabAgentRef;
+use darwin_code_protocol::protocol::CollabAgentStatusEntry;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::user_input::UserInput;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -108,25 +108,25 @@ pub(crate) fn build_wait_agent_statuses(
     entries
 }
 
-pub(crate) fn collab_spawn_error(err: CodexErr) -> FunctionCallError {
+pub(crate) fn collab_spawn_error(err: DarwinCodeErr) -> FunctionCallError {
     match err {
-        CodexErr::UnsupportedOperation(message) if message == "thread manager dropped" => {
+        DarwinCodeErr::UnsupportedOperation(message) if message == "thread manager dropped" => {
             FunctionCallError::RespondToModel("collab manager unavailable".to_string())
         }
-        CodexErr::UnsupportedOperation(message) => FunctionCallError::RespondToModel(message),
+        DarwinCodeErr::UnsupportedOperation(message) => FunctionCallError::RespondToModel(message),
         err => FunctionCallError::RespondToModel(format!("collab spawn failed: {err}")),
     }
 }
 
-pub(crate) fn collab_agent_error(agent_id: ThreadId, err: CodexErr) -> FunctionCallError {
+pub(crate) fn collab_agent_error(agent_id: ThreadId, err: DarwinCodeErr) -> FunctionCallError {
     match err {
-        CodexErr::ThreadNotFound(id) => {
+        DarwinCodeErr::ThreadNotFound(id) => {
             FunctionCallError::RespondToModel(format!("agent with id {id} not found"))
         }
-        CodexErr::InternalAgentDied => {
+        DarwinCodeErr::InternalAgentDied => {
             FunctionCallError::RespondToModel(format!("agent with id {agent_id} is closed"))
         }
-        CodexErr::UnsupportedOperation(_) => {
+        DarwinCodeErr::UnsupportedOperation(_) => {
             FunctionCallError::RespondToModel("collab manager unavailable".to_string())
         }
         err => FunctionCallError::RespondToModel(format!("collab tool failed: {err}")),
@@ -265,7 +265,7 @@ pub(crate) fn apply_spawn_agent_runtime_overrides(
             FunctionCallError::RespondToModel(format!("approval_policy is invalid: {err}"))
         })?;
     config.permissions.shell_environment_policy = turn.shell_environment_policy.clone();
-    config.codex_linux_sandbox_exe = turn.codex_linux_sandbox_exe.clone();
+    config.darwin_code_linux_sandbox_exe = turn.darwin_code_linux_sandbox_exe.clone();
     config.cwd = turn.cwd.clone();
     config
         .permissions
@@ -338,7 +338,7 @@ pub(crate) async fn apply_requested_spawn_agent_model_overrides(
 }
 
 fn find_spawn_agent_model_name(
-    available_models: &[codex_protocol::openai_models::ModelPreset],
+    available_models: &[darwin_code_protocol::openai_models::ModelPreset],
     requested_model: &str,
 ) -> Result<String, FunctionCallError> {
     available_models

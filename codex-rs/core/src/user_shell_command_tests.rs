@@ -1,7 +1,7 @@
 use super::*;
 use crate::session::tests::make_session_and_context;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::ContentItem;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::models::ContentItem;
 use pretty_assertions::assert_eq;
 
 #[test]

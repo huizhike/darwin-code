@@ -13,10 +13,10 @@ pub(crate) mod sandboxing;
 pub(crate) mod spec;
 pub(crate) mod tool_search_entry;
 
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text;
-use codex_utils_output_truncation::truncate_text;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::formatted_truncate_text;
+use darwin_code_utils_output_truncation::truncate_text;
 pub use router::ToolRouter;
 use serde::Serialize;
 

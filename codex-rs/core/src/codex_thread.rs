@@ -1,38 +1,38 @@
 use crate::agent::AgentStatus;
 use crate::config::ConstraintResult;
 use crate::file_watcher::WatchRegistration;
-use crate::session::Codex;
+use crate::session::Darwin-Code;
 use crate::session::SteerInputError;
-use codex_features::Feature;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::Submission;
+use darwin_code_protocol::protocol::ThreadMemoryMode;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use rmcp::model::ReadResourceRequestParams;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
 
-use codex_rollout::state_db::StateDbHandle;
+use darwin_code_rollout::state_db::StateDbHandle;
 
 #[derive(Clone, Debug)]
 pub struct ThreadConfigSnapshot {
@@ -49,58 +49,58 @@ pub struct ThreadConfigSnapshot {
     pub session_source: SessionSource,
 }
 
-pub struct CodexThread {
-    pub(crate) codex: Codex,
+pub struct DarwinCodeThread {
+    pub(crate) darwin-code: Darwin-Code,
     rollout_path: Option<PathBuf>,
     out_of_band_elicitation_count: Mutex<u64>,
     _watch_registration: WatchRegistration,
 }
 
 /// Conduit for the bidirectional stream of messages that compose a thread
-/// (formerly called a conversation) in Codex.
-impl CodexThread {
+/// (formerly called a conversation) in Darwin-Code.
+impl DarwinCodeThread {
     pub(crate) fn new(
-        codex: Codex,
+        darwin-code: Darwin-Code,
         rollout_path: Option<PathBuf>,
         watch_registration: WatchRegistration,
     ) -> Self {
         Self {
-            codex,
+            darwin-code,
             rollout_path,
             out_of_band_elicitation_count: Mutex::new(0),
             _watch_registration: watch_registration,
         }
     }
 
-    pub async fn submit(&self, op: Op) -> CodexResult<String> {
-        self.codex.submit(op).await
+    pub async fn submit(&self, op: Op) -> DarwinCodeResult<String> {
+        self.darwin-code.submit(op).await
     }
 
-    pub async fn shutdown_and_wait(&self) -> CodexResult<()> {
-        self.codex.shutdown_and_wait().await
+    pub async fn shutdown_and_wait(&self) -> DarwinCodeResult<()> {
+        self.darwin-code.shutdown_and_wait().await
     }
 
     #[doc(hidden)]
     pub async fn ensure_rollout_materialized(&self) {
-        self.codex.session.ensure_rollout_materialized().await;
+        self.darwin-code.session.ensure_rollout_materialized().await;
     }
 
     #[doc(hidden)]
     pub async fn flush_rollout(&self) -> std::io::Result<()> {
-        self.codex.session.flush_rollout().await
+        self.darwin-code.session.flush_rollout().await
     }
 
     pub async fn submit_with_trace(
         &self,
         op: Op,
         trace: Option<W3cTraceContext>,
-    ) -> CodexResult<String> {
-        self.codex.submit_with_trace(op, trace).await
+    ) -> DarwinCodeResult<String> {
+        self.darwin-code.submit_with_trace(op, trace).await
     }
 
     /// Persist whether this thread is eligible for future memory generation.
     pub async fn set_thread_memory_mode(&self, mode: ThreadMemoryMode) -> anyhow::Result<()> {
-        self.codex.set_thread_memory_mode(mode).await
+        self.darwin-code.set_thread_memory_mode(mode).await
     }
 
     pub async fn steer_input(
@@ -109,7 +109,7 @@ impl CodexThread {
         expected_turn_id: Option<&str>,
         responsesapi_client_metadata: Option<HashMap<String, String>>,
     ) -> Result<String, SteerInputError> {
-        self.codex
+        self.darwin-code
             .steer_input(input, expected_turn_id, responsesapi_client_metadata)
             .await
     }
@@ -119,30 +119,30 @@ impl CodexThread {
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> ConstraintResult<()> {
-        self.codex
+        self.darwin-code
             .set_app_server_client_info(app_server_client_name, app_server_client_version)
             .await
     }
 
     /// Use sparingly: this is intended to be removed soon.
-    pub async fn submit_with_id(&self, sub: Submission) -> CodexResult<()> {
-        self.codex.submit_with_id(sub).await
+    pub async fn submit_with_id(&self, sub: Submission) -> DarwinCodeResult<()> {
+        self.darwin-code.submit_with_id(sub).await
     }
 
-    pub async fn next_event(&self) -> CodexResult<Event> {
-        self.codex.next_event().await
+    pub async fn next_event(&self) -> DarwinCodeResult<Event> {
+        self.darwin-code.next_event().await
     }
 
     pub async fn agent_status(&self) -> AgentStatus {
-        self.codex.agent_status().await
+        self.darwin-code.agent_status().await
     }
 
     pub(crate) fn subscribe_status(&self) -> watch::Receiver<AgentStatus> {
-        self.codex.agent_status.clone()
+        self.darwin-code.agent_status.clone()
     }
 
     pub(crate) async fn total_token_usage(&self) -> Option<TokenUsage> {
-        self.codex.session.total_token_usage().await
+        self.darwin-code.session.total_token_usage().await
     }
 
     /// Returns the complete token usage snapshot currently cached for this thread.
@@ -153,7 +153,7 @@ impl CodexThread {
     /// `total_token_usage` would drop last-turn usage and make the v2
     /// `thread/tokenUsage/updated` payload incomplete.
     pub async fn token_usage_info(&self) -> Option<TokenUsageInfo> {
-        self.codex.session.token_usage_info().await
+        self.darwin-code.session.token_usage_info().await
     }
 
     /// Records a user-role session-prefix message without creating a new user turn boundary.
@@ -173,14 +173,14 @@ impl CodexThread {
             }
         };
         if self
-            .codex
+            .darwin-code
             .session
             .inject_response_items(vec![pending_item])
             .await
             .is_err()
         {
-            let turn_context = self.codex.session.new_default_turn().await;
-            self.codex
+            let turn_context = self.darwin-code.session.new_default_turn().await;
+            self.darwin-code
                 .session
                 .record_conversation_items(turn_context.as_ref(), &[message])
                 .await;
@@ -193,45 +193,45 @@ impl CodexThread {
     /// turn. Otherwise it is queued at session scope and a regular turn is started so the agent
     /// can consume that pending input through the normal turn pipeline.
     #[cfg(test)]
-    pub(crate) async fn append_message(&self, message: ResponseItem) -> CodexResult<String> {
+    pub(crate) async fn append_message(&self, message: ResponseItem) -> DarwinCodeResult<String> {
         let submission_id = uuid::Uuid::new_v4().to_string();
         let pending_item = pending_message_input_item(&message)?;
         if let Err(items) = self
-            .codex
+            .darwin-code
             .session
             .inject_response_items(vec![pending_item])
             .await
         {
-            self.codex
+            self.darwin-code
                 .session
                 .queue_response_items_for_next_turn(items)
                 .await;
-            self.codex.session.maybe_start_turn_for_pending_work().await;
+            self.darwin-code.session.maybe_start_turn_for_pending_work().await;
         }
 
         Ok(submission_id)
     }
 
     /// Append raw Responses API items to the thread's model-visible history.
-    pub async fn inject_response_items(&self, items: Vec<ResponseItem>) -> CodexResult<()> {
+    pub async fn inject_response_items(&self, items: Vec<ResponseItem>) -> DarwinCodeResult<()> {
         if items.is_empty() {
-            return Err(CodexErr::InvalidRequest(
+            return Err(DarwinCodeErr::InvalidRequest(
                 "items must not be empty".to_string(),
             ));
         }
 
-        let turn_context = self.codex.session.new_default_turn().await;
-        if self.codex.session.reference_context_item().await.is_none() {
-            self.codex
+        let turn_context = self.darwin-code.session.new_default_turn().await;
+        if self.darwin-code.session.reference_context_item().await.is_none() {
+            self.darwin-code
                 .session
                 .record_context_updates_and_set_reference_context_item(turn_context.as_ref())
                 .await;
         }
-        self.codex
+        self.darwin-code
             .session
             .record_conversation_items(turn_context.as_ref(), &items)
             .await;
-        self.codex.session.flush_rollout().await?;
+        self.darwin-code.session.flush_rollout().await?;
         Ok(())
     }
 
@@ -240,11 +240,11 @@ impl CodexThread {
     }
 
     pub fn state_db(&self) -> Option<StateDbHandle> {
-        self.codex.state_db()
+        self.darwin-code.state_db()
     }
 
     pub async fn config_snapshot(&self) -> ThreadConfigSnapshot {
-        self.codex.thread_config_snapshot().await
+        self.darwin-code.thread_config_snapshot().await
     }
 
     pub async fn read_mcp_resource(
@@ -253,7 +253,7 @@ impl CodexThread {
         uri: &str,
     ) -> anyhow::Result<serde_json::Value> {
         let result = self
-            .codex
+            .darwin-code
             .session
             .read_resource(
                 server,
@@ -274,25 +274,25 @@ impl CodexThread {
         arguments: Option<serde_json::Value>,
         meta: Option<serde_json::Value>,
     ) -> anyhow::Result<CallToolResult> {
-        self.codex
+        self.darwin-code
             .session
             .call_tool(server, tool, arguments, meta)
             .await
     }
 
     pub fn enabled(&self, feature: Feature) -> bool {
-        self.codex.enabled(feature)
+        self.darwin-code.enabled(feature)
     }
 
-    pub async fn increment_out_of_band_elicitation_count(&self) -> CodexResult<u64> {
+    pub async fn increment_out_of_band_elicitation_count(&self) -> DarwinCodeResult<u64> {
         let mut guard = self.out_of_band_elicitation_count.lock().await;
         let was_zero = *guard == 0;
         *guard = guard.checked_add(1).ok_or_else(|| {
-            CodexErr::Fatal("out-of-band elicitation count overflowed".to_string())
+            DarwinCodeErr::Fatal("out-of-band elicitation count overflowed".to_string())
         })?;
 
         if was_zero {
-            self.codex
+            self.darwin-code
                 .session
                 .set_out_of_band_elicitation_pause_state(/*paused*/ true);
         }
@@ -300,10 +300,10 @@ impl CodexThread {
         Ok(*guard)
     }
 
-    pub async fn decrement_out_of_band_elicitation_count(&self) -> CodexResult<u64> {
+    pub async fn decrement_out_of_band_elicitation_count(&self) -> DarwinCodeResult<u64> {
         let mut guard = self.out_of_band_elicitation_count.lock().await;
         if *guard == 0 {
-            return Err(CodexErr::InvalidRequest(
+            return Err(DarwinCodeErr::InvalidRequest(
                 "out-of-band elicitation count is already zero".to_string(),
             ));
         }
@@ -311,7 +311,7 @@ impl CodexThread {
         *guard -= 1;
         let now_zero = *guard == 0;
         if now_zero {
-            self.codex
+            self.darwin-code
                 .session
                 .set_out_of_band_elicitation_pause_state(/*paused*/ false);
         }
@@ -320,13 +320,13 @@ impl CodexThread {
     }
 }
 
-fn pending_message_input_item(message: &ResponseItem) -> CodexResult<ResponseInputItem> {
+fn pending_message_input_item(message: &ResponseItem) -> DarwinCodeResult<ResponseInputItem> {
     match message {
         ResponseItem::Message { role, content, .. } => Ok(ResponseInputItem::Message {
             role: role.clone(),
             content: content.clone(),
         }),
-        _ => Err(CodexErr::InvalidRequest(
+        _ => Err(DarwinCodeErr::InvalidRequest(
             "append_message only supports ResponseItem::Message".to_string(),
         )),
     }

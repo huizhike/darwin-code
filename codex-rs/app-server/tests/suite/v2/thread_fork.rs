@@ -6,28 +6,28 @@ use app_test_support::create_fake_rollout_with_token_usage;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadStatusChangedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::SessionSource;
+use darwin_code_app_server_protocol::ThreadForkParams;
+use darwin_code_app_server_protocol::ThreadForkResponse;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadListResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStartedNotification;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::ThreadStatusChangedNotification;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::UserInput;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -53,12 +53,12 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -66,7 +66,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let original_path = codex_home
+    let original_path = darwin_code_home
         .path()
         .join("sessions")
         .join("2025")
@@ -82,7 +82,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     );
     let original_contents = std::fs::read_to_string(&original_path)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
@@ -191,18 +191,18 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
 #[tokio::test]
 async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
         Some("mock_provider"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
@@ -245,17 +245,17 @@ async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()>
 async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
-    enable_analytics_capture(&server, codex_home.path()).await?;
+    enable_analytics_capture(&server, darwin_code_home.path()).await?;
 
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -263,7 +263,7 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
@@ -288,10 +288,10 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
 #[tokio::test]
 async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
@@ -350,17 +350,17 @@ async fn thread_fork_surfaces_cloud_requirements_load_errors() -> Result<()> {
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let model_server = create_mock_responses_server_repeating_assistant("Done").await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &model_server.uri(),
         &chatgpt_base_url,
         /*general_analytics_enabled*/ false,
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .refresh_token("stale-refresh-token")
             .plan_type("business")
@@ -371,7 +371,7 @@ async fn thread_fork_surfaces_cloud_requirements_load_errors() -> Result<()> {
     )?;
 
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -381,7 +381,7 @@ async fn thread_fork_surfaces_cloud_requirements_load_errors() -> Result<()> {
 
     let refresh_token_url = format!("{}/oauth/token", server.uri());
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -430,12 +430,12 @@ async fn thread_fork_surfaces_cloud_requirements_load_errors() -> Result<()> {
 #[tokio::test]
 async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let conversation_id = create_fake_rollout(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -443,7 +443,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         /*git_info*/ None,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
@@ -592,8 +592,8 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
 }
 
 // Helper to create a config.toml pointing at the mock model server.
-fn create_config_toml(codex_home: &Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -616,7 +616,7 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_chatgpt_base_url(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     chatgpt_base_url: &str,
     general_analytics_enabled: bool,
@@ -626,7 +626,7 @@ fn create_config_toml_with_chatgpt_base_url(
     } else {
         "\ngeneral_analytics = false".to_string()
     };
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

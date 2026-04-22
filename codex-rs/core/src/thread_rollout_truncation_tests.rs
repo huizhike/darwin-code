@@ -1,10 +1,10 @@
 use super::*;
 use crate::session::tests::make_session_and_context;
-use codex_protocol::AgentPath;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::ThreadRolledBackEvent;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ReasoningItemReasoningSummary;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::ThreadRolledBackEvent;
 use pretty_assertions::assert_eq;
 
 fn user_msg(text: &str) -> ResponseItem {

@@ -4,17 +4,17 @@ use std::collections::VecDeque;
 use crate::app_command::AppCommand;
 use crate::app_command::AppCommandView;
 use crate::app_server_approval_conversions::granted_permission_profile_from_request;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::PermissionsRequestApprovalResponse;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ToolRequestUserInputResponse;
-use codex_protocol::mcp::RequestId as McpRequestId;
-use codex_protocol::protocol::ReviewDecision;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::FileChangeApprovalDecision;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalResponse;
+use darwin_code_app_server_protocol::McpServerElicitationAction;
+use darwin_code_app_server_protocol::McpServerElicitationRequestResponse;
+use darwin_code_app_server_protocol::PermissionsRequestApprovalResponse;
+use darwin_code_app_server_protocol::RequestId as AppServerRequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ToolRequestUserInputResponse;
+use darwin_code_protocol::mcp::RequestId as McpRequestId;
+use darwin_code_protocol::protocol::ReviewDecision;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct AppServerRequestResolution {
@@ -230,13 +230,13 @@ impl PendingAppServerRequests {
                         request_id,
                         result: serde_json::to_value(McpServerElicitationRequestResponse {
                             action: match decision {
-                                codex_protocol::approvals::ElicitationAction::Accept => {
+                                darwin_code_protocol::approvals::ElicitationAction::Accept => {
                                     McpServerElicitationAction::Accept
                                 }
-                                codex_protocol::approvals::ElicitationAction::Decline => {
+                                darwin_code_protocol::approvals::ElicitationAction::Decline => {
                                     McpServerElicitationAction::Decline
                                 }
-                                codex_protocol::approvals::ElicitationAction::Cancel => {
+                                darwin_code_protocol::approvals::ElicitationAction::Cancel => {
                                     McpServerElicitationAction::Cancel
                                 }
                             },
@@ -414,31 +414,31 @@ fn file_change_decision(decision: &ReviewDecision) -> Result<FileChangeApprovalD
 mod tests {
     use super::PendingAppServerRequests;
     use super::ResolvedAppServerRequest;
-    use codex_app_server_protocol::AdditionalFileSystemPermissions;
-    use codex_app_server_protocol::AdditionalNetworkPermissions;
-    use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-    use codex_app_server_protocol::FileChangeRequestApprovalParams;
-    use codex_app_server_protocol::McpElicitationObjectType;
-    use codex_app_server_protocol::McpElicitationSchema;
-    use codex_app_server_protocol::McpServerElicitationRequest;
-    use codex_app_server_protocol::McpServerElicitationRequestParams;
-    use codex_app_server_protocol::PermissionGrantScope;
-    use codex_app_server_protocol::PermissionsRequestApprovalParams;
-    use codex_app_server_protocol::PermissionsRequestApprovalResponse;
-    use codex_app_server_protocol::RequestId as AppServerRequestId;
-    use codex_app_server_protocol::ServerRequest;
-    use codex_app_server_protocol::ToolRequestUserInputAnswer;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_app_server_protocol::ToolRequestUserInputResponse;
-    use codex_protocol::approvals::ElicitationAction;
-    use codex_protocol::approvals::ExecPolicyAmendment;
-    use codex_protocol::mcp::RequestId as McpRequestId;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::protocol::Op;
-    use codex_protocol::protocol::ReviewDecision;
-    use codex_protocol::request_permissions::RequestPermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_app_server_protocol::AdditionalFileSystemPermissions;
+    use darwin_code_app_server_protocol::AdditionalNetworkPermissions;
+    use darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams;
+    use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
+    use darwin_code_app_server_protocol::McpElicitationObjectType;
+    use darwin_code_app_server_protocol::McpElicitationSchema;
+    use darwin_code_app_server_protocol::McpServerElicitationRequest;
+    use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
+    use darwin_code_app_server_protocol::PermissionGrantScope;
+    use darwin_code_app_server_protocol::PermissionsRequestApprovalParams;
+    use darwin_code_app_server_protocol::PermissionsRequestApprovalResponse;
+    use darwin_code_app_server_protocol::RequestId as AppServerRequestId;
+    use darwin_code_app_server_protocol::ServerRequest;
+    use darwin_code_app_server_protocol::ToolRequestUserInputAnswer;
+    use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+    use darwin_code_app_server_protocol::ToolRequestUserInputResponse;
+    use darwin_code_protocol::approvals::ElicitationAction;
+    use darwin_code_protocol::approvals::ExecPolicyAmendment;
+    use darwin_code_protocol::mcp::RequestId as McpRequestId;
+    use darwin_code_protocol::models::FileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::protocol::Op;
+    use darwin_code_protocol::protocol::ReviewDecision;
+    use darwin_code_protocol::request_permissions::RequestPermissionProfile;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -531,7 +531,7 @@ mod tests {
         let permissions = pending
             .take_resolution(&Op::RequestPermissionsResponse {
                 id: "perm-1".to_string(),
-                response: codex_protocol::request_permissions::RequestPermissionsResponse {
+                response: darwin_code_protocol::request_permissions::RequestPermissionsResponse {
                     permissions: RequestPermissionProfile {
                         network: Some(NetworkPermissions {
                             enabled: Some(true),
@@ -541,7 +541,7 @@ mod tests {
                             write: Some(vec![absolute_path(write_path)]),
                         }),
                     },
-                    scope: codex_protocol::request_permissions::PermissionGrantScope::Session,
+                    scope: darwin_code_protocol::request_permissions::PermissionGrantScope::Session,
                 },
             })
             .expect("permissions response should serialize")
@@ -551,7 +551,7 @@ mod tests {
             serde_json::from_value::<PermissionsRequestApprovalResponse>(permissions.result)
                 .expect("permissions response should decode"),
             PermissionsRequestApprovalResponse {
-                permissions: codex_app_server_protocol::GrantedPermissionProfile {
+                permissions: darwin_code_app_server_protocol::GrantedPermissionProfile {
                     network: Some(AdditionalNetworkPermissions {
                         enabled: Some(true),
                     }),
@@ -567,10 +567,10 @@ mod tests {
         let user_input = pending
             .take_resolution(&Op::UserInputAnswer {
                 id: "turn-2".to_string(),
-                response: codex_protocol::request_user_input::RequestUserInputResponse {
+                response: darwin_code_protocol::request_user_input::RequestUserInputResponse {
                     answers: std::iter::once((
                         "question".to_string(),
-                        codex_protocol::request_user_input::RequestUserInputAnswer {
+                        darwin_code_protocol::request_user_input::RequestUserInputAnswer {
                             answers: vec!["yes".to_string()],
                         },
                     ))
@@ -649,7 +649,7 @@ mod tests {
         let unsupported = pending
             .note_server_request(&ServerRequest::DynamicToolCall {
                 request_id: AppServerRequestId::Integer(99),
-                params: codex_app_server_protocol::DynamicToolCallParams {
+                params: darwin_code_app_server_protocol::DynamicToolCallParams {
                     thread_id: "thread-1".to_string(),
                     turn_id: "turn-1".to_string(),
                     call_id: "tool-1".to_string(),
@@ -673,8 +673,8 @@ mod tests {
         assert_eq!(
             pending.note_server_request(&ServerRequest::ChatgptAuthTokensRefresh {
                 request_id: AppServerRequestId::Integer(100),
-                params: codex_app_server_protocol::ChatgptAuthTokensRefreshParams {
-                    reason: codex_app_server_protocol::ChatgptAuthTokensRefreshReason::Unauthorized,
+                params: darwin_code_app_server_protocol::ChatgptAuthTokensRefreshParams {
+                    reason: darwin_code_app_server_protocol::ChatgptAuthTokensRefreshReason::Unauthorized,
                     previous_account_id: Some("workspace-1".to_string()),
                 },
             }),
@@ -824,7 +824,7 @@ mod tests {
             });
         }
 
-        let response = codex_protocol::request_user_input::RequestUserInputResponse {
+        let response = darwin_code_protocol::request_user_input::RequestUserInputResponse {
             answers: HashMap::new(),
         };
         let first_response = pending

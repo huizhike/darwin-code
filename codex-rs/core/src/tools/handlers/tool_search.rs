@@ -9,9 +9,9 @@ use bm25::Document;
 use bm25::Language;
 use bm25::SearchEngine;
 use bm25::SearchEngineBuilder;
-use codex_tools::TOOL_SEARCH_DEFAULT_LIMIT;
-use codex_tools::TOOL_SEARCH_TOOL_NAME;
-use codex_tools::ToolSearchOutputTool;
+use darwin_code_tools::TOOL_SEARCH_DEFAULT_LIMIT;
+use darwin_code_tools::TOOL_SEARCH_TOOL_NAME;
+use darwin_code_tools::ToolSearchOutputTool;
 use std::collections::HashMap;
 
 const COMPUTER_USE_MCP_SERVER_NAME: &str = "computer-use";
@@ -197,11 +197,11 @@ fn default_limit_for_bucket(bucket: &str) -> usize {
 mod tests {
     use super::*;
     use crate::tools::tool_search_entry::build_tool_search_entries;
-    use codex_mcp::ToolInfo;
-    use codex_protocol::dynamic_tools::DynamicToolSpec;
-    use codex_tools::ResponsesApiNamespace;
-    use codex_tools::ResponsesApiNamespaceTool;
-    use codex_tools::ResponsesApiTool;
+    use darwin_code_mcp::ToolInfo;
+    use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+    use darwin_code_tools::ResponsesApiNamespace;
+    use darwin_code_tools::ResponsesApiNamespaceTool;
+    use darwin_code_tools::ResponsesApiTool;
     use pretty_assertions::assert_eq;
     use rmcp::model::Tool;
     use std::sync::Arc;
@@ -256,7 +256,7 @@ mod tests {
                             description: "Create events desktop tool".to_string(),
                             strict: false,
                             defer_loading: Some(true),
-                            parameters: codex_tools::JsonSchema::object(
+                            parameters: darwin_code_tools::JsonSchema::object(
                                 Default::default(),
                                 /*required*/ None,
                                 Some(false.into()),
@@ -268,7 +268,7 @@ mod tests {
                             description: "List events desktop tool".to_string(),
                             strict: false,
                             defer_loading: Some(true),
-                            parameters: codex_tools::JsonSchema::object(
+                            parameters: darwin_code_tools::JsonSchema::object(
                                 Default::default(),
                                 /*required*/ None,
                                 Some(false.into()),
@@ -283,10 +283,10 @@ mod tests {
                         .to_string(),
                     strict: false,
                     defer_loading: Some(true),
-                    parameters: codex_tools::JsonSchema::object(
+                    parameters: darwin_code_tools::JsonSchema::object(
                         std::collections::BTreeMap::from([(
                             "mode".to_string(),
-                            codex_tools::JsonSchema::string(/*description*/ None),
+                            darwin_code_tools::JsonSchema::string(/*description*/ None),
                         )]),
                         Some(vec!["mode".to_string()]),
                         Some(false.into()),

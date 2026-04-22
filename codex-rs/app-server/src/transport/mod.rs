@@ -7,9 +7,9 @@ use crate::outgoing_message::OutgoingEnvelope;
 use crate::outgoing_message::OutgoingError;
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::QueuedOutgoingMessage;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::ServerRequest;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -393,13 +393,13 @@ pub(crate) async fn route_outgoing_envelope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::JSONRPCNotification;
-    use codex_app_server_protocol::JSONRPCRequest;
-    use codex_app_server_protocol::JSONRPCResponse;
-    use codex_app_server_protocol::RequestId;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_app_server_protocol::ConfigWarningNotification;
+    use darwin_code_app_server_protocol::JSONRPCNotification;
+    use darwin_code_app_server_protocol::JSONRPCRequest;
+    use darwin_code_app_server_protocol::JSONRPCResponse;
+    use darwin_code_app_server_protocol::RequestId;
+    use darwin_code_app_server_protocol::ServerNotification;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tokio::time::Duration;
@@ -763,7 +763,7 @@ mod tests {
                 connection_id,
                 message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                     request_id: RequestId::Integer(1),
-                    params: codex_app_server_protocol::CommandExecutionRequestApprovalParams {
+                    params: darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams {
                         thread_id: "thr_123".to_string(),
                         turn_id: "turn_123".to_string(),
                         item_id: "call_123".to_string(),
@@ -774,10 +774,10 @@ mod tests {
                         cwd: Some(absolute_path("/tmp")),
                         command_actions: None,
                         additional_permissions: Some(
-                            codex_app_server_protocol::AdditionalPermissionProfile {
+                            darwin_code_app_server_protocol::AdditionalPermissionProfile {
                                 network: None,
                                 file_system: Some(
-                                    codex_app_server_protocol::AdditionalFileSystemPermissions {
+                                    darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
                                         read: Some(vec![absolute_path("/tmp/allowed")]),
                                         write: None,
                                     },
@@ -825,7 +825,7 @@ mod tests {
                 connection_id,
                 message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                     request_id: RequestId::Integer(1),
-                    params: codex_app_server_protocol::CommandExecutionRequestApprovalParams {
+                    params: darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams {
                         thread_id: "thr_123".to_string(),
                         turn_id: "turn_123".to_string(),
                         item_id: "call_123".to_string(),
@@ -836,10 +836,10 @@ mod tests {
                         cwd: Some(absolute_path("/tmp")),
                         command_actions: None,
                         additional_permissions: Some(
-                            codex_app_server_protocol::AdditionalPermissionProfile {
+                            darwin_code_app_server_protocol::AdditionalPermissionProfile {
                                 network: None,
                                 file_system: Some(
-                                    codex_app_server_protocol::AdditionalFileSystemPermissions {
+                                    darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
                                         read: Some(vec![absolute_path("/tmp/allowed")]),
                                         write: None,
                                     },

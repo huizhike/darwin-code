@@ -8,12 +8,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::ResponseInputItem;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::models::ResponseInputItem;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -41,17 +41,17 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::ToolRouter;
 use crate::tools::context::SharedTurnDiffTracker;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxablePreference;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxTransformRequest;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_tools::ResponsesApiNamespaceTool;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolSpec;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::truncate_text;
 
-pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// codex-js-repl:";
+pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// darwin-code-js-repl:";
 const KERNEL_SOURCE: &str = include_str!("kernel.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 const JS_REPL_MIN_NODE_VERSION: &str = include_str!("../../../../node-version.txt");
@@ -1016,10 +1016,10 @@ impl JsReplManager {
             env.extend(dependency_env.clone());
         }
         env.insert(
-            "CODEX_JS_TMP_DIR".to_string(),
+            "DARWIN_CODE_JS_TMP_DIR".to_string(),
             self.tmp_dir.path().to_string_lossy().to_string(),
         );
-        let node_module_dirs_key = "CODEX_JS_REPL_NODE_MODULE_DIRS";
+        let node_module_dirs_key = "DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS";
         if !self.node_module_dirs.is_empty() && !env.contains_key(node_module_dirs_key) {
             let joined = std::env::join_paths(&self.node_module_dirs)
                 .map_err(|err| format!("failed to join js_repl_node_module_dirs: {err}"))?;
@@ -1062,7 +1062,7 @@ impl JsReplManager {
                 enforce_managed_network: managed_network_active,
                 network: None,
                 sandbox_policy_cwd: &turn.cwd,
-                codex_linux_sandbox_exe: turn.codex_linux_sandbox_exe.as_deref(),
+                darwin_code_linux_sandbox_exe: turn.darwin_code_linux_sandbox_exe.as_deref(),
                 use_legacy_landlock: turn.features.use_legacy_landlock(),
                 windows_sandbox_level: turn.windows_sandbox_level,
                 windows_sandbox_private_desktop: turn
@@ -1761,7 +1761,7 @@ fn validate_emitted_image_url(image_url: &str) -> Result<(), String> {
     {
         Ok(())
     } else {
-        Err("codex.emitImage only accepts data URLs".to_string())
+        Err("darwin-code.emitImage only accepts data URLs".to_string())
     }
 }
 
@@ -1963,14 +1963,14 @@ async fn ensure_node_version(node_path: &Path) -> Result<(), String> {
 
 pub(crate) async fn resolve_compatible_node(config_path: Option<&Path>) -> Result<PathBuf, String> {
     let node_path = resolve_node(config_path).ok_or_else(|| {
-        "Node runtime not found; install Node or set CODEX_JS_REPL_NODE_PATH".to_string()
+        "Node runtime not found; install Node or set DARWIN_CODE_JS_REPL_NODE_PATH".to_string()
     })?;
     ensure_node_version(&node_path).await?;
     Ok(node_path)
 }
 
 pub(crate) fn resolve_node(config_path: Option<&Path>) -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("CODEX_JS_REPL_NODE_PATH") {
+    if let Some(path) = std::env::var_os("DARWIN_CODE_JS_REPL_NODE_PATH") {
         let p = PathBuf::from(path);
         if p.exists() {
             return Some(p);

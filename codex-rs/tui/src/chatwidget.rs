@@ -1,4 +1,4 @@
-//! The main Codex TUI chat surface.
+//! The main Darwin-Code TUI chat surface.
 //!
 //! `ChatWidget` consumes protocol events, builds and updates history cells, and drives rendering
 //! for both the main viewport and overlay UIs.
@@ -78,155 +78,155 @@ use crate::terminal_title::SetTerminalTitleResult;
 use crate::terminal_title::clear_terminal_title;
 use crate::terminal_title::set_terminal_title;
 use crate::text_formatting::proper_join;
-use crate::version::CODEX_CLI_VERSION;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppSummary;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
-use codex_app_server_protocol::CollabAgentState as AppServerCollabAgentState;
-use codex_app_server_protocol::CollabAgentStatus as AppServerCollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalParams;
-use codex_app_server_protocol::GuardianApprovalReviewAction;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnPlanStepStatus;
-use codex_app_server_protocol::TurnStatus;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::Notifications;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_features::FEATURES;
-use codex_features::Feature;
+use crate::version::DARWIN_CODE_CLI_VERSION;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_app_server_protocol::AppSummary;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
+use darwin_code_app_server_protocol::CollabAgentState as AppServerCollabAgentState;
+use darwin_code_app_server_protocol::CollabAgentStatus as AppServerCollabAgentStatus;
+use darwin_code_app_server_protocol::CollabAgentTool;
+use darwin_code_app_server_protocol::CollabAgentToolCallStatus;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::ErrorNotification;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
+use darwin_code_app_server_protocol::GuardianApprovalReviewAction;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::McpServerStartupState;
+use darwin_code_app_server_protocol::McpServerStatusUpdatedNotification;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadTokenUsage;
+use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnPlanStepStatus;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_config::types::ApprovalsReviewer;
+use darwin_code_config::types::Notifications;
+use darwin_code_config::types::WindowsSandboxModeToml;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
 #[cfg(test)]
-use codex_git_utils::CommitLogEntry;
-use codex_git_utils::current_branch_name;
-use codex_git_utils::get_git_repo_root;
-use codex_git_utils::local_git_branches;
-use codex_git_utils::recent_commits;
-use codex_otel::RuntimeMetricsSummary;
-use codex_otel::SessionTelemetry;
+use darwin_code_git_utils::CommitLogEntry;
+use darwin_code_git_utils::current_branch_name;
+use darwin_code_git_utils::get_git_repo_root;
+use darwin_code_git_utils::local_git_branches;
+use darwin_code_git_utils::recent_commits;
+use darwin_code_otel::RuntimeMetricsSummary;
+use darwin_code_otel::SessionTelemetry;
 
 type FeedbackClient = ();
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::Settings;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::account::PlanType;
+use darwin_code_protocol::approvals::ElicitationRequestEvent;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::Settings;
 #[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::local_image_label_text;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
-use codex_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::items::AgentMessageContent;
+use darwin_code_protocol::items::AgentMessageItem;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::local_image_label_text;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
+use darwin_code_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
 #[cfg(test)]
-use codex_protocol::protocol::AgentMessageDeltaEvent;
+use darwin_code_protocol::protocol::AgentMessageDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentMessageEvent;
+use darwin_code_protocol::protocol::AgentMessageEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningDeltaEvent;
+use darwin_code_protocol::protocol::AgentReasoningDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningEvent;
+use darwin_code_protocol::protocol::AgentReasoningEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningRawContentDeltaEvent;
+use darwin_code_protocol::protocol::AgentReasoningRawContentDeltaEvent;
 #[cfg(test)]
-use codex_protocol::protocol::AgentReasoningRawContentEvent;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::AgentReasoningRawContentEvent;
+use darwin_code_protocol::protocol::AgentStatus;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
 #[cfg(test)]
-use codex_protocol::protocol::BackgroundEventEvent;
+use darwin_code_protocol::protocol::BackgroundEventEvent;
 #[cfg(test)]
-use codex_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
-use codex_protocol::protocol::CollabAgentRef;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo as CoreDarwinCodeErrorInfo;
+use darwin_code_protocol::protocol::CollabAgentRef;
 #[cfg(test)]
-use codex_protocol::protocol::CollabAgentSpawnBeginEvent;
-use codex_protocol::protocol::CollabAgentStatusEntry;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::DeprecationNoticeEvent;
+use darwin_code_protocol::protocol::CollabAgentSpawnBeginEvent;
+use darwin_code_protocol::protocol::CollabAgentStatusEntry;
+use darwin_code_protocol::protocol::CreditsSnapshot;
+use darwin_code_protocol::protocol::DeprecationNoticeEvent;
 #[cfg(test)]
-use codex_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::ErrorEvent;
 #[cfg(test)]
-use codex_protocol::protocol::Event;
+use darwin_code_protocol::protocol::Event;
 #[cfg(test)]
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
-use codex_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
+use darwin_code_protocol::protocol::ExecCommandSource;
 #[cfg(test)]
-use codex_protocol::protocol::ExitedReviewModeEvent;
-use codex_protocol::protocol::GuardianAssessmentAction;
-use codex_protocol::protocol::GuardianAssessmentDecisionSource;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::ImageGenerationBeginEvent;
-use codex_protocol::protocol::ImageGenerationEndEvent;
-use codex_protocol::protocol::ListSkillsResponseEvent;
+use darwin_code_protocol::protocol::ExitedReviewModeEvent;
+use darwin_code_protocol::protocol::GuardianAssessmentAction;
+use darwin_code_protocol::protocol::GuardianAssessmentDecisionSource;
+use darwin_code_protocol::protocol::GuardianAssessmentEvent;
+use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+use darwin_code_protocol::protocol::ImageGenerationBeginEvent;
+use darwin_code_protocol::protocol::ImageGenerationEndEvent;
+use darwin_code_protocol::protocol::ListSkillsResponseEvent;
 #[cfg(test)]
-use codex_protocol::protocol::McpListToolsResponseEvent;
+use darwin_code_protocol::protocol::McpListToolsResponseEvent;
 #[cfg(test)]
-use codex_protocol::protocol::McpStartupCompleteEvent;
-use codex_protocol::protocol::McpStartupStatus;
+use darwin_code_protocol::protocol::McpStartupCompleteEvent;
+use darwin_code_protocol::protocol::McpStartupStatus;
 #[cfg(test)]
-use codex_protocol::protocol::McpStartupUpdateEvent;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget;
-use codex_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
+use darwin_code_protocol::protocol::McpStartupUpdateEvent;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::PatchApplyBeginEvent;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::protocol::ReviewTarget;
+use darwin_code_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
 #[cfg(test)]
-use codex_protocol::protocol::StreamErrorEvent;
-use codex_protocol::protocol::TerminalInteractionEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::StreamErrorEvent;
+use darwin_code_protocol::protocol::TerminalInteractionEvent;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TurnAbortReason;
 #[cfg(test)]
-use codex_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
 #[cfg(test)]
-use codex_protocol::protocol::TurnDiffEvent;
+use darwin_code_protocol::protocol::TurnDiffEvent;
 #[cfg(test)]
-use codex_protocol::protocol::UndoCompletedEvent;
+use darwin_code_protocol::protocol::UndoCompletedEvent;
 #[cfg(test)]
-use codex_protocol::protocol::UndoStartedEvent;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::protocol::ViewImageToolCallEvent;
+use darwin_code_protocol::protocol::UndoStartedEvent;
+use darwin_code_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::protocol::ViewImageToolCallEvent;
 #[cfg(test)]
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::protocol::WebSearchBeginEvent;
-use codex_protocol::protocol::WebSearchEndEvent;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_user_input::RequestUserInputEvent;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::user_input::TextElement;
-use codex_protocol::user_input::UserInput;
-use codex_terminal_detection::Multiplexer;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_sleep_inhibitor::SleepInhibitor;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::protocol::WebSearchBeginEvent;
+use darwin_code_protocol::protocol::WebSearchEndEvent;
+use darwin_code_protocol::request_permissions::RequestPermissionsEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestionOption;
+use darwin_code_protocol::user_input::TextElement;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_terminal_detection::Multiplexer;
+use darwin_code_terminal_detection::TerminalInfo;
+use darwin_code_terminal_detection::TerminalName;
+use darwin_code_terminal_detection::terminal_info;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_sleep_inhibitor::SleepInhibitor;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -250,7 +250,7 @@ const MULTI_AGENT_ENABLE_TITLE: &str = "Enable subagents?";
 const MULTI_AGENT_ENABLE_YES: &str = "Yes, enable";
 const MULTI_AGENT_ENABLE_NO: &str = "Not now";
 const MULTI_AGENT_ENABLE_NOTICE: &str = "Subagents will be enabled in the next session.";
-const MEMORIES_DOC_URL: &str = "https://developers.openai.com/codex/memories";
+const MEMORIES_DOC_URL: &str = "https://developers.openai.com/darwin-code/memories";
 const MEMORIES_ENABLE_TITLE: &str = "Enable memories?";
 const MEMORIES_ENABLE_YES: &str = "Yes, enable";
 const MEMORIES_ENABLE_NO: &str = "Not now";
@@ -382,16 +382,16 @@ use crate::streaming::controller::PlanStreamController;
 use crate::streaming::controller::StreamController;
 
 use chrono::Local;
-use codex_file_search::FileMatch;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::plan_tool::StepStatus;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_approval_presets::ApprovalPreset;
-use codex_utils_approval_presets::builtin_approval_presets;
+use darwin_code_file_search::FileMatch;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::plan_tool::StepStatus;
+use darwin_code_protocol::plan_tool::UpdatePlanArgs;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_approval_presets::ApprovalPreset;
+use darwin_code_utils_approval_presets::builtin_approval_presets;
 use strum::IntoEnumIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -464,7 +464,7 @@ fn is_standard_tool_call(parsed_cmd: &[ParsedCommand]) -> bool {
 }
 
 const RATE_LIMIT_WARNING_THRESHOLDS: [f64; 3] = [75.0, 90.0, 95.0];
-const NUDGE_MODEL_SLUG: &str = "gpt-5.1-codex-mini";
+const NUDGE_MODEL_SLUG: &str = "gpt-5.1-darwin-code-mini";
 const RATE_LIMIT_SWITCH_PROMPT_THRESHOLD: f64 = 90.0;
 
 #[derive(Default)]
@@ -613,22 +613,22 @@ enum RateLimitErrorKind {
 }
 
 #[cfg(test)]
-fn core_rate_limit_error_kind(info: &CoreCodexErrorInfo) -> Option<RateLimitErrorKind> {
+fn core_rate_limit_error_kind(info: &CoreDarwinCodeErrorInfo) -> Option<RateLimitErrorKind> {
     match info {
-        CoreCodexErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
-        CoreCodexErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
-        CoreCodexErrorInfo::ResponseTooManyFailedAttempts {
+        CoreDarwinCodeErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
+        CoreDarwinCodeErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
+        CoreDarwinCodeErrorInfo::ResponseTooManyFailedAttempts {
             http_status_code: Some(429),
         } => Some(RateLimitErrorKind::Generic),
         _ => None,
     }
 }
 
-fn app_server_rate_limit_error_kind(info: &AppServerCodexErrorInfo) -> Option<RateLimitErrorKind> {
+fn app_server_rate_limit_error_kind(info: &AppServerDarwinCodeErrorInfo) -> Option<RateLimitErrorKind> {
     match info {
-        AppServerCodexErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
-        AppServerCodexErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
-        AppServerCodexErrorInfo::ResponseTooManyFailedAttempts {
+        AppServerDarwinCodeErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
+        AppServerDarwinCodeErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
+        AppServerDarwinCodeErrorInfo::ResponseTooManyFailedAttempts {
             http_status_code: Some(429),
         } => Some(RateLimitErrorKind::Generic),
         _ => None,
@@ -739,14 +739,14 @@ impl PendingGuardianReviewStatus {
 /// intent (`Op` submissions and `AppEvent` requests).
 ///
 /// It is not responsible for running the agent itself; it reflects progress by updating UI state
-/// and by sending requests back to codex-core.
+/// and by sending requests back to darwin-code-core.
 ///
 /// Quit/interrupt behavior intentionally spans layers: the bottom pane owns local input routing
 /// (which view gets Ctrl+C), while `ChatWidget` owns process-level decisions such as interrupting
 /// active work, arming the double-press quit shortcut, and requesting shutdown-first exit.
 pub(crate) struct ChatWidget {
     app_event_tx: AppEventSender,
-    codex_op_target: CodexOpTarget,
+    darwin_code_op_target: DarwinCodeOpTarget,
     bottom_pane: BottomPane,
     active_cell: Option<Box<dyn HistoryCell>>,
     /// Monotonic-ish counter used to invalidate transcript overlay caching.
@@ -816,7 +816,7 @@ pub(crate) struct ChatWidget {
     turn_sleep_inhibitor: SleepInhibitor,
     task_complete_pending: bool,
     unified_exec_processes: Vec<UnifiedExecProcessSummary>,
-    /// Tracks whether codex-core currently considers an agent turn to be in progress.
+    /// Tracks whether darwin-code-core currently considers an agent turn to be in progress.
     ///
     /// This is kept separate from `mcp_startup_status` so that MCP startup progress (or completion)
     /// can update the status header without accidentally clearing the spinner for an active turn.
@@ -955,7 +955,7 @@ pub(crate) struct ChatWidget {
     // Instruction source files loaded for the current session, supplied by app-server.
     instruction_source_paths: Vec<AbsolutePathBuf>,
     // Runtime network proxy bind addresses from SessionConfigured.
-    session_network_proxy: Option<codex_protocol::protocol::SessionNetworkProxyRuntime>,
+    session_network_proxy: Option<darwin_code_protocol::protocol::SessionNetworkProxyRuntime>,
     // Shared latch so we only warn once about invalid status-line item IDs.
     status_line_invalid_items_warned: Arc<AtomicBool>,
     // Shared latch so we only warn once about invalid terminal-title item IDs.
@@ -1001,7 +1001,7 @@ struct CollabAgentMetadata {
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-enum CodexOpTarget {
+enum DarwinCodeOpTarget {
     Direct(UnboundedSender<Op>),
     AppEvent,
 }
@@ -1294,8 +1294,8 @@ impl ThreadItemRenderSource {
 
 fn thread_session_state_to_legacy_event(
     session: ThreadSessionState,
-) -> codex_protocol::protocol::SessionConfiguredEvent {
-    codex_protocol::protocol::SessionConfiguredEvent {
+) -> darwin_code_protocol::protocol::SessionConfiguredEvent {
+    darwin_code_protocol::protocol::SessionConfiguredEvent {
         session_id: session.thread_id,
         forked_from_id: session.forked_from_id,
         thread_name: session.thread_name,
@@ -1316,18 +1316,18 @@ fn thread_session_state_to_legacy_event(
 }
 
 fn hook_output_entry_from_notification(
-    entry: codex_app_server_protocol::HookOutputEntry,
-) -> codex_protocol::protocol::HookOutputEntry {
-    codex_protocol::protocol::HookOutputEntry {
+    entry: darwin_code_app_server_protocol::HookOutputEntry,
+) -> darwin_code_protocol::protocol::HookOutputEntry {
+    darwin_code_protocol::protocol::HookOutputEntry {
         kind: entry.kind.to_core(),
         text: entry.text,
     }
 }
 
 fn hook_run_summary_from_notification(
-    run: codex_app_server_protocol::HookRunSummary,
-) -> codex_protocol::protocol::HookRunSummary {
-    codex_protocol::protocol::HookRunSummary {
+    run: darwin_code_app_server_protocol::HookRunSummary,
+) -> darwin_code_protocol::protocol::HookRunSummary {
+    darwin_code_protocol::protocol::HookRunSummary {
         id: run.id,
         event_name: run.event_name.to_core(),
         handler_type: run.handler_type.to_core(),
@@ -1350,32 +1350,32 @@ fn hook_run_summary_from_notification(
 }
 
 fn hook_started_event_from_notification(
-    notification: codex_app_server_protocol::HookStartedNotification,
-) -> codex_protocol::protocol::HookStartedEvent {
-    codex_protocol::protocol::HookStartedEvent {
+    notification: darwin_code_app_server_protocol::HookStartedNotification,
+) -> darwin_code_protocol::protocol::HookStartedEvent {
+    darwin_code_protocol::protocol::HookStartedEvent {
         turn_id: notification.turn_id,
         run: hook_run_summary_from_notification(notification.run),
     }
 }
 
 fn hook_completed_event_from_notification(
-    notification: codex_app_server_protocol::HookCompletedNotification,
-) -> codex_protocol::protocol::HookCompletedEvent {
-    codex_protocol::protocol::HookCompletedEvent {
+    notification: darwin_code_app_server_protocol::HookCompletedNotification,
+) -> darwin_code_protocol::protocol::HookCompletedEvent {
+    darwin_code_protocol::protocol::HookCompletedEvent {
         turn_id: notification.turn_id,
         run: hook_run_summary_from_notification(notification.run),
     }
 }
 
 fn app_server_request_id_to_mcp_request_id(
-    request_id: &codex_app_server_protocol::RequestId,
-) -> codex_protocol::mcp::RequestId {
+    request_id: &darwin_code_app_server_protocol::RequestId,
+) -> darwin_code_protocol::mcp::RequestId {
     match request_id {
-        codex_app_server_protocol::RequestId::String(value) => {
-            codex_protocol::mcp::RequestId::String(value.clone())
+        darwin_code_app_server_protocol::RequestId::String(value) => {
+            darwin_code_protocol::mcp::RequestId::String(value.clone())
         }
-        codex_app_server_protocol::RequestId::Integer(value) => {
-            codex_protocol::mcp::RequestId::Integer(*value)
+        darwin_code_app_server_protocol::RequestId::Integer(value) => {
+            darwin_code_protocol::mcp::RequestId::Integer(*value)
         }
     }
 }
@@ -1401,12 +1401,12 @@ fn exec_approval_request_from_params(
         approval_id: params.approval_id,
         proposed_execpolicy_amendment: params
             .proposed_execpolicy_amendment
-            .map(codex_app_server_protocol::ExecPolicyAmendment::into_core),
+            .map(darwin_code_app_server_protocol::ExecPolicyAmendment::into_core),
         proposed_network_policy_amendments: params.proposed_network_policy_amendments.map(
             |amendments| {
                 amendments
                     .into_iter()
-                    .map(codex_app_server_protocol::NetworkPolicyAmendment::into_core)
+                    .map(darwin_code_app_server_protocol::NetworkPolicyAmendment::into_core)
                     .collect()
             },
         ),
@@ -1414,27 +1414,27 @@ fn exec_approval_request_from_params(
             decisions
                 .into_iter()
                 .map(|decision| match decision {
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::Accept => {
-                        codex_protocol::protocol::ReviewDecision::Approved
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Accept => {
+                        darwin_code_protocol::protocol::ReviewDecision::Approved
                     }
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession => {
-                        codex_protocol::protocol::ReviewDecision::ApprovedForSession
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession => {
+                        darwin_code_protocol::protocol::ReviewDecision::ApprovedForSession
                     }
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptWithExecpolicyAmendment {
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::AcceptWithExecpolicyAmendment {
                         execpolicy_amendment,
-                    } => codex_protocol::protocol::ReviewDecision::ApprovedExecpolicyAmendment {
+                    } => darwin_code_protocol::protocol::ReviewDecision::ApprovedExecpolicyAmendment {
                         proposed_execpolicy_amendment: execpolicy_amendment.into_core(),
                     },
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
                         network_policy_amendment,
-                    } => codex_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
+                    } => darwin_code_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
                         network_policy_amendment: network_policy_amendment.into_core(),
                     },
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::Decline => {
-                        codex_protocol::protocol::ReviewDecision::Denied
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Decline => {
+                        darwin_code_protocol::protocol::ReviewDecision::Denied
                     }
-                    codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel => {
-                        codex_protocol::protocol::ReviewDecision::Abort
+                    darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Cancel => {
+                        darwin_code_protocol::protocol::ReviewDecision::Abort
                     }
                 })
                 .collect()
@@ -1443,7 +1443,7 @@ fn exec_approval_request_from_params(
             .command_actions
             .unwrap_or_default()
             .into_iter()
-            .map(codex_app_server_protocol::CommandAction::into_core)
+            .map(darwin_code_app_server_protocol::CommandAction::into_core)
             .collect(),
     }
 }
@@ -1461,25 +1461,25 @@ fn patch_approval_request_from_params(
 }
 
 fn app_server_patch_changes_to_core(
-    changes: Vec<codex_app_server_protocol::FileUpdateChange>,
-) -> HashMap<PathBuf, codex_protocol::protocol::FileChange> {
+    changes: Vec<darwin_code_app_server_protocol::FileUpdateChange>,
+) -> HashMap<PathBuf, darwin_code_protocol::protocol::FileChange> {
     changes
         .into_iter()
         .map(|change| {
             let path = PathBuf::from(change.path);
             let file_change = match change.kind {
-                codex_app_server_protocol::PatchChangeKind::Add => {
-                    codex_protocol::protocol::FileChange::Add {
+                darwin_code_app_server_protocol::PatchChangeKind::Add => {
+                    darwin_code_protocol::protocol::FileChange::Add {
                         content: change.diff,
                     }
                 }
-                codex_app_server_protocol::PatchChangeKind::Delete => {
-                    codex_protocol::protocol::FileChange::Delete {
+                darwin_code_app_server_protocol::PatchChangeKind::Delete => {
+                    darwin_code_protocol::protocol::FileChange::Delete {
                         content: change.diff,
                     }
                 }
-                codex_app_server_protocol::PatchChangeKind::Update { move_path } => {
-                    codex_protocol::protocol::FileChange::Update {
+                darwin_code_app_server_protocol::PatchChangeKind::Update { move_path } => {
+                    darwin_code_protocol::protocol::FileChange::Update {
                         unified_diff: change.diff,
                         move_path,
                     }
@@ -1577,7 +1577,7 @@ fn app_server_collab_receiver_agent_refs(
 }
 
 fn request_permissions_from_params(
-    params: codex_app_server_protocol::PermissionsRequestApprovalParams,
+    params: darwin_code_app_server_protocol::PermissionsRequestApprovalParams,
 ) -> RequestPermissionsEvent {
     RequestPermissionsEvent {
         turn_id: params.turn_id,
@@ -1595,7 +1595,7 @@ fn request_user_input_from_params(params: ToolRequestUserInputParams) -> Request
             .questions
             .into_iter()
             .map(
-                |question| codex_protocol::request_user_input::RequestUserInputQuestion {
+                |question| darwin_code_protocol::request_user_input::RequestUserInputQuestion {
                     id: question.id,
                     header: question.header,
                     question: question.question,
@@ -1637,20 +1637,20 @@ fn token_usage_info_from_app_server(token_usage: ThreadTokenUsage) -> TokenUsage
 }
 
 fn web_search_action_to_core(
-    action: codex_app_server_protocol::WebSearchAction,
-) -> codex_protocol::models::WebSearchAction {
+    action: darwin_code_app_server_protocol::WebSearchAction,
+) -> darwin_code_protocol::models::WebSearchAction {
     match action {
-        codex_app_server_protocol::WebSearchAction::Search { query, queries } => {
-            codex_protocol::models::WebSearchAction::Search { query, queries }
+        darwin_code_app_server_protocol::WebSearchAction::Search { query, queries } => {
+            darwin_code_protocol::models::WebSearchAction::Search { query, queries }
         }
-        codex_app_server_protocol::WebSearchAction::OpenPage { url } => {
-            codex_protocol::models::WebSearchAction::OpenPage { url }
+        darwin_code_app_server_protocol::WebSearchAction::OpenPage { url } => {
+            darwin_code_protocol::models::WebSearchAction::OpenPage { url }
         }
-        codex_app_server_protocol::WebSearchAction::FindInPage { url, pattern } => {
-            codex_protocol::models::WebSearchAction::FindInPage { url, pattern }
+        darwin_code_app_server_protocol::WebSearchAction::FindInPage { url, pattern } => {
+            darwin_code_protocol::models::WebSearchAction::FindInPage { url, pattern }
         }
-        codex_app_server_protocol::WebSearchAction::Other => {
-            codex_protocol::models::WebSearchAction::Other
+        darwin_code_app_server_protocol::WebSearchAction::Other => {
+            darwin_code_protocol::models::WebSearchAction::Other
         }
     }
 }
@@ -1973,7 +1973,7 @@ impl ChatWidget {
     }
 
     // --- Small event handlers ---
-    fn on_session_configured(&mut self, event: codex_protocol::protocol::SessionConfiguredEvent) {
+    fn on_session_configured(&mut self, event: darwin_code_protocol::protocol::SessionConfiguredEvent) {
         self.last_agent_markdown = None;
         self.saw_copy_source_this_turn = false;
         self.bottom_pane
@@ -2083,7 +2083,7 @@ impl ChatWidget {
 
     fn emit_forked_thread_event(&self, forked_from_id: ThreadId) {
         let app_event_tx = self.app_event_tx.clone();
-        let codex_home = self.config.codex_home.clone();
+        let darwin_code_home = self.config.darwin_code_home.clone();
         tokio::spawn(async move {
             let forked_from_id_text = forked_from_id.to_string();
             let send_name_and_id = |name: String| {
@@ -2112,7 +2112,7 @@ impl ChatWidget {
                 )));
             };
 
-            match find_thread_name_by_id(&codex_home, &forked_from_id).await {
+            match find_thread_name_by_id(&darwin_code_home, &forked_from_id).await {
                 Ok(Some(name)) if !name.trim().is_empty() => {
                     send_name_and_id(name);
                 }
@@ -2125,7 +2125,7 @@ impl ChatWidget {
         });
     }
 
-    fn on_thread_name_updated(&mut self, event: codex_protocol::protocol::ThreadNameUpdatedEvent) {
+    fn on_thread_name_updated(&mut self, event: darwin_code_protocol::protocol::ThreadNameUpdatedEvent) {
         if self.thread_id == Some(event.thread_id) {
             if let Some(name) = event.thread_name.as_deref() {
                 let cell = Self::rename_confirmation_cell(name, self.thread_id);
@@ -2526,20 +2526,20 @@ impl ChatWidget {
     }
 
     #[cfg(test)]
-    fn handle_steer_rejected_error(&mut self, codex_error_info: &CoreCodexErrorInfo) -> bool {
+    fn handle_steer_rejected_error(&mut self, darwin_code_error_info: &CoreDarwinCodeErrorInfo) -> bool {
         matches!(
-            codex_error_info,
-            CoreCodexErrorInfo::ActiveTurnNotSteerable { .. }
+            darwin_code_error_info,
+            CoreDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. }
         ) && self.enqueue_rejected_steer()
     }
 
     fn handle_app_server_steer_rejected_error(
         &mut self,
-        codex_error_info: &AppServerCodexErrorInfo,
+        darwin_code_error_info: &AppServerDarwinCodeErrorInfo,
     ) -> bool {
         matches!(
-            codex_error_info,
-            AppServerCodexErrorInfo::ActiveTurnNotSteerable { .. }
+            darwin_code_error_info,
+            AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. }
         ) && self.enqueue_rejected_steer()
     }
 
@@ -2706,7 +2706,7 @@ impl ChatWidget {
             let limit_id = snapshot
                 .limit_id
                 .clone()
-                .unwrap_or_else(|| "codex".to_string());
+                .unwrap_or_else(|| "darwin-code".to_string());
             let limit_label = snapshot
                 .limit_name
                 .clone()
@@ -2725,8 +2725,8 @@ impl ChatWidget {
 
             self.plan_type = snapshot.plan_type.or(self.plan_type);
 
-            let is_codex_limit = limit_id.eq_ignore_ascii_case("codex");
-            let warnings = if is_codex_limit {
+            let is_darwin_code_limit = limit_id.eq_ignore_ascii_case("darwin-code");
+            let warnings = if is_darwin_code_limit {
                 self.rate_limit_warnings.take_warnings(
                     snapshot
                         .secondary
@@ -2746,7 +2746,7 @@ impl ChatWidget {
                 vec![]
             };
 
-            let high_usage = is_codex_limit
+            let high_usage = is_darwin_code_limit
                 && (snapshot
                     .secondary
                     .as_ref()
@@ -2821,7 +2821,7 @@ impl ChatWidget {
         self.finalize_turn();
 
         let message = if message.trim().is_empty() {
-            "Codex is currently experiencing high load.".to_string()
+            "Darwin-Code is currently experiencing high load.".to_string()
         } else {
             message
         };
@@ -2844,13 +2844,13 @@ impl ChatWidget {
     fn handle_non_retry_error(
         &mut self,
         message: String,
-        codex_error_info: Option<AppServerCodexErrorInfo>,
+        darwin_code_error_info: Option<AppServerDarwinCodeErrorInfo>,
     ) {
-        if codex_error_info
+        if darwin_code_error_info
             .as_ref()
             .is_some_and(|info| self.handle_app_server_steer_rejected_error(info))
         {
-        } else if let Some(info) = codex_error_info
+        } else if let Some(info) = darwin_code_error_info
             .as_ref()
             .and_then(app_server_rate_limit_error_kind)
         {
@@ -3442,7 +3442,7 @@ impl ChatWidget {
             let cell = if let Some(command) = guardian_command(&ev.action) {
                 history_cell::new_approval_decision_cell(
                     command,
-                    codex_protocol::protocol::ReviewDecision::Approved,
+                    darwin_code_protocol::protocol::ReviewDecision::Approved,
                     history_cell::ApprovalDecisionActor::Guardian,
                 )
             } else if let Some(summary) = guardian_action_summary(&ev.action) {
@@ -3462,7 +3462,7 @@ impl ChatWidget {
             let cell = if let Some(command) = guardian_command(&ev.action) {
                 history_cell::new_approval_decision_cell(
                     command,
-                    codex_protocol::protocol::ReviewDecision::TimedOut,
+                    darwin_code_protocol::protocol::ReviewDecision::TimedOut,
                     history_cell::ApprovalDecisionActor::Guardian,
                 )
             } else {
@@ -3477,11 +3477,11 @@ impl ChatWidget {
                     GuardianAssessmentAction::McpToolCall {
                         server, tool_name, ..
                     } => history_cell::new_guardian_timed_out_action_request(format!(
-                        "codex could call MCP tool {server}.{tool_name}"
+                        "darwin-code could call MCP tool {server}.{tool_name}"
                     )),
                     GuardianAssessmentAction::NetworkAccess { target, .. } => {
                         history_cell::new_guardian_timed_out_action_request(format!(
-                            "codex could access {target}"
+                            "darwin-code could access {target}"
                         ))
                     }
                     GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -3500,7 +3500,7 @@ impl ChatWidget {
         let cell = if let Some(command) = guardian_command(&ev.action) {
             history_cell::new_approval_decision_cell(
                 command,
-                codex_protocol::protocol::ReviewDecision::Denied,
+                darwin_code_protocol::protocol::ReviewDecision::Denied,
                 history_cell::ApprovalDecisionActor::Guardian,
             )
         } else {
@@ -3515,11 +3515,11 @@ impl ChatWidget {
                 GuardianAssessmentAction::McpToolCall {
                     server, tool_name, ..
                 } => history_cell::new_guardian_denied_action_request(format!(
-                    "codex to call MCP tool {server}.{tool_name}"
+                    "darwin-code to call MCP tool {server}.{tool_name}"
                 )),
                 GuardianAssessmentAction::NetworkAccess { target, .. } => {
                     history_cell::new_guardian_denied_action_request(format!(
-                        "codex to access {target}"
+                        "darwin-code to access {target}"
                     ))
                 }
                 GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -3676,7 +3676,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    fn on_patch_apply_end(&mut self, event: codex_protocol::protocol::PatchApplyEndEvent) {
+    fn on_patch_apply_end(&mut self, event: darwin_code_protocol::protocol::PatchApplyEndEvent) {
         let ev2 = event.clone();
         self.defer_or_handle(
             |q| q.push_patch_end(event),
@@ -3877,7 +3877,7 @@ impl ChatWidget {
                                 })
                         });
                     self.on_collab_event(multi_agents::spawn_end(
-                        codex_protocol::protocol::CollabAgentSpawnEndEvent {
+                        darwin_code_protocol::protocol::CollabAgentSpawnEndEvent {
                             call_id: id,
                             sender_thread_id,
                             new_thread_id: first_receiver,
@@ -3907,7 +3907,7 @@ impl ChatWidget {
                     && !matches!(status, CollabAgentToolCallStatus::InProgress)
                 {
                     self.on_collab_event(multi_agents::interaction_end(
-                        codex_protocol::protocol::CollabAgentInteractionEndEvent {
+                        darwin_code_protocol::protocol::CollabAgentInteractionEndEvent {
                             call_id: id,
                             sender_thread_id,
                             receiver_thread_id,
@@ -3933,7 +3933,7 @@ impl ChatWidget {
                 if let Some(receiver_thread_id) = first_receiver {
                     if matches!(status, CollabAgentToolCallStatus::InProgress) {
                         self.on_collab_event(multi_agents::resume_begin(
-                            codex_protocol::protocol::CollabResumeBeginEvent {
+                            darwin_code_protocol::protocol::CollabResumeBeginEvent {
                                 call_id: id,
                                 sender_thread_id,
                                 receiver_thread_id,
@@ -3947,7 +3947,7 @@ impl ChatWidget {
                         ));
                     } else {
                         self.on_collab_event(multi_agents::resume_end(
-                            codex_protocol::protocol::CollabResumeEndEvent {
+                            darwin_code_protocol::protocol::CollabResumeEndEvent {
                                 call_id: id,
                                 sender_thread_id,
                                 receiver_thread_id,
@@ -3972,7 +3972,7 @@ impl ChatWidget {
             CollabAgentTool::Wait => {
                 if matches!(status, CollabAgentToolCallStatus::InProgress) {
                     self.on_collab_event(multi_agents::waiting_begin(
-                        codex_protocol::protocol::CollabWaitingBeginEvent {
+                        darwin_code_protocol::protocol::CollabWaitingBeginEvent {
                             sender_thread_id,
                             receiver_thread_ids: receiver_thread_ids
                                 .iter()
@@ -3994,7 +3994,7 @@ impl ChatWidget {
                         &self.collab_agent_metadata,
                     );
                     self.on_collab_event(multi_agents::waiting_end(
-                        codex_protocol::protocol::CollabWaitingEndEvent {
+                        darwin_code_protocol::protocol::CollabWaitingEndEvent {
                             sender_thread_id,
                             call_id: id,
                             agent_statuses,
@@ -4008,7 +4008,7 @@ impl ChatWidget {
                     && !matches!(status, CollabAgentToolCallStatus::InProgress)
                 {
                     self.on_collab_event(multi_agents::close_end(
-                        codex_protocol::protocol::CollabCloseEndEvent {
+                        darwin_code_protocol::protocol::CollabCloseEndEvent {
                             call_id: id,
                             sender_thread_id,
                             receiver_thread_id,
@@ -4034,9 +4034,9 @@ impl ChatWidget {
 
     pub(crate) fn handle_history_entry_response(
         &mut self,
-        event: codex_protocol::protocol::GetHistoryEntryResponseEvent,
+        event: darwin_code_protocol::protocol::GetHistoryEntryResponseEvent,
     ) {
-        let codex_protocol::protocol::GetHistoryEntryResponseEvent {
+        let darwin_code_protocol::protocol::GetHistoryEntryResponseEvent {
             offset,
             log_id,
             entry,
@@ -4070,7 +4070,7 @@ impl ChatWidget {
         self.set_status_header(message);
     }
 
-    fn on_hook_started(&mut self, event: codex_protocol::protocol::HookStartedEvent) {
+    fn on_hook_started(&mut self, event: darwin_code_protocol::protocol::HookStartedEvent) {
         self.flush_answer_stream_with_separator();
         self.flush_completed_hook_output();
         match self.active_hook_cell.as_mut() {
@@ -4089,7 +4089,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    fn on_hook_completed(&mut self, event: codex_protocol::protocol::HookCompletedEvent) {
+    fn on_hook_completed(&mut self, event: darwin_code_protocol::protocol::HookCompletedEvent) {
         let completed = event.run;
         let completed_existing_run = self
             .active_hook_cell
@@ -4527,7 +4527,7 @@ impl ChatWidget {
 
     pub(crate) fn handle_patch_apply_end_now(
         &mut self,
-        event: codex_protocol::protocol::PatchApplyEndEvent,
+        event: darwin_code_protocol::protocol::PatchApplyEndEvent,
     ) {
         // If the patch was successful, just let the "Edited" block stand.
         // Otherwise, add a failure block.
@@ -4763,10 +4763,10 @@ impl ChatWidget {
     }
 
     pub(crate) fn new_with_app_event(common: ChatWidgetInit) -> Self {
-        Self::new_with_op_target(common, CodexOpTarget::AppEvent)
+        Self::new_with_op_target(common, DarwinCodeOpTarget::AppEvent)
     }
 
-    fn new_with_op_target(common: ChatWidgetInit, codex_op_target: CodexOpTarget) -> Self {
+    fn new_with_op_target(common: ChatWidgetInit, darwin_code_op_target: DarwinCodeOpTarget) -> Self {
         let ChatWidgetInit {
             config,
             frame_requester,
@@ -4820,7 +4820,7 @@ impl ChatWidget {
         let mut widget = Self {
             app_event_tx: app_event_tx.clone(),
             frame_requester: frame_requester.clone(),
-            codex_op_target,
+            darwin_code_op_target,
             bottom_pane: BottomPane::new(BottomPaneParams {
                 frame_requester,
                 app_event_tx,
@@ -5714,14 +5714,14 @@ impl ChatWidget {
         let replay_kind = render_source.replay_kind();
         match item {
             ThreadItem::UserMessage { id, content } => {
-                let user_message = codex_protocol::items::UserMessageItem {
+                let user_message = darwin_code_protocol::items::UserMessageItem {
                     id,
                     content: content
                         .into_iter()
-                        .map(codex_app_server_protocol::UserInput::into_core)
+                        .map(darwin_code_app_server_protocol::UserInput::into_core)
                         .collect(),
                 };
-                let codex_protocol::protocol::EventMsg::UserMessage(event) =
+                let darwin_code_protocol::protocol::EventMsg::UserMessage(event) =
                     user_message.as_legacy_event()
                 else {
                     unreachable!("user message item should convert to a user message event");
@@ -5774,12 +5774,12 @@ impl ChatWidget {
                     content: vec![AgentMessageContent::Text { text }],
                     phase,
                     memory_citation: memory_citation.map(|citation| {
-                        codex_protocol::memory_citation::MemoryCitation {
+                        darwin_code_protocol::memory_citation::MemoryCitation {
                             entries: citation
                                 .entries
                                 .into_iter()
                                 .map(
-                                    |entry| codex_protocol::memory_citation::MemoryCitationEntry {
+                                    |entry| darwin_code_protocol::memory_citation::MemoryCitationEntry {
                                         path: entry.path,
                                         line_start: entry.line_start,
                                         line_end: entry.line_end,
@@ -5822,7 +5822,7 @@ impl ChatWidget {
             } => {
                 if matches!(
                     status,
-                    codex_app_server_protocol::CommandExecutionStatus::InProgress
+                    darwin_code_app_server_protocol::CommandExecutionStatus::InProgress
                 ) {
                     self.on_exec_command_begin(ExecCommandBeginEvent {
                         call_id: id,
@@ -5832,7 +5832,7 @@ impl ChatWidget {
                         cwd,
                         parsed_cmd: command_actions
                             .into_iter()
-                            .map(codex_app_server_protocol::CommandAction::into_core)
+                            .map(darwin_code_app_server_protocol::CommandAction::into_core)
                             .collect(),
                         source: source.to_core(),
                         interaction_input: None,
@@ -5847,7 +5847,7 @@ impl ChatWidget {
                         cwd,
                         parsed_cmd: command_actions
                             .into_iter()
-                            .map(codex_app_server_protocol::CommandAction::into_core)
+                            .map(darwin_code_app_server_protocol::CommandAction::into_core)
                             .collect(),
                         source: source.to_core(),
                         interaction_input: None,
@@ -5860,17 +5860,17 @@ impl ChatWidget {
                         ),
                         formatted_output: aggregated_output,
                         status: match status {
-                            codex_app_server_protocol::CommandExecutionStatus::Completed => {
-                                codex_protocol::protocol::ExecCommandStatus::Completed
+                            darwin_code_app_server_protocol::CommandExecutionStatus::Completed => {
+                                darwin_code_protocol::protocol::ExecCommandStatus::Completed
                             }
-                            codex_app_server_protocol::CommandExecutionStatus::Failed => {
-                                codex_protocol::protocol::ExecCommandStatus::Failed
+                            darwin_code_app_server_protocol::CommandExecutionStatus::Failed => {
+                                darwin_code_protocol::protocol::ExecCommandStatus::Failed
                             }
-                            codex_app_server_protocol::CommandExecutionStatus::Declined => {
-                                codex_protocol::protocol::ExecCommandStatus::Declined
+                            darwin_code_app_server_protocol::CommandExecutionStatus::Declined => {
+                                darwin_code_protocol::protocol::ExecCommandStatus::Declined
                             }
-                            codex_app_server_protocol::CommandExecutionStatus::InProgress => {
-                                codex_protocol::protocol::ExecCommandStatus::Failed
+                            darwin_code_app_server_protocol::CommandExecutionStatus::InProgress => {
+                                darwin_code_protocol::protocol::ExecCommandStatus::Failed
                             }
                         },
                     });
@@ -5883,30 +5883,30 @@ impl ChatWidget {
             } => {
                 if !matches!(
                     status,
-                    codex_app_server_protocol::PatchApplyStatus::InProgress
+                    darwin_code_app_server_protocol::PatchApplyStatus::InProgress
                 ) {
-                    self.on_patch_apply_end(codex_protocol::protocol::PatchApplyEndEvent {
+                    self.on_patch_apply_end(darwin_code_protocol::protocol::PatchApplyEndEvent {
                         call_id: id,
                         turn_id: turn_id.clone(),
                         stdout: String::new(),
                         stderr: String::new(),
                         success: !matches!(
                             status,
-                            codex_app_server_protocol::PatchApplyStatus::Failed
+                            darwin_code_app_server_protocol::PatchApplyStatus::Failed
                         ),
                         changes: app_server_patch_changes_to_core(changes),
                         status: match status {
-                            codex_app_server_protocol::PatchApplyStatus::Completed => {
-                                codex_protocol::protocol::PatchApplyStatus::Completed
+                            darwin_code_app_server_protocol::PatchApplyStatus::Completed => {
+                                darwin_code_protocol::protocol::PatchApplyStatus::Completed
                             }
-                            codex_app_server_protocol::PatchApplyStatus::Failed => {
-                                codex_protocol::protocol::PatchApplyStatus::Failed
+                            darwin_code_app_server_protocol::PatchApplyStatus::Failed => {
+                                darwin_code_protocol::protocol::PatchApplyStatus::Failed
                             }
-                            codex_app_server_protocol::PatchApplyStatus::Declined => {
-                                codex_protocol::protocol::PatchApplyStatus::Declined
+                            darwin_code_app_server_protocol::PatchApplyStatus::Declined => {
+                                darwin_code_protocol::protocol::PatchApplyStatus::Declined
                             }
-                            codex_app_server_protocol::PatchApplyStatus::InProgress => {
-                                codex_protocol::protocol::PatchApplyStatus::Failed
+                            darwin_code_app_server_protocol::PatchApplyStatus::InProgress => {
+                                darwin_code_protocol::protocol::PatchApplyStatus::Failed
                             }
                         },
                     });
@@ -5923,9 +5923,9 @@ impl ChatWidget {
                 duration_ms,
                 ..
             } => {
-                self.on_mcp_tool_call_end(codex_protocol::protocol::McpToolCallEndEvent {
+                self.on_mcp_tool_call_end(darwin_code_protocol::protocol::McpToolCallEndEvent {
                     call_id: id,
-                    invocation: codex_protocol::protocol::McpInvocation {
+                    invocation: darwin_code_protocol::protocol::McpInvocation {
                         server,
                         tool,
                         arguments: Some(arguments),
@@ -5936,7 +5936,7 @@ impl ChatWidget {
                         (_, Some(error)) => Err(error.message),
                         (Some(result), None) => {
                             let result = *result;
-                            Ok(codex_protocol::mcp::CallToolResult {
+                            Ok(darwin_code_protocol::mcp::CallToolResult {
                                 content: result.content,
                                 structured_content: result.structured_content,
                                 is_error: Some(false),
@@ -5956,7 +5956,7 @@ impl ChatWidget {
                     query,
                     action: action
                         .map(web_search_action_to_core)
-                        .unwrap_or(codex_protocol::models::WebSearchAction::Other),
+                        .unwrap_or(darwin_code_protocol::models::WebSearchAction::Other),
                 });
             }
             ThreadItem::ImageView { id, path } => {
@@ -6088,7 +6088,7 @@ impl ChatWidget {
             ServerNotification::ThreadNameUpdated(notification) => {
                 match ThreadId::from_string(&notification.thread_id) {
                     Ok(thread_id) => self.on_thread_name_updated(
-                        codex_protocol::protocol::ThreadNameUpdatedEvent {
+                        darwin_code_protocol::protocol::ThreadNameUpdatedEvent {
                             thread_id,
                             thread_name: notification.thread_name,
                         },
@@ -6141,7 +6141,7 @@ impl ChatWidget {
             ServerNotification::CommandExecutionOutputDelta(notification) => {
                 self.on_exec_command_output_delta(ExecCommandOutputDeltaEvent {
                     call_id: notification.item_id,
-                    stream: codex_protocol::protocol::ExecOutputStream::Stdout,
+                    stream: darwin_code_protocol::protocol::ExecOutputStream::Stdout,
                     chunk: notification.delta.into_bytes(),
                 });
             }
@@ -6189,7 +6189,7 @@ impl ChatWidget {
                     ));
                     self.handle_non_retry_error(
                         notification.error.message,
-                        notification.error.codex_error_info,
+                        notification.error.darwin_code_error_info,
                     );
                 }
             }
@@ -6239,7 +6239,7 @@ impl ChatWidget {
             ServerNotification::ThreadRealtimeStarted(notification) => {
                 if !from_replay {
                     self.on_realtime_conversation_started(
-                        codex_protocol::protocol::RealtimeConversationStartedEvent {
+                        darwin_code_protocol::protocol::RealtimeConversationStartedEvent {
                             session_id: notification.session_id,
                             version: notification.version,
                         },
@@ -6249,8 +6249,8 @@ impl ChatWidget {
             ServerNotification::ThreadRealtimeItemAdded(notification) => {
                 if !from_replay {
                     self.on_realtime_conversation_realtime(
-                        codex_protocol::protocol::RealtimeConversationRealtimeEvent {
-                            payload: codex_protocol::protocol::RealtimeEvent::ConversationItemAdded(
+                        darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent {
+                            payload: darwin_code_protocol::protocol::RealtimeEvent::ConversationItemAdded(
                                 notification.item,
                             ),
                         },
@@ -6260,8 +6260,8 @@ impl ChatWidget {
             ServerNotification::ThreadRealtimeOutputAudioDelta(notification) => {
                 if !from_replay {
                     self.on_realtime_conversation_realtime(
-                        codex_protocol::protocol::RealtimeConversationRealtimeEvent {
-                            payload: codex_protocol::protocol::RealtimeEvent::AudioOut(
+                        darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent {
+                            payload: darwin_code_protocol::protocol::RealtimeEvent::AudioOut(
                                 notification.audio.into(),
                             ),
                         },
@@ -6271,8 +6271,8 @@ impl ChatWidget {
             ServerNotification::ThreadRealtimeError(notification) => {
                 if !from_replay {
                     self.on_realtime_conversation_realtime(
-                        codex_protocol::protocol::RealtimeConversationRealtimeEvent {
-                            payload: codex_protocol::protocol::RealtimeEvent::Error(
+                        darwin_code_protocol::protocol::RealtimeConversationRealtimeEvent {
+                            payload: darwin_code_protocol::protocol::RealtimeEvent::Error(
                                 notification.message,
                             ),
                         },
@@ -6282,7 +6282,7 @@ impl ChatWidget {
             ServerNotification::ThreadRealtimeClosed(notification) => {
                 if !from_replay {
                     self.on_realtime_conversation_closed(
-                        codex_protocol::protocol::RealtimeConversationClosedEvent {
+                        darwin_code_protocol::protocol::RealtimeConversationClosedEvent {
                             reason: notification.reason,
                         },
                     );
@@ -6324,30 +6324,30 @@ impl ChatWidget {
 
     fn on_mcp_server_elicitation_request(
         &mut self,
-        request_id: codex_protocol::mcp::RequestId,
-        params: codex_app_server_protocol::McpServerElicitationRequestParams,
+        request_id: darwin_code_protocol::mcp::RequestId,
+        params: darwin_code_app_server_protocol::McpServerElicitationRequestParams,
     ) {
-        let request = codex_protocol::approvals::ElicitationRequestEvent {
+        let request = darwin_code_protocol::approvals::ElicitationRequestEvent {
             turn_id: params.turn_id,
             server_name: params.server_name,
             id: request_id,
             request: match params.request {
-                codex_app_server_protocol::McpServerElicitationRequest::Form {
+                darwin_code_app_server_protocol::McpServerElicitationRequest::Form {
                     meta,
                     message,
                     requested_schema,
-                } => codex_protocol::approvals::ElicitationRequest::Form {
+                } => darwin_code_protocol::approvals::ElicitationRequest::Form {
                     meta,
                     message,
                     requested_schema: serde_json::to_value(requested_schema)
                         .unwrap_or(serde_json::Value::Null),
                 },
-                codex_app_server_protocol::McpServerElicitationRequest::Url {
+                darwin_code_app_server_protocol::McpServerElicitationRequest::Url {
                     meta,
                     message,
                     url,
                     elicitation_id,
-                } => codex_protocol::approvals::ElicitationRequest::Url {
+                } => darwin_code_protocol::approvals::ElicitationRequest::Url {
                     meta,
                     message,
                     url,
@@ -6379,7 +6379,7 @@ impl ChatWidget {
                     {
                         self.last_non_retry_error = None;
                     } else {
-                        self.handle_non_retry_error(error.message, error.codex_error_info);
+                        self.handle_non_retry_error(error.message, error.darwin_code_error_info);
                     }
                 } else {
                     self.last_non_retry_error = None;
@@ -6415,7 +6415,7 @@ impl ChatWidget {
                     cwd,
                     parsed_cmd: command_actions
                         .into_iter()
-                        .map(codex_app_server_protocol::CommandAction::into_core)
+                        .map(darwin_code_app_server_protocol::CommandAction::into_core)
                         .collect(),
                     source: source.to_core(),
                     interaction_input: None,
@@ -6439,7 +6439,7 @@ impl ChatWidget {
             } => {
                 self.on_mcp_tool_call_begin(McpToolCallBeginEvent {
                     call_id: id,
-                    invocation: codex_protocol::protocol::McpInvocation {
+                    invocation: darwin_code_protocol::protocol::McpInvocation {
                         server,
                         tool,
                         arguments: Some(arguments),
@@ -6501,8 +6501,8 @@ impl ChatWidget {
         &mut self,
         id: String,
         turn_id: String,
-        review: codex_app_server_protocol::GuardianApprovalReview,
-        decision_source: Option<codex_app_server_protocol::AutoReviewDecisionSource>,
+        review: darwin_code_app_server_protocol::GuardianApprovalReview,
+        decision_source: Option<darwin_code_app_server_protocol::AutoReviewDecisionSource>,
         action: GuardianApprovalReviewAction,
     ) {
         self.on_guardian_assessment(GuardianAssessmentEvent {
@@ -6510,55 +6510,55 @@ impl ChatWidget {
             target_item_id: None,
             turn_id,
             status: match review.status {
-                codex_app_server_protocol::GuardianApprovalReviewStatus::InProgress => {
+                darwin_code_app_server_protocol::GuardianApprovalReviewStatus::InProgress => {
                     GuardianAssessmentStatus::InProgress
                 }
-                codex_app_server_protocol::GuardianApprovalReviewStatus::Approved => {
+                darwin_code_app_server_protocol::GuardianApprovalReviewStatus::Approved => {
                     GuardianAssessmentStatus::Approved
                 }
-                codex_app_server_protocol::GuardianApprovalReviewStatus::Denied => {
+                darwin_code_app_server_protocol::GuardianApprovalReviewStatus::Denied => {
                     GuardianAssessmentStatus::Denied
                 }
-                codex_app_server_protocol::GuardianApprovalReviewStatus::TimedOut => {
+                darwin_code_app_server_protocol::GuardianApprovalReviewStatus::TimedOut => {
                     GuardianAssessmentStatus::TimedOut
                 }
-                codex_app_server_protocol::GuardianApprovalReviewStatus::Aborted => {
+                darwin_code_app_server_protocol::GuardianApprovalReviewStatus::Aborted => {
                     GuardianAssessmentStatus::Aborted
                 }
             },
             risk_level: review.risk_level.map(|risk_level| match risk_level {
-                codex_app_server_protocol::GuardianRiskLevel::Low => {
-                    codex_protocol::protocol::GuardianRiskLevel::Low
+                darwin_code_app_server_protocol::GuardianRiskLevel::Low => {
+                    darwin_code_protocol::protocol::GuardianRiskLevel::Low
                 }
-                codex_app_server_protocol::GuardianRiskLevel::Medium => {
-                    codex_protocol::protocol::GuardianRiskLevel::Medium
+                darwin_code_app_server_protocol::GuardianRiskLevel::Medium => {
+                    darwin_code_protocol::protocol::GuardianRiskLevel::Medium
                 }
-                codex_app_server_protocol::GuardianRiskLevel::High => {
-                    codex_protocol::protocol::GuardianRiskLevel::High
+                darwin_code_app_server_protocol::GuardianRiskLevel::High => {
+                    darwin_code_protocol::protocol::GuardianRiskLevel::High
                 }
-                codex_app_server_protocol::GuardianRiskLevel::Critical => {
-                    codex_protocol::protocol::GuardianRiskLevel::Critical
+                darwin_code_app_server_protocol::GuardianRiskLevel::Critical => {
+                    darwin_code_protocol::protocol::GuardianRiskLevel::Critical
                 }
             }),
             user_authorization: review.user_authorization.map(|user_authorization| {
                 match user_authorization {
-                    codex_app_server_protocol::GuardianUserAuthorization::Unknown => {
-                        codex_protocol::protocol::GuardianUserAuthorization::Unknown
+                    darwin_code_app_server_protocol::GuardianUserAuthorization::Unknown => {
+                        darwin_code_protocol::protocol::GuardianUserAuthorization::Unknown
                     }
-                    codex_app_server_protocol::GuardianUserAuthorization::Low => {
-                        codex_protocol::protocol::GuardianUserAuthorization::Low
+                    darwin_code_app_server_protocol::GuardianUserAuthorization::Low => {
+                        darwin_code_protocol::protocol::GuardianUserAuthorization::Low
                     }
-                    codex_app_server_protocol::GuardianUserAuthorization::Medium => {
-                        codex_protocol::protocol::GuardianUserAuthorization::Medium
+                    darwin_code_app_server_protocol::GuardianUserAuthorization::Medium => {
+                        darwin_code_protocol::protocol::GuardianUserAuthorization::Medium
                     }
-                    codex_app_server_protocol::GuardianUserAuthorization::High => {
-                        codex_protocol::protocol::GuardianUserAuthorization::High
+                    darwin_code_app_server_protocol::GuardianUserAuthorization::High => {
+                        darwin_code_protocol::protocol::GuardianUserAuthorization::High
                     }
                 }
             }),
             rationale: review.rationale,
             decision_source: decision_source.map(|source| match source {
-                codex_app_server_protocol::AutoReviewDecisionSource::Agent => {
+                darwin_code_app_server_protocol::AutoReviewDecisionSource::Agent => {
                     GuardianAssessmentDecisionSource::Agent
                 }
             }),
@@ -6585,13 +6585,13 @@ impl ChatWidget {
     }
 
     #[cfg(test)]
-    pub(crate) fn handle_codex_event(&mut self, event: Event) {
+    pub(crate) fn handle_darwin_code_event(&mut self, event: Event) {
         let Event { id, msg } = event;
         self.dispatch_event_msg(Some(id), msg, /*replay_kind*/ None);
     }
 
     #[cfg(test)]
-    pub(crate) fn handle_codex_event_replay(&mut self, event: Event) {
+    pub(crate) fn handle_darwin_code_event_replay(&mut self, event: Event) {
         let Event { msg, .. } = event;
         if matches!(msg, EventMsg::ShutdownComplete) {
             return;
@@ -6627,7 +6627,7 @@ impl ChatWidget {
             | EventMsg::PatchApplyUpdated(_)
             | EventMsg::ExecCommandOutputDelta(_) => {}
             _ => {
-                tracing::trace!("handle_codex_event: {:?}", msg);
+                tracing::trace!("handle_darwin_code_event: {:?}", msg);
             }
         }
 
@@ -6699,13 +6699,13 @@ impl ChatWidget {
             EventMsg::ModelReroute(_) => {}
             EventMsg::Error(ErrorEvent {
                 message,
-                codex_error_info,
+                darwin_code_error_info,
             }) => {
-                if codex_error_info
+                if darwin_code_error_info
                     .as_ref()
                     .is_some_and(|info| self.handle_steer_rejected_error(info))
                 {
-                } else if let Some(kind) = codex_error_info
+                } else if let Some(kind) = darwin_code_error_info
                     .as_ref()
                     .and_then(core_rate_limit_error_kind)
                 {
@@ -6870,7 +6870,7 @@ impl ChatWidget {
             }
             EventMsg::ItemCompleted(event) => {
                 let item = event.item;
-                if !from_replay && let codex_protocol::items::TurnItem::UserMessage(item) = &item {
+                if !from_replay && let darwin_code_protocol::items::TurnItem::UserMessage(item) = &item {
                     let EventMsg::UserMessage(event) = item.as_legacy_event() else {
                         unreachable!("user message item should convert to a legacy user message");
                     };
@@ -6906,10 +6906,10 @@ impl ChatWidget {
                         self.on_user_message_event(event);
                     }
                 }
-                if let codex_protocol::items::TurnItem::Plan(plan_item) = &item {
+                if let darwin_code_protocol::items::TurnItem::Plan(plan_item) = &item {
                     self.on_plan_item_completed(plan_item.text.clone());
                 }
-                if let codex_protocol::items::TurnItem::AgentMessage(item) = item {
+                if let darwin_code_protocol::items::TurnItem::AgentMessage(item) = item {
                     self.on_agent_message_item_completed(item);
                 }
             }
@@ -7234,14 +7234,14 @@ impl ChatWidget {
     }
 
     fn open_theme_picker(&mut self) {
-        let codex_home = crate::legacy_core::config::find_codex_home().ok();
+        let darwin_code_home = crate::legacy_core::config::find_darwin_code_home().ok();
         let terminal_width = self
             .last_rendered_width
             .get()
             .and_then(|width| u16::try_from(width).ok());
         let params = crate::theme_picker::build_theme_picker_params(
             self.config.tui_theme.as_deref(),
-            codex_home.as_deref(),
+            darwin_code_home.as_deref(),
             terminal_width,
         );
         self.bottom_pane.show_selection_view(params);
@@ -7372,7 +7372,7 @@ impl ChatWidget {
                     }
                 };
             let should_schedule_force_refetch =
-                !force_refetch && !accessible_result.codex_apps_ready;
+                !force_refetch && !accessible_result.darwin_code_apps_ready;
             let accessible_connectors = accessible_result.connectors;
 
             app_event_tx.send(AppEvent::ConnectorsLoaded {
@@ -7458,7 +7458,7 @@ impl ChatWidget {
         let default_effort: ReasoningEffortConfig = preset.default_reasoning_effort;
 
         let switch_actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-            tx.send(AppEvent::CodexOp(
+            tx.send(AppEvent::DarwinCodeOp(
                 AppCommand::override_turn_context(
                     /*cwd*/ None,
                     /*approval_policy*/ None,
@@ -7583,7 +7583,7 @@ impl ChatWidget {
                 let name = Self::personality_label(personality).to_string();
                 let description = Some(Self::personality_description(personality).to_string());
                 let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-                    tx.send(AppEvent::CodexOp(
+                    tx.send(AppEvent::DarwinCodeOp(
                         AppCommand::override_turn_context(
                             /*cwd*/ None,
                             /*approval_policy*/ None,
@@ -7616,7 +7616,7 @@ impl ChatWidget {
 
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Select Personality".bold()));
-        header.push(Line::from("Choose a communication style for Codex.".dim()));
+        header.push(Line::from("Choose a communication style for Darwin-Code.".dim()));
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
             header: Box::new(header),
@@ -7652,7 +7652,7 @@ impl ChatWidget {
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
             title: Some("Settings".to_string()),
-            subtitle: Some("Configure settings for Codex.".to_string()),
+            subtitle: Some("Configure settings for Darwin-Code.".to_string()),
             footer_hint: Some(standard_popup_hint_line()),
             items,
             ..Default::default()
@@ -7906,14 +7906,14 @@ impl ChatWidget {
     }
 
     fn is_auto_model(model: &str) -> bool {
-        model.starts_with("codex-auto-")
+        model.starts_with("darwin-code-auto-")
     }
 
     fn auto_model_order(model: &str) -> usize {
         match model {
-            "codex-auto-fast" => 0,
-            "codex-auto-balanced" => 1,
-            "codex-auto-thorough" => 2,
+            "darwin-code-auto-fast" => 0,
+            "darwin-code-auto-balanced" => 1,
+            "darwin-code-auto-thorough" => 2,
             _ => 3,
         }
     }
@@ -7954,7 +7954,7 @@ impl ChatWidget {
 
         let header = self.model_menu_header(
             "Select Model and Effort",
-            "Access legacy models by running codex -m <model_name> or in your config.toml",
+            "Access legacy models by running darwin-code -m <model_name> or in your config.toml",
         );
         self.bottom_pane.show_selection_view(SelectionViewParams {
             footer_hint: Some("Press enter to select reasoning effort, or esc to dismiss.".into()),
@@ -8162,8 +8162,8 @@ impl ChatWidget {
             let effort_label = Self::reasoning_effort_label(effort);
             format!("⚠ {effort_label} reasoning effort can quickly consume Plus plan rate limits.")
         });
-        let warn_for_model = preset.model.starts_with("gpt-5.1-codex")
-            || preset.model.starts_with("gpt-5.1-codex-max")
+        let warn_for_model = preset.model.starts_with("gpt-5.1-darwin-code")
+            || preset.model.starts_with("gpt-5.1-darwin-code-max")
             || preset.model.starts_with("gpt-5.2");
 
         struct EffortChoice {
@@ -8416,7 +8416,7 @@ impl ChatWidget {
                         let preset_clone = preset.clone();
                         if crate::legacy_core::windows_sandbox::ELEVATED_SANDBOX_NUX_ENABLED
                             && crate::legacy_core::windows_sandbox::sandbox_setup_is_complete(
-                                self.config.codex_home.as_path(),
+                                self.config.darwin_code_home.as_path(),
                             )
                         {
                             vec![Box::new(move |tx| {
@@ -8570,7 +8570,7 @@ impl ChatWidget {
     ) -> Vec<SelectionAction> {
         vec![Box::new(move |tx| {
             let sandbox_clone = sandbox.clone();
-            tx.send(AppEvent::CodexOp(
+            tx.send(AppEvent::DarwinCodeOp(
                 AppCommand::override_turn_context(
                     /*cwd*/ None,
                     Some(approval),
@@ -8645,12 +8645,12 @@ impl ChatWidget {
         }
         let cwd = self.config.cwd.clone();
         let env_map: std::collections::HashMap<String, String> = std::env::vars().collect();
-        match codex_windows_sandbox::apply_world_writable_scan_and_denies(
-            self.config.codex_home.as_path(),
+        match darwin_code_windows_sandbox::apply_world_writable_scan_and_denies(
+            self.config.darwin_code_home.as_path(),
             cwd.as_path(),
             &env_map,
             self.config.permissions.sandbox_policy.get(),
-            Some(self.config.codex_home.as_path()),
+            Some(self.config.darwin_code_home.as_path()),
         ) {
             Ok(_) => None,
             Err(_) => Some((Vec::new(), 0, true)),
@@ -8674,7 +8674,7 @@ impl ChatWidget {
         let mut header_children: Vec<Box<dyn Renderable>> = Vec::new();
         let title_line = Line::from("Enable full access?").bold();
         let info_line = Line::from(vec![
-            "When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. "
+            "When Darwin-Code runs with full access, it can edit any file on your computer and run commands with network, without your approval. "
                 .into(),
             "Exercise caution when enabling full access. This significantly increases the risk of data loss, leaks, or unexpected behavior."
                 .fg(Color::Red),
@@ -8878,7 +8878,7 @@ impl ChatWidget {
             header.push(*Box::new(
                 Paragraph::new(vec![
                     line!["Agent mode on Windows uses an experimental sandbox to limit network and filesystem access.".bold()],
-                    line!["Learn more: https://developers.openai.com/codex/windows"],
+                    line!["Learn more: https://developers.openai.com/darwin-code/windows"],
                 ])
                 .wrap(Wrap { trim: false }),
             ));
@@ -8919,7 +8919,7 @@ impl ChatWidget {
         }
 
         self.session_telemetry.counter(
-            "codex.windows_sandbox.elevated_prompt_shown",
+            "darwin-code.windows_sandbox.elevated_prompt_shown",
             /*inc*/ 1,
             &[],
         );
@@ -8927,7 +8927,7 @@ impl ChatWidget {
         let mut header = ColumnRenderable::new();
         header.push(*Box::new(
             Paragraph::new(vec![
-                line!["Set up the Codex agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/codex/windows>"],
+                line!["Set up the Darwin-Code agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/darwin-code/windows>"],
             ])
             .wrap(Wrap { trim: false }),
         ));
@@ -8942,7 +8942,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     accept_otel.counter(
-                        "codex.windows_sandbox.elevated_prompt_accept",
+                        "darwin-code.windows_sandbox.elevated_prompt_accept",
                         /*inc*/ 1,
                         &[],
                     );
@@ -8958,7 +8958,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     legacy_otel.counter(
-                        "codex.windows_sandbox.elevated_prompt_use_legacy",
+                        "darwin-code.windows_sandbox.elevated_prompt_use_legacy",
                         /*inc*/ 1,
                         &[],
                     );
@@ -8974,7 +8974,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     quit_otel.counter(
-                        "codex.windows_sandbox.elevated_prompt_quit",
+                        "darwin-code.windows_sandbox.elevated_prompt_quit",
                         /*inc*/ 1,
                         &[],
                     );
@@ -9007,10 +9007,10 @@ impl ChatWidget {
         ]);
         lines.push(line![""]);
         lines.push(line![
-            "You can still use Codex in a non-admin sandbox. It carries greater risk if prompt injected."
+            "You can still use Darwin-Code in a non-admin sandbox. It carries greater risk if prompt injected."
         ]);
         lines.push(line![
-            "Learn more <https://developers.openai.com/codex/windows>"
+            "Learn more <https://developers.openai.com/darwin-code/windows>"
         ]);
 
         let mut header = ColumnRenderable::new();
@@ -9028,7 +9028,7 @@ impl ChatWidget {
                     let preset = elevated_preset;
                     move |tx| {
                         otel.counter(
-                            "codex.windows_sandbox.fallback_retry_elevated",
+                            "darwin-code.windows_sandbox.fallback_retry_elevated",
                             /*inc*/ 1,
                             &[],
                         );
@@ -9041,14 +9041,14 @@ impl ChatWidget {
                 ..Default::default()
             },
             SelectionItem {
-                name: "Use Codex with non-admin sandbox".to_string(),
+                name: "Use Darwin-Code with non-admin sandbox".to_string(),
                 description: None,
                 actions: vec![Box::new({
                     let otel = self.session_telemetry.clone();
                     let preset = legacy_preset;
                     move |tx| {
                         otel.counter(
-                            "codex.windows_sandbox.fallback_use_legacy",
+                            "darwin-code.windows_sandbox.fallback_use_legacy",
                             /*inc*/ 1,
                             &[],
                         );
@@ -9065,7 +9065,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     quit_otel.counter(
-                        "codex.windows_sandbox.fallback_prompt_quit",
+                        "darwin-code.windows_sandbox.fallback_prompt_quit",
                         /*inc*/ 1,
                         &[],
                     );
@@ -9379,7 +9379,7 @@ impl ChatWidget {
 
     fn set_service_tier_selection(&mut self, service_tier: Option<ServiceTier>) {
         self.set_service_tier(service_tier);
-        self.app_event_tx.send(AppEvent::CodexOp(
+        self.app_event_tx.send(AppEvent::DarwinCodeOp(
             AppCommand::override_turn_context(
                 /*cwd*/ None,
                 /*approval_policy*/ None,
@@ -9671,7 +9671,7 @@ impl ChatWidget {
             && (previous_model != next_model || previous_effort != next_effort)
         {
             let mut message = format!("Model changed to {next_model}");
-            if !next_model.starts_with("codex-auto-") {
+            if !next_model.starts_with("darwin-code-auto-") {
                 let reasoning_label = match next_effort {
                     Some(ReasoningEffortConfig::Minimal) => "minimal",
                     Some(ReasoningEffortConfig::Low) => "low",
@@ -9730,7 +9730,7 @@ impl ChatWidget {
                 /*reasoning_effort*/ None,
                 /*show_fast_status*/ false,
                 config.cwd.to_path_buf(),
-                CODEX_CLI_VERSION,
+                DARWIN_CODE_CLI_VERSION,
             )
             .with_yolo_mode(history_cell::is_yolo_mode(config)),
         )
@@ -9793,7 +9793,7 @@ impl ChatWidget {
 
     fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
         let resume_cmd = crate::legacy_core::util::resume_command(Some(name), thread_id)
-            .unwrap_or_else(|| format!("codex resume {name}"));
+            .unwrap_or_else(|| format!("darwin-code resume {name}"));
         let name = name.to_string();
         let line = vec![
             "• ".into(),
@@ -9955,7 +9955,7 @@ impl ChatWidget {
             let instructions = if connector.is_accessible {
                 "Manage this app in your browser."
             } else {
-                "Install this app in your browser, then reload Codex."
+                "Install this app in your browser, then reload Darwin-Code."
             };
             if let Some(install_url) = connector.install_url.clone() {
                 let app_id = connector.id.clone();
@@ -10301,7 +10301,7 @@ impl ChatWidget {
         ));
     }
 
-    /// Forward a command directly to codex.
+    /// Forward a command directly to darwin-code.
     pub(crate) fn submit_op<T>(&mut self, op: T) -> bool
     where
         T: Into<AppCommand>,
@@ -10310,16 +10310,16 @@ impl ChatWidget {
         if op.is_review() && !self.bottom_pane.is_task_running() {
             self.bottom_pane.set_task_running(/*running*/ true);
         }
-        match &self.codex_op_target {
-            CodexOpTarget::Direct(codex_op_tx) => {
+        match &self.darwin_code_op_target {
+            DarwinCodeOpTarget::Direct(darwin_code_op_tx) => {
                 crate::session_log::log_outbound_op(&op);
-                if let Err(e) = codex_op_tx.send(op.into_core()) {
+                if let Err(e) = darwin_code_op_tx.send(op.into_core()) {
                     tracing::error!("failed to submit op: {e}");
                     return false;
                 }
             }
-            CodexOpTarget::AppEvent => {
-                self.app_event_tx.send(AppEvent::CodexOp(op.into()));
+            DarwinCodeOpTarget::AppEvent => {
+                self.app_event_tx.send(AppEvent::DarwinCodeOp(op.into()));
             }
         }
         true
@@ -10803,7 +10803,7 @@ impl Notification {
             }
             Notification::EditApprovalRequested { cwd, changes } => {
                 format!(
-                    "Codex wants to edit {}",
+                    "Darwin-Code wants to edit {}",
                     if changes.len() == 1 {
                         #[allow(clippy::unwrap_used)]
                         display_path_for(changes.first().unwrap(), cwd)
@@ -10865,7 +10865,7 @@ impl Notification {
     }
 
     fn user_input_request_summary(
-        questions: &[codex_protocol::request_user_input::RequestUserInputQuestion],
+        questions: &[darwin_code_protocol::request_user_input::RequestUserInputQuestion],
     ) -> Option<String> {
         let first_question = questions.first()?;
         let summary = if first_question.header.trim().is_empty() {

@@ -9,17 +9,17 @@ use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::Constrained;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_features::Feature;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_config::Constrained;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_features::Feature;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -33,7 +33,7 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::skip_if_sandbox;
 use core_test_support::stdio_server_bin;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use regex_lite::Regex;
 use serde_json::Value;
 use serde_json::json;
@@ -80,7 +80,7 @@ async fn custom_tool_unknown_returns_custom_output_error() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build(&server).await?;
 
     let call_id = "custom-unsupported";
@@ -141,10 +141,10 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
             return Ok(());
         }
     };
-    let codex_home = Arc::new(TempDir::new()?);
-    let mut builder = test_codex()
+    let darwin_code_home = Arc::new(TempDir::new()?);
+    let mut builder = test_darwin_code()
         .with_model("gpt-5.1")
-        .with_home(Arc::clone(&codex_home))
+        .with_home(Arc::clone(&darwin_code_home))
         .with_config(move |config| {
             config
                 .features
@@ -206,7 +206,7 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
     .await;
 
     test.submit_turn("call the rmcp echo tool").await?;
-    let rollout_path = test.codex.rollout_path().context("rollout path")?;
+    let rollout_path = test.darwin-code.rollout_path().context("rollout path")?;
     assert_eq!(first_turn_mock.requests().len(), 2);
     drop(test);
 
@@ -232,14 +232,14 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
     )
     .await;
 
-    let mut resume_builder = test_codex().with_model("gpt-5.1").with_config(|config| {
+    let mut resume_builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
         config
             .features
             .enable(Feature::UnavailableDummyTools)
             .expect("unavailable dummy tools should be enabled for this test");
     });
     let test = resume_builder
-        .resume(&server, codex_home, rollout_path)
+        .resume(&server, darwin_code_home, rollout_path)
         .await?;
 
     test.submit_turn("retry the rmcp echo tool").await?;
@@ -270,7 +270,7 @@ async fn shell_escalated_permissions_rejected_then_ok() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5");
+    let mut builder = test_darwin_code().with_model("gpt-5");
     let test = builder.build(&server).await?;
 
     let command = ["/bin/echo", "shell ok"];
@@ -367,7 +367,7 @@ async fn sandbox_denied_shell_returns_original_output() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5.1-codex");
+    let mut builder = test_darwin_code().with_model("gpt-5.1-darwin-code");
     let fixture = builder.build(&server).await?;
 
     let call_id = "sandbox-denied-shell";
@@ -463,8 +463,8 @@ async fn shell_enforces_glob_deny_read_policy() -> Result<()> {
     let server = start_mock_server().await;
     let read_only_policy = SandboxPolicy::new_read_only_policy();
     let read_only_policy_for_config = read_only_policy.clone();
-    let mut builder = test_codex()
-        .with_model("gpt-5.1-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1-darwin-code")
         .with_config(move |config| {
             config.permissions.sandbox_policy = Constrained::allow_any(read_only_policy_for_config);
             let mut file_system_sandbox_policy = FileSystemSandboxPolicy::default();
@@ -568,7 +568,7 @@ async fn collect_tools(use_unified_exec: bool) -> Result<Vec<String>> {
     ])];
     let mock = mount_sse_sequence(&server, responses).await;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         if use_unified_exec {
             config
                 .features
@@ -626,7 +626,7 @@ async fn shell_timeout_includes_timeout_prefix_and_metadata() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5");
+    let mut builder = test_darwin_code().with_model("gpt-5");
     let test = builder.build(&server).await?;
 
     let call_id = "shell-timeout";
@@ -697,7 +697,7 @@ async fn shell_timeout_handles_background_grandchild_stdout() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_model("gpt-5.1").with_config(|config| {
+    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
         config
             .permissions
             .sandbox_policy
@@ -794,7 +794,7 @@ async fn shell_spawn_failure_truncates_exec_error() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_codex().with_config(|cfg| {
+    let mut builder = test_darwin_code().with_config(|cfg| {
         cfg.permissions
             .sandbox_policy
             .set(SandboxPolicy::DangerFullAccess)

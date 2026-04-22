@@ -1,6 +1,6 @@
 //! Persistence layer for the global, append-only *message history* file.
 //!
-//! The history is stored at `~/.codex/history.jsonl` with **one JSON object per
+//! The history is stored at `~/.darwin-code/history.jsonl` with **one JSON object per
 //! line** so that it can be efficiently appended to and parsed with standard
 //! JSON-Lines tooling. Each record has the following schema:
 //!
@@ -35,16 +35,16 @@ use tokio::fs;
 use tokio::io::AsyncReadExt;
 
 use crate::config::Config;
-use codex_config::types::HistoryPersistence;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::types::HistoryPersistence;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
-use codex_protocol::ThreadId;
+use darwin_code_protocol::ThreadId;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
-/// Filename that stores the message history inside `~/.codex`.
+/// Filename that stores the message history inside `~/.darwin-code`.
 const HISTORY_FILENAME: &str = "history.jsonl";
 
 /// When history exceeds the hard cap, trim it down to this fraction of `max_bytes`.
@@ -61,7 +61,7 @@ pub struct HistoryEntry {
 }
 
 fn history_filepath(config: &Config) -> AbsolutePathBuf {
-    config.codex_home.join(HISTORY_FILENAME)
+    config.darwin_code_home.join(HISTORY_FILENAME)
 }
 
 /// Append a `text` entry associated with `conversation_id` to the history file.
@@ -92,7 +92,7 @@ pub async fn append_entry(text: &str, conversation_id: &ThreadId, config: &Confi
 
     // TODO: check `text` for sensitive patterns
 
-    // Resolve `~/.codex/history.jsonl` and ensure the parent directory exists.
+    // Resolve `~/.darwin-code/history.jsonl` and ensure the parent directory exists.
     let path = history_filepath(config);
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;

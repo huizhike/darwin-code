@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
+use darwin_code_api::SharedAuthProvider;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
 
 use crate::bearer_auth_provider::BearerAuthProvider;
 
@@ -21,9 +21,9 @@ pub(crate) fn auth_manager_for_provider(
 }
 
 fn bearer_auth_provider_from_auth(
-    auth: Option<&CodexAuth>,
+    auth: Option<&DarwinCodeAuth>,
     provider: &ModelProviderInfo,
-) -> codex_protocol::error::Result<BearerAuthProvider> {
+) -> darwin_code_protocol::error::Result<BearerAuthProvider> {
     if let Some(api_key) = provider.api_key()? {
         return Ok(BearerAuthProvider {
             token: Some(api_key),
@@ -57,8 +57,8 @@ fn bearer_auth_provider_from_auth(
 }
 
 pub(crate) fn resolve_provider_auth(
-    auth: Option<&CodexAuth>,
+    auth: Option<&DarwinCodeAuth>,
     provider: &ModelProviderInfo,
-) -> codex_protocol::error::Result<SharedAuthProvider> {
+) -> darwin_code_protocol::error::Result<SharedAuthProvider> {
     Ok(Arc::new(bearer_auth_provider_from_auth(auth, provider)?))
 }

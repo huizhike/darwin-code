@@ -1,6 +1,6 @@
 //! Turn-scoped state and active turn metadata scaffolding.
 
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
+use darwin_code_sandboxing::policy_transforms::merge_permission_profiles;
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,19 +9,19 @@ use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationResponse;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_rmcp_client::ElicitationResponse;
 use rmcp::model::RequestId;
 use tokio::sync::oneshot;
 
 use crate::session::turn_context::TurnContext;
 use crate::tasks::AnySessionTask;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TokenUsage;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::TokenUsage;
 
 /// Metadata about the currently running turn.
 pub(crate) struct ActiveTurn {
@@ -74,7 +74,7 @@ pub(crate) struct RunningTask {
     pub(crate) handle: Arc<AbortOnDropHandle<()>>,
     pub(crate) turn_context: Arc<TurnContext>,
     // Timer recorded when the task drops to capture the full turn duration.
-    pub(crate) _timer: Option<codex_otel::Timer>,
+    pub(crate) _timer: Option<darwin_code_otel::Timer>,
 }
 
 impl ActiveTurn {

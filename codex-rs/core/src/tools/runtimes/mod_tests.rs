@@ -1,7 +1,7 @@
 use super::*;
 use crate::shell::ShellType;
 use crate::shell_snapshot::ShellSnapshot;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
@@ -289,12 +289,12 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_explicit_override_precedence() {
 }
 
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_restores_codex_thread_id_from_env() {
+fn maybe_wrap_shell_lc_with_snapshot_restores_darwin_code_thread_id_from_env() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(
         &snapshot_path,
-        "# Snapshot file\nexport CODEX_THREAD_ID='parent-thread'\n",
+        "# Snapshot file\nexport DARWIN_CODE_THREAD_ID='parent-thread'\n",
     )
     .expect("write snapshot");
     let session_shell = shell_with_snapshot(
@@ -306,18 +306,18 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_codex_thread_id_from_env() {
     let command = vec![
         "/bin/bash".to_string(),
         "-lc".to_string(),
-        "printf '%s' \"$CODEX_THREAD_ID\"".to_string(),
+        "printf '%s' \"$DARWIN_CODE_THREAD_ID\"".to_string(),
     ];
     let rewritten = maybe_wrap_shell_lc_with_snapshot(
         &command,
         &session_shell,
         &dir.path().abs(),
         &HashMap::new(),
-        &HashMap::from([("CODEX_THREAD_ID".to_string(), "nested-thread".to_string())]),
+        &HashMap::from([("DARWIN_CODE_THREAD_ID".to_string(), "nested-thread".to_string())]),
     );
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])
-        .env("CODEX_THREAD_ID", "nested-thread")
+        .env("DARWIN_CODE_THREAD_ID", "nested-thread")
         .output()
         .expect("run rewritten command");
 
@@ -453,7 +453,7 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(
         &snapshot_path,
-        "# Snapshot file\nexport CODEX_TEST_UNSET_OVERRIDE='snapshot-value'\n",
+        "# Snapshot file\nexport DARWIN_CODE_TEST_UNSET_OVERRIDE='snapshot-value'\n",
     )
     .expect("write snapshot");
     let session_shell = shell_with_snapshot(
@@ -465,10 +465,10 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
     let command = vec![
             "/bin/bash".to_string(),
             "-lc".to_string(),
-            "if [ \"${CODEX_TEST_UNSET_OVERRIDE+x}\" = x ]; then printf 'set:%s' \"$CODEX_TEST_UNSET_OVERRIDE\"; else printf 'unset'; fi".to_string(),
+            "if [ \"${DARWIN_CODE_TEST_UNSET_OVERRIDE+x}\" = x ]; then printf 'set:%s' \"$DARWIN_CODE_TEST_UNSET_OVERRIDE\"; else printf 'unset'; fi".to_string(),
         ];
     let explicit_env_overrides = HashMap::from([(
-        "CODEX_TEST_UNSET_OVERRIDE".to_string(),
+        "DARWIN_CODE_TEST_UNSET_OVERRIDE".to_string(),
         "worktree-value".to_string(),
     )]);
     let rewritten = maybe_wrap_shell_lc_with_snapshot(
@@ -481,7 +481,7 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_unset_override_variables() {
 
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])
-        .env_remove("CODEX_TEST_UNSET_OVERRIDE")
+        .env_remove("DARWIN_CODE_TEST_UNSET_OVERRIDE")
         .output()
         .expect("run rewritten command");
     assert!(output.status.success(), "command failed: {output:?}");

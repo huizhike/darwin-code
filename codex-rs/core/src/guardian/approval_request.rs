@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use codex_protocol::approvals::GuardianAssessmentAction;
-use codex_protocol::approvals::GuardianCommandSource;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::approvals::GuardianAssessmentAction;
+use darwin_code_protocol::approvals::GuardianCommandSource;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -154,7 +154,7 @@ fn command_assessment_action(
 ) -> GuardianAssessmentAction {
     GuardianAssessmentAction::Command {
         source,
-        command: codex_shell_command::parse_command::shlex_join(command),
+        command: darwin_code_shell_command::parse_command::shlex_join(command),
         cwd: cwd.clone(),
     }
 }

@@ -10,24 +10,24 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::state::SessionServices;
 use crate::tools::network_approval::NetworkApprovalSpec;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ReviewDecision;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_protocol::approvals::ExecPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkApprovalContext;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::permissions::FileSystemSandboxKind;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::ReviewDecision;
 #[cfg(test)]
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformError;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxTransformError;
+use darwin_code_sandboxing::SandboxTransformRequest;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::Future;
 use futures::future::BoxFuture;
 use serde::Serialize;
@@ -97,7 +97,7 @@ where
     let decision = fetch().await;
 
     services.session_telemetry.counter(
-        "codex.approval.requested",
+        "darwin-code.approval.requested",
         /*inc*/ 1,
         &[
             ("tool", tool_name),
@@ -147,7 +147,7 @@ pub(crate) enum ExecApprovalRequirement {
         /// greenlit by policy).
         bypass_sandbox: bool,
         /// Proposed execpolicy amendment to skip future approvals for similar commands
-        /// Only applies if the command fails to run in sandbox and codex prompts the user to run outside the sandbox.
+        /// Only applies if the command fails to run in sandbox and darwin-code prompts the user to run outside the sandbox.
         proposed_execpolicy_amendment: Option<ExecPolicyAmendment>,
     },
     /// Approval required for this tool call.
@@ -321,7 +321,7 @@ pub(crate) struct ToolCtx {
 #[derive(Debug)]
 pub(crate) enum ToolError {
     Rejected(String),
-    Codex(CodexErr),
+    Darwin-Code(DarwinCodeErr),
 }
 
 pub(crate) trait ToolRuntime<Req, Out>: Approvable<Req> + Sandboxable {
@@ -339,15 +339,15 @@ pub(crate) trait ToolRuntime<Req, Out>: Approvable<Req> + Sandboxable {
 
 pub(crate) struct SandboxAttempt<'a> {
     pub sandbox: SandboxType,
-    pub policy: &'a codex_protocol::protocol::SandboxPolicy,
+    pub policy: &'a darwin_code_protocol::protocol::SandboxPolicy,
     pub file_system_policy: &'a FileSystemSandboxPolicy,
     pub network_policy: NetworkSandboxPolicy,
     pub enforce_managed_network: bool,
     pub(crate) manager: &'a SandboxManager,
     pub(crate) sandbox_cwd: &'a AbsolutePathBuf,
-    pub codex_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
+    pub darwin_code_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
     pub use_legacy_landlock: bool,
-    pub windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    pub windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
 }
 
@@ -368,8 +368,8 @@ impl<'a> SandboxAttempt<'a> {
                 enforce_managed_network: self.enforce_managed_network,
                 network,
                 sandbox_policy_cwd: self.sandbox_cwd,
-                codex_linux_sandbox_exe: self
-                    .codex_linux_sandbox_exe
+                darwin_code_linux_sandbox_exe: self
+                    .darwin_code_linux_sandbox_exe
                     .map(std::path::PathBuf::as_path),
                 use_legacy_landlock: self.use_legacy_landlock,
                 windows_sandbox_level: self.windows_sandbox_level,

@@ -1,4 +1,4 @@
-use crate::config::find_codex_home;
+use crate::config::find_darwin_code_home;
 use crate::config::resolve_permission_profile;
 use crate::config_loader::CloudRequirementsLoader;
 use crate::config_loader::ConfigLayerStack;
@@ -11,22 +11,22 @@ use crate::exec_policy::load_exec_policy;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::overlay_network_domain_permissions;
-use codex_exec_server::LOCAL_FS;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraintError;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::build_config_state;
-use codex_network_proxy::normalize_host;
-use codex_network_proxy::validate_policy_against_constraints;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::permissions_toml::NetworkToml;
+use darwin_code_config::permissions_toml::PermissionsToml;
+use darwin_code_config::permissions_toml::overlay_network_domain_permissions;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_network_proxy::ConfigReloader;
+use darwin_code_network_proxy::ConfigState;
+use darwin_code_network_proxy::NetworkProxyConfig;
+use darwin_code_network_proxy::NetworkProxyConstraintError;
+use darwin_code_network_proxy::NetworkProxyConstraints;
+use darwin_code_network_proxy::NetworkProxyState;
+use darwin_code_network_proxy::build_config_state;
+use darwin_code_network_proxy::normalize_host;
+use darwin_code_network_proxy::validate_policy_against_constraints;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -43,24 +43,24 @@ pub async fn build_network_proxy_state_and_reloader() -> Result<(ConfigState, Mt
 }
 
 async fn build_config_state_with_mtimes() -> Result<(ConfigState, Vec<LayerMtime>)> {
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let darwin_code_home = find_darwin_code_home().context("failed to resolve DARWIN_CODE_HOME")?;
     let cli_overrides = Vec::new();
     let overrides = LoaderOverrides::default();
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
-        &codex_home,
+        &darwin_code_home,
         /*cwd*/ None,
         &cli_overrides,
         overrides,
         CloudRequirementsLoader::default(),
     )
     .await
-    .context("failed to load Codex config")?;
+    .context("failed to load Darwin-Code config")?;
 
     let (exec_policy, warning) = match load_exec_policy(&config_layer_stack).await {
         Ok(policy) => (policy, None),
         Err(err @ ExecPolicyError::ParsePolicy { .. }) => {
-            (codex_execpolicy::Policy::empty(), Some(err))
+            (darwin_code_execpolicy::Policy::empty(), Some(err))
         }
         Err(err) => return Err(err.into()),
     };
@@ -90,8 +90,8 @@ fn collect_layer_mtimes(stack: &ConfigLayerStack) -> Vec<LayerMtime> {
             let path = match &layer.name {
                 ConfigLayerSource::System { file } => Some(file.clone()),
                 ConfigLayerSource::User { file } => Some(file.clone()),
-                ConfigLayerSource::Project { dot_codex_folder } => {
-                    Some(dot_codex_folder.join(CONFIG_TOML_FILE))
+                ConfigLayerSource::Project { dot_darwin_code_folder } => {
+                    Some(dot_darwin_code_folder.join(CONFIG_TOML_FILE))
                 }
                 ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.clone()),
                 _ => None,
@@ -206,7 +206,7 @@ fn apply_network_tables(config: &mut NetworkProxyConfig, parsed: NetworkTablesTo
 
 fn config_from_layers(
     layers: &ConfigLayerStack,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &darwin_code_execpolicy::Policy,
 ) -> Result<NetworkProxyConfig> {
     let mut config = NetworkProxyConfig::default();
     for layer in layers.get_layers(
@@ -222,21 +222,21 @@ fn config_from_layers(
 
 fn apply_exec_policy_network_rules(
     config: &mut NetworkProxyConfig,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &darwin_code_execpolicy::Policy,
 ) {
     let (allowed_domains, denied_domains) = exec_policy.compiled_network_domains();
     for host in allowed_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Allow,
+            darwin_code_network_proxy::NetworkDomainPermission::Allow,
         );
     }
     for host in denied_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Deny,
+            darwin_code_network_proxy::NetworkDomainPermission::Deny,
         );
     }
 }
@@ -244,7 +244,7 @@ fn apply_exec_policy_network_rules(
 fn upsert_network_domain(
     config: &mut NetworkProxyConfig,
     host: String,
-    permission: codex_network_proxy::NetworkDomainPermission,
+    permission: darwin_code_network_proxy::NetworkDomainPermission,
 ) {
     config
         .network

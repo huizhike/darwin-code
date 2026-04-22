@@ -18,7 +18,7 @@ pub(crate) mod session;
 pub use session::SteerInputError;
 mod darwin_code_thread;
 mod compact_remote;
-pub use darwin_code_thread::CodexThread;
+pub use darwin_code_thread::DarwinCodeThread;
 pub use darwin_code_thread::ThreadConfigSnapshot;
 mod agent;
 mod darwin_code_delegate;
@@ -129,8 +129,8 @@ pub use windows_sandbox_read_grants::grant_read_root_non_elevated;
 pub type ConversationManager = ThreadManager;
 #[deprecated(note = "use NewThread")]
 pub type NewConversation = NewThread;
-#[deprecated(note = "use CodexThread")]
-pub type CodexConversation = CodexThread;
+#[deprecated(note = "use DarwinCodeThread")]
+pub type DarwinCodeConversation = DarwinCodeThread;
 pub(crate) mod agents_md;
 pub use agents_md::AgentsMdManager;
 pub use agents_md::DEFAULT_AGENTS_MD_FILENAME;
@@ -182,8 +182,8 @@ pub mod util;
 
 pub use client::ModelClient;
 pub use client::ModelClientSession;
-pub use client::X_CODEX_INSTALLATION_ID_HEADER;
-pub use client::X_CODEX_TURN_METADATA_HEADER;
+pub use client::X_DARWIN_CODE_INSTALLATION_ID_HEADER;
+pub use client::X_DARWIN_CODE_TURN_METADATA_HEADER;
 pub use client_common::Prompt;
 pub use client_common::REVIEW_PROMPT;
 pub use client_common::ResponseEvent;

@@ -9,14 +9,14 @@ use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_login::CodexAuth;
-use codex_login::default_client::build_reqwest_client;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::default_client::build_reqwest_client;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::ResponseItem;
 
 const ARC_MONITOR_TIMEOUT: Duration = Duration::from_secs(30);
-const CODEX_ARC_MONITOR_ENDPOINT_OVERRIDE: &str = "CODEX_ARC_MONITOR_ENDPOINT_OVERRIDE";
-const CODEX_ARC_MONITOR_TOKEN: &str = "CODEX_ARC_MONITOR_TOKEN";
+const DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE: &str = "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE";
+const DARWIN_CODE_ARC_MONITOR_TOKEN: &str = "DARWIN_CODE_ARC_MONITOR_TOKEN";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ArcMonitorOutcome {
@@ -63,8 +63,8 @@ struct ArcMonitorPolicies {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct ArcMonitorMetadata {
-    codex_thread_id: String,
-    codex_turn_id: String,
+    darwin_code_thread_id: String,
+    darwin_code_turn_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     conversation_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -109,7 +109,7 @@ pub(crate) async fn monitor_action(
         },
         None => None,
     };
-    let token = if let Some(token) = read_non_empty_env_var(CODEX_ARC_MONITOR_TOKEN) {
+    let token = if let Some(token) = read_non_empty_env_var(DARWIN_CODE_ARC_MONITOR_TOKEN) {
         token
     } else {
         let Some(auth) = auth.as_ref() else {
@@ -127,9 +127,9 @@ pub(crate) async fn monitor_action(
         }
     };
 
-    let url = read_non_empty_env_var(CODEX_ARC_MONITOR_ENDPOINT_OVERRIDE).unwrap_or_else(|| {
+    let url = read_non_empty_env_var(DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE).unwrap_or_else(|| {
         format!(
-            "{}/codex/safety/arc",
+            "{}/darwin-code/safety/arc",
             turn_context.config.chatgpt_base_url.trim_end_matches('/')
         )
     });
@@ -148,7 +148,7 @@ pub(crate) async fn monitor_action(
         .timeout(ARC_MONITOR_TIMEOUT)
         .json(&body)
         .bearer_auth(token);
-    if let Some(account_id) = auth.as_ref().and_then(CodexAuth::get_account_id) {
+    if let Some(account_id) = auth.as_ref().and_then(DarwinCodeAuth::get_account_id) {
         request = request.header("chatgpt-account-id", account_id);
     }
 
@@ -252,8 +252,8 @@ async fn build_arc_monitor_request(
     let conversation_id = sess.conversation_id.to_string();
     ArcMonitorRequest {
         metadata: ArcMonitorMetadata {
-            codex_thread_id: conversation_id.clone(),
-            codex_turn_id: turn_context.sub_id.clone(),
+            darwin_code_thread_id: conversation_id.clone(),
+            darwin_code_turn_id: turn_context.sub_id.clone(),
             conversation_id: Some(conversation_id),
             protection_client_callsite: Some(protection_client_callsite.to_string()),
         },

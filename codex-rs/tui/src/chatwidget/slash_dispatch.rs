@@ -115,7 +115,7 @@ impl ChatWidget {
             }
             SlashCommand::Rename => {
                 self.session_telemetry
-                    .counter("codex.thread.rename", /*inc*/ 1, &[]);
+                    .counter("darwin-code.thread.rename", /*inc*/ 1, &[]);
                 self.show_rename_prompt();
             }
             SlashCommand::Model => {
@@ -207,7 +207,7 @@ impl ChatWidget {
                     }
 
                     self.session_telemetry.counter(
-                        "codex.windows_sandbox.setup_elevated_sandbox_command",
+                        "darwin-code.windows_sandbox.setup_elevated_sandbox_command",
                         /*inc*/ 1,
                         &[],
                     );
@@ -238,7 +238,7 @@ impl ChatWidget {
                 self.app_event_tx.send(AppEvent::Logout);
             }
             // SlashCommand::Undo => {
-            //     self.app_event_tx.send(AppEvent::CodexOp(Op::Undo));
+            //     self.app_event_tx.send(AppEvent::DarwinCodeOp(Op::Undo));
             // }
             SlashCommand::Copy => {
                 self.copy_last_agent_markdown();
@@ -330,8 +330,8 @@ impl ChatWidget {
             SlashCommand::TestApproval => {
                 use std::collections::HashMap;
 
-                use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-                use codex_protocol::protocol::FileChange;
+                use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+                use darwin_code_protocol::protocol::FileChange;
 
                 self.on_apply_patch_approval_request(
                     "1".to_string(),
@@ -426,7 +426,7 @@ impl ChatWidget {
             }
             SlashCommand::Rename if !trimmed.is_empty() => {
                 self.session_telemetry
-                    .counter("codex.thread.rename", /*inc*/ 1, &[]);
+                    .counter("darwin-code.thread.rename", /*inc*/ 1, &[]);
                 let Some((prepared_args, _prepared_elements)) = self
                     .bottom_pane
                     .prepare_inline_args_submission(/*record_history*/ false)

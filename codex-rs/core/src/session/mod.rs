@@ -36,84 +36,84 @@ use async_channel::Receiver;
 use async_channel::Sender;
 use chrono::Local;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_exec_server::Environment;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_features::unstable_features_warning_event;
-use codex_hooks::Hooks;
-use codex_hooks::HooksConfig;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_login::default_client::originator;
-use codex_mcp::McpConnectionManager;
-use codex_mcp::ToolInfo;
-use codex_mcp::codex_apps_tools_cache_key;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_app_server_protocol::McpServerElicitationRequest;
+use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
+use darwin_code_config::types::OAuthCredentialsStoreMode;
+use darwin_code_exec_server::Environment;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_exec_server::FileSystemSandboxContext;
+use darwin_code_features::FEATURES;
+use darwin_code_features::Feature;
+use darwin_code_features::unstable_features_warning_event;
+use darwin_code_hooks::Hooks;
+use darwin_code_hooks::HooksConfig;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::auth_env_telemetry::collect_auth_env_telemetry;
+use darwin_code_login::default_client::originator;
+use darwin_code_mcp::McpConnectionManager;
+use darwin_code_mcp::ToolInfo;
+use darwin_code_mcp::darwin_code_apps_tools_cache_key;
 #[cfg(test)]
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_models_manager::manager::ModelsManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_network_proxy::normalize_host;
-use codex_otel::current_span_trace_id;
-use codex_otel::current_span_w3c_trace_context;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::ThreadId;
-use codex_protocol::ToolName;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::format_allow_prefixes;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::HasLegacyEvent;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::RawResponseItemEvent;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::TurnContextNetworkItem;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::RolloutConfig;
-use codex_rollout::state_db;
-use codex_shell_command::parse_command::parse_command;
-use codex_terminal_detection::user_agent;
-use codex_thread_store::LocalThreadStore;
-use codex_utils_output_truncation::TruncationPolicy;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_network_proxy::NetworkProxyAuditMetadata;
+use darwin_code_network_proxy::normalize_host;
+use darwin_code_otel::current_span_trace_id;
+use darwin_code_otel::current_span_w3c_trace_context;
+use darwin_code_otel::set_parent_from_w3c_trace_context;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::ToolName;
+use darwin_code_protocol::approvals::ElicitationRequestEvent;
+use darwin_code_protocol::approvals::ExecPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyRuleAction;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::items::UserMessageItem;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::models::format_allow_prefixes;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::HasLegacyEvent;
+use darwin_code_protocol::protocol::InterAgentCommunication;
+use darwin_code_protocol::protocol::ItemCompletedEvent;
+use darwin_code_protocol::protocol::ItemStartedEvent;
+use darwin_code_protocol::protocol::RawResponseItemEvent;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_protocol::protocol::TurnContextNetworkItem;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_protocol::request_permissions::PermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile;
+use darwin_code_protocol::request_permissions::RequestPermissionsArgs;
+use darwin_code_protocol::request_permissions::RequestPermissionsEvent;
+use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_rmcp_client::ElicitationResponse;
+use darwin_code_rollout::RolloutConfig;
+use darwin_code_rollout::state_db;
+use darwin_code_shell_command::parse_command::parse_command;
+use darwin_code_terminal_detection::user_agent;
+use darwin_code_thread_store::LocalThreadStore;
+use darwin_code_utils_output_truncation::TruncationPolicy;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use futures::prelude::*;
@@ -141,7 +141,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::ModelClient;
-use crate::codex_thread::ThreadConfigSnapshot;
+use crate::darwin_code_thread::ThreadConfigSnapshot;
 use crate::compact::collect_user_messages;
 use crate::config::Config;
 use crate::config::Constrained;
@@ -153,14 +153,14 @@ use crate::context_manager::ContextManager;
 use crate::context_manager::TotalTokenUsageBreakdown;
 use crate::environment_context::EnvironmentContext;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::types::McpServerConfig;
-use codex_config::types::ShellEnvironmentPolicy;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::ShellEnvironmentPolicy;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
 #[cfg(test)]
-use codex_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
 
 mod handlers;
 mod mcp;
@@ -203,11 +203,11 @@ impl SteerInputError {
         match self {
             Self::NoActiveTurn(_) => ErrorEvent {
                 message: "no active turn to steer".to_string(),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
             Self::ExpectedTurnMismatch { expected, actual } => ErrorEvent {
                 message: format!("expected active turn id `{expected}` but found `{actual}`"),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
             Self::ActiveTurnNotSteerable { turn_kind } => {
                 let turn_kind_label = match turn_kind {
@@ -216,14 +216,14 @@ impl SteerInputError {
                 };
                 ErrorEvent {
                     message: format!("cannot steer a {turn_kind_label} turn"),
-                    codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
+                    darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                         turn_kind: *turn_kind,
                     }),
                 }
             }
             Self::EmptyInput => ErrorEvent {
                 message: "input must not be empty".to_string(),
-                codex_error_info: Some(CodexErrorInfo::BadRequest),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
         }
     }
@@ -288,68 +288,68 @@ use crate::turn_timing::TurnTimingState;
 use crate::turn_timing::record_turn_ttfm_metric;
 use crate::unified_exec::UnifiedExecProcessManager;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
-use codex_git_utils::get_git_repo_root;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::with_codex_apps_mcp;
-use codex_otel::SessionTelemetry;
-use codex_otel::THREAD_STARTED_METRIC;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::BackgroundEventEvent;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::DeprecationNoticeEvent;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::ModelRerouteEvent;
-use codex_protocol::protocol::ModelRerouteReason;
-use codex_protocol::protocol::NetworkApprovalContext;
-use codex_protocol::protocol::NonSteerableTurnKind;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RequestUserInputEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionNetworkProxyRuntime;
-use codex_protocol::protocol::SkillDependencies as ProtocolSkillDependencies;
-use codex_protocol::protocol::SkillErrorInfo;
-use codex_protocol::protocol::SkillInterface as ProtocolSkillInterface;
-use codex_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
-use codex_protocol::protocol::SkillToolDependency as ProtocolSkillToolDependency;
-use codex_protocol::protocol::StreamErrorEvent;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolsConfig;
-use codex_tools::ToolsConfigParams;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_readiness::Readiness;
-use codex_utils_readiness::ReadinessFlag;
+use darwin_code_git_utils::get_git_repo_root;
+use darwin_code_mcp::compute_auth_statuses;
+use darwin_code_mcp::with_darwin_code_apps_mcp;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::THREAD_STARTED_METRIC;
+use darwin_code_otel::TelemetryAuthMode;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::BackgroundEventEvent;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::DeprecationNoticeEvent;
+use darwin_code_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::McpServerRefreshConfig;
+use darwin_code_protocol::protocol::ModelRerouteEvent;
+use darwin_code_protocol::protocol::ModelRerouteReason;
+use darwin_code_protocol::protocol::NetworkApprovalContext;
+use darwin_code_protocol::protocol::NonSteerableTurnKind;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::RequestUserInputEvent;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionConfiguredEvent;
+use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
+use darwin_code_protocol::protocol::SkillDependencies as ProtocolSkillDependencies;
+use darwin_code_protocol::protocol::SkillErrorInfo;
+use darwin_code_protocol::protocol::SkillInterface as ProtocolSkillInterface;
+use darwin_code_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
+use darwin_code_protocol::protocol::SkillToolDependency as ProtocolSkillToolDependency;
+use darwin_code_protocol::protocol::StreamErrorEvent;
+use darwin_code_protocol::protocol::Submission;
+use darwin_code_protocol::protocol::TokenCountEvent;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_tools::ToolsConfig;
+use darwin_code_tools::ToolsConfigParams;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_readiness::Readiness;
+use darwin_code_utils_readiness::ReadinessFlag;
 #[cfg(test)]
-use codex_utils_stream_parser::ProposedPlanSegment;
+use darwin_code_utils_stream_parser::ProposedPlanSegment;
 
-/// The high-level interface to the Codex system.
+/// The high-level interface to the Darwin-Code system.
 /// It operates as a queue pair where you send submissions and receive events.
-pub struct Codex {
+pub struct Darwin-Code {
     pub(crate) tx_sub: Sender<Submission>,
     pub(crate) rx_event: Receiver<Event>,
     // Last known status of the agent.
@@ -364,14 +364,14 @@ pub(crate) type SessionLoopTermination = Shared<BoxFuture<'static, ()>>;
 
 pub(crate) const THREAD_START_SKILLS_TRIMMED_WARNING_MESSAGE: &str = "Some enabled skills were not included in the model-visible skills list for this session. Mention a skill by name or path if you need it.";
 
-/// Wrapper returned by [`Codex::spawn`] containing the spawned [`Codex`] and
+/// Wrapper returned by [`Darwin-Code::spawn`] containing the spawned [`Darwin-Code`] and
 /// the unique session id.
-pub struct CodexSpawnOk {
-    pub codex: Codex,
+pub struct DarwinCodeSpawnOk {
+    pub darwin-code: Darwin-Code,
     pub thread_id: ThreadId,
 }
 
-pub(crate) struct CodexSpawnArgs {
+pub(crate) struct DarwinCodeSpawnArgs {
     pub(crate) config: Config,
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) models_manager: Arc<ModelsManager>,
@@ -396,14 +396,14 @@ pub(crate) struct CodexSpawnArgs {
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
 pub(crate) const SUBMISSION_CHANNEL_CAPACITY: usize = 512;
 const CYBER_VERIFY_URL: &str = "https://chatgpt.com/cyber";
-const CYBER_SAFETY_URL: &str = "https://developers.openai.com/codex/concepts/cyber-safety";
+const CYBER_SAFETY_URL: &str = "https://developers.openai.com/darwin-code/concepts/cyber-safety";
 
-impl Codex {
-    /// Spawn a new [`Codex`] and initialize the session.
-    pub(crate) async fn spawn(args: CodexSpawnArgs) -> CodexResult<CodexSpawnOk> {
+impl Darwin-Code {
+    /// Spawn a new [`Darwin-Code`] and initialize the session.
+    pub(crate) async fn spawn(args: DarwinCodeSpawnArgs) -> DarwinCodeResult<DarwinCodeSpawnOk> {
         let parent_trace = match args.parent_trace {
             Some(trace) => {
-                if codex_otel::context_from_w3c_trace_context(&trace).is_some() {
+                if darwin_code_otel::context_from_w3c_trace_context(&trace).is_some() {
                     Some(trace)
                 } else {
                     warn!("ignoring invalid thread spawn trace carrier");
@@ -416,7 +416,7 @@ impl Codex {
         if let Some(trace) = parent_trace.as_ref() {
             let _ = set_parent_from_w3c_trace_context(&thread_spawn_span, trace);
         }
-        Self::spawn_internal(CodexSpawnArgs {
+        Self::spawn_internal(DarwinCodeSpawnArgs {
             parent_trace,
             ..args
         })
@@ -424,8 +424,8 @@ impl Codex {
         .await
     }
 
-    async fn spawn_internal(args: CodexSpawnArgs) -> CodexResult<CodexSpawnOk> {
-        let CodexSpawnArgs {
+    async fn spawn_internal(args: DarwinCodeSpawnArgs) -> DarwinCodeResult<DarwinCodeSpawnOk> {
+        let DarwinCodeSpawnArgs {
             mut config,
             auth_manager,
             models_manager,
@@ -452,7 +452,7 @@ impl Codex {
         let environment = environment_manager
             .current()
             .await
-            .map_err(|err| CodexErr::Fatal(format!("failed to create environment: {err}")))?;
+            .map_err(|err| DarwinCodeErr::Fatal(format!("failed to create environment: {err}")))?;
         let fs = environment
             .as_ref()
             .map(|environment| environment.get_filesystem());
@@ -519,19 +519,19 @@ impl Codex {
             Arc::new(
                 ExecPolicyManager::load(&config.config_layer_stack)
                     .await
-                    .map_err(|err| CodexErr::Fatal(format!("failed to load rules: {err}")))?,
+                    .map_err(|err| DarwinCodeErr::Fatal(format!("failed to load rules: {err}")))?,
             )
         };
 
         let config = Arc::new(config);
         let refresh_strategy = match session_source {
-            SessionSource::SubAgent(_) => codex_models_manager::manager::RefreshStrategy::Offline,
-            _ => codex_models_manager::manager::RefreshStrategy::OnlineIfUncached,
+            SessionSource::SubAgent(_) => darwin_code_models_manager::manager::RefreshStrategy::Offline,
+            _ => darwin_code_models_manager::manager::RefreshStrategy::OnlineIfUncached,
         };
         if config.model.is_none()
             || !matches!(
                 refresh_strategy,
-                codex_models_manager::manager::RefreshStrategy::Offline
+                darwin_code_models_manager::manager::RefreshStrategy::Offline
             )
         {
             let _ = models_manager.list_models(refresh_strategy).await;
@@ -564,7 +564,7 @@ impl Codex {
             match thread_id {
                 Some(thread_id) => {
                     let state_db_ctx = state_db::get_state_db(&config).await;
-                    state_db::get_dynamic_tools(state_db_ctx.as_deref(), thread_id, "codex_spawn")
+                    state_db::get_dynamic_tools(state_db_ctx.as_deref(), thread_id, "darwin_code_spawn")
                         .await
                 }
                 None => None,
@@ -607,7 +607,7 @@ impl Codex {
             network_sandbox_policy: config.permissions.network_sandbox_policy,
             windows_sandbox_level: WindowsSandboxLevel::from_config(&config),
             cwd: config.cwd.clone(),
-            codex_home: config.codex_home.clone(),
+            darwin_code_home: config.darwin_code_home.clone(),
             thread_name: None,
             original_config_do_not_use: Arc::clone(&config),
             metrics_service_name,
@@ -620,7 +620,7 @@ impl Codex {
             user_shell_override,
         };
 
-        // Generate a unique ID for the lifetime of this Codex session.
+        // Generate a unique ID for the lifetime of this Darwin-Code session.
         let session_source_clone = session_configuration.session_source.clone();
         let (agent_status_tx, agent_status_rx) = watch::channel(AgentStatus::PendingInit);
 
@@ -645,7 +645,7 @@ impl Codex {
         .await
         .map_err(|e| {
             error!("Failed to create session: {e:#}");
-            map_session_init_error(&e, &config.codex_home)
+            map_session_init_error(&e, &config.darwin_code_home)
         })?;
         let thread_id = session.conversation_id;
 
@@ -656,7 +656,7 @@ impl Codex {
                 .instrument(info_span!("session_loop", thread_id = %thread_id))
                 .await;
         });
-        let codex = Codex {
+        let darwin-code = Darwin-Code {
             tx_sub,
             rx_event,
             agent_status: agent_status_rx,
@@ -664,11 +664,11 @@ impl Codex {
             session_loop_termination: session_loop_termination_from_handle(session_loop_handle),
         };
 
-        Ok(CodexSpawnOk { codex, thread_id })
+        Ok(DarwinCodeSpawnOk { darwin-code, thread_id })
     }
 
     /// Submit the `op` wrapped in a `Submission` with a unique ID.
-    pub async fn submit(&self, op: Op) -> CodexResult<String> {
+    pub async fn submit(&self, op: Op) -> DarwinCodeResult<String> {
         self.submit_with_trace(op, /*trace*/ None).await
     }
 
@@ -676,7 +676,7 @@ impl Codex {
         &self,
         op: Op,
         trace: Option<W3cTraceContext>,
-    ) -> CodexResult<String> {
+    ) -> DarwinCodeResult<String> {
         let id = Uuid::now_v7().to_string();
         let sub = Submission {
             id: id.clone(),
@@ -687,16 +687,16 @@ impl Codex {
         Ok(id)
     }
 
-    /// Use sparingly: prefer `submit()` so Codex is responsible for generating
+    /// Use sparingly: prefer `submit()` so Darwin-Code is responsible for generating
     /// unique IDs for each submission.
-    pub async fn submit_with_id(&self, mut sub: Submission) -> CodexResult<()> {
+    pub async fn submit_with_id(&self, mut sub: Submission) -> DarwinCodeResult<()> {
         if sub.trace.is_none() {
             sub.trace = current_span_w3c_trace_context();
         }
         self.tx_sub
             .send(sub)
             .await
-            .map_err(|_| CodexErr::InternalAgentDied)?;
+            .map_err(|_| DarwinCodeErr::InternalAgentDied)?;
         Ok(())
     }
 
@@ -706,28 +706,28 @@ impl Codex {
     /// and does not involve the model.
     pub async fn set_thread_memory_mode(
         &self,
-        mode: codex_protocol::protocol::ThreadMemoryMode,
+        mode: darwin_code_protocol::protocol::ThreadMemoryMode,
     ) -> anyhow::Result<()> {
         handlers::persist_thread_memory_mode_update(&self.session, mode).await
     }
 
-    pub async fn shutdown_and_wait(&self) -> CodexResult<()> {
+    pub async fn shutdown_and_wait(&self) -> DarwinCodeResult<()> {
         let session_loop_termination = self.session_loop_termination.clone();
         match self.submit(Op::Shutdown).await {
             Ok(_) => {}
-            Err(CodexErr::InternalAgentDied) => {}
+            Err(DarwinCodeErr::InternalAgentDied) => {}
             Err(err) => return Err(err),
         }
         session_loop_termination.await;
         Ok(())
     }
 
-    pub async fn next_event(&self) -> CodexResult<Event> {
+    pub async fn next_event(&self) -> DarwinCodeResult<Event> {
         let event = self
             .rx_event
             .recv()
             .await
-            .map_err(|_| CodexErr::InternalAgentDied)?;
+            .map_err(|_| DarwinCodeErr::InternalAgentDied)?;
         Ok(event)
     }
 
@@ -791,7 +791,7 @@ pub(crate) fn session_loop_termination_from_handle(
 
 async fn thread_title_from_state_db(
     state_db: Option<&state_db::StateDbHandle>,
-    codex_home: &AbsolutePathBuf,
+    darwin_code_home: &AbsolutePathBuf,
     conversation_id: ThreadId,
 ) -> Option<String> {
     if let Some(metadata) = state_db
@@ -803,7 +803,7 @@ async fn thread_title_from_state_db(
             return Some(title.to_string());
         }
     }
-    find_thread_name_by_id(codex_home, &conversation_id)
+    find_thread_name_by_id(darwin_code_home, &conversation_id)
         .await
         .ok()
         .flatten()
@@ -825,7 +825,7 @@ impl Session {
         !matches!(sandbox_policy, SandboxPolicy::DangerFullAccess)
     }
 
-    /// Builds the `x-codex-beta-features` header value for this session.
+    /// Builds the `x-darwin-code-beta-features` header value for this session.
     ///
     /// `ModelClient` is session-scoped and intentionally does not depend on the full `Config`, so
     /// we precompute the comma-separated list of enabled experimental feature keys at session
@@ -854,10 +854,10 @@ impl Session {
 
     async fn start_managed_network_proxy(
         spec: &crate::config::NetworkProxySpec,
-        exec_policy: &codex_execpolicy::Policy,
+        exec_policy: &darwin_code_execpolicy::Policy,
         sandbox_policy: &SandboxPolicy,
-        network_policy_decider: Option<Arc<dyn codex_network_proxy::NetworkPolicyDecider>>,
-        blocked_request_observer: Option<Arc<dyn codex_network_proxy::BlockedRequestObserver>>,
+        network_policy_decider: Option<Arc<dyn darwin_code_network_proxy::NetworkPolicyDecider>>,
+        blocked_request_observer: Option<Arc<dyn darwin_code_network_proxy::BlockedRequestObserver>>,
         managed_network_requirements_enabled: bool,
         audit_metadata: NetworkProxyAuditMetadata,
     ) -> anyhow::Result<(StartedNetworkProxy, SessionNetworkProxyRuntime)> {
@@ -932,9 +932,9 @@ impl Session {
         }
     }
 
-    pub(crate) async fn codex_home(&self) -> AbsolutePathBuf {
+    pub(crate) async fn darwin_code_home(&self) -> AbsolutePathBuf {
         let state = self.state.lock().await;
-        state.session_configuration.codex_home().clone()
+        state.session_configuration.darwin_code_home().clone()
     }
 
     pub(crate) fn subscribe_out_of_band_elicitation_pause_state(&self) -> watch::Receiver<bool> {
@@ -1011,7 +1011,7 @@ impl Session {
             id: self.next_internal_sub_id(),
             msg: EventMsg::Error(ErrorEvent {
                 message,
-                codex_error_info: Some(CodexErrorInfo::Other),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         })
         .await;
@@ -1265,7 +1265,7 @@ impl Session {
                         EventMsg::Warning(WarningEvent {
                             message: format!(
                                 "This session was recorded with model `{prev}` but is resuming with `{curr}`. \
-                         Consider switching back to `{prev}` as it may affect Codex performance."
+                         Consider switching back to `{prev}` as it may affect Darwin-Code performance."
                             ),
                         }),
                     )
@@ -1355,7 +1355,7 @@ impl Session {
         &self,
         previous_cwd: &AbsolutePathBuf,
         next_cwd: &AbsolutePathBuf,
-        codex_home: &AbsolutePathBuf,
+        darwin_code_home: &AbsolutePathBuf,
         session_source: &SessionSource,
     ) {
         if previous_cwd == next_cwd {
@@ -1374,7 +1374,7 @@ impl Session {
         }
 
         ShellSnapshot::refresh_snapshot(
-            codex_home.clone(),
+            darwin_code_home.clone(),
             self.conversation_id,
             next_cwd.clone(),
             self.services.user_shell.as_ref().clone(),
@@ -1387,7 +1387,7 @@ impl Session {
         &self,
         updates: SessionSettingsUpdate,
     ) -> ConstraintResult<()> {
-        let (previous_cwd, sandbox_policy_changed, next_cwd, codex_home, session_source) = {
+        let (previous_cwd, sandbox_policy_changed, next_cwd, darwin_code_home, session_source) = {
             let mut state = self.state.lock().await;
             let updated = match state.session_configuration.apply(&updates) {
                 Ok(updated) => updated,
@@ -1401,14 +1401,14 @@ impl Session {
             let sandbox_policy_changed =
                 state.session_configuration.sandbox_policy != updated.sandbox_policy;
             let next_cwd = updated.cwd.clone();
-            let codex_home = updated.codex_home.clone();
+            let darwin_code_home = updated.darwin_code_home.clone();
             let session_source = updated.session_source.clone();
             state.session_configuration = updated;
             (
                 previous_cwd,
                 sandbox_policy_changed,
                 next_cwd,
-                codex_home,
+                darwin_code_home,
                 session_source,
             )
         };
@@ -1416,7 +1416,7 @@ impl Session {
         self.maybe_refresh_shell_snapshot_for_cwd(
             &previous_cwd,
             &next_cwd,
-            &codex_home,
+            &darwin_code_home,
             &session_source,
         );
         if sandbox_policy_changed {
@@ -1458,7 +1458,7 @@ impl Session {
             let state = self.state.lock().await;
             state
                 .session_configuration
-                .codex_home
+                .darwin_code_home
                 .join(CONFIG_TOML_FILE)
         };
 
@@ -1577,13 +1577,13 @@ impl Session {
     async fn forward_child_completion_to_parent(
         &self,
         parent_thread_id: ThreadId,
-        child_agent_path: &codex_protocol::AgentPath,
+        child_agent_path: &darwin_code_protocol::AgentPath,
         status: AgentStatus,
     ) {
         let Some(parent_agent_path) = child_agent_path
             .as_str()
             .rsplit_once('/')
-            .and_then(|(parent, _)| codex_protocol::AgentPath::try_from(parent).ok())
+            .and_then(|(parent, _)| darwin_code_protocol::AgentPath::try_from(parent).ok())
         else {
             return;
         };
@@ -1682,17 +1682,17 @@ impl Session {
         &self,
         amendment: &ExecPolicyAmendment,
     ) -> Result<(), ExecPolicyUpdateError> {
-        let codex_home = self
+        let darwin_code_home = self
             .state
             .lock()
             .await
             .session_configuration
-            .codex_home()
+            .darwin_code_home()
             .clone();
 
         self.services
             .exec_policy
-            .append_amendment_and_update(&codex_home, amendment)
+            .append_amendment_and_update(&darwin_code_home, amendment)
             .await?;
 
         Ok(())
@@ -1755,12 +1755,12 @@ impl Session {
         let _refresh_guard = self.managed_network_proxy_refresh_lock.lock().await;
         let host =
             Self::validated_network_policy_amendment_host(amendment, network_approval_context)?;
-        let codex_home = self
+        let darwin_code_home = self
             .state
             .lock()
             .await
             .session_configuration
-            .codex_home()
+            .darwin_code_home()
             .clone();
         let execpolicy_amendment =
             execpolicy_network_rule_amendment(amendment, network_approval_context, &host);
@@ -1782,7 +1782,7 @@ impl Session {
         self.services
             .exec_policy
             .append_network_rule_and_update(
-                &codex_home,
+                &darwin_code_home,
                 &host,
                 execpolicy_amendment.protocol,
                 execpolicy_amendment.decision,
@@ -2195,7 +2195,7 @@ impl Session {
     pub(crate) async fn record_model_warning(&self, message: impl Into<String>, ctx: &TurnContext) {
         self.services
             .session_telemetry
-            .counter("codex.model_warning", /*inc*/ 1, &[]);
+            .counter("darwin-code.model_warning", /*inc*/ 1, &[]);
         let item = ResponseItem::Message {
             id: None,
             role: "user".to_string(),
@@ -2225,7 +2225,7 @@ impl Session {
         warn!("server reported model {server_model} while requested model was {requested_model}");
 
         let warning_message = format!(
-            "Your account was flagged for potentially high-risk cyber activity and this request was routed to gpt-5.2 as a fallback. To regain access to gpt-5.3-codex, apply for trusted access: {CYBER_VERIFY_URL} or learn more: {CYBER_SAFETY_URL}"
+            "Your account was flagged for potentially high-risk cyber activity and this request was routed to gpt-5.2 as a fallback. To regain access to gpt-5.3-darwin-code, apply for trusted access: {CYBER_VERIFY_URL} or learn more: {CYBER_SAFETY_URL}"
         );
 
         self.send_event(
@@ -2372,7 +2372,7 @@ impl Session {
         if turn_context.features.enabled(Feature::MemoryTool)
             && turn_context.config.memories.use_memories
             && let Some(memory_prompt) =
-                build_memory_tool_developer_instructions(&turn_context.config.codex_home).await
+                build_memory_tool_developer_instructions(&turn_context.config.darwin_code_home).await
         {
             developer_sections.push(memory_prompt);
         }
@@ -2452,7 +2452,7 @@ impl Session {
         {
             developer_sections.push(plugin_section);
         }
-        if turn_context.features.enabled(Feature::CodexGitCommit)
+        if turn_context.features.enabled(Feature::DarwinCodeGitCommit)
             && let Some(commit_message_instruction) = commit_message_trailer_instruction(
                 turn_context.config.commit_attribution.as_deref(),
             )
@@ -2724,15 +2724,15 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         message: impl Into<String>,
-        codex_error: CodexErr,
+        darwin_code_error: DarwinCodeErr,
     ) {
-        let additional_details = codex_error.to_string();
-        let codex_error_info = CodexErrorInfo::ResponseStreamDisconnected {
-            http_status_code: codex_error.http_status_code_value(),
+        let additional_details = darwin_code_error.to_string();
+        let darwin_code_error_info = DarwinCodeErrorInfo::ResponseStreamDisconnected {
+            http_status_code: darwin_code_error.http_status_code_value(),
         };
         let event = EventMsg::StreamError(StreamErrorEvent {
             message: message.into(),
-            codex_error_info: Some(codex_error_info),
+            darwin_code_error_info: Some(darwin_code_error_info),
             additional_details: Some(additional_details),
         });
         self.send_event(turn_context, event).await;
@@ -3016,7 +3016,7 @@ impl Session {
 
     pub(crate) async fn take_pending_session_start_source(
         &self,
-    ) -> Option<codex_hooks::SessionStartSource> {
+    ) -> Option<darwin_code_hooks::SessionStartSource> {
         let mut state = self.state.lock().await;
         state.take_pending_session_start_source()
     }

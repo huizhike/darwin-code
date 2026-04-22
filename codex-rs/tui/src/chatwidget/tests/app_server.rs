@@ -7,7 +7,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
     let sender_thread_id = ThreadId::new();
     let spawned_thread_id = ThreadId::new();
 
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "spawn-begin".into(),
         msg: EventMsg::CollabAgentSpawnBegin(CollabAgentSpawnBeginEvent {
             call_id: "call-spawn".to_string(),
@@ -17,7 +17,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
             reasoning_effort: ReasoningEffortConfig::High,
         }),
     });
-    chat.handle_codex_event(Event {
+    chat.handle_darwin_code_event(Event {
         id: "spawn-end".into(),
         msg: EventMsg::CollabAgentSpawnEnd(CollabAgentSpawnEndEvent {
             call_id: "call-spawn".to_string(),
@@ -521,7 +521,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "permission denied".to_string(),
-                codex_error_info: None,
+                darwin_code_error_info: None,
                 additional_details: None,
             },
             will_retry: false,
@@ -544,7 +544,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
                 status: AppServerTurnStatus::Failed,
                 error: Some(AppServerTurnError {
                     message: "permission denied".to_string(),
-                    codex_error_info: None,
+                    darwin_code_error_info: None,
                     additional_details: None,
                 }),
                 started_at: None,
@@ -584,7 +584,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "Reconnecting... 1/5".to_string(),
-                codex_error_info: Some(CodexErrorInfo::Other.into()),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other.into()),
                 additional_details: None,
             },
             will_retry: true,
@@ -597,7 +597,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
 
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            darwin_code_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: "turn-1".to_string(),
                 item_id: "item-1".to_string(),
@@ -641,7 +641,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "server overloaded".to_string(),
-                codex_error_info: Some(CodexErrorInfo::ServerOverloaded.into()),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::ServerOverloaded.into()),
                 additional_details: None,
             },
             will_retry: false,
@@ -666,7 +666,7 @@ async fn live_app_server_invalid_thread_name_update_is_ignored() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            darwin_code_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: "not-a-thread-id".to_string(),
                 thread_name: Some("bad update".to_string()),
             },
@@ -686,7 +686,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            darwin_code_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("review-fix".to_string()),
             },
@@ -699,7 +699,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
     assert_eq!(cells.len(), 1);
     let rendered = lines_to_single_string(&cells[0]);
     assert!(rendered.contains("Thread renamed to review-fix"));
-    assert!(rendered.contains("codex resume review-fix"));
+    assert!(rendered.contains("darwin-code resume review-fix"));
 }
 
 #[tokio::test]

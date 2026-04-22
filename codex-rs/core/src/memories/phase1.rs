@@ -10,20 +10,20 @@ use crate::rollout::INTERACTIVE_SESSION_SOURCES;
 use crate::rollout::policy::should_persist_response_item_for_memories;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_api::ResponseEvent;
-use codex_config::types::MemoriesConfig;
-use codex_otel::SessionTelemetry;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::TokenUsage;
-use codex_secrets::redact_secrets;
+use darwin_code_api::ResponseEvent;
+use darwin_code_config::types::MemoriesConfig;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_secrets::redact_secrets;
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
@@ -180,7 +180,7 @@ impl RequestContext {
 async fn claim_startup_jobs(
     session: &Arc<Session>,
     memories_config: &MemoriesConfig,
-) -> Option<Vec<codex_state::Stage1JobClaim>> {
+) -> Option<Vec<darwin_code_state::Stage1JobClaim>> {
     let Some(state_db) = session.services.state_db.as_deref() else {
         // This should not happen.
         warn!("state db unavailable while claiming phase-1 startup jobs; skipping");
@@ -195,7 +195,7 @@ async fn claim_startup_jobs(
     match state_db
         .claim_stage1_jobs_for_startup(
             session.conversation_id,
-            codex_state::Stage1StartupClaimParams {
+            darwin_code_state::Stage1StartupClaimParams {
                 scan_limit: phase_one::THREAD_SCAN_LIMIT,
                 max_claimed: memories_config.max_rollouts_per_startup,
                 max_age_days: memories_config.max_rollout_age_days,
@@ -240,7 +240,7 @@ async fn build_request_context(session: &Arc<Session>, config: &Config) -> Reque
 
 async fn run_jobs(
     session: &Arc<Session>,
-    claimed_candidates: Vec<codex_state::Stage1JobClaim>,
+    claimed_candidates: Vec<darwin_code_state::Stage1JobClaim>,
     stage_one_context: RequestContext,
 ) -> Vec<JobResult> {
     futures::stream::iter(claimed_candidates.into_iter())
@@ -259,7 +259,7 @@ mod job {
 
     pub(in crate::memories) async fn run(
         session: &Session,
-        claim: codex_state::Stage1JobClaim,
+        claim: darwin_code_state::Stage1JobClaim,
         stage_one_context: &RequestContext,
     ) -> JobResult {
         let thread = claim.thread;
@@ -394,7 +394,7 @@ mod job {
 
         pub(in crate::memories) async fn failed(
             session: &Session,
-            thread_id: codex_protocol::ThreadId,
+            thread_id: darwin_code_protocol::ThreadId,
             ownership_token: &str,
             reason: &str,
         ) {
@@ -413,7 +413,7 @@ mod job {
 
         pub(in crate::memories) async fn no_output(
             session: &Session,
-            thread_id: codex_protocol::ThreadId,
+            thread_id: darwin_code_protocol::ThreadId,
             ownership_token: &str,
         ) -> JobOutcome {
             let Some(state_db) = session.services.state_db.as_deref() else {
@@ -433,7 +433,7 @@ mod job {
 
         pub(in crate::memories) async fn success(
             session: &Session,
-            thread_id: codex_protocol::ThreadId,
+            thread_id: darwin_code_protocol::ThreadId,
             ownership_token: &str,
             source_updated_at: i64,
             raw_memory: &str,
@@ -466,7 +466,7 @@ mod job {
     /// Serializes filtered stage-1 memory items for prompt inclusion.
     pub(super) fn serialize_filtered_rollout_response_items(
         items: &[RolloutItem],
-    ) -> codex_protocol::error::Result<String> {
+    ) -> darwin_code_protocol::error::Result<String> {
         let filtered = items
             .iter()
             .filter_map(|item| {
@@ -478,7 +478,7 @@ mod job {
             })
             .collect::<Vec<_>>();
         let serialized = serde_json::to_string(&filtered).map_err(|err| {
-            CodexErr::InvalidRequest(format!("failed to serialize rollout memory: {err}"))
+            DarwinCodeErr::InvalidRequest(format!("failed to serialize rollout memory: {err}"))
         })?;
         Ok(redact_secrets(serialized))
     }

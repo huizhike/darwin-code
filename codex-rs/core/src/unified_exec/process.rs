@@ -13,17 +13,17 @@ use tokio::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use crate::exec::is_likely_sandbox_denied;
-use codex_exec_server::ExecProcess;
-use codex_exec_server::ReadResponse as ExecReadResponse;
-use codex_exec_server::StartedExecProcess;
-use codex_exec_server::WriteStatus;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::TruncationPolicy;
-use codex_sandboxing::SandboxType;
-use codex_utils_output_truncation::formatted_truncate_text;
-use codex_utils_pty::ExecCommandSession;
-use codex_utils_pty::SpawnedPty;
+use darwin_code_exec_server::ExecProcess;
+use darwin_code_exec_server::ReadResponse as ExecReadResponse;
+use darwin_code_exec_server::StartedExecProcess;
+use darwin_code_exec_server::WriteStatus;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::protocol::TruncationPolicy;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_utils_output_truncation::formatted_truncate_text;
+use darwin_code_utils_pty::ExecCommandSession;
+use darwin_code_utils_pty::SpawnedPty;
 
 use super::UNIFIED_EXEC_OUTPUT_MAX_TOKENS;
 use super::UnifiedExecError;
@@ -283,7 +283,7 @@ impl UnifiedExecProcess {
             stderr_rx,
             mut exit_rx,
         } = spawned;
-        let output_rx = codex_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
+        let output_rx = darwin_code_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
         let mut managed = Self::new(
             ProcessHandle::Local(Box::new(process_handle)),
             sandbox_type,

@@ -6,19 +6,19 @@ mod macos;
 mod tests;
 
 use crate::config_loader::layer_io::LoadedConfigLayers;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigRequirementsWithSources;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_exec_server::ExecutorFileSystem;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::ConfigRequirementsWithSources;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_git_utils::resolve_root_git_project_for_trust;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
 use dunce::canonicalize as normalize_path;
 use serde::Deserialize;
 use std::io;
@@ -27,65 +27,65 @@ use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 
-pub use codex_config::AppRequirementToml;
-pub use codex_config::AppsRequirementsToml;
-pub use codex_config::CloudRequirementsLoadError;
-pub use codex_config::CloudRequirementsLoadErrorCode;
-pub use codex_config::CloudRequirementsLoader;
-pub use codex_config::ConfigError;
-pub use codex_config::ConfigLayerEntry;
-pub use codex_config::ConfigLayerStack;
-pub use codex_config::ConfigLayerStackOrdering;
-pub use codex_config::ConfigLoadError;
-pub use codex_config::ConfigRequirements;
-pub use codex_config::ConfigRequirementsToml;
-pub use codex_config::ConstrainedWithSource;
-pub use codex_config::FeatureRequirementsToml;
-pub use codex_config::FilesystemConstraints;
-pub use codex_config::FilesystemDenyReadPattern;
-pub use codex_config::LoaderOverrides;
-pub use codex_config::McpServerIdentity;
-pub use codex_config::McpServerRequirement;
-pub use codex_config::NetworkConstraints;
-pub use codex_config::NetworkDomainPermissionToml;
-pub use codex_config::NetworkDomainPermissionsToml;
-pub use codex_config::NetworkRequirementsToml;
-pub use codex_config::NetworkUnixSocketPermissionToml;
-pub use codex_config::NetworkUnixSocketPermissionsToml;
-pub use codex_config::RequirementSource;
-pub use codex_config::ResidencyRequirement;
-pub use codex_config::SandboxModeRequirement;
-pub use codex_config::Sourced;
-pub use codex_config::TextPosition;
-pub use codex_config::TextRange;
-pub use codex_config::WebSearchModeRequirement;
-pub(crate) use codex_config::build_cli_overrides_layer;
-pub(crate) use codex_config::config_error_from_toml;
-pub use codex_config::default_project_root_markers;
-pub use codex_config::format_config_error;
-pub use codex_config::format_config_error_with_source;
-pub(crate) use codex_config::io_error_from_config_error;
-pub use codex_config::merge_toml_values;
-pub use codex_config::project_root_markers_from_config;
+pub use darwin_code_config::AppRequirementToml;
+pub use darwin_code_config::AppsRequirementsToml;
+pub use darwin_code_config::CloudRequirementsLoadError;
+pub use darwin_code_config::CloudRequirementsLoadErrorCode;
+pub use darwin_code_config::CloudRequirementsLoader;
+pub use darwin_code_config::ConfigError;
+pub use darwin_code_config::ConfigLayerEntry;
+pub use darwin_code_config::ConfigLayerStack;
+pub use darwin_code_config::ConfigLayerStackOrdering;
+pub use darwin_code_config::ConfigLoadError;
+pub use darwin_code_config::ConfigRequirements;
+pub use darwin_code_config::ConfigRequirementsToml;
+pub use darwin_code_config::ConstrainedWithSource;
+pub use darwin_code_config::FeatureRequirementsToml;
+pub use darwin_code_config::FilesystemConstraints;
+pub use darwin_code_config::FilesystemDenyReadPattern;
+pub use darwin_code_config::LoaderOverrides;
+pub use darwin_code_config::McpServerIdentity;
+pub use darwin_code_config::McpServerRequirement;
+pub use darwin_code_config::NetworkConstraints;
+pub use darwin_code_config::NetworkDomainPermissionToml;
+pub use darwin_code_config::NetworkDomainPermissionsToml;
+pub use darwin_code_config::NetworkRequirementsToml;
+pub use darwin_code_config::NetworkUnixSocketPermissionToml;
+pub use darwin_code_config::NetworkUnixSocketPermissionsToml;
+pub use darwin_code_config::RequirementSource;
+pub use darwin_code_config::ResidencyRequirement;
+pub use darwin_code_config::SandboxModeRequirement;
+pub use darwin_code_config::Sourced;
+pub use darwin_code_config::TextPosition;
+pub use darwin_code_config::TextRange;
+pub use darwin_code_config::WebSearchModeRequirement;
+pub(crate) use darwin_code_config::build_cli_overrides_layer;
+pub(crate) use darwin_code_config::config_error_from_toml;
+pub use darwin_code_config::default_project_root_markers;
+pub use darwin_code_config::format_config_error;
+pub use darwin_code_config::format_config_error_with_source;
+pub(crate) use darwin_code_config::io_error_from_config_error;
+pub use darwin_code_config::merge_toml_values;
+pub use darwin_code_config::project_root_markers_from_config;
 #[cfg(test)]
-pub(crate) use codex_config::version_for_toml;
+pub(crate) use darwin_code_config::version_for_toml;
 
 /// On Unix systems, load default settings from this file path, if present.
-/// Note that /etc/codex/ is treated as a "config folder," so subfolders such
+/// Note that /etc/darwin-code/ is treated as a "config folder," so subfolders such
 /// as skills/ and rules/ will also be honored.
-pub const SYSTEM_CONFIG_TOML_FILE_UNIX: &str = "/etc/codex/config.toml";
+pub const SYSTEM_CONFIG_TOML_FILE_UNIX: &str = "/etc/darwin-code/config.toml";
 
 #[cfg(windows)]
 const DEFAULT_PROGRAM_DATA_DIR_WINDOWS: &str = r"C:\ProgramData";
 
 pub(crate) async fn first_layer_config_error(layers: &ConfigLayerStack) -> Option<ConfigError> {
-    codex_config::first_layer_config_error::<ConfigToml>(layers, CONFIG_TOML_FILE).await
+    darwin_code_config::first_layer_config_error::<ConfigToml>(layers, CONFIG_TOML_FILE).await
 }
 
 pub(crate) async fn first_layer_config_error_from_entries(
     layers: &[ConfigLayerEntry],
 ) -> Option<ConfigError> {
-    codex_config::first_layer_config_error_from_entries::<ConfigToml>(layers, CONFIG_TOML_FILE)
+    darwin_code_config::first_layer_config_error_from_entries::<ConfigToml>(layers, CONFIG_TOML_FILE)
         .await
 }
 
@@ -95,8 +95,8 @@ pub(crate) async fn first_layer_config_error_from_entries(
 ///
 /// - cloud:    managed cloud requirements
 /// - admin:    managed preferences (*)
-/// - system    `/etc/codex/requirements.toml` (Unix) or
-///   `%ProgramData%\OpenAI\Codex\requirements.toml` (Windows)
+/// - system    `/etc/darwin-code/requirements.toml` (Unix) or
+///   `%ProgramData%\OpenAI\Darwin-Code\requirements.toml` (Windows)
 ///
 /// For backwards compatibility, we also load from
 /// `managed_config.toml` and map it to `requirements.toml`.
@@ -104,17 +104,17 @@ pub(crate) async fn first_layer_config_error_from_entries(
 /// Configuration is built up from multiple layers in the following order:
 ///
 /// - admin:    managed preferences (*)
-/// - system    `/etc/codex/config.toml` (Unix) or
-///   `%ProgramData%\OpenAI\Codex\config.toml` (Windows)
-/// - user      `${CODEX_HOME}/config.toml`
+/// - system    `/etc/darwin-code/config.toml` (Unix) or
+///   `%ProgramData%\OpenAI\Darwin-Code\config.toml` (Windows)
+/// - user      `${DARWIN_CODE_HOME}/config.toml`
 /// - cwd       `${PWD}/config.toml` (loaded but disabled when the directory is untrusted)
-/// - tree      parent directories up to root looking for `./.codex/config.toml` (loaded but disabled when untrusted)
-/// - repo      `$(git rev-parse --show-toplevel)/.codex/config.toml` (loaded but disabled when untrusted)
+/// - tree      parent directories up to root looking for `./.darwin-code/config.toml` (loaded but disabled when untrusted)
+/// - repo      `$(git rev-parse --show-toplevel)/.darwin-code/config.toml` (loaded but disabled when untrusted)
 /// - runtime   e.g., --config flags, model selector in UI
 ///
 /// (*) Only available on macOS via managed device profiles.
 ///
-/// See https://developers.openai.com/codex/security for details.
+/// See https://developers.openai.com/darwin-code/security for details.
 ///
 /// When loading the config stack for a thread, there should be a `cwd`
 /// associated with it such that `cwd` should be `Some(...)`. Only for
@@ -122,7 +122,7 @@ pub(crate) async fn first_layer_config_error_from_entries(
 /// endpoint) should `cwd` be `None`.
 pub async fn load_config_layers_state(
     fs: &dyn ExecutorFileSystem,
-    codex_home: &Path,
+    darwin_code_home: &Path,
     cwd: Option<AbsolutePathBuf>,
     cli_overrides: &[(String, TomlValue)],
     overrides: LoaderOverrides,
@@ -151,7 +151,7 @@ pub async fn load_config_layers_state(
     // Make a best-effort to support the legacy `managed_config.toml` as a
     // requirements specification.
     let loaded_config_layers =
-        layer_io::load_config_layers_internal(fs, codex_home, overrides).await?;
+        layer_io::load_config_layers_internal(fs, darwin_code_home, overrides).await?;
     load_requirements_from_legacy_scheme(
         &mut config_requirements_toml,
         loaded_config_layers.clone(),
@@ -167,7 +167,7 @@ pub async fn load_config_layers_state(
         let base_dir = cwd
             .as_ref()
             .map(AbsolutePathBuf::as_path)
-            .unwrap_or(codex_home);
+            .unwrap_or(darwin_code_home);
         Some(resolve_relative_paths_in_config_toml(
             cli_overrides_layer,
             base_dir,
@@ -189,10 +189,10 @@ pub async fn load_config_layers_state(
         .await?;
     layers.push(system_layer);
 
-    // Add a layer for $CODEX_HOME/config.toml if it exists. Note if the file
+    // Add a layer for $DARWIN_CODE_HOME/config.toml if it exists. Note if the file
     // exists, but is malformed, then this error should be propagated to the
     // user.
-    let user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codex_home);
+    let user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, darwin_code_home);
     let user_layer = load_config_toml_for_required_layer(fs, &user_file, |config_toml| {
         ConfigLayerEntry::new(
             ConfigLayerSource::User {
@@ -231,7 +231,7 @@ pub async fn load_config_layers_state(
             &merged_so_far,
             &cwd,
             &project_root_markers,
-            codex_home,
+            darwin_code_home,
             &user_file,
         )
         .await
@@ -257,7 +257,7 @@ pub async fn load_config_layers_state(
             &cwd,
             &project_trust_context.project_root,
             &project_trust_context,
-            codex_home,
+            darwin_code_home,
         )
         .await?;
         layers.extend(project_layers);
@@ -302,9 +302,9 @@ pub async fn load_config_layers_state(
         // paths, starting with `./`, but a path starting with `~/` _is_ a
         // supported use case. Because resolve_relative_paths_in_config_toml()
         // relies on AbsolutePathBufGuard to resolve `~/`, we must supply a
-        // value for base_dir, so codex_home is as good a value as any.
+        // value for base_dir, so darwin_code_home is as good a value as any.
         let managed_config =
-            resolve_relative_paths_in_config_toml(config.managed_config, codex_home)?;
+            resolve_relative_paths_in_config_toml(config.managed_config, darwin_code_home)?;
         layers.push(ConfigLayerEntry::new_with_raw_toml(
             ConfigLayerSource::LegacyManagedConfigTomlFromMdm,
             managed_config,
@@ -425,7 +425,7 @@ async fn load_requirements_toml(
 
 #[cfg(unix)]
 fn system_requirements_toml_file() -> io::Result<AbsolutePathBuf> {
-    AbsolutePathBuf::from_absolute_path(Path::new("/etc/codex/requirements.toml"))
+    AbsolutePathBuf::from_absolute_path(Path::new("/etc/darwin-code/requirements.toml"))
 }
 
 #[cfg(windows)]
@@ -444,7 +444,7 @@ fn system_config_toml_file() -> io::Result<AbsolutePathBuf> {
 }
 
 #[cfg(windows)]
-fn windows_codex_system_dir() -> PathBuf {
+fn windows_darwin_code_system_dir() -> PathBuf {
     let program_data = windows_program_data_dir_from_known_folder().unwrap_or_else(|err| {
         tracing::warn!(
             error = %err,
@@ -452,18 +452,18 @@ fn windows_codex_system_dir() -> PathBuf {
         );
         PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS)
     });
-    program_data.join("OpenAI").join("Codex")
+    program_data.join("OpenAI").join("Darwin-Code")
 }
 
 #[cfg(windows)]
 fn windows_system_requirements_toml_file() -> io::Result<AbsolutePathBuf> {
-    let requirements_toml_file = windows_codex_system_dir().join("requirements.toml");
+    let requirements_toml_file = windows_darwin_code_system_dir().join("requirements.toml");
     AbsolutePathBuf::try_from(requirements_toml_file)
 }
 
 #[cfg(windows)]
 fn windows_system_config_toml_file() -> io::Result<AbsolutePathBuf> {
-    let config_toml_file = windows_codex_system_dir().join("config.toml");
+    let config_toml_file = windows_darwin_code_system_dir().join("config.toml");
     AbsolutePathBuf::try_from(config_toml_file)
 }
 
@@ -650,12 +650,12 @@ impl ProjectTrustContext {
 }
 
 fn project_layer_entry(
-    dot_codex_folder: &AbsolutePathBuf,
+    dot_darwin_code_folder: &AbsolutePathBuf,
     config: TomlValue,
     disabled_reason: Option<String>,
 ) -> ConfigLayerEntry {
     let source = ConfigLayerSource::Project {
-        dot_codex_folder: dot_codex_folder.clone(),
+        dot_darwin_code_folder: dot_darwin_code_folder.clone(),
     };
 
     if let Some(reason) = disabled_reason {
@@ -856,11 +856,11 @@ async fn load_project_layers(
     cwd: &AbsolutePathBuf,
     project_root: &AbsolutePathBuf,
     trust_context: &ProjectTrustContext,
-    codex_home: &Path,
+    darwin_code_home: &Path,
 ) -> io::Result<Vec<ConfigLayerEntry>> {
-    let codex_home_abs = AbsolutePathBuf::from_absolute_path(codex_home)?;
-    let codex_home_normalized =
-        normalize_path(codex_home_abs.as_path()).unwrap_or_else(|_| codex_home_abs.to_path_buf());
+    let darwin_code_home_abs = AbsolutePathBuf::from_absolute_path(darwin_code_home)?;
+    let darwin_code_home_normalized =
+        normalize_path(darwin_code_home_abs.as_path()).unwrap_or_else(|_| darwin_code_home_abs.to_path_buf());
     let mut dirs = cwd
         .ancestors()
         .scan(false, |done, a| {
@@ -878,9 +878,9 @@ async fn load_project_layers(
 
     let mut layers = Vec::new();
     for dir in dirs {
-        let dot_codex_abs = dir.join(".codex");
+        let dot_darwin_code_abs = dir.join(".darwin-code");
         if !fs
-            .get_metadata(&dot_codex_abs, /*sandbox*/ None)
+            .get_metadata(&dot_darwin_code_abs, /*sandbox*/ None)
             .await
             .map(|metadata| metadata.is_directory)
             .unwrap_or(false)
@@ -890,12 +890,12 @@ async fn load_project_layers(
 
         let decision = trust_context.decision_for_dir(&dir);
         let disabled_reason = trust_context.disabled_reason_for_decision(&decision);
-        let dot_codex_normalized =
-            normalize_path(dot_codex_abs.as_path()).unwrap_or_else(|_| dot_codex_abs.to_path_buf());
-        if dot_codex_abs == codex_home_abs || dot_codex_normalized == codex_home_normalized {
+        let dot_darwin_code_normalized =
+            normalize_path(dot_darwin_code_abs.as_path()).unwrap_or_else(|_| dot_darwin_code_abs.to_path_buf());
+        if dot_darwin_code_abs == darwin_code_home_abs || dot_darwin_code_normalized == darwin_code_home_normalized {
             continue;
         }
-        let config_file = dot_codex_abs.join(CONFIG_TOML_FILE);
+        let config_file = dot_darwin_code_abs.join(CONFIG_TOML_FILE);
         match fs.read_file_text(&config_file, /*sandbox*/ None).await {
             Ok(contents) => {
                 let config: TomlValue = match toml::from_str(&contents) {
@@ -911,7 +911,7 @@ async fn load_project_layers(
                             ));
                         }
                         layers.push(project_layer_entry(
-                            &dot_codex_abs,
+                            &dot_darwin_code_abs,
                             TomlValue::Table(toml::map::Map::new()),
                             disabled_reason.clone(),
                         ));
@@ -919,8 +919,8 @@ async fn load_project_layers(
                     }
                 };
                 let config =
-                    resolve_relative_paths_in_config_toml(config, dot_codex_abs.as_path())?;
-                let entry = project_layer_entry(&dot_codex_abs, config, disabled_reason.clone());
+                    resolve_relative_paths_in_config_toml(config, dot_darwin_code_abs.as_path())?;
+                let entry = project_layer_entry(&dot_darwin_code_abs, config, disabled_reason.clone());
                 layers.push(entry);
             }
             Err(err) => {
@@ -929,7 +929,7 @@ async fn load_project_layers(
                     // for this project layer, as this may still have subfolders
                     // that are significant in the overall ConfigLayerStack.
                     layers.push(project_layer_entry(
-                        &dot_codex_abs,
+                        &dot_darwin_code_abs,
                         TomlValue::Table(toml::map::Map::new()),
                         disabled_reason,
                     ));
@@ -947,7 +947,7 @@ async fn load_project_layers(
     Ok(layers)
 }
 /// The legacy mechanism for specifying admin-enforced configuration is to read
-/// from a file like `/etc/codex/managed_config.toml` that has the same
+/// from a file like `/etc/darwin-code/managed_config.toml` that has the same
 /// structure as `config.toml` where fields like `approval_policy` can specify
 /// exactly one value rather than a list of allowed values.
 ///
@@ -983,7 +983,7 @@ impl From<LegacyManagedConfigToml> for ConfigRequirementsToml {
         }
         if let Some(sandbox_mode) = sandbox_mode {
             let required_mode: SandboxModeRequirement = sandbox_mode.into();
-            // Allowing read-only is a requirement for Codex to function correctly.
+            // Allowing read-only is a requirement for Darwin-Code to function correctly.
             // So in this backfill path, we append read-only if it's not already specified.
             let mut allowed_modes = vec![SandboxModeRequirement::ReadOnly];
             if required_mode != SandboxModeRequirement::ReadOnly {
@@ -1100,7 +1100,7 @@ foo = "xyzzy"
         let expected = windows_program_data_dir_from_known_folder()
             .unwrap_or_else(|_| PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS))
             .join("OpenAI")
-            .join("Codex")
+            .join("Darwin-Code")
             .join("requirements.toml");
         assert_eq!(
             windows_system_requirements_toml_file()
@@ -1112,7 +1112,7 @@ foo = "xyzzy"
             windows_system_requirements_toml_file()
                 .expect("requirements.toml path")
                 .as_path()
-                .ends_with(Path::new("OpenAI").join("Codex").join("requirements.toml"))
+                .ends_with(Path::new("OpenAI").join("Darwin-Code").join("requirements.toml"))
         );
     }
 
@@ -1122,7 +1122,7 @@ foo = "xyzzy"
         let expected = windows_program_data_dir_from_known_folder()
             .unwrap_or_else(|_| PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS))
             .join("OpenAI")
-            .join("Codex")
+            .join("Darwin-Code")
             .join("config.toml");
         assert_eq!(
             windows_system_config_toml_file()
@@ -1134,7 +1134,7 @@ foo = "xyzzy"
             windows_system_config_toml_file()
                 .expect("config.toml path")
                 .as_path()
-                .ends_with(Path::new("OpenAI").join("Codex").join("config.toml"))
+                .ends_with(Path::new("OpenAI").join("Darwin-Code").join("config.toml"))
         );
     }
 }

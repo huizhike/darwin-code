@@ -1,13 +1,13 @@
 use crate::config::Config;
-use codex_config::types::OtelExporterKind as Kind;
-use codex_config::types::OtelHttpProtocol as Protocol;
-use codex_features::Feature;
-use codex_login::default_client::originator;
-use codex_otel::OtelExporter;
-use codex_otel::OtelHttpProtocol;
-use codex_otel::OtelProvider;
-use codex_otel::OtelSettings;
-use codex_otel::OtelTlsConfig as OtelTlsSettings;
+use darwin_code_config::types::OtelExporterKind as Kind;
+use darwin_code_config::types::OtelHttpProtocol as Protocol;
+use darwin_code_features::Feature;
+use darwin_code_login::default_client::originator;
+use darwin_code_otel::OtelExporter;
+use darwin_code_otel::OtelHttpProtocol;
+use darwin_code_otel::OtelProvider;
+use darwin_code_otel::OtelSettings;
+use darwin_code_otel::OtelTlsConfig as OtelTlsSettings;
 use std::error::Error;
 
 /// Build an OpenTelemetry provider from the app Config.
@@ -83,7 +83,7 @@ pub fn build_provider(
     OtelProvider::from(&OtelSettings {
         service_name: service_name.to_string(),
         service_version: service_version.to_string(),
-        codex_home: config.codex_home.to_path_buf(),
+        darwin_code_home: config.darwin_code_home.to_path_buf(),
         environment: config.otel.environment.to_string(),
         exporter,
         trace_exporter,
@@ -92,8 +92,8 @@ pub fn build_provider(
     })
 }
 
-/// Filter predicate for exporting only Codex-owned events via OTEL.
-/// Keeps events that originated from codex_otel module
-pub fn codex_export_filter(meta: &tracing::Metadata<'_>) -> bool {
-    meta.target().starts_with("codex_otel")
+/// Filter predicate for exporting only DarwinCode-owned events via OTEL.
+/// Keeps events that originated from darwin_code_otel module
+pub fn darwin_code_export_filter(meta: &tracing::Metadata<'_>) -> bool {
+    meta.target().starts_with("darwin_code_otel")
 }

@@ -2,10 +2,10 @@ use std::io;
 use std::sync::LazyLock;
 
 use crate::legacy_core::config::set_default_oss_provider;
-use codex_model_provider_info::DEFAULT_LMSTUDIO_PORT;
-use codex_model_provider_info::DEFAULT_OLLAMA_PORT;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use darwin_code_model_provider_info::DEFAULT_LMSTUDIO_PORT;
+use darwin_code_model_provider_info::DEFAULT_OLLAMA_PORT;
+use darwin_code_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use darwin_code_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -287,7 +287,7 @@ fn get_status_symbol_and_color(status: &ProviderStatus) -> (&'static str, Color)
     }
 }
 
-pub async fn select_oss_provider(codex_home: &std::path::Path) -> io::Result<String> {
+pub async fn select_oss_provider(darwin_code_home: &std::path::Path) -> io::Result<String> {
     // Check provider statuses first
     let lmstudio_status = check_lmstudio_status().await;
     let ollama_status = check_ollama_status().await;
@@ -334,7 +334,7 @@ pub async fn select_oss_provider(codex_home: &std::path::Path) -> io::Result<Str
     // If the user manually selected an OSS provider, we save it as the
     // default one to use later.
     if let Ok(ref provider) = result
-        && let Err(e) = set_default_oss_provider(codex_home, provider)
+        && let Err(e) = set_default_oss_provider(darwin_code_home, provider)
     {
         tracing::warn!("Failed to save OSS provider preference: {e}");
     }

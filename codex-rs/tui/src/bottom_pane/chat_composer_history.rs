@@ -19,8 +19,8 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::MentionBinding;
 use crate::mention_codec::decode_history_mentions;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::TextElement;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::TextElement;
 
 /// A composer history entry that can rehydrate draft state.
 #[derive(Debug, Clone, PartialEq)]
@@ -598,7 +598,7 @@ impl ChatComposerHistory {
                         boundary_if_exhausted,
                     });
                 }
-                app_event_tx.send(AppEvent::CodexOp(Op::GetHistoryEntryRequest {
+                app_event_tx.send(AppEvent::DarwinCodeOp(Op::GetHistoryEntryRequest {
                     offset,
                     log_id,
                 }));
@@ -719,7 +719,7 @@ impl ChatComposerHistory {
             self.last_history_text = Some(entry.text.clone());
             return Some(entry);
         } else if let Some(log_id) = self.history_log_id {
-            app_event_tx.send(AppEvent::CodexOp(Op::GetHistoryEntryRequest {
+            app_event_tx.send(AppEvent::DarwinCodeOp(Op::GetHistoryEntryRequest {
                 offset: global_idx,
                 log_id,
             }));
@@ -844,7 +844,7 @@ mod tests {
 
         // Verify that a history lookup request was sent.
         let event = rx.try_recv().expect("expected AppEvent to be sent");
-        let AppEvent::CodexOp(op) = event else {
+        let AppEvent::DarwinCodeOp(op) = event else {
             panic!("unexpected event variant");
         };
         assert_eq!(
@@ -871,7 +871,7 @@ mod tests {
 
         // Verify second lookup request for offset 1.
         let event2 = rx.try_recv().expect("expected second event");
-        let AppEvent::CodexOp(op) = event2 else {
+        let AppEvent::DarwinCodeOp(op) = event2 else {
             panic!("unexpected event variant");
         };
         assert_eq!(
@@ -900,7 +900,7 @@ mod tests {
 
         let mut history = ChatComposerHistory::new();
         history.record_local_submission(HistoryEntry::new("git status".to_string()));
-        history.record_local_submission(HistoryEntry::new("cargo test -p codex-tui".to_string()));
+        history.record_local_submission(HistoryEntry::new("cargo test -p darwin-code-tui".to_string()));
         history.record_local_submission(HistoryEntry::new("git diff".to_string()));
 
         assert_eq!(
@@ -966,7 +966,7 @@ mod tests {
 
         let mut history = ChatComposerHistory::new();
         history.record_local_submission(HistoryEntry::new("git status".to_string()));
-        history.record_local_submission(HistoryEntry::new("cargo test -p codex-tui".to_string()));
+        history.record_local_submission(HistoryEntry::new("cargo test -p darwin-code-tui".to_string()));
         history.record_local_submission(HistoryEntry::new("git status".to_string()));
         history.record_local_submission(HistoryEntry::new("git diff".to_string()));
 
@@ -1107,7 +1107,7 @@ mod tests {
                 &tx
             )
         );
-        let AppEvent::CodexOp(op) = rx.try_recv().expect("expected latest lookup") else {
+        let AppEvent::DarwinCodeOp(op) = rx.try_recv().expect("expected latest lookup") else {
             panic!("unexpected event variant");
         };
         assert_eq!(
@@ -1127,7 +1127,7 @@ mod tests {
                 &tx
             )
         );
-        let AppEvent::CodexOp(op) = rx.try_recv().expect("expected next lookup") else {
+        let AppEvent::DarwinCodeOp(op) = rx.try_recv().expect("expected next lookup") else {
             panic!("unexpected event variant");
         };
         assert_eq!(

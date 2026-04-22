@@ -1,37 +1,37 @@
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use async_trait::async_trait;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigRequirements;
-use codex_app_server_protocol::ConfigRequirementsReadResponse;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteErrorCode;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetParams;
-use codex_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::NetworkDomainPermission;
-use codex_app_server_protocol::NetworkRequirements;
-use codex_app_server_protocol::NetworkUnixSocketPermission;
-use codex_app_server_protocol::SandboxMode;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_core::config::ConfigService;
-use codex_core::config::ConfigServiceError;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::ConfigRequirementsToml;
-use codex_core::config_loader::LoaderOverrides;
-use codex_core::config_loader::ResidencyRequirement as CoreResidencyRequirement;
-use codex_core::config_loader::SandboxModeRequirement as CoreSandboxModeRequirement;
-use codex_core::plugins::PluginId;
-use codex_core_plugins::loader::installed_plugin_telemetry_metadata;
-use codex_core_plugins::toggles::collect_plugin_enabled_candidates;
-use codex_features::canonical_feature_for_key;
-use codex_features::feature_for_key;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::protocol::Op;
+use darwin_code_app_server_protocol::ConfigBatchWriteParams;
+use darwin_code_app_server_protocol::ConfigReadParams;
+use darwin_code_app_server_protocol::ConfigReadResponse;
+use darwin_code_app_server_protocol::ConfigRequirements;
+use darwin_code_app_server_protocol::ConfigRequirementsReadResponse;
+use darwin_code_app_server_protocol::ConfigValueWriteParams;
+use darwin_code_app_server_protocol::ConfigWriteErrorCode;
+use darwin_code_app_server_protocol::ConfigWriteResponse;
+use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetParams;
+use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::NetworkDomainPermission;
+use darwin_code_app_server_protocol::NetworkRequirements;
+use darwin_code_app_server_protocol::NetworkUnixSocketPermission;
+use darwin_code_app_server_protocol::SandboxMode;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::config::Config;
+use darwin_code_core::config::ConfigService;
+use darwin_code_core::config::ConfigServiceError;
+use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::ConfigRequirementsToml;
+use darwin_code_core::config_loader::LoaderOverrides;
+use darwin_code_core::config_loader::ResidencyRequirement as CoreResidencyRequirement;
+use darwin_code_core::config_loader::SandboxModeRequirement as CoreSandboxModeRequirement;
+use darwin_code_core::plugins::PluginId;
+use darwin_code_core_plugins::loader::installed_plugin_telemetry_metadata;
+use darwin_code_core_plugins::toggles::collect_plugin_enabled_candidates;
+use darwin_code_features::canonical_feature_for_key;
+use darwin_code_features::feature_for_key;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::protocol::Op;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -71,7 +71,7 @@ impl UserConfigReloader for ThreadManager {
 
 #[derive(Clone)]
 pub(crate) struct ConfigApi {
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
     loader_overrides: LoaderOverrides,
@@ -82,7 +82,7 @@ pub(crate) struct ConfigApi {
 
 impl ConfigApi {
     pub(crate) fn new(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
         runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
         loader_overrides: LoaderOverrides,
@@ -91,7 +91,7 @@ impl ConfigApi {
         analytics_events_client: AnalyticsEventsClient,
     ) -> Self {
         Self {
-            codex_home,
+            darwin_code_home,
             cli_overrides,
             runtime_feature_enablement,
             loader_overrides,
@@ -103,7 +103,7 @@ impl ConfigApi {
 
     fn config_service(&self) -> ConfigService {
         ConfigService::new(
-            self.codex_home.clone(),
+            self.darwin_code_home.clone(),
             self.current_cli_overrides(),
             self.loader_overrides.clone(),
             self.current_cloud_requirements(),
@@ -135,8 +135,8 @@ impl ConfigApi {
         &self,
         fallback_cwd: Option<PathBuf>,
     ) -> Result<Config, JSONRPCErrorError> {
-        let mut config = codex_core::config::ConfigBuilder::default()
-            .codex_home(self.codex_home.clone())
+        let mut config = darwin_code_core::config::ConfigBuilder::default()
+            .darwin_code_home(self.darwin_code_home.clone())
             .cli_overrides(self.current_cli_overrides())
             .loader_overrides(self.loader_overrides.clone())
             .fallback_cwd(fallback_cwd)
@@ -307,7 +307,7 @@ impl ConfigApi {
                 continue;
             };
             let metadata =
-                installed_plugin_telemetry_metadata(self.codex_home.as_path(), &plugin_id).await;
+                installed_plugin_telemetry_metadata(self.darwin_code_home.as_path(), &plugin_id).await;
             if enabled {
                 self.analytics_events_client.track_plugin_enabled(metadata);
             } else {
@@ -318,7 +318,7 @@ impl ConfigApi {
 }
 
 pub(crate) fn protected_feature_keys(
-    config_layer_stack: &codex_core::config_loader::ConfigLayerStack,
+    config_layer_stack: &darwin_code_core::config_loader::ConfigLayerStack,
 ) -> BTreeSet<String> {
     let mut protected_features = config_layer_stack
         .effective_config()
@@ -365,13 +365,13 @@ fn map_requirements_toml_to_api(requirements: ConfigRequirementsToml) -> ConfigR
         allowed_approval_policies: requirements.allowed_approval_policies.map(|policies| {
             policies
                 .into_iter()
-                .map(codex_app_server_protocol::AskForApproval::from)
+                .map(darwin_code_app_server_protocol::AskForApproval::from)
                 .collect()
         }),
         allowed_approvals_reviewers: requirements.allowed_approvals_reviewers.map(|reviewers| {
             reviewers
                 .into_iter()
-                .map(codex_app_server_protocol::ApprovalsReviewer::from)
+                .map(darwin_code_app_server_protocol::ApprovalsReviewer::from)
                 .collect()
         }),
         allowed_sandbox_modes: requirements.allowed_sandbox_modes.map(|modes| {
@@ -411,27 +411,27 @@ fn map_sandbox_mode_requirement_to_api(mode: CoreSandboxModeRequirement) -> Opti
 
 fn map_residency_requirement_to_api(
     residency: CoreResidencyRequirement,
-) -> codex_app_server_protocol::ResidencyRequirement {
+) -> darwin_code_app_server_protocol::ResidencyRequirement {
     match residency {
-        CoreResidencyRequirement::Us => codex_app_server_protocol::ResidencyRequirement::Us,
+        CoreResidencyRequirement::Us => darwin_code_app_server_protocol::ResidencyRequirement::Us,
     }
 }
 
 fn map_network_requirements_to_api(
-    network: codex_core::config_loader::NetworkRequirementsToml,
+    network: darwin_code_core::config_loader::NetworkRequirementsToml,
 ) -> NetworkRequirements {
     let allowed_domains = network
         .domains
         .as_ref()
-        .and_then(codex_core::config_loader::NetworkDomainPermissionsToml::allowed_domains);
+        .and_then(darwin_code_core::config_loader::NetworkDomainPermissionsToml::allowed_domains);
     let denied_domains = network
         .domains
         .as_ref()
-        .and_then(codex_core::config_loader::NetworkDomainPermissionsToml::denied_domains);
+        .and_then(darwin_code_core::config_loader::NetworkDomainPermissionsToml::denied_domains);
     let allow_unix_sockets = network
         .unix_sockets
         .as_ref()
-        .map(codex_core::config_loader::NetworkUnixSocketPermissionsToml::allow_unix_sockets)
+        .map(darwin_code_core::config_loader::NetworkUnixSocketPermissionsToml::allow_unix_sockets)
         .filter(|entries| !entries.is_empty());
 
     NetworkRequirements {
@@ -468,26 +468,26 @@ fn map_network_requirements_to_api(
 }
 
 fn map_network_domain_permission_to_api(
-    permission: codex_core::config_loader::NetworkDomainPermissionToml,
+    permission: darwin_code_core::config_loader::NetworkDomainPermissionToml,
 ) -> NetworkDomainPermission {
     match permission {
-        codex_core::config_loader::NetworkDomainPermissionToml::Allow => {
+        darwin_code_core::config_loader::NetworkDomainPermissionToml::Allow => {
             NetworkDomainPermission::Allow
         }
-        codex_core::config_loader::NetworkDomainPermissionToml::Deny => {
+        darwin_code_core::config_loader::NetworkDomainPermissionToml::Deny => {
             NetworkDomainPermission::Deny
         }
     }
 }
 
 fn map_network_unix_socket_permission_to_api(
-    permission: codex_core::config_loader::NetworkUnixSocketPermissionToml,
+    permission: darwin_code_core::config_loader::NetworkUnixSocketPermissionToml,
 ) -> NetworkUnixSocketPermission {
     match permission {
-        codex_core::config_loader::NetworkUnixSocketPermissionToml::Allow => {
+        darwin_code_core::config_loader::NetworkUnixSocketPermissionToml::Allow => {
             NetworkUnixSocketPermission::Allow
         }
-        codex_core::config_loader::NetworkUnixSocketPermissionToml::None => {
+        darwin_code_core::config_loader::NetworkUnixSocketPermissionToml::None => {
             NetworkUnixSocketPermission::None
         }
     }
@@ -518,16 +518,16 @@ fn config_write_error(code: ConfigWriteErrorCode, message: impl Into<String>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_core::config_loader::NetworkDomainPermissionToml as CoreNetworkDomainPermissionToml;
-    use codex_core::config_loader::NetworkDomainPermissionsToml as CoreNetworkDomainPermissionsToml;
-    use codex_core::config_loader::NetworkRequirementsToml as CoreNetworkRequirementsToml;
-    use codex_core::config_loader::NetworkUnixSocketPermissionToml as CoreNetworkUnixSocketPermissionToml;
-    use codex_core::config_loader::NetworkUnixSocketPermissionsToml as CoreNetworkUnixSocketPermissionsToml;
-    use codex_features::Feature;
-    use codex_login::AuthManager;
-    use codex_login::CodexAuth;
-    use codex_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
-    use codex_protocol::protocol::AskForApproval as CoreAskForApproval;
+    use darwin_code_core::config_loader::NetworkDomainPermissionToml as CoreNetworkDomainPermissionToml;
+    use darwin_code_core::config_loader::NetworkDomainPermissionsToml as CoreNetworkDomainPermissionsToml;
+    use darwin_code_core::config_loader::NetworkRequirementsToml as CoreNetworkRequirementsToml;
+    use darwin_code_core::config_loader::NetworkUnixSocketPermissionToml as CoreNetworkUnixSocketPermissionToml;
+    use darwin_code_core::config_loader::NetworkUnixSocketPermissionsToml as CoreNetworkUnixSocketPermissionsToml;
+    use darwin_code_features::Feature;
+    use darwin_code_login::AuthManager;
+    use darwin_code_login::DarwinCodeAuth;
+    use darwin_code_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
+    use darwin_code_protocol::protocol::AskForApproval as CoreAskForApproval;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::atomic::AtomicUsize;
@@ -562,10 +562,10 @@ mod tests {
                 CoreSandboxModeRequirement::ExternalSandbox,
             ]),
             allowed_web_search_modes: Some(vec![
-                codex_core::config_loader::WebSearchModeRequirement::Cached,
+                darwin_code_core::config_loader::WebSearchModeRequirement::Cached,
             ]),
             guardian_policy_config: None,
-            feature_requirements: Some(codex_core::config_loader::FeatureRequirementsToml {
+            feature_requirements: Some(darwin_code_core::config_loader::FeatureRequirementsToml {
                 entries: std::collections::BTreeMap::from([
                     ("apps".to_string(), false),
                     ("personality".to_string(), true),
@@ -611,15 +611,15 @@ mod tests {
         assert_eq!(
             mapped.allowed_approval_policies,
             Some(vec![
-                codex_app_server_protocol::AskForApproval::Never,
-                codex_app_server_protocol::AskForApproval::OnRequest,
+                darwin_code_app_server_protocol::AskForApproval::Never,
+                darwin_code_app_server_protocol::AskForApproval::OnRequest,
             ])
         );
         assert_eq!(
             mapped.allowed_approvals_reviewers,
             Some(vec![
-                codex_app_server_protocol::ApprovalsReviewer::User,
-                codex_app_server_protocol::ApprovalsReviewer::GuardianSubagent,
+                darwin_code_app_server_protocol::ApprovalsReviewer::User,
+                darwin_code_app_server_protocol::ApprovalsReviewer::GuardianSubagent,
             ])
         );
         assert_eq!(
@@ -639,7 +639,7 @@ mod tests {
         );
         assert_eq!(
             mapped.enforce_residency,
-            Some(codex_app_server_protocol::ResidencyRequirement::Us),
+            Some(darwin_code_app_server_protocol::ResidencyRequirement::Us),
         );
         assert_eq!(
             mapped.network,
@@ -752,16 +752,16 @@ mod tests {
 
     #[tokio::test]
     async fn apply_runtime_feature_enablement_keeps_cli_overrides_above_config_and_runtime() {
-        let codex_home = TempDir::new().expect("create temp dir");
+        let darwin_code_home = TempDir::new().expect("create temp dir");
         std::fs::write(
-            codex_home.path().join("config.toml"),
+            darwin_code_home.path().join("config.toml"),
             "[features]\napps = false\n",
         )
         .expect("write config");
 
-        let mut config = codex_core::config::ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
-            .fallback_cwd(Some(codex_home.path().to_path_buf()))
+        let mut config = darwin_code_core::config::ConfigBuilder::default()
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
+            .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
             .cli_overrides(vec![(
                 "features.apps".to_string(),
                 TomlValue::Boolean(true),
@@ -780,10 +780,10 @@ mod tests {
 
     #[tokio::test]
     async fn apply_runtime_feature_enablement_keeps_cloud_pins_above_cli_and_runtime() {
-        let codex_home = TempDir::new().expect("create temp dir");
+        let darwin_code_home = TempDir::new().expect("create temp dir");
 
-        let mut config = codex_core::config::ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+        let mut config = darwin_code_core::config::ConfigBuilder::default()
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .cli_overrides(vec![(
                 "features.apps".to_string(),
                 TomlValue::Boolean(true),
@@ -791,7 +791,7 @@ mod tests {
             .cloud_requirements(CloudRequirementsLoader::new(async {
                 Ok(Some(ConfigRequirementsToml {
                     feature_requirements: Some(
-                        codex_core::config_loader::FeatureRequirementsToml {
+                        darwin_code_core::config_loader::FeatureRequirementsToml {
                             entries: BTreeMap::from([("apps".to_string(), false)]),
                         },
                     ),
@@ -812,19 +812,19 @@ mod tests {
 
     #[tokio::test]
     async fn batch_write_reloads_user_config_when_requested() {
-        let codex_home = TempDir::new().expect("create temp dir");
-        let user_config_path = codex_home.path().join("config.toml");
+        let darwin_code_home = TempDir::new().expect("create temp dir");
+        let user_config_path = darwin_code_home.path().join("config.toml");
         std::fs::write(&user_config_path, "").expect("write config");
         let reloader = Arc::new(RecordingUserConfigReloader::default());
         let analytics_config = Arc::new(
-            codex_core::config::ConfigBuilder::default()
+            darwin_code_core::config::ConfigBuilder::default()
                 .build()
                 .await
                 .expect("load analytics config"),
         );
-        let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("test"));
+        let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("test"));
         let config_api = ConfigApi::new(
-            codex_home.path().to_path_buf(),
+            darwin_code_home.path().to_path_buf(),
             Arc::new(RwLock::new(Vec::new())),
             Arc::new(RwLock::new(BTreeMap::new())),
             LoaderOverrides::default(),
@@ -842,10 +842,10 @@ mod tests {
 
         let response = config_api
             .batch_write(ConfigBatchWriteParams {
-                edits: vec![codex_app_server_protocol::ConfigEdit {
+                edits: vec![darwin_code_app_server_protocol::ConfigEdit {
                     key_path: "model".to_string(),
                     value: json!("gpt-5"),
-                    merge_strategy: codex_app_server_protocol::MergeStrategy::Replace,
+                    merge_strategy: darwin_code_app_server_protocol::MergeStrategy::Replace,
                 }],
                 file_path: Some(user_config_path.display().to_string()),
                 expected_version: None,
@@ -857,9 +857,9 @@ mod tests {
         assert_eq!(
             response,
             ConfigWriteResponse {
-                status: codex_app_server_protocol::WriteStatus::Ok,
+                status: darwin_code_app_server_protocol::WriteStatus::Ok,
                 version: response.version.clone(),
-                file_path: codex_utils_absolute_path::AbsolutePathBuf::try_from(
+                file_path: darwin_code_utils_absolute_path::AbsolutePathBuf::try_from(
                     user_config_path.clone()
                 )
                 .expect("absolute config path"),

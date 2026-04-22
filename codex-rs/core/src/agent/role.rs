@@ -16,9 +16,9 @@ use crate::config_loader::ConfigLayerStack;
 use crate::config_loader::ConfigLayerStackOrdering;
 use crate::config_loader::resolve_relative_paths_in_config_toml;
 use anyhow::anyhow;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::config_toml::ConfigToml;
-use codex_exec_server::LOCAL_FS;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_exec_server::LOCAL_FS;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -95,7 +95,7 @@ async fn load_role_layer_toml(
             .map(str::to_owned)
             .ok_or(anyhow!("No corresponding config content"))?;
         let role_config_toml: TomlValue = toml::from_str(&role_config_contents)?;
-        (role_config_toml, config.codex_home.as_path())
+        (role_config_toml, config.darwin_code_home.as_path())
     } else {
         let role_config_contents = tokio::fs::read_to_string(config_file).await?;
         let role_config_base = config_file
@@ -172,7 +172,7 @@ mod reload {
             LOCAL_FS.as_ref(),
             merged_config,
             reload_overrides(config, preserve_current_provider),
-            config.codex_home.clone(),
+            config.darwin_code_home.clone(),
             config_layer_stack,
         )
         .await?;
@@ -235,7 +235,7 @@ mod reload {
     ) -> anyhow::Result<ConfigToml> {
         Ok(deserialize_config_toml_with_base(
             config_layer_stack.effective_config(),
-            &config.codex_home,
+            &config.darwin_code_home,
         )?)
     }
 
@@ -265,7 +265,7 @@ mod reload {
         ConfigOverrides {
             cwd: Some(config.cwd.to_path_buf()),
             model_provider: preserve_current_provider.then(|| config.model_provider_id.clone()),
-            codex_linux_sandbox_exe: config.codex_linux_sandbox_exe.clone(),
+            darwin_code_linux_sandbox_exe: config.darwin_code_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
             js_repl_node_path: config.js_repl_node_path.clone(),
             ..Default::default()

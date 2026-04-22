@@ -1,15 +1,15 @@
 use super::parse_turn_item;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::HookPromptFragment;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::user_input::UserInput;
+use darwin_code_protocol::items::AgentMessageContent;
+use darwin_code_protocol::items::HookPromptFragment;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::items::WebSearchItem;
+use darwin_code_protocol::items::build_hook_prompt_message;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ReasoningItemContent;
+use darwin_code_protocol::models::ReasoningItemReasoningSummary;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::models::WebSearchAction;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -56,7 +56,7 @@ fn parses_user_message_with_text_and_two_images() {
 #[test]
 fn skips_local_image_label_text() {
     let image_url = "data:image/png;base64,abc".to_string();
-    let label = codex_protocol::models::local_image_open_tag_text(/*label_number*/ 1);
+    let label = darwin_code_protocol::models::local_image_open_tag_text(/*label_number*/ 1);
     let user_text = "Please review this image.".to_string();
 
     let item = ResponseItem::Message {
@@ -135,7 +135,7 @@ fn parses_assistant_message_input_text_for_backward_compatibility() {
 #[test]
 fn skips_unnamed_image_label_text() {
     let image_url = "data:image/png;base64,abc".to_string();
-    let label = codex_protocol::models::image_open_tag_text();
+    let label = darwin_code_protocol::models::image_open_tag_text();
     let user_text = "Please review this image.".to_string();
 
     let item = ResponseItem::Message {
@@ -147,7 +147,7 @@ fn skips_unnamed_image_label_text() {
                 image_url: image_url.clone(),
             },
             ContentItem::InputText {
-                text: codex_protocol::models::image_close_tag_text(),
+                text: darwin_code_protocol::models::image_close_tag_text(),
             },
             ContentItem::InputText {
                 text: user_text.clone(),
@@ -314,7 +314,7 @@ fn parses_agent_message() {
         id: Some("msg-1".to_string()),
         role: "assistant".to_string(),
         content: vec![ContentItem::OutputText {
-            text: "Hello from Codex".to_string(),
+            text: "Hello from Darwin-Code".to_string(),
         }],
         end_turn: None,
         phase: None,
@@ -327,7 +327,7 @@ fn parses_agent_message() {
             let Some(AgentMessageContent::Text { text }) = message.content.first() else {
                 panic!("expected agent message text content");
             };
-            assert_eq!(text, "Hello from Codex");
+            assert_eq!(text, "Hello from Darwin-Code");
         }
         other => panic!("expected TurnItem::AgentMessage, got {other:?}"),
     }

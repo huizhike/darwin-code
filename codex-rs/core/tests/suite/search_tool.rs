@@ -2,22 +2,22 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_core::config::Config;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::McpInvocation;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI;
 use core_test_support::apps_test_server::CALENDAR_CREATE_EVENT_RESOURCE_URI;
@@ -33,8 +33,8 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
-use core_test_support::test_codex::TestCodexBuilder;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -47,9 +47,9 @@ const SEARCH_TOOL_DESCRIPTION_SNIPPETS: [&str; 2] = [
     "- Calendar: Plan events and manage your calendar.",
 ];
 const TOOL_SEARCH_TOOL_NAME: &str = "tool_search";
-const CALENDAR_CREATE_TOOL: &str = "mcp__codex_apps__calendar_create_event";
-const CALENDAR_LIST_TOOL: &str = "mcp__codex_apps__calendar_list_events";
-const SEARCH_CALENDAR_NAMESPACE: &str = "mcp__codex_apps__calendar";
+const CALENDAR_CREATE_TOOL: &str = "mcp__darwin_code_apps__calendar_create_event";
+const CALENDAR_LIST_TOOL: &str = "mcp__darwin_code_apps__calendar_list_events";
+const SEARCH_CALENDAR_NAMESPACE: &str = "mcp__darwin_code_apps__calendar";
 const SEARCH_CALENDAR_CREATE_TOOL: &str = "_create_event";
 const SEARCH_CALENDAR_LIST_TOOL: &str = "_list_events";
 
@@ -99,15 +99,15 @@ fn tool_search_output_tools(request: &ResponsesRequest, call_id: &str) -> Vec<Va
 }
 
 fn configure_search_capable_model(config: &mut Config) {
-    config.model = Some("gpt-5-codex".to_string());
+    config.model = Some("gpt-5-darwin-code".to_string());
 
     let mut model_catalog = bundled_models_response()
         .unwrap_or_else(|err| panic!("bundled models.json should parse: {err}"));
     let model = model_catalog
         .models
         .iter_mut()
-        .find(|model| model.slug == "gpt-5-codex")
-        .expect("gpt-5-codex exists in bundled models.json");
+        .find(|model| model.slug == "gpt-5-darwin-code")
+        .expect("gpt-5-darwin-code exists in bundled models.json");
     model.supports_search_tool = true;
     config.model_catalog = Some(model_catalog);
 }
@@ -133,9 +133,9 @@ fn configure_apps(config: &mut Config, apps_base_url: &str) {
     configure_search_capable_apps(config, apps_base_url);
 }
 
-fn configured_builder(apps_base_url: String) -> TestCodexBuilder {
-    test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+fn configured_builder(apps_base_url: String) -> TestDarwinCodeBuilder {
+    test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| configure_apps(config, apps_base_url.as_str()))
 }
 
@@ -259,8 +259,8 @@ async fn tool_search_disabled_exposes_apps_tools_directly() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             configure_apps_without_tool_search(config, apps_server.chatgpt_base_url.as_str())
         });
@@ -307,8 +307,8 @@ async fn search_tool_is_hidden_for_api_key_auth() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::from_api_key("Test API Key"))
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
         .with_config(move |config| configure_apps(config, apps_server.chatgpt_base_url.as_str()));
     let test = builder.build(&server).await?;
 
@@ -501,7 +501,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
 
     let mut builder = configured_builder(apps_server.chatgpt_base_url.clone());
     let test = builder.build(&server).await?;
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Find the calendar create tool".to_string(),
@@ -512,7 +512,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         })
         .await?;
 
-    let EventMsg::McpToolCallBegin(begin) = wait_for_event(&test.codex, |event| {
+    let EventMsg::McpToolCallBegin(begin) = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::McpToolCallBegin(_))
     })
     .await
@@ -525,7 +525,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         Some(CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI)
     );
 
-    let EventMsg::McpToolCallEnd(end) = wait_for_event(&test.codex, |event| {
+    let EventMsg::McpToolCallEnd(end) = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::McpToolCallEnd(_))
     })
     .await
@@ -540,7 +540,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     assert_eq!(
         end.invocation,
         McpInvocation {
-            server: "codex_apps".to_string(),
+            server: "darwin_code_apps".to_string(),
             tool: "calendar_create_event".to_string(),
             arguments: Some(json!({
                 "title": "Lunch",
@@ -554,7 +554,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
             .expect("tool call should succeed")
             .structured_content,
         Some(json!({
-            "_codex_apps": {
+            "_darwin_code_apps": {
                 "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
                 "contains_mcp_source": true,
                 "connector_id": "calendar",
@@ -562,7 +562,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         }))
     );
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -577,14 +577,14 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         .into_iter()
         .find_map(|request| {
             let body: Value = serde_json::from_slice(&request.body).ok()?;
-            (request.url.path() == "/api/codex/apps"
+            (request.url.path() == "/api/darwin-code/apps"
                 && body.get("method").and_then(Value::as_str) == Some("tools/call"))
             .then_some(body)
         })
         .expect("apps tools/call request should be recorded");
 
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/_codex_apps"),
+        apps_tool_call.pointer("/params/_meta/_darwin_code_apps"),
         Some(&json!({
             "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
             "contains_mcp_source": true,
@@ -592,12 +592,12 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         }))
     );
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/x-codex-turn-metadata/session_id"),
+        apps_tool_call.pointer("/params/_meta/x-darwin-code-turn-metadata/session_id"),
         Some(&json!(test.session_configured.session_id.to_string()))
     );
     assert!(
         apps_tool_call
-            .pointer("/params/_meta/x-codex-turn-metadata/turn_id")
+            .pointer("/params/_meta/x-darwin-code-turn-metadata/turn_id")
             .and_then(Value::as_str)
             .is_some_and(|turn_id| !turn_id.is_empty()),
         "apps tools/call should include turn metadata turn_id: {apps_tool_call:?}"
@@ -761,7 +761,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         defer_loading: true,
     };
 
-    let mut builder = test_codex().with_config(configure_search_capable_model);
+    let mut builder = test_darwin_code().with_config(configure_search_capable_model);
     let base_test = builder.build(&server).await?;
     let new_thread = base_test
         .thread_manager
@@ -772,10 +772,10 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         )
         .await?;
     let mut test = base_test;
-    test.codex = new_thread.thread;
+    test.darwin-code = new_thread.thread;
     test.session_configured = new_thread.session_configured;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Use the automation tool".to_string(),
@@ -786,7 +786,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         })
         .await?;
 
-    let EventMsg::DynamicToolCallRequest(request) = wait_for_event(&test.codex, |event| {
+    let EventMsg::DynamicToolCallRequest(request) = wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::DynamicToolCallRequest(_))
     })
     .await
@@ -797,7 +797,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
     assert_eq!(request.tool, tool_name);
     assert_eq!(request.arguments, tool_args);
 
-    test.codex
+    test.darwin-code
         .submit(Op::DynamicToolResponse {
             id: request.call_id,
             response: DynamicToolResponse {
@@ -809,7 +809,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         })
         .await?;
 
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

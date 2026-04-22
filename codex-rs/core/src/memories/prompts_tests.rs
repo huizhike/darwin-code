@@ -1,7 +1,7 @@
 use super::*;
 use crate::memories::extensions::RemovedExtensionResource;
-use codex_models_manager::model_info::model_info_from_slug;
-use codex_state::Phase2InputSelection;
+use darwin_code_models_manager::model_info::model_info_from_slug;
+use darwin_code_state::Phase2InputSelection;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
@@ -10,7 +10,7 @@ use tokio::fs as tokio_fs;
 #[test]
 fn build_stage_one_input_message_truncates_rollout_using_model_context_window() {
     let input = format!("{}{}{}", "a".repeat(700_000), "middle", "z".repeat(700_000));
-    let mut model_info = model_info_from_slug("gpt-5.2-codex");
+    let mut model_info = model_info_from_slug("gpt-5.2-darwin-code");
     model_info.context_window = Some(123_000);
     let expected_rollout_token_limit = usize::try_from(
         ((123_000_i64 * model_info.effective_context_window_percent) / 100)
@@ -39,7 +39,7 @@ fn build_stage_one_input_message_truncates_rollout_using_model_context_window() 
 #[test]
 fn build_stage_one_input_message_uses_default_limit_when_model_context_window_missing() {
     let input = format!("{}{}{}", "a".repeat(700_000), "middle", "z".repeat(700_000));
-    let mut model_info = model_info_from_slug("gpt-5.2-codex");
+    let mut model_info = model_info_from_slug("gpt-5.2-darwin-code");
     model_info.context_window = None;
     let expected_truncated = truncate_text(
         &input,
@@ -89,8 +89,8 @@ fn build_consolidation_prompt_includes_removed_extension_resources() {
 #[tokio::test]
 async fn build_memory_tool_developer_instructions_renders_embedded_template() {
     let temp = tempdir().unwrap();
-    let codex_home = temp.path().abs();
-    let memories_dir = codex_home.join("memories");
+    let darwin_code_home = temp.path().abs();
+    let memories_dir = darwin_code_home.join("memories");
     tokio_fs::create_dir_all(&memories_dir).await.unwrap();
     tokio_fs::write(
         memories_dir.join("memory_summary.md"),
@@ -99,7 +99,7 @@ async fn build_memory_tool_developer_instructions_renders_embedded_template() {
     .await
     .unwrap();
 
-    let instructions = build_memory_tool_developer_instructions(&codex_home)
+    let instructions = build_memory_tool_developer_instructions(&darwin_code_home)
         .await
         .unwrap();
 

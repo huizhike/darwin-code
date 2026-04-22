@@ -1,7 +1,7 @@
 use super::*;
 
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use serde_json::Value;

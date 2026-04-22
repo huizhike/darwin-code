@@ -1,23 +1,23 @@
-use codex_config::types::Personality;
-use codex_features::Feature;
-use codex_models_manager::manager::ModelsManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelInstructionsVariables;
-use codex_protocol::openai_models::ModelMessages;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_config::types::Personality;
+use darwin_code_features::Feature;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelInstructionsVariables;
+use darwin_code_protocol::openai_models::ModelMessages;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::mount_models_once;
 use core_test_support::responses::mount_sse_once;
@@ -25,7 +25,7 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse_completed;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
@@ -42,15 +42,15 @@ const LOCAL_PRAGMATIC_TEMPLATE: &str = "You are a deeply pragmatic, effective so
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn personality_does_not_mutate_base_instructions_without_template() {
-    let codex_home = TempDir::new().expect("create temp dir");
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("create temp dir");
+    let mut config = load_default_config_for_test(&darwin_code_home).await;
     config
         .features
         .enable(Feature::Personality)
         .expect("test config should allow feature update");
     config.personality = Some(Personality::Friendly);
 
-    let model_info = codex_core::test_support::construct_model_info_offline("gpt-5.1", &config);
+    let model_info = darwin_code_core::test_support::construct_model_info_offline("gpt-5.1", &config);
     assert_eq!(
         model_info.get_model_instructions(config.personality),
         model_info.base_instructions
@@ -59,8 +59,8 @@ async fn personality_does_not_mutate_base_instructions_without_template() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn base_instructions_override_disables_personality_template() {
-    let codex_home = TempDir::new().expect("create temp dir");
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("create temp dir");
+    let mut config = load_default_config_for_test(&darwin_code_home).await;
     config
         .features
         .enable(Feature::Personality)
@@ -69,7 +69,7 @@ async fn base_instructions_override_disables_personality_template() {
     config.base_instructions = Some("override instructions".to_string());
 
     let model_info =
-        codex_core::test_support::construct_model_info_offline("gpt-5.2-codex", &config);
+        darwin_code_core::test_support::construct_model_info_offline("gpt-5.2-darwin-code", &config);
 
     assert_eq!(model_info.base_instructions, "override instructions");
     assert_eq!(
@@ -84,8 +84,8 @@ async fn user_turn_personality_none_does_not_add_update_message() -> anyhow::Res
 
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -94,7 +94,7 @@ async fn user_turn_personality_none_does_not_add_update_message() -> anyhow::Res
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -114,7 +114,7 @@ async fn user_turn_personality_none_does_not_add_update_message() -> anyhow::Res
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let developer_texts = request.message_input_texts("developer");
@@ -134,8 +134,8 @@ async fn config_personality_some_sets_instructions_template() -> anyhow::Result<
 
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -145,7 +145,7 @@ async fn config_personality_some_sets_instructions_template() -> anyhow::Result<
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -165,7 +165,7 @@ async fn config_personality_some_sets_instructions_template() -> anyhow::Result<
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -192,8 +192,8 @@ async fn config_personality_none_sends_no_personality() -> anyhow::Result<()> {
 
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -203,7 +203,7 @@ async fn config_personality_none_sends_no_personality() -> anyhow::Result<()> {
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -223,7 +223,7 @@ async fn config_personality_none_sends_no_personality() -> anyhow::Result<()> {
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -257,8 +257,8 @@ async fn default_personality_is_pragmatic_without_config_toml() -> anyhow::Resul
 
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -267,7 +267,7 @@ async fn default_personality_is_pragmatic_without_config_toml() -> anyhow::Resul
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -287,7 +287,7 @@ async fn default_personality_is_pragmatic_without_config_toml() -> anyhow::Resul
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -309,8 +309,8 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         vec![sse_completed("resp-1"), sse_completed("resp-2")],
     )
     .await;
-    let mut builder = test_codex()
-        .with_model("exp-codex-personality")
+    let mut builder = test_darwin_code()
+        .with_model("exp-darwin-code-personality")
         .with_config(|config| {
             config
                 .features
@@ -319,7 +319,7 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -339,9 +339,9 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -357,7 +357,7 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -377,7 +377,7 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -413,8 +413,8 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         vec![sse_completed("resp-1"), sse_completed("resp-2")],
     )
     .await;
-    let mut builder = test_codex()
-        .with_model("exp-codex-personality")
+    let mut builder = test_darwin_code()
+        .with_model("exp-darwin-code-personality")
         .with_config(|config| {
             config
                 .features
@@ -424,7 +424,7 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -444,9 +444,9 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -462,7 +462,7 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -482,7 +482,7 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -504,8 +504,8 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn instructions_uses_base_if_feature_disabled() -> anyhow::Result<()> {
-    let codex_home = TempDir::new().expect("create temp dir");
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let darwin_code_home = TempDir::new().expect("create temp dir");
+    let mut config = load_default_config_for_test(&darwin_code_home).await;
     config
         .features
         .disable(Feature::Personality)
@@ -513,7 +513,7 @@ async fn instructions_uses_base_if_feature_disabled() -> anyhow::Result<()> {
     config.personality = Some(Personality::Friendly);
 
     let model_info =
-        codex_core::test_support::construct_model_info_offline("gpt-5.2-codex", &config);
+        darwin_code_core::test_support::construct_model_info_offline("gpt-5.2-darwin-code", &config);
     assert_eq!(
         model_info.get_model_instructions(config.personality),
         model_info.base_instructions
@@ -532,8 +532,8 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         vec![sse_completed("resp-1"), sse_completed("resp-2")],
     )
     .await;
-    let mut builder = test_codex()
-        .with_model("exp-codex-personality")
+    let mut builder = test_darwin_code()
+        .with_model("exp-darwin-code-personality")
         .with_config(|config| {
             config
                 .features
@@ -542,7 +542,7 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -562,9 +562,9 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -580,7 +580,7 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -600,7 +600,7 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -628,7 +628,7 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         .start()
         .await;
 
-    let remote_slug = "codex-remote-default-personality";
+    let remote_slug = "darwin-code-remote-default-personality";
     let default_personality_message = "Default from remote template";
     let friendly_personality_message = "Friendly variant";
     let remote_model = ModelInfo {
@@ -684,8 +684,8 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
 
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
 
-    let mut builder = test_codex()
-        .with_auth(codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config
                 .features
@@ -698,7 +698,7 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
 
     wait_for_model_available(&test.thread_manager.get_models_manager(), remote_slug).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -718,7 +718,7 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -745,7 +745,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         .start()
         .await;
 
-    let remote_slug = "codex-remote-personality";
+    let remote_slug = "darwin-code-remote-personality";
     let remote_friendly_message = "Friendly from remote template";
     let remote_pragmatic_message = "Pragmatic from remote template";
     let remote_model = ModelInfo {
@@ -805,20 +805,20 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config
                 .features
                 .enable(Feature::Personality)
                 .expect("test config should allow feature update");
-            config.model = Some("gpt-5.2-codex".to_string());
+            config.model = Some("gpt-5.2-darwin-code".to_string());
         });
     let test = builder.build(&server).await?;
 
     wait_for_model_available(&test.thread_manager.get_models_manager(), remote_slug).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -838,9 +838,9 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -856,7 +856,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -876,7 +876,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");

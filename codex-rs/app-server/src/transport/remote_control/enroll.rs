@@ -2,9 +2,9 @@ use super::protocol::EnrollRemoteServerRequest;
 use super::protocol::EnrollRemoteServerResponse;
 use super::protocol::RemoteControlTarget;
 use axum::http::HeaderMap;
-use codex_login::default_client::build_reqwest_client;
-use codex_state::RemoteControlEnrollmentRecord;
-use codex_state::StateRuntime;
+use darwin_code_login::default_client::build_reqwest_client;
+use darwin_code_state::RemoteControlEnrollmentRecord;
+use darwin_code_state::StateRuntime;
 use gethostname::gethostname;
 use std::io;
 use std::io::ErrorKind;
@@ -253,7 +253,7 @@ pub(super) async fn enroll_remote_control_server(
 mod tests {
     use super::*;
     use crate::transport::remote_control::protocol::normalize_remote_control_url;
-    use codex_state::StateRuntime;
+    use darwin_code_state::StateRuntime;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
@@ -266,16 +266,16 @@ mod tests {
     use tokio::time::Duration;
     use tokio::time::timeout;
 
-    async fn remote_control_state_runtime(codex_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string())
+    async fn remote_control_state_runtime(darwin_code_home: &TempDir) -> Arc<StateRuntime> {
+        StateRuntime::init(darwin_code_home.path().to_path_buf(), "test-provider".to_string())
             .await
             .expect("state runtime should initialize")
     }
 
     #[tokio::test]
     async fn persisted_remote_control_enrollment_round_trips_by_target_and_account() {
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let darwin_code_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&darwin_code_home).await;
         let first_target = normalize_remote_control_url("https://chatgpt.com/remote/control")
             .expect("first target should parse");
         let second_target =
@@ -347,8 +347,8 @@ mod tests {
 
     #[tokio::test]
     async fn clearing_persisted_remote_control_enrollment_removes_only_matching_entry() {
-        let codex_home = TempDir::new().expect("temp dir should create");
-        let state_db = remote_control_state_runtime(&codex_home).await;
+        let darwin_code_home = TempDir::new().expect("temp dir should create");
+        let state_db = remote_control_state_runtime(&darwin_code_home).await;
         let first_target = normalize_remote_control_url("https://chatgpt.com/remote/control")
             .expect("first target should parse");
         let second_target =

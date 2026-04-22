@@ -157,7 +157,7 @@ impl ChatWidget {
         self.set_status_line(line);
     }
 
-    /// Clears the terminal title Codex most recently wrote, if any.
+    /// Clears the terminal title Darwin-Code most recently wrote, if any.
     ///
     /// This does not attempt to restore the shell or terminal's previous title;
     /// it only clears the managed title and updates the cache after a successful
@@ -329,8 +329,8 @@ impl ChatWidget {
             )
             .iter()
             .find_map(|layer| match &layer.name {
-                ConfigLayerSource::Project { dot_codex_folder } => {
-                    dot_codex_folder.as_path().parent().map(Path::to_path_buf)
+                ConfigLayerSource::Project { dot_darwin_code_folder } => {
+                    dot_darwin_code_folder.as_path().parent().map(Path::to_path_buf)
                 }
                 _ => None,
             })
@@ -459,7 +459,7 @@ impl ChatWidget {
             StatusLineItem::FiveHourLimit => {
                 let window = self
                     .rate_limit_snapshots_by_limit_id
-                    .get("codex")
+                    .get("darwin-code")
                     .and_then(|s| s.primary.as_ref());
                 let label = window
                     .and_then(|window| window.window_minutes)
@@ -470,7 +470,7 @@ impl ChatWidget {
             StatusLineItem::WeeklyLimit => {
                 let window = self
                     .rate_limit_snapshots_by_limit_id
-                    .get("codex")
+                    .get("darwin-code")
                     .and_then(|s| s.secondary.as_ref());
                 let label = window
                     .and_then(|window| window.window_minutes)
@@ -478,7 +478,7 @@ impl ChatWidget {
                     .unwrap_or_else(|| "weekly".to_string());
                 self.status_line_limit_display(window, &label)
             }
-            StatusLineItem::CodexVersion => Some(CODEX_CLI_VERSION.to_string()),
+            StatusLineItem::DarwinCodeVersion => Some(DARWIN_CODE_CLI_VERSION.to_string()),
             StatusLineItem::ContextWindowSize => self
                 .status_line_context_window_size()
                 .map(|cws| format!("{} window", format_tokens_compact(cws))),
@@ -515,7 +515,7 @@ impl ChatWidget {
         now: Instant,
     ) -> Option<String> {
         match item {
-            TerminalTitleItem::AppName => Some("codex".to_string()),
+            TerminalTitleItem::AppName => Some("darwin-code".to_string()),
             TerminalTitleItem::Project => self.terminal_title_project_name(),
             TerminalTitleItem::Spinner => self.terminal_title_spinner_text_at(now),
             TerminalTitleItem::Status => Some(self.terminal_title_status_text()),

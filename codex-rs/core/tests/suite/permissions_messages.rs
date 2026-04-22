@@ -1,14 +1,14 @@
 use anyhow::Result;
-use codex_core::ForkSnapshot;
-use codex_core::config::Constrained;
-use codex_execpolicy::Policy;
-use codex_protocol::models::DeveloperInstructions;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_core::ForkSnapshot;
+use darwin_code_core::config::Constrained;
+use darwin_code_execpolicy::Policy;
+use darwin_code_protocol::models::DeveloperInstructions;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -16,7 +16,7 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
@@ -41,12 +41,12 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -56,7 +56,7 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(permissions_texts(&req.single_request()).len(), 1);
 
@@ -79,12 +79,12 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -94,9 +94,9 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -112,7 +112,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -122,7 +122,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -151,12 +151,12 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -166,9 +166,9 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -178,7 +178,7 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -206,13 +206,13 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.include_permissions_instructions = false;
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -222,9 +222,9 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -240,7 +240,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
         })
         .await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -250,7 +250,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(
         permissions_texts(&req1.single_request()),
@@ -285,7 +285,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let initial = builder.build(&server).await?;
@@ -297,7 +297,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -307,10 +307,10 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -327,7 +327,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
         .await?;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -337,11 +337,11 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -351,7 +351,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions = permissions_texts(&req3.single_request());
     assert_eq!(permissions.len(), 3);
@@ -387,7 +387,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
     });
     let initial = builder.build(&server).await?;
@@ -399,7 +399,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -409,10 +409,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -429,7 +429,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
         .await?;
 
     initial
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -439,7 +439,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions_base = permissions_texts(&req2.single_request());
     assert_eq!(permissions_base.len(), 2);
@@ -449,7 +449,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     });
     let resumed = builder.resume(&server, home, rollout_path.clone()).await?;
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -459,7 +459,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions_resume = permissions_texts(&req3.single_request());
     assert_eq!(permissions_resume.len(), permissions_base.len() + 1);
@@ -529,13 +529,13 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
     };
     let sandbox_policy_for_config = sandbox_policy.clone();
 
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
         config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
     });
     let test = builder.build(&server).await?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -545,7 +545,7 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let permissions = permissions_texts(&req.single_request());
     let expected = DeveloperInstructions::from_policy(

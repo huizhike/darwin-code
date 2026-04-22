@@ -11,7 +11,7 @@ use tokio::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::exec_env::CODEX_THREAD_ID_ENV_VAR;
+use crate::exec_env::DARWIN_CODE_THREAD_ID_ENV_VAR;
 use crate::exec_env::create_env;
 use crate::exec_policy::ExecApprovalRequest;
 use crate::sandboxing::ExecRequest;
@@ -50,12 +50,12 @@ use crate::unified_exec::process::OutputBuffer;
 use crate::unified_exec::process::OutputHandles;
 use crate::unified_exec::process::SpawnLifecycleHandle;
 use crate::unified_exec::process::UnifiedExecProcess;
-use codex_config::types::ShellEnvironmentPolicy;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::approx_token_count;
+use darwin_code_config::types::ShellEnvironmentPolicy;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_output_truncation::approx_token_count;
 
 const UNIFIED_EXEC_ENV: [(&str, &str); 10] = [
     ("NO_COLOR", "1"),
@@ -67,7 +67,7 @@ const UNIFIED_EXEC_ENV: [(&str, &str); 10] = [
     ("PAGER", "cat"),
     ("GIT_PAGER", "cat"),
     ("GH_PAGER", "cat"),
-    ("CODEX_CI", "1"),
+    ("DARWIN_CODE_CI", "1"),
 ];
 
 /// Test-only override for deterministic unified exec process IDs.
@@ -97,8 +97,8 @@ fn apply_unified_exec_env(mut env: HashMap<String, String>) -> HashMap<String, S
 
 fn exec_env_policy_from_shell_policy(
     policy: &ShellEnvironmentPolicy,
-) -> codex_exec_server::ExecEnvPolicy {
-    codex_exec_server::ExecEnvPolicy {
+) -> darwin_code_exec_server::ExecEnvPolicy {
+    darwin_code_exec_server::ExecEnvPolicy {
         inherit: policy.inherit.clone(),
         ignore_default_excludes: policy.ignore_default_excludes,
         exclude: policy
@@ -129,7 +129,7 @@ fn env_overlay_for_exec_server(
 fn exec_server_env_for_request(
     request: &ExecRequest,
 ) -> (
-    Option<codex_exec_server::ExecEnvPolicy>,
+    Option<darwin_code_exec_server::ExecEnvPolicy>,
     HashMap<String, String>,
 ) {
     if let Some(exec_server_env_config) = &request.exec_server_env_config {
@@ -146,9 +146,9 @@ fn exec_server_params_for_request(
     process_id: i32,
     request: &ExecRequest,
     tty: bool,
-) -> codex_exec_server::ExecParams {
+) -> darwin_code_exec_server::ExecParams {
     let (env_policy, env) = exec_server_env_for_request(request);
-    codex_exec_server::ExecParams {
+    darwin_code_exec_server::ExecParams {
         process_id: exec_server_process_id(process_id).into(),
         argv: request.command.clone(),
         cwd: request.cwd.to_path_buf(),
@@ -656,7 +656,7 @@ impl UnifiedExecProcessManager {
         request: &ExecRequest,
         tty: bool,
         mut spawn_lifecycle: SpawnLifecycleHandle,
-        environment: &codex_exec_server::Environment,
+        environment: &darwin_code_exec_server::Environment,
     ) -> Result<UnifiedExecProcess, UnifiedExecError> {
         let inherited_fds = spawn_lifecycle.inherited_fds();
         if environment.is_remote() {
@@ -680,18 +680,18 @@ impl UnifiedExecProcessManager {
             .split_first()
             .ok_or(UnifiedExecError::MissingCommandLine)?;
         let spawn_result = if tty {
-            codex_utils_pty::pty::spawn_process_with_inherited_fds(
+            darwin_code_utils_pty::pty::spawn_process_with_inherited_fds(
                 program,
                 args,
                 request.cwd.as_path(),
                 &request.env,
                 &request.arg0,
-                codex_utils_pty::TerminalSize::default(),
+                darwin_code_utils_pty::TerminalSize::default(),
                 &inherited_fds,
             )
             .await
         } else {
-            codex_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
+            darwin_code_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
                 program,
                 args,
                 request.cwd.as_path(),
@@ -719,7 +719,7 @@ impl UnifiedExecProcessManager {
         );
         let mut env = local_policy_env.clone();
         env.insert(
-            CODEX_THREAD_ID_ENV_VAR.to_string(),
+            DARWIN_CODE_THREAD_ID_ENV_VAR.to_string(),
             context.session.conversation_id.to_string(),
         );
         let env = apply_unified_exec_env(env);
@@ -783,7 +783,7 @@ impl UnifiedExecProcessManager {
             .await
             .map(|result| (result.output, result.deferred_network_approval))
             .map_err(|err| match err {
-                ToolError::Codex(CodexErr::Sandbox(SandboxErr::Denied { output, .. })) => {
+                ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied { output, .. })) => {
                     let output = *output;
                     let message = if output.aggregated_output.text.is_empty() {
                         let exit_code = output.exit_code;

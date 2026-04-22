@@ -11,16 +11,16 @@ use crate::test_support::test_path_buf;
 use chrono::Duration as ChronoDuration;
 use chrono::TimeZone;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::CreditsSnapshot;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::RateLimitWindow;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
 use ratatui::prelude::*;
@@ -28,7 +28,7 @@ use tempfile::TempDir;
 
 async fn test_config(temp_home: &TempDir) -> Config {
     ConfigBuilder::default()
-        .codex_home(temp_home.path().to_path_buf())
+        .darwin_code_home(temp_home.path().to_path_buf())
         .build()
         .await
         .expect("load config")
@@ -94,7 +94,7 @@ fn reset_at_from(captured_at: &chrono::DateTime<chrono::Local>, seconds: i64) ->
 async fn status_snapshot_includes_reasoning_details() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.model_provider_id = "openai".to_string();
     config.model_reasoning_summary = Some(ReasoningSummary::Detailed);
     config
@@ -176,7 +176,7 @@ async fn status_snapshot_includes_reasoning_details() {
 async fn status_permissions_non_default_workspace_write_is_custom() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.model_provider_id = "openai".to_string();
     config
         .permissions
@@ -241,7 +241,7 @@ async fn status_permissions_non_default_workspace_write_is_custom() {
 async fn status_snapshot_includes_forked_from() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.model_provider_id = "openai".to_string();
     config.cwd = test_path_buf("/workspace/tests").abs();
 
@@ -295,7 +295,7 @@ async fn status_snapshot_includes_forked_from() {
 async fn status_snapshot_includes_monthly_limit() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.model_provider_id = "openai".to_string();
     config.cwd = test_path_buf("/workspace/tests").abs();
 
@@ -554,7 +554,7 @@ async fn status_snapshot_hides_when_has_no_credits_flag() {
 async fn status_card_token_usage_excludes_cached_tokens() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -600,7 +600,7 @@ async fn status_card_token_usage_excludes_cached_tokens() {
 async fn status_snapshot_truncates_in_narrow_terminal() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.model_provider_id = "openai".to_string();
     config.model_reasoning_summary = Some(ReasoningSummary::Detailed);
     config.cwd = test_path_buf("/workspace/tests").abs();
@@ -666,7 +666,7 @@ async fn status_snapshot_truncates_in_narrow_terminal() {
 async fn status_snapshot_shows_missing_limits_message() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -714,7 +714,7 @@ async fn status_snapshot_shows_missing_limits_message() {
 async fn status_snapshot_uses_default_reasoning_when_config_empty() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -764,7 +764,7 @@ async fn status_snapshot_uses_default_reasoning_when_config_empty() {
 async fn status_snapshot_shows_refreshing_limits_notice() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let usage = TokenUsage {
@@ -829,7 +829,7 @@ async fn status_snapshot_shows_refreshing_limits_notice() {
 async fn status_snapshot_includes_credits_and_limits() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex".to_string());
+    config.model = Some("gpt-5.1-darwin-code".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -899,7 +899,7 @@ async fn status_snapshot_includes_credits_and_limits() {
 async fn status_snapshot_shows_unavailable_limits_message() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -957,7 +957,7 @@ async fn status_snapshot_shows_unavailable_limits_message() {
 async fn status_snapshot_treats_refreshing_empty_limits_as_unavailable() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let usage = TokenUsage {
@@ -1015,7 +1015,7 @@ async fn status_snapshot_treats_refreshing_empty_limits_as_unavailable() {
 async fn status_snapshot_shows_stale_limits_message() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex-max".to_string());
+    config.model = Some("gpt-5.1-darwin-code-max".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -1082,7 +1082,7 @@ async fn status_snapshot_shows_stale_limits_message() {
 async fn status_snapshot_cached_limits_hide_credits_without_flag() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
-    config.model = Some("gpt-5.1-codex".to_string());
+    config.model = Some("gpt-5.1-darwin-code".to_string());
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();

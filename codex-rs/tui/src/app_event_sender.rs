@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 
 use crate::app_command::AppCommand;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::ElicitationAction;
-use codex_protocol::mcp::RequestId as McpRequestId;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::approvals::ElicitationAction;
+use darwin_code_protocol::mcp::RequestId as McpRequestId;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::app_event::AppEvent;
@@ -29,7 +29,7 @@ impl AppEventSender {
     pub(crate) fn send(&self, event: AppEvent) {
         // Record inbound events for high-fidelity session replay.
         // Avoid double-logging Ops; those are logged at the point of submission.
-        if !matches!(event, AppEvent::CodexOp(_)) {
+        if !matches!(event, AppEvent::DarwinCodeOp(_)) {
             session_log::log_inbound_app_event(&event);
         }
         if let Err(e) = self.app_event_tx.send(event) {
@@ -38,40 +38,40 @@ impl AppEventSender {
     }
 
     pub(crate) fn interrupt(&self) {
-        self.send(AppEvent::CodexOp(AppCommand::interrupt().into_core()));
+        self.send(AppEvent::DarwinCodeOp(AppCommand::interrupt().into_core()));
     }
 
     pub(crate) fn compact(&self) {
-        self.send(AppEvent::CodexOp(AppCommand::compact().into_core()));
+        self.send(AppEvent::DarwinCodeOp(AppCommand::compact().into_core()));
     }
 
     pub(crate) fn set_thread_name(&self, name: String) {
-        self.send(AppEvent::CodexOp(
+        self.send(AppEvent::DarwinCodeOp(
             AppCommand::set_thread_name(name).into_core(),
         ));
     }
 
     pub(crate) fn review(&self, review_request: ReviewRequest) {
-        self.send(AppEvent::CodexOp(
+        self.send(AppEvent::DarwinCodeOp(
             AppCommand::review(review_request).into_core(),
         ));
     }
 
     pub(crate) fn list_skills(&self, cwds: Vec<PathBuf>, force_reload: bool) {
-        self.send(AppEvent::CodexOp(
+        self.send(AppEvent::DarwinCodeOp(
             AppCommand::list_skills(cwds, force_reload).into_core(),
         ));
     }
 
     #[cfg_attr(target_os = "linux", allow(dead_code))]
     pub(crate) fn realtime_conversation_audio(&self, params: ConversationAudioParams) {
-        self.send(AppEvent::CodexOp(
+        self.send(AppEvent::DarwinCodeOp(
             AppCommand::realtime_conversation_audio(params).into_core(),
         ));
     }
 
     pub(crate) fn user_input_answer(&self, id: String, response: RequestUserInputResponse) {
-        self.send(AppEvent::CodexOp(
+        self.send(AppEvent::DarwinCodeOp(
             AppCommand::user_input_answer(id, response).into_core(),
         ));
     }

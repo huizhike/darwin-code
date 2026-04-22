@@ -1,6 +1,6 @@
-use codex_protocol::ThreadId;
-use codex_protocol::models::ShellCommandToolCallParams;
-use codex_protocol::models::ShellToolCallParams;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::models::ShellCommandToolCallParams;
+use darwin_code_protocol::models::ShellToolCallParams;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 
@@ -34,11 +34,11 @@ use crate::tools::runtimes::shell::ShellRequest;
 use crate::tools::runtimes::shell::ShellRuntime;
 use crate::tools::runtimes::shell::ShellRuntimeBackend;
 use crate::tools::sandboxing::ToolCtx;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_shell_command::is_safe_command::is_known_safe_command;
-use codex_tools::ShellCommandBackendConfig;
+use darwin_code_features::Feature;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_shell_command::is_safe_command::is_known_safe_command;
+use darwin_code_tools::ShellCommandBackendConfig;
 
 pub struct ShellHandler;
 
@@ -56,8 +56,8 @@ fn shell_payload_command(payload: &ToolPayload) -> Option<String> {
     match payload {
         ToolPayload::Function { arguments } => parse_arguments::<ShellToolCallParams>(arguments)
             .ok()
-            .map(|params| codex_shell_command::parse_command::shlex_join(&params.command)),
-        ToolPayload::LocalShell { params } => Some(codex_shell_command::parse_command::shlex_join(
+            .map(|params| darwin_code_shell_command::parse_command::shlex_join(&params.command)),
+        ToolPayload::LocalShell { params } => Some(darwin_code_shell_command::parse_command::shlex_join(
             &params.command,
         )),
         _ => None,
@@ -242,7 +242,7 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: codex_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: darwin_code_shell_command::parse_command::shlex_join(&params.command),
                     additional_permissions: params.additional_permissions.clone(),
                     prefix_rule,
                     session,
@@ -260,7 +260,7 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: codex_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: darwin_code_shell_command::parse_command::shlex_join(&params.command),
                     additional_permissions: None,
                     prefix_rule: None,
                     session,
@@ -460,7 +460,7 @@ impl ShellHandler {
             && !effective_additional_permissions.permissions_preapproved
             && !matches!(
                 turn.approval_policy.value(),
-                codex_protocol::protocol::AskForApproval::OnRequest
+                darwin_code_protocol::protocol::AskForApproval::OnRequest
             )
         {
             let approval_policy = turn.approval_policy.value();
@@ -509,7 +509,7 @@ impl ShellHandler {
                 sandbox_policy: turn.sandbox_policy.get(),
                 file_system_sandbox_policy: &turn.file_system_sandbox_policy,
                 sandbox_permissions: if effective_additional_permissions.permissions_preapproved {
-                    codex_protocol::models::SandboxPermissions::UseDefault
+                    darwin_code_protocol::models::SandboxPermissions::UseDefault
                 } else {
                     effective_additional_permissions.sandbox_permissions
                 },
@@ -573,7 +573,7 @@ impl ShellHandler {
         let content = emitter.finish(event_ctx, out).await?;
         Ok(FunctionToolOutput {
             body: vec![
-                codex_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
+                darwin_code_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
             ],
             success: Some(true),
             post_tool_use_response,

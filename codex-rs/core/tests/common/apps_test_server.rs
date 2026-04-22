@@ -16,7 +16,7 @@ const DISCOVERABLE_CALENDAR_ID: &str = "connector_2128aebfecb84f64a069897515042a
 const DISCOVERABLE_GMAIL_ID: &str = "connector_68df038e0ba48191908c8434991bbac2";
 const CONNECTOR_DESCRIPTION: &str = "Plan events and manage your calendar.";
 const PROTOCOL_VERSION: &str = "2025-11-25";
-const SERVER_NAME: &str = "codex-apps-test";
+const SERVER_NAME: &str = "darwin-code-apps-test";
 const SERVER_VERSION: &str = "1.0.0";
 const SEARCHABLE_TOOL_COUNT: usize = 100;
 pub const CALENDAR_CREATE_EVENT_RESOURCE_URI: &str =
@@ -121,8 +121,8 @@ async fn mount_streamable_http_json_rpc(
     searchable: bool,
 ) {
     Mock::given(method("POST"))
-        .and(path_regex("^/api/codex/apps/?$"))
-        .respond_with(CodexAppsJsonRpcResponder {
+        .and(path_regex("^/api/darwin-code/apps/?$"))
+        .respond_with(DarwinCodeAppsJsonRpcResponder {
             connector_name,
             connector_description,
             searchable,
@@ -131,13 +131,13 @@ async fn mount_streamable_http_json_rpc(
         .await;
 }
 
-struct CodexAppsJsonRpcResponder {
+struct DarwinCodeAppsJsonRpcResponder {
     connector_name: String,
     connector_description: String,
     searchable: bool,
 }
 
-impl Respond for CodexAppsJsonRpcResponder {
+impl Respond for DarwinCodeAppsJsonRpcResponder {
     fn respond(&self, request: &Request) -> ResponseTemplate {
         let body: Value = match serde_json::from_slice(&request.body) {
             Ok(body) => body,
@@ -209,7 +209,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
                                     "openai/outputTemplate": CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI,
-                                    "_codex_apps": {
+                                    "_darwin_code_apps": {
                                         "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -234,7 +234,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "connector_id": CONNECTOR_ID,
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
-                                    "_codex_apps": {
+                                    "_darwin_code_apps": {
                                         "resource_uri": CALENDAR_LIST_EVENTS_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -267,7 +267,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
                                     "openai/fileParams": ["file"],
-                                    "_codex_apps": {
+                                    "_darwin_code_apps": {
                                         "resource_uri": DOCUMENT_EXTRACT_TEXT_RESOURCE_URI,
                                         "contains_mcp_source": true,
                                         "connector_id": CONNECTOR_ID
@@ -325,7 +325,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                     .pointer("/params/arguments/file/file_id")
                     .and_then(Value::as_str)
                     .unwrap_or_default();
-                let codex_apps_meta = body.pointer("/params/_meta/_codex_apps").cloned();
+                let darwin_code_apps_meta = body.pointer("/params/_meta/_darwin_code_apps").cloned();
 
                 ResponseTemplate::new(200).set_body_json(json!({
                     "jsonrpc": "2.0",
@@ -336,7 +336,7 @@ impl Respond for CodexAppsJsonRpcResponder {
                             "text": format!("called {tool_name} for {title} at {starts_at} with {file_id}")
                         }],
                         "structuredContent": {
-                            "_codex_apps": codex_apps_meta,
+                            "_darwin_code_apps": darwin_code_apps_meta,
                         },
                         "isError": false
                     }

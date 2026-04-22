@@ -1,8 +1,8 @@
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::ElicitationAction;
-use codex_protocol::mcp::RequestId as McpRequestId;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::approvals::ElicitationAction;
+use darwin_code_protocol::mcp::RequestId as McpRequestId;
 #[cfg(test)]
-use codex_protocol::protocol::Op;
+use darwin_code_protocol::protocol::Op;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -577,7 +577,7 @@ mod tests {
         AppLinkElicitationTarget {
             thread_id: ThreadId::try_from("00000000-0000-0000-0000-000000000001")
                 .expect("valid thread id"),
-            server_name: "codex_apps".to_string(),
+            server_name: "darwin_code_apps".to_string(),
             request_id: McpRequestId::String("request-1".to_string()),
         }
     }
@@ -805,7 +805,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "darwin_code_apps".to_string(),
                         request_id: McpRequestId::String("request-1".to_string()),
                         decision: ElicitationAction::Accept,
                         content: None,
@@ -847,7 +847,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "darwin_code_apps".to_string(),
                         request_id: McpRequestId::String("request-1".to_string()),
                         decision: ElicitationAction::Decline,
                         content: None,
@@ -897,7 +897,7 @@ mod tests {
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
-                        server_name: "codex_apps".to_string(),
+                        server_name: "darwin_code_apps".to_string(),
                         request_id: McpRequestId::String("request-1".to_string()),
                         decision: ElicitationAction::Accept,
                         content: None,
@@ -933,7 +933,7 @@ mod tests {
 
         assert!(
             view.dismiss_app_server_request(&ResolvedAppServerRequest::McpElicitation {
-                server_name: "codex_apps".to_string(),
+                server_name: "darwin_code_apps".to_string(),
                 request_id: McpRequestId::String("request-1".to_string()),
             })
         );

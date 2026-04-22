@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_features::Feature;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo as McpToolInfo;
-use codex_mcp::filter_non_codex_apps_mcp_tools_only;
-use codex_tools::ToolsConfig;
+use darwin_code_features::Feature;
+use darwin_code_mcp::DARWIN_CODE_APPS_MCP_SERVER_NAME;
+use darwin_code_mcp::ToolInfo as McpToolInfo;
+use darwin_code_mcp::filter_non_darwin_code_apps_mcp_tools_only;
+use darwin_code_tools::ToolsConfig;
 
 use crate::config::Config;
 use crate::connectors;
@@ -24,9 +24,9 @@ pub(crate) fn build_mcp_tool_exposure(
     config: &Config,
     tools_config: &ToolsConfig,
 ) -> McpToolExposure {
-    let mut deferred_tools = filter_non_codex_apps_mcp_tools_only(all_mcp_tools);
+    let mut deferred_tools = filter_non_darwin_code_apps_mcp_tools_only(all_mcp_tools);
     if let Some(connectors) = connectors {
-        deferred_tools.extend(filter_codex_apps_mcp_tools(
+        deferred_tools.extend(filter_darwin_code_apps_mcp_tools(
             all_mcp_tools,
             connectors,
             config,
@@ -47,7 +47,7 @@ pub(crate) fn build_mcp_tool_exposure(
     }
 
     let direct_tools =
-        filter_codex_apps_mcp_tools(all_mcp_tools, explicitly_enabled_connectors, config);
+        filter_darwin_code_apps_mcp_tools(all_mcp_tools, explicitly_enabled_connectors, config);
     for direct_tool_name in direct_tools.keys() {
         deferred_tools.remove(direct_tool_name);
     }
@@ -58,7 +58,7 @@ pub(crate) fn build_mcp_tool_exposure(
     }
 }
 
-fn filter_codex_apps_mcp_tools(
+fn filter_darwin_code_apps_mcp_tools(
     mcp_tools: &HashMap<String, McpToolInfo>,
     connectors: &[connectors::AppInfo],
     config: &Config,
@@ -71,13 +71,13 @@ fn filter_codex_apps_mcp_tools(
     mcp_tools
         .iter()
         .filter(|(_, tool)| {
-            if tool.server_name != CODEX_APPS_MCP_SERVER_NAME {
+            if tool.server_name != DARWIN_CODE_APPS_MCP_SERVER_NAME {
                 return false;
             }
             let Some(connector_id) = tool.connector_id.as_deref() else {
                 return false;
             };
-            allowed.contains(connector_id) && connectors::codex_app_tool_is_enabled(config, tool)
+            allowed.contains(connector_id) && connectors::darwin_code_app_tool_is_enabled(config, tool)
         })
         .map(|(name, tool)| (name.clone(), tool.clone()))
         .collect()

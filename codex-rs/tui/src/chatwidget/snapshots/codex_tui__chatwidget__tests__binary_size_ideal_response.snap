@@ -2,7 +2,7 @@
 source: tui/src/chatwidget/tests.rs
 expression: "lines[start_idx..].join(\"\\n\")"
 ---
-• I need to check the codex-rs repository to explain why the project's binaries
+• I need to check the darwin-code-rs repository to explain why the project's binaries
   are large. The user is likely seeking specifics about the setup: are Rust
   builds static, what features are enabled, and is debug information included?
   It could be due to static linking, included OpenSSL, or how panic handling
@@ -40,7 +40,7 @@ expression: "lines[start_idx..].join(\"\\n\")"
   └ Read Cargo.toml
 
 • I’m evaluating how binary size is influenced by various factors. There are
-  many binaries, such as codex and codex-exec, which include dependencies by
+  many binaries, such as darwin-code and darwin-code-exec, which include dependencies by
   default, pulling in features like Tokio and hyper. For instance, reqwest
   includes default features like TLS through rustls. If default features remain
   enabled, it inflates the size with many additional components. I notice
@@ -118,14 +118,14 @@ expression: "lines[start_idx..].join(\"\\n\")"
 
   Main Causes
 
-  - Static linking style: Each bin (codex, codex-tui, codex-exec, codex-mcp-
+  - Static linking style: Each bin (darwin-code, darwin-code-tui, darwin-code-exec, darwin-code-mcp-
   server, etc.) statically links its full dependency graph, so common code isn’t
   shared at runtime across executables.
   - Heavy deps (HTTP/TLS): reqwest brings in Hyper, HTTP/2, compressors,
   and a TLS stack (rustls by default; OpenSSL on musl). In core, login, tui,
   and ollama you enable reqwest with json/stream, which still pulls a large
   transitive set.
-  - Image/terminal stack: codex-tui includes image (with jpeg), ratatui,
+  - Image/terminal stack: darwin-code-tui includes image (with jpeg), ratatui,
   crossterm, and ratatui-image, which together contribute significant code size
   (decoders, pixel ops, terminal backends).
   - Parsers/VMs: tree-sitter + tree-sitter-bash (in core and apply-patch) and

@@ -4,6 +4,6 @@ expression: terminal.backend()
 ---
 "                                                                                "
 "                                                                                "
-"› Ask Codex to do anything                                                      "
+"› Ask Darwin-Code to do anything                                                      "
 "                                                                                "
-"  gpt-5.3-codex medium                          Plan mode (shift+tab to cycle)  "
+"  gpt-5.3-darwin-code medium                          Plan mode (shift+tab to cycle)  "

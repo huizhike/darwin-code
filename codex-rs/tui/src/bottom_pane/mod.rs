@@ -31,10 +31,10 @@ use crate::render::renderable::RenderableItem;
 use crate::tui::FrameRequester;
 use bottom_pane_view::BottomPaneView;
 use bottom_pane_view::ViewCompletion;
-use codex_features::Features;
-use codex_file_search::FileMatch;
-use codex_protocol::request_user_input::RequestUserInputEvent;
-use codex_protocol::user_input::TextElement;
+use darwin_code_features::Features;
+use darwin_code_file_search::FileMatch;
+use darwin_code_protocol::request_user_input::RequestUserInputEvent;
+use darwin_code_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -1321,8 +1321,8 @@ mod tests {
     use crate::status_indicator_widget::StatusDetailsCapitalization;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_protocol::protocol::Op;
-    use codex_protocol::protocol::SkillScope;
+    use darwin_code_protocol::protocol::Op;
+    use darwin_code_protocol::protocol::SkillScope;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyEventKind;
@@ -1359,7 +1359,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1368,14 +1368,14 @@ mod tests {
 
     fn exec_request() -> ApprovalRequest {
         ApprovalRequest::Exec {
-            thread_id: codex_protocol::ThreadId::new(),
+            thread_id: darwin_code_protocol::ThreadId::new(),
             thread_label: None,
             id: "1".to_string(),
             command: vec!["echo".into(), "ok".into()],
             reason: None,
             available_decisions: vec![
-                codex_protocol::protocol::ReviewDecision::Approved,
-                codex_protocol::protocol::ReviewDecision::Abort,
+                darwin_code_protocol::protocol::ReviewDecision::Approved,
+                darwin_code_protocol::protocol::ReviewDecision::Abort,
             ],
             network_approval_context: None,
             additional_permissions: None,
@@ -1459,7 +1459,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: true,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1479,7 +1479,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: true,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1507,7 +1507,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1624,7 +1624,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1671,7 +1671,7 @@ mod tests {
             for x in 0..area.width {
                 row.push(buf[(x, y)].symbol().chars().next().unwrap_or(' '));
             }
-            if row.contains("Ask Codex") {
+            if row.contains("Ask Darwin-Code") {
                 found_composer = true;
                 break;
             }
@@ -1691,7 +1691,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1718,7 +1718,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1749,7 +1749,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1772,7 +1772,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1801,7 +1801,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1838,7 +1838,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1870,7 +1870,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1901,7 +1901,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1930,7 +1930,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -1953,7 +1953,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(vec![SkillMetadata {
@@ -1981,7 +1981,7 @@ mod tests {
 
         while let Ok(ev) = rx.try_recv() {
             assert!(
-                !matches!(ev, AppEvent::CodexOp(Op::Interrupt)),
+                !matches!(ev, AppEvent::DarwinCodeOp(Op::Interrupt)),
                 "expected Esc to not send Op::Interrupt when dismissing skill popup"
             );
         }
@@ -2000,7 +2000,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2019,7 +2019,7 @@ mod tests {
 
         while let Ok(ev) = rx.try_recv() {
             assert!(
-                !matches!(ev, AppEvent::CodexOp(Op::Interrupt)),
+                !matches!(ev, AppEvent::DarwinCodeOp(Op::Interrupt)),
                 "expected Esc to not send Op::Interrupt while command popup is active"
             );
         }
@@ -2035,7 +2035,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2055,7 +2055,7 @@ mod tests {
 
         while let Ok(ev) = rx.try_recv() {
             assert!(
-                !matches!(ev, AppEvent::CodexOp(Op::Interrupt)),
+                !matches!(ev, AppEvent::DarwinCodeOp(Op::Interrupt)),
                 "expected Esc to not send Op::Interrupt while typing `/agent`"
             );
         }
@@ -2071,7 +2071,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2100,7 +2100,7 @@ mod tests {
 
         while let Ok(ev) = rx.try_recv() {
             assert!(
-                !matches!(ev, AppEvent::CodexOp(Op::Interrupt)),
+                !matches!(ev, AppEvent::DarwinCodeOp(Op::Interrupt)),
                 "expected Esc release after dismissing agent picker to not interrupt"
             );
         }
@@ -2119,7 +2119,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2130,7 +2130,7 @@ mod tests {
         pane.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 
         assert!(
-            matches!(rx.try_recv(), Ok(AppEvent::CodexOp(Op::Interrupt))),
+            matches!(rx.try_recv(), Ok(AppEvent::DarwinCodeOp(Op::Interrupt))),
             "expected Esc to send Op::Interrupt while a task is running"
         );
     }
@@ -2175,7 +2175,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2223,7 +2223,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),
@@ -2301,7 +2301,7 @@ mod tests {
             frame_requester: FrameRequester::test_dummy(),
             has_input_focus: true,
             enhanced_keys_supported: false,
-            placeholder_text: "Ask Codex to do anything".to_string(),
+            placeholder_text: "Ask Darwin-Code to do anything".to_string(),
             disable_paste_burst: false,
             animations_enabled: true,
             skills: Some(Vec::new()),

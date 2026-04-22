@@ -1,4 +1,4 @@
-use codex_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

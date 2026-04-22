@@ -4,13 +4,13 @@ use std::fs;
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_config::types::Personality;
-use codex_features::Feature;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_config::types::Personality;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -23,7 +23,7 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use serde_json::json;
 
@@ -99,8 +99,8 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_model("gpt-5.2-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.2-darwin-code")
         .with_config(|config| {
             config
                 .features
@@ -112,7 +112,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
     let preturn_context_diff_cwd = test.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&preturn_context_diff_cwd)?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "first turn".into(),
@@ -131,12 +131,12 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "second turn with context updates".into(),
@@ -155,7 +155,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
             personality: Some(Personality::Friendly),
         })
         .await?;
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -200,7 +200,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
     )
     .await;
 
-    let mut builder = test_codex().with_model("gpt-5.2-codex");
+    let mut builder = test_darwin_code().with_model("gpt-5.2-darwin-code");
     let test = builder.build(&server).await?;
     let cwd_one = test.cwd_path().join("agents_one");
     let cwd_two = test.cwd_path().join("agents_two");
@@ -215,7 +215,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
         "# AGENTS two\n\n<INSTRUCTIONS>\nTurn two agents instructions.\n</INSTRUCTIONS>\n",
     )?;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "first turn in agents_one".into(),
@@ -234,12 +234,12 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "second turn in agents_two".into(),
@@ -258,7 +258,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
             personality: None,
         })
         .await?;
-    wait_for_event(&test.codex, |event| {
+    wait_for_event(&test.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -294,11 +294,11 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut initial_builder = test_codex().with_config(|config| {
+    let mut initial_builder = test_darwin_code().with_config(|config| {
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = initial_builder.build(&server).await?;
-    let codex = Arc::clone(&initial.codex);
+    let darwin-code = Arc::clone(&initial.darwin-code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -315,7 +315,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
         ]),
     )
     .await;
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "seed resume history".into(),
@@ -325,7 +325,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -338,8 +338,8 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
     )
     .await;
 
-    let mut resume_builder = test_codex().with_config(|config| {
-        config.model = Some("gpt-5.2-codex".to_string());
+    let mut resume_builder = test_darwin_code().with_config(|config| {
+        config.model = Some("gpt-5.2-darwin-code".to_string());
         config
             .features
             .enable(Feature::Personality)
@@ -350,7 +350,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
     let resume_override_cwd = resumed.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&resume_override_cwd)?;
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "resume and change personality".into(),
@@ -369,7 +369,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
             personality: Some(Personality::Friendly),
         })
         .await?;
-    wait_for_event(&resumed.codex, |event| {
+    wait_for_event(&resumed.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -394,11 +394,11 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut initial_builder = test_codex().with_config(|config| {
+    let mut initial_builder = test_darwin_code().with_config(|config| {
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = initial_builder.build(&server).await?;
-    let codex = Arc::clone(&initial.codex);
+    let darwin-code = Arc::clone(&initial.darwin-code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -415,7 +415,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         ]),
     )
     .await;
-    codex
+    darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "seed resume history".into(),
@@ -425,7 +425,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -438,14 +438,14 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
     )
     .await;
 
-    let mut resume_builder = test_codex().with_config(|config| {
-        config.model = Some("gpt-5.2-codex".to_string());
+    let mut resume_builder = test_darwin_code().with_config(|config| {
+        config.model = Some("gpt-5.2-darwin-code".to_string());
     });
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     let resume_override_cwd = resumed.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&resume_override_cwd)?;
     resumed
-        .codex
+        .darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: Some(resume_override_cwd),
             approval_policy: None,
@@ -461,7 +461,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         })
         .await?;
     resumed
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first resumed turn after model override".into(),
@@ -471,7 +471,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.codex, |event| {
+    wait_for_event(&resumed.darwin-code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

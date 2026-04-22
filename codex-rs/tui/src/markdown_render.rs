@@ -9,7 +9,7 @@ use crate::render::highlight::highlight_code_to_lines;
 use crate::render::line_utils::line_to_static;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
-use codex_utils_string::normalize_markdown_hash_location_suffix;
+use darwin_code_utils_string::normalize_markdown_hash_location_suffix;
 use dirs::home_dir;
 use pulldown_cmark::CodeBlockKind;
 use pulldown_cmark::CowStr;
@@ -742,7 +742,7 @@ fn is_local_path_like_link(dest_url: &str) -> bool {
 
 /// Parse a local link target into normalized path text plus an optional location suffix.
 ///
-/// This accepts the path shapes Codex emits today: `file://` URLs, absolute and relative paths,
+/// This accepts the path shapes Darwin-Code emits today: `file://` URLs, absolute and relative paths,
 /// `~/...`, Windows paths, and `#L..C..` or `:line:col` suffixes.
 fn render_local_link_target(dest_url: &str, cwd: Option<&Path>) -> Option<String> {
     let (path_text, location_suffix) = parse_local_link_target(dest_url)?;

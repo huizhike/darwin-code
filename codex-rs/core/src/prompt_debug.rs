@@ -1,15 +1,15 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_features::Feature;
+use darwin_code_login::AuthManager;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::Config;
@@ -23,11 +23,11 @@ use crate::thread_manager::ThreadManager;
 pub async fn build_prompt_input(
     mut config: Config,
     input: Vec<UserInput>,
-) -> CodexResult<Vec<ResponseItem>> {
+) -> DarwinCodeResult<Vec<ResponseItem>> {
     config.ephemeral = true;
 
     let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_codex_api_key_env*/ false);
+        AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
 
     let thread_manager = ThreadManager::new(
         &config,
@@ -43,7 +43,7 @@ pub async fn build_prompt_input(
     );
     let thread = thread_manager.start_thread(config).await?;
 
-    let output = build_prompt_input_from_session(thread.thread.codex.session.as_ref(), input).await;
+    let output = build_prompt_input_from_session(thread.thread.darwin-code.session.as_ref(), input).await;
     let shutdown = thread.thread.shutdown_and_wait().await;
     let _removed = thread_manager.remove_thread(&thread.thread_id).await;
 
@@ -54,7 +54,7 @@ pub async fn build_prompt_input(
 pub(crate) async fn build_prompt_input_from_session(
     sess: &Session,
     input: Vec<UserInput>,
-) -> CodexResult<Vec<ResponseItem>> {
+) -> DarwinCodeResult<Vec<ResponseItem>> {
     let turn_context = sess.new_default_turn().await;
     sess.record_context_updates_and_set_reference_context_item(turn_context.as_ref())
         .await;
@@ -92,10 +92,10 @@ pub(crate) async fn build_prompt_input_from_session(
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::user_input::UserInput;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::models::ContentItem;
+    use darwin_code_protocol::models::ResponseItem;
+    use darwin_code_protocol::user_input::UserInput;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     use crate::config::test_config;
@@ -104,11 +104,11 @@ mod tests {
 
     #[tokio::test]
     async fn build_prompt_input_includes_context_and_user_message() {
-        let codex_home = tempfile::tempdir().expect("create codex home");
+        let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
         let cwd = tempfile::tempdir().expect("create cwd");
         let mut config = test_config().await;
-        config.codex_home =
-            AbsolutePathBuf::from_absolute_path(codex_home.path()).expect("codex home is absolute");
+        config.darwin_code_home =
+            AbsolutePathBuf::from_absolute_path(darwin_code_home.path()).expect("darwin-code home is absolute");
         config.cwd = AbsolutePathBuf::try_from(cwd.path().to_path_buf()).expect("absolute cwd");
         config.user_instructions = Some("Project-specific test instructions".to_string());
 

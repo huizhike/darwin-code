@@ -13,24 +13,24 @@ use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadCompactStartResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
+use darwin_code_app_server_protocol::ItemCompletedNotification;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadCompactStartParams;
+use darwin_code_app_server_protocol::ThreadCompactStartResponse;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::TurnCompletedNotification;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -71,9 +71,9 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
     ]);
     responses::mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
@@ -82,7 +82,7 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
         COMPACT_PROMPT,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -147,9 +147,9 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::default(),
         REMOTE_AUTO_COMPACT_LIMIT,
@@ -158,12 +158,12 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         COMPACT_PROMPT,
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         ChatGptAuthFixture::new("access-chatgpt").plan_type("pro"),
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = McpProcess::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new_with_env(darwin_code_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -206,9 +206,9 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
     ]);
     responses::mount_sse_sequence(&server, vec![sse]).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
@@ -217,7 +217,7 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
         COMPACT_PROMPT,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -256,9 +256,9 @@ async fn thread_compact_start_rejects_invalid_thread_id() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
@@ -267,7 +267,7 @@ async fn thread_compact_start_rejects_invalid_thread_id() -> Result<()> {
         COMPACT_PROMPT,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -292,9 +292,9 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
@@ -303,7 +303,7 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
         COMPACT_PROMPT,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

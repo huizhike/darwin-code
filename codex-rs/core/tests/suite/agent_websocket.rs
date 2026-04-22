@@ -1,6 +1,6 @@
 use anyhow::Result;
-use codex_features::Feature;
-use codex_protocol::config_types::ServiceTier;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::ServiceTier;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -9,7 +9,7 @@ use core_test_support::responses::ev_shell_command_call;
 use core_test_support::responses::start_websocket_server;
 use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::time::Duration;
@@ -17,7 +17,7 @@ use std::time::Duration;
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn websocket_test_codex_shell_chain() -> Result<()> {
+async fn websocket_test_darwin_code_shell_chain() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let call_id = "shell-command-call";
@@ -35,7 +35,7 @@ async fn websocket_test_codex_shell_chain() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_codex().with_windows_cmd_shell();
+    let mut builder = test_darwin_code().with_windows_cmd_shell();
 
     let test = builder.build_with_websocket_server(&server).await?;
     test.submit_turn_with_policy(
@@ -83,7 +83,7 @@ async fn websocket_first_turn_uses_startup_prewarm_and_create() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
     test.submit_turn_with_policy(
         "hello",
@@ -133,7 +133,7 @@ async fn websocket_first_turn_handles_handshake_delay_with_startup_prewarm() -> 
     }])
     .await;
 
-    let mut builder = test_codex();
+    let mut builder = test_darwin_code();
     let test = builder.build_with_websocket_server(&server).await?;
     test.submit_turn_with_policy(
         "hello",
@@ -164,7 +164,7 @@ async fn websocket_first_turn_handles_handshake_delay_with_startup_prewarm() -> 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn websocket_v2_test_codex_shell_chain() -> Result<()> {
+async fn websocket_v2_test_darwin_code_shell_chain() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let call_id = "shell-command-call";
@@ -183,7 +183,7 @@ async fn websocket_v2_test_codex_shell_chain() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_codex().with_windows_cmd_shell().with_config(|config| {
+    let mut builder = test_darwin_code().with_windows_cmd_shell().with_config(|config| {
         config
             .features
             .enable(Feature::ResponsesWebsocketsV2)
@@ -265,7 +265,7 @@ async fn websocket_v2_first_turn_uses_updated_fast_tier_after_startup_prewarm() 
     ]])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ResponsesWebsocketsV2)
@@ -320,7 +320,7 @@ async fn websocket_v2_first_turn_drops_fast_tier_after_startup_prewarm() -> Resu
     ]])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ResponsesWebsocketsV2)
@@ -381,7 +381,7 @@ async fn websocket_v2_next_turn_uses_updated_service_tier() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .enable(Feature::ResponsesWebsocketsV2)

@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used)]
 
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::AccountLoginCompletedNotification;
-use codex_app_server_protocol::AccountUpdatedNotification;
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_login::read_openai_api_key_from_env;
+use darwin_code_app_server_client::AppServerRequestHandle;
+use darwin_code_app_server_protocol::AccountLoginCompletedNotification;
+use darwin_code_app_server_protocol::AccountUpdatedNotification;
+use darwin_code_app_server_protocol::AuthMode as AppServerAuthMode;
+use darwin_code_app_server_protocol::CancelLoginAccountParams;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::LoginAccountParams;
+use darwin_code_app_server_protocol::LoginAccountResponse;
+use darwin_code_login::read_openai_api_key_from_env;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -30,7 +30,7 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
 
-use codex_protocol::config_types::ForcedLoginMethod;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -101,8 +101,8 @@ pub(crate) enum SignInOption {
 }
 
 const API_KEY_DISABLED_MESSAGE: &str = "API key login is disabled.";
-fn onboarding_request_id() -> codex_app_server_protocol::RequestId {
-    codex_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
+fn onboarding_request_id() -> darwin_code_app_server_protocol::RequestId {
+    darwin_code_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
 }
 
 pub(super) async fn cancel_login_attempt(
@@ -110,7 +110,7 @@ pub(super) async fn cancel_login_attempt(
     login_id: String,
 ) {
     let _ = request_handle
-        .request_typed::<codex_app_server_protocol::CancelLoginAccountResponse>(
+        .request_typed::<darwin_code_app_server_protocol::CancelLoginAccountResponse>(
             ClientRequest::CancelLoginAccount {
                 request_id: onboarding_request_id(),
                 params: CancelLoginAccountParams { login_id },
@@ -372,7 +372,7 @@ impl AuthModeWidget {
         let mut lines: Vec<Line> = vec![
             Line::from(vec![
                 "  ".into(),
-                "Sign in with ChatGPT to use Codex as part of your paid plan".into(),
+                "Sign in with ChatGPT to use Darwin-Code as part of your paid plan".into(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -522,14 +522,14 @@ impl AuthModeWidget {
             "".into(),
             "  Before you start:".into(),
             "".into(),
-            "  Decide how much autonomy you want to grant Codex".into(),
+            "  Decide how much autonomy you want to grant Darwin-Code".into(),
             Line::from(vec![
                 "  For more details see the ".into(),
-                "\u{1b}]8;;https://developers.openai.com/codex/security\u{7}Codex docs\u{1b}]8;;\u{7}".underlined(),
+                "\u{1b}]8;;https://developers.openai.com/darwin-code/security\u{7}Darwin-Code docs\u{1b}]8;;\u{7}".underlined(),
             ])
             .dim(),
             "".into(),
-            "  Codex can make mistakes".into(),
+            "  Darwin-Code can make mistakes".into(),
             "  Review the code it writes and commands it runs".dim().into(),
             "".into(),
             "  Powered by your ChatGPT account".into(),
@@ -563,7 +563,7 @@ impl AuthModeWidget {
         let lines = vec![
             "✓ API key configured".fg(Color::Green).into(),
             "".into(),
-            "  Codex will use usage-based billing with your API key.".into(),
+            "  Darwin-Code will use usage-based billing with your API key.".into(),
         ];
 
         Paragraph::new(lines)
@@ -955,23 +955,23 @@ pub(super) fn maybe_open_auth_url_in_browser(request_handle: &AppServerRequestHa
 mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_app_server_client::AppServerRequestHandle;
-    use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-    use codex_app_server_client::InProcessAppServerClient;
-    use codex_app_server_client::InProcessClientStartArgs;
-    use codex_arg0::Arg0DispatchPaths;
-    use codex_config::types::AuthCredentialsStoreMode;
+    use darwin_code_app_server_client::AppServerRequestHandle;
+    use darwin_code_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+    use darwin_code_app_server_client::InProcessAppServerClient;
+    use darwin_code_app_server_client::InProcessClientStartArgs;
+    use darwin_code_arg0::Arg0DispatchPaths;
+    use darwin_code_config::types::AuthCredentialsStoreMode;
 
-    use codex_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
     use tempfile::TempDir;
 
     async fn widget_forced_chatgpt() -> (AuthModeWidget, TempDir) {
-        let codex_home = TempDir::new().unwrap();
-        let codex_home_path = codex_home.path().to_path_buf();
+        let darwin_code_home = TempDir::new().unwrap();
+        let darwin_code_home_path = darwin_code_home.path().to_path_buf();
         let config = ConfigBuilder::default()
-            .codex_home(codex_home_path.clone())
+            .darwin_code_home(darwin_code_home_path.clone())
             .build()
             .await
             .unwrap();
@@ -983,12 +983,12 @@ mod tests {
             cloud_requirements: todo!(),
             feedback: todo!(),
             log_db: None,
-            environment_manager: Arc::new(codex_app_server_client::EnvironmentManager::new(
+            environment_manager: Arc::new(darwin_code_app_server_client::EnvironmentManager::new(
                 /*exec_server_url*/ None,
             )),
             config_warnings: Vec::new(),
             session_source: SessionSource::Cli,
-            enable_codex_api_key_env: false,
+            enable_darwin_code_api_key_env: false,
             client_name: "test".to_string(),
             client_version: "test".to_string(),
             experimental_api: true,
@@ -1008,7 +1008,7 @@ mod tests {
             animations_enabled: true,
             animations_suppressed: std::cell::Cell::new(false),
         };
-        (widget, codex_home)
+        (widget, darwin_code_home)
     }
 
     #[tokio::test]

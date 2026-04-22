@@ -13,54 +13,54 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Utc;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::Personality;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource as RolloutSessionSource;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_state::StateRuntime;
+use darwin_code_app_server_protocol::AskForApproval;
+use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
+use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use darwin_code_app_server_protocol::FileChangeApprovalDecision;
+use darwin_code_app_server_protocol::FileChangeRequestApprovalResponse;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::PatchApplyStatus;
+use darwin_code_app_server_protocol::PatchChangeKind;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::SessionSource;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
+use darwin_code_app_server_protocol::ThreadMetadataUpdateParams;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadReadResponse;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_app_server_protocol::UserInput;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AgentMessageEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource as RolloutSessionSource;
+use darwin_code_protocol::protocol::TokenCountEvent;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo;
+use darwin_code_protocol::protocol::TurnAbortReason;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::user_input::ByteRange;
+use darwin_code_protocol::user_input::TextElement;
+use darwin_code_state::StateRuntime;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
@@ -87,7 +87,7 @@ use super::analytics::wait_for_analytics_payload;
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are Codex, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
+const DARWIN_CODE_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are Darwin-Code, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
 
 async fn wait_for_responses_request_count(
     server: &wiremock::MockServer,
@@ -122,16 +122,16 @@ async fn wait_for_responses_request_count(
 #[tokio::test]
 async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a thread.
     let start_id = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -170,17 +170,17 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
 async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
-    enable_analytics_capture(&server, codex_home.path()).await?;
+    enable_analytics_capture(&server, darwin_code_home.path()).await?;
 
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -189,7 +189,7 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -207,15 +207,15 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     let event = thread_initialized_event(&payload)?;
-    assert_basic_thread_initialized_event(event, &thread.id, "gpt-5.2-codex", "resumed");
+    assert_basic_thread_initialized_event(event, &thread.id, "gpt-5.2-darwin-code", "resumed");
     Ok(())
 }
 
 #[tokio::test]
 async fn thread_resume_returns_rollout_history() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let preview = "Saved user message";
     let text_elements = vec![TextElement::new(
@@ -223,7 +223,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         Some("<note>".into()),
     )];
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         preview,
@@ -235,7 +235,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -288,18 +288,18 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
         Some("mock_provider"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -341,19 +341,19 @@ async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<(
 #[tokio::test]
 async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        darwin_code_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
         Some("mock_provider"),
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(darwin_code_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let stale_turn_id = "incomplete-turn-after-token-usage";
     let appended_rollout = [
@@ -385,7 +385,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -428,19 +428,19 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
 #[tokio::test]
 async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_token_usage(
-        codex_home.path(),
+        darwin_code_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
         Some("mock_provider"),
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(darwin_code_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let interrupted_turn_id = "interrupted-turn-with-token-usage";
     let appended_rollout = [
@@ -508,7 +508,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -550,13 +550,13 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
 #[tokio::test]
 async fn thread_resume_prefers_persisted_git_metadata_for_local_threads() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let config_toml = codex_home.path().join("config.toml");
+    let darwin_code_home = TempDir::new()?;
+    let config_toml = darwin_code_home.path().join("config.toml");
     std::fs::write(
         &config_toml,
         format!(
             r#"
-model = "gpt-5.2-codex"
+model = "gpt-5.2-darwin-code"
 approval_policy = "never"
 sandbox_mode = "read-only"
 
@@ -577,7 +577,7 @@ stream_max_retries = 0
         ),
     )?;
 
-    let repo_path = codex_home.path().join("repo");
+    let repo_path = darwin_code_home.path().join("repo");
     std::fs::create_dir_all(&repo_path)?;
     assert!(
         Command::new("git")
@@ -634,7 +634,7 @@ stream_max_retries = 0
 
     let thread_id = Uuid::new_v4().to_string();
     let conversation_id = ThreadId::from_string(&thread_id)?;
-    let rollout_path = rollout_path(codex_home.path(), "2025-01-05T12-00-00", &thread_id);
+    let rollout_path = rollout_path(darwin_code_home.path(), "2025-01-05T12-00-00", &thread_id);
     let rollout_dir = rollout_path.parent().expect("rollout parent directory");
     std::fs::create_dir_all(rollout_dir)?;
     let session_meta = SessionMeta {
@@ -642,7 +642,7 @@ stream_max_retries = 0
         forked_from_id: None,
         timestamp: "2025-01-05T12:00:00Z".to_string(),
         cwd: repo_path.clone(),
-        originator: "codex".to_string(),
+        originator: "darwin-code".to_string(),
         cli_version: "0.0.0".to_string(),
         source: RolloutSessionSource::Cli,
         agent_path: None,
@@ -690,12 +690,12 @@ stream_max_retries = 0
             + "\n",
     )?;
     let state_db =
-        StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
+        StateRuntime::init(darwin_code_home.path().to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
@@ -742,13 +742,13 @@ stream_max_retries = 0
 async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is_idle() -> Result<()>
 {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        darwin_code_home.path(),
         filename_ts,
         meta_rfc3339,
         "Saved user message",
@@ -756,7 +756,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(darwin_code_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
     let turn_id = "incomplete-turn";
     let appended_rollout = [
@@ -788,7 +788,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         format!("{persisted_rollout}{appended_rollout}\n"),
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -858,11 +858,11 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
 #[tokio::test]
 async fn thread_resume_without_overrides_does_not_change_updated_at_or_mtime() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let rollout = setup_rollout_fixture(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    let rollout = setup_rollout_fixture(darwin_code_home.path(), &server.uri())?;
     let thread_id = rollout.conversation_id.clone();
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -914,15 +914,15 @@ async fn thread_resume_without_overrides_does_not_change_updated_at_or_mtime() -
 #[tokio::test]
 async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -955,7 +955,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     .await??;
     primary.clear_message_buffer();
 
-    let mut secondary = McpProcess::new(codex_home.path()).await?;
+    let mut secondary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let turn_id = primary
@@ -1021,15 +1021,15 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     .set_delay(std::time::Duration::from_millis(500));
     let _first_response_mock = responses::mount_sse_once(&server, first_body).await;
     let _second_response_mock = responses::mount_response_once(&server, second_response).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1137,15 +1137,15 @@ async fn thread_resume_rejects_mismatched_path_when_thread_is_running() -> Resul
     .set_delay(std::time::Duration::from_millis(500));
     let _first_response_mock = responses::mount_sse_once(&server, first_body).await;
     let _second_response_mock = responses::mount_response_once(&server, second_response).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1243,15 +1243,15 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .set_delay(std::time::Duration::from_millis(500));
     let _response_mock =
         responses::mount_response_sequence(&server, vec![first_response, second_response]).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1320,7 +1320,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .await??;
     let ThreadResumeResponse { thread, model, .. } =
         to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(model, "gpt-5.1-codex-max");
+    assert_eq!(model, "gpt-5.1-darwin-code-max");
     // The running-thread resume response is queued onto the thread listener task.
     // If the in-flight turn completes before that queued command runs, the response
     // can legitimately observe the thread as idle.
@@ -1356,15 +1356,15 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1478,8 +1478,8 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
 #[tokio::test]
 async fn thread_resume_replays_pending_file_change_request_approval() -> Result<()> {
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let workspace = tmp.path().join("workspace");
     std::fs::create_dir(&workspace)?;
 
@@ -1494,14 +1494,14 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         create_final_assistant_message_sse_response("done")?,
     ];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
-    create_config_toml(&codex_home, &server.uri())?;
+    create_config_toml(&darwin_code_home, &server.uri())?;
 
-    let mut primary = McpProcess::new(&codex_home).await?;
+    let mut primary = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
         })
@@ -1570,7 +1570,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     let expected_readme_path = workspace.join("README.md");
     let expected_file_change = ThreadItem::FileChange {
         id: "patch-call".to_string(),
-        changes: vec![codex_app_server_protocol::FileUpdateChange {
+        changes: vec![darwin_code_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.to_string_lossy().into_owned(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -1644,14 +1644,14 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
 #[tokio::test]
 async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
         mut mcp,
         thread_id,
         rollout_file_path,
-    } = start_materialized_thread_and_restart(codex_home.path(), "materialize").await?;
+    } = start_materialized_thread_and_restart(darwin_code_home.path(), "materialize").await?;
     let expected_updated_at_rfc3339 = "2025-01-07T00:00:00Z";
     set_rollout_mtime(rollout_file_path.as_path(), expected_updated_at_rfc3339)?;
     let before_modified = std::fs::metadata(&rollout_file_path)?.modified()?;
@@ -1712,11 +1712,11 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
 #[tokio::test]
 async fn thread_resume_fails_when_required_mcp_server_fails_to_initialize() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    let rollout = setup_rollout_fixture(codex_home.path(), &server.uri())?;
-    create_config_toml_with_required_broken_mcp(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    let rollout = setup_rollout_fixture(darwin_code_home.path(), &server.uri())?;
+    create_config_toml_with_required_broken_mcp(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
@@ -1767,17 +1767,17 @@ async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let model_server = create_mock_responses_server_repeating_assistant("Done").await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &model_server.uri(),
         &chatgpt_base_url,
         /*general_analytics_enabled*/ false,
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .refresh_token("stale-refresh-token")
             .plan_type("business")
@@ -1787,7 +1787,7 @@ async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
         AuthCredentialsStoreMode::File,
     )?;
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home.path(),
+        darwin_code_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
         "Saved user message",
@@ -1797,7 +1797,7 @@ async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
     )?;
     let refresh_token_url = format!("{}/oauth/token", server.uri());
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -1843,15 +1843,15 @@ async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_prefers_path_over_thread_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1910,12 +1910,12 @@ async fn thread_resume_prefers_path_over_thread_id() -> Result<()> {
 #[tokio::test]
 async fn thread_resume_supports_history_and_overrides() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
         mut mcp, thread_id, ..
-    } = start_materialized_thread_and_restart(codex_home.path(), "seed history").await?;
+    } = start_materialized_thread_and_restart(darwin_code_home.path(), "seed history").await?;
 
     let history_text = "Hello from history";
     let history = vec![ResponseItem::Message {
@@ -1963,15 +1963,15 @@ struct RestartedThreadFixture {
 }
 
 async fn start_materialized_thread_and_restart(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     seed_text: &str,
 ) -> Result<RestartedThreadFixture> {
-    let mut first_mcp = McpProcess::new(codex_home).await?;
+    let mut first_mcp = McpProcess::new(darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, first_mcp.initialize()).await??;
 
     let start_id = first_mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.1-codex-max".to_string()),
+            model: Some("gpt-5.1-darwin-code-max".to_string()),
             ..Default::default()
         })
         .await?;
@@ -2010,7 +2010,7 @@ async fn start_materialized_thread_and_restart(
 
     drop(first_mcp);
 
-    let mut second_mcp = McpProcess::new(codex_home).await?;
+    let mut second_mcp = McpProcess::new(darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, second_mcp.initialize()).await??;
 
     Ok(RestartedThreadFixture {
@@ -2037,15 +2037,15 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     ]);
     let response_mock = responses::mount_sse_sequence(&server, vec![first_body, second_body]).await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut primary = McpProcess::new(codex_home.path()).await?;
+    let mut primary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -2077,13 +2077,13 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     )
     .await??;
 
-    let mut secondary = McpProcess::new(codex_home.path()).await?;
+    let mut secondary = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let resume_id = secondary
         .send_thread_resume_request(ThreadResumeParams {
             thread_id: thread.id,
-            model: Some("gpt-5.2-codex".to_string()),
+            model: Some("gpt-5.2-darwin-code".to_string()),
             personality: Some(Personality::Friendly),
             ..Default::default()
         })
@@ -2131,7 +2131,7 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     );
     let instructions_text = request.instructions_text();
     assert!(
-        instructions_text.contains(CODEX_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT),
+        instructions_text.contains(DARWIN_CODE_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT),
         "expected default base instructions from history, got {instructions_text:?}"
     );
 
@@ -2139,13 +2139,13 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
 }
 
 // Helper to create a config.toml pointing at the mock model server.
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
             r#"
-model = "gpt-5.2-codex"
+model = "gpt-5.2-darwin-code"
 approval_policy = "never"
 sandbox_mode = "read-only"
 
@@ -2167,7 +2167,7 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_chatgpt_base_url(
-    codex_home: &std::path::Path,
+    darwin_code_home: &std::path::Path,
     server_uri: &str,
     chatgpt_base_url: &str,
     general_analytics_enabled: bool,
@@ -2177,12 +2177,12 @@ fn create_config_toml_with_chatgpt_base_url(
     } else {
         "\ngeneral_analytics = false".to_string()
     };
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
             r#"
-model = "gpt-5.2-codex"
+model = "gpt-5.2-darwin-code"
 approval_policy = "never"
 sandbox_mode = "read-only"
 chatgpt_base_url = "{chatgpt_base_url}"
@@ -2205,15 +2205,15 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_required_broken_mcp(
-    codex_home: &std::path::Path,
+    darwin_code_home: &std::path::Path,
     server_uri: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
             r#"
-model = "gpt-5.2-codex"
+model = "gpt-5.2-darwin-code"
 approval_policy = "never"
 sandbox_mode = "read-only"
 
@@ -2230,7 +2230,7 @@ request_max_retries = 0
 stream_max_retries = 0
 
 [mcp_servers.required_broken]
-command = "codex-definitely-not-a-real-binary"
+command = "darwin-code-definitely-not-a-real-binary"
 required = true
 "#
         ),
@@ -2255,15 +2255,15 @@ struct RolloutFixture {
     expected_updated_at: i64,
 }
 
-fn setup_rollout_fixture(codex_home: &Path, server_uri: &str) -> Result<RolloutFixture> {
-    create_config_toml(codex_home, server_uri)?;
+fn setup_rollout_fixture(darwin_code_home: &Path, server_uri: &str) -> Result<RolloutFixture> {
+    create_config_toml(darwin_code_home, server_uri)?;
 
     let preview = "Saved user message";
     let filename_ts = "2025-01-05T12-00-00";
     let meta_rfc3339 = "2025-01-05T12:00:00Z";
     let expected_updated_at_rfc3339 = "2025-01-07T00:00:00Z";
     let conversation_id = create_fake_rollout_with_text_elements(
-        codex_home,
+        darwin_code_home,
         filename_ts,
         meta_rfc3339,
         preview,
@@ -2271,7 +2271,7 @@ fn setup_rollout_fixture(codex_home: &Path, server_uri: &str) -> Result<RolloutF
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let rollout_file_path = rollout_path(codex_home, filename_ts, &conversation_id);
+    let rollout_file_path = rollout_path(darwin_code_home, filename_ts, &conversation_id);
     set_rollout_mtime(rollout_file_path.as_path(), expected_updated_at_rfc3339)?;
     let before_modified = std::fs::metadata(&rollout_file_path)?.modified()?;
     let expected_updated_at = chrono::DateTime::parse_from_rfc3339(expected_updated_at_rfc3339)?

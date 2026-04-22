@@ -3,8 +3,8 @@ mod exit_status;
 pub(crate) mod login;
 
 use clap::Parser;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_cli::CliConfigOverrides;
 
 pub use debug_sandbox::run_command_under_landlock;
 pub use debug_sandbox::run_command_under_seatbelt;

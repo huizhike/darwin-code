@@ -3,9 +3,9 @@ use serde_json::Value;
 use std::sync::OnceLock;
 
 use crate::responses::ResponsesRequest;
-use codex_protocol::protocol::APPS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use darwin_code_protocol::protocol::APPS_INSTRUCTIONS_OPEN_TAG;
+use darwin_code_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
+use darwin_code_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ContextSnapshotRenderMode {

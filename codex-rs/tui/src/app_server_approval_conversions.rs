@@ -1,10 +1,10 @@
-use codex_app_server_protocol::AdditionalFileSystemPermissions;
-use codex_app_server_protocol::AdditionalNetworkPermissions;
-use codex_app_server_protocol::GrantedPermissionProfile;
-use codex_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
-use codex_protocol::protocol::NetworkApprovalContext;
-use codex_protocol::protocol::NetworkApprovalProtocol;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use darwin_code_app_server_protocol::AdditionalFileSystemPermissions;
+use darwin_code_app_server_protocol::AdditionalNetworkPermissions;
+use darwin_code_app_server_protocol::GrantedPermissionProfile;
+use darwin_code_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
+use darwin_code_protocol::protocol::NetworkApprovalContext;
+use darwin_code_protocol::protocol::NetworkApprovalProtocol;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
 
 pub(crate) fn network_approval_context_to_core(
     value: AppServerNetworkApprovalContext,
@@ -12,16 +12,16 @@ pub(crate) fn network_approval_context_to_core(
     NetworkApprovalContext {
         host: value.host,
         protocol: match value.protocol {
-            codex_app_server_protocol::NetworkApprovalProtocol::Http => {
+            darwin_code_app_server_protocol::NetworkApprovalProtocol::Http => {
                 NetworkApprovalProtocol::Http
             }
-            codex_app_server_protocol::NetworkApprovalProtocol::Https => {
+            darwin_code_app_server_protocol::NetworkApprovalProtocol::Https => {
                 NetworkApprovalProtocol::Https
             }
-            codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp => {
+            darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp => {
                 NetworkApprovalProtocol::Socks5Tcp
             }
-            codex_app_server_protocol::NetworkApprovalProtocol::Socks5Udp => {
+            darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Udp => {
                 NetworkApprovalProtocol::Socks5Udp
             }
         },
@@ -48,12 +48,12 @@ pub(crate) fn granted_permission_profile_from_request(
 mod tests {
     use super::granted_permission_profile_from_request;
     use super::network_approval_context_to_core;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::protocol::NetworkApprovalContext;
-    use codex_protocol::protocol::NetworkApprovalProtocol;
-    use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::models::FileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::protocol::NetworkApprovalContext;
+    use darwin_code_protocol::protocol::NetworkApprovalProtocol;
+    use darwin_code_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -64,9 +64,9 @@ mod tests {
     #[test]
     fn converts_app_server_network_approval_context_to_core() {
         assert_eq!(
-            network_approval_context_to_core(codex_app_server_protocol::NetworkApprovalContext {
+            network_approval_context_to_core(darwin_code_app_server_protocol::NetworkApprovalContext {
                 host: "example.com".to_string(),
-                protocol: codex_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
             }),
             NetworkApprovalContext {
                 host: "example.com".to_string(),
@@ -87,11 +87,11 @@ mod tests {
                     write: Some(vec![absolute_path("/tmp/write")]),
                 }),
             }),
-            codex_app_server_protocol::GrantedPermissionProfile {
-                network: Some(codex_app_server_protocol::AdditionalNetworkPermissions {
+            darwin_code_app_server_protocol::GrantedPermissionProfile {
+                network: Some(darwin_code_app_server_protocol::AdditionalNetworkPermissions {
                     enabled: Some(true),
                 }),
-                file_system: Some(codex_app_server_protocol::AdditionalFileSystemPermissions {
+                file_system: Some(darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
                     read: Some(vec![absolute_path("/tmp/read-only")]),
                     write: Some(vec![absolute_path("/tmp/write")]),
                 }),

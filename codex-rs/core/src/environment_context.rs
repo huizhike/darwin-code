@@ -1,9 +1,9 @@
 use crate::contextual_user_message::ENVIRONMENT_CONTEXT_FRAGMENT;
 use crate::session::turn_context::TurnContext;
 use crate::shell::Shell;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::TurnContextNetworkItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_protocol::protocol::TurnContextNetworkItem;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -133,12 +133,12 @@ impl EnvironmentContext {
             allowed_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+                .and_then(darwin_code_config::NetworkDomainPermissionsToml::allowed_domains)
                 .unwrap_or_default(),
             denied_domains: network
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::denied_domains)
+                .and_then(darwin_code_config::NetworkDomainPermissionsToml::denied_domains)
                 .unwrap_or_default(),
         })
     }

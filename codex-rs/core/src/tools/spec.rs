@@ -5,23 +5,23 @@ use crate::tools::handlers::multi_agents_common::DEFAULT_WAIT_TIMEOUT_MS;
 use crate::tools::handlers::multi_agents_common::MAX_WAIT_TIMEOUT_MS;
 use crate::tools::handlers::multi_agents_common::MIN_WAIT_TIMEOUT_MS;
 use crate::tools::registry::ToolRegistryBuilder;
-use codex_mcp::ToolInfo;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_tools::AdditionalProperties;
-use codex_tools::DiscoverableTool;
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolHandlerKind;
-use codex_tools::ToolName;
-use codex_tools::ToolNamespace;
-use codex_tools::ToolRegistryPlanDeferredTool;
-use codex_tools::ToolRegistryPlanMcpTool;
-use codex_tools::ToolRegistryPlanParams;
-use codex_tools::ToolUserShellType;
-use codex_tools::ToolsConfig;
-use codex_tools::WaitAgentTimeoutOptions;
-use codex_tools::augment_tool_spec_for_code_mode;
-use codex_tools::build_tool_registry_plan;
+use darwin_code_mcp::ToolInfo;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_tools::AdditionalProperties;
+use darwin_code_tools::DiscoverableTool;
+use darwin_code_tools::JsonSchema;
+use darwin_code_tools::ResponsesApiTool;
+use darwin_code_tools::ToolHandlerKind;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::ToolNamespace;
+use darwin_code_tools::ToolRegistryPlanDeferredTool;
+use darwin_code_tools::ToolRegistryPlanMcpTool;
+use darwin_code_tools::ToolRegistryPlanParams;
+use darwin_code_tools::ToolUserShellType;
+use darwin_code_tools::ToolsConfig;
+use darwin_code_tools::WaitAgentTimeoutOptions;
+use darwin_code_tools::augment_tool_spec_for_code_mode;
+use darwin_code_tools::build_tool_registry_plan;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -305,7 +305,7 @@ pub(crate) fn build_specs_with_discoverable_tools(
     for unavailable_tool in unavailable_called_tools {
         let tool_name = unavailable_tool.display();
         if existing_spec_names.insert(tool_name.clone()) {
-            let spec = codex_tools::ToolSpec::Function(ResponsesApiTool {
+            let spec = darwin_code_tools::ToolSpec::Function(ResponsesApiTool {
                 name: tool_name.clone(),
                 description: unavailable_tool_message(
                     &tool_name,

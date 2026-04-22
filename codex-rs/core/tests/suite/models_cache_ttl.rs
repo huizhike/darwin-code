@@ -5,29 +5,29 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::TimeZone;
 use chrono::Utc;
-use codex_login::CodexAuth;
-use codex_models_manager::client_version_to_whole;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::client_version_to_whole;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -36,10 +36,10 @@ use wiremock::MockServer;
 
 const ETAG: &str = "\"models-etag-ttl\"";
 const CACHE_FILE: &str = "models_cache.json";
-const REMOTE_MODEL: &str = "codex-test-ttl";
-const VERSIONED_MODEL: &str = "codex-test-versioned";
-const MISSING_VERSION_MODEL: &str = "codex-test-missing-version";
-const DIFFERENT_VERSION_MODEL: &str = "codex-test-different-version";
+const REMOTE_MODEL: &str = "darwin-code-test-ttl";
+const VERSIONED_MODEL: &str = "darwin-code-test-versioned";
+const MISSING_VERSION_MODEL: &str = "darwin-code-test-missing-version";
+const DIFFERENT_VERSION_MODEL: &str = "darwin-code-test-different-version";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
@@ -55,7 +55,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder.with_config(|config| {
         config.model = Some("gpt-5".to_string());
         config.model_provider.request_max_retries = Some(0);
@@ -63,7 +63,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
     });
 
     let test = builder.build(&server).await?;
-    let codex = Arc::clone(&test.codex);
+    let darwin-code = Arc::clone(&test.darwin-code);
     let config = test.config.clone();
 
     // Populate cache via initial refresh.
@@ -72,7 +72,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
 
-    let cache_path = config.codex_home.join(CACHE_FILE);
+    let cache_path = config.darwin_code_home.join(CACHE_FILE);
     let stale_time = Utc.timestamp_opt(0, 0).single().expect("valid epoch");
     rewrite_cache_timestamp(&cache_path, stale_time).await?;
 
@@ -88,7 +88,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
     )
     .await;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hi".into(),
@@ -96,7 +96,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
             }],
             final_output_json_schema: None,
             cwd: test.cwd_path().to_path_buf(),
-            approval_policy: codex_protocol::protocol::AskForApproval::Never,
+            approval_policy: darwin_code_protocol::protocol::AskForApproval::Never,
             approvals_reviewer: None,
             sandbox_policy: SandboxPolicy::DangerFullAccess,
             model: test.session_configured.model.clone(),
@@ -108,7 +108,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
         })
         .await?;
 
-    let _ = wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let refreshed_cache = read_cache(&cache_path).await?;
     assert!(
@@ -148,7 +148,7 @@ async fn uses_cache_when_version_matches() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let cache = ModelsCache {
@@ -195,7 +195,7 @@ async fn refreshes_when_cache_version_missing() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let cache = ModelsCache {
@@ -242,7 +242,7 @@ async fn refreshes_when_cache_version_differs() -> Result<()> {
         models_mocks.push(responses::mount_models_once(&server, models_response.clone()).await);
     }
 
-    let mut builder = test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let client_version = client_version_to_whole();

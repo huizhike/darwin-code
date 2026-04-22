@@ -468,7 +468,7 @@ pub async fn run_main_with_transport(
         });
     }
 
-    let feedback = CodexFeedback::new();
+    let feedback = DarwinCodeFeedback::new();
 
     let otel = darwin_code_core::otel_init::build_provider(
         &config,

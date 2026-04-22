@@ -2,11 +2,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use codex_protocol::ThreadId;
+use darwin_code_protocol::ThreadId;
 use rand::Rng;
 use tracing::error;
 
-use codex_shell_command::parse_command::shlex_join;
+use darwin_code_shell_command::parse_command::shlex_join;
 
 const INITIAL_DELAY_MS: u64 = 200;
 const BACKOFF_FACTOR: f64 = 2.0;
@@ -23,8 +23,8 @@ const BACKOFF_FACTOR: f64 = 2.0;
 /// Example:
 ///
 /// ```rust
-/// codex_core::feedback_tags!(model = "gpt-5", cached = true);
-/// codex_core::feedback_tags!(provider = provider_id, request_id = request_id);
+/// darwin_code_core::feedback_tags!(model = "gpt-5", cached = true);
+/// darwin_code_core::feedback_tags!(provider = provider_id, request_id = request_id);
 /// ```
 #[macro_export]
 macro_rules! feedback_tags {
@@ -127,9 +127,9 @@ pub fn resume_command(thread_name: Option<&str>, thread_id: Option<ThreadId>) ->
         let needs_double_dash = target.starts_with('-');
         let escaped = shlex_join(&[target]);
         if needs_double_dash {
-            format!("codex resume -- {escaped}")
+            format!("darwin-code resume -- {escaped}")
         } else {
-            format!("codex resume {escaped}")
+            format!("darwin-code resume {escaped}")
         }
     })
 }

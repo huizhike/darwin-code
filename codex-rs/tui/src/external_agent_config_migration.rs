@@ -7,8 +7,8 @@ use crate::selection_list::selection_option_row_with_dim;
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::PluginsMigration;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+use darwin_code_app_server_protocol::PluginsMigration;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -764,9 +764,9 @@ mod tests {
     use crate::custom_terminal::Terminal;
     use crate::test_backend::VT100Backend;
     use crate::tui::FrameRequester;
-    use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-    use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-    use codex_app_server_protocol::PluginsMigration;
+    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
+    use darwin_code_app_server_protocol::PluginsMigration;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyModifiers;
@@ -780,7 +780,7 @@ mod tests {
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Config,
                 description:
-                    "Migrate /Users/alex/.claude/settings.json into /Users/alex/.codex/config.toml"
+                    "Migrate /Users/alex/.claude/settings.json into /Users/alex/.darwin-code/config.toml"
                         .to_string(),
                 cwd: None,
                 details: None,
@@ -791,7 +791,7 @@ mod tests {
                     "Migrate enabled plugins from /workspace/project/.claude/settings.json"
                         .to_string(),
                 cwd: Some(PathBuf::from("/workspace/project")),
-                details: Some(codex_app_server_protocol::MigrationDetails {
+                details: Some(darwin_code_app_server_protocol::MigrationDetails {
                     plugins: vec![
                         PluginsMigration {
                             marketplace_name: "acme-tools".to_string(),

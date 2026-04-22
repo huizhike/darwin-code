@@ -1,20 +1,20 @@
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelInstructionsVariables;
-use codex_protocol::openai_models::ModelMessages;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::TruncationMode;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::WebSearchToolType;
-use codex_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelInstructionsVariables;
+use darwin_code_protocol::openai_models::ModelMessages;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::TruncationMode;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::WebSearchToolType;
+use darwin_code_protocol::openai_models::default_input_modalities;
 
 use crate::config::ModelsManagerConfig;
-use codex_utils_output_truncation::approx_bytes_for_tokens;
+use darwin_code_utils_output_truncation::approx_bytes_for_tokens;
 use tracing::warn;
 
 pub const BASE_INSTRUCTIONS: &str = include_str!("../prompt.md");
-const DEFAULT_PERSONALITY_HEADER: &str = "You are Codex, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
+const DEFAULT_PERSONALITY_HEADER: &str = "You are Darwin-Code, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
 const LOCAL_FRIENDLY_TEMPLATE: &str =
     "You optimize for team morale and being a supportive teammate as much as code quality.";
 const LOCAL_PRAGMATIC_TEMPLATE: &str = "You are a deeply pragmatic, effective software engineer.";
@@ -95,7 +95,7 @@ pub fn model_info_from_slug(slug: &str) -> ModelInfo {
 
 fn local_personality_messages_for_slug(slug: &str) -> Option<ModelMessages> {
     match slug {
-        "gpt-5.2-codex" | "exp-codex-personality" => Some(ModelMessages {
+        "gpt-5.2-darwin-code" | "exp-darwin-code-personality" => Some(ModelMessages {
             instructions_template: Some(format!(
                 "{DEFAULT_PERSONALITY_HEADER}\n\n{PERSONALITY_PLACEHOLDER}\n\n{BASE_INSTRUCTIONS}"
             )),

@@ -1,12 +1,12 @@
 use clap::Parser;
-use codex_app_server_client::legacy_core;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_tui::AppExitInfo;
-use codex_tui::Cli;
-use codex_tui::ExitReason;
-use codex_tui::run_main;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_app_server_client::legacy_core;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_arg0::arg0_dispatch_or_else;
+use darwin_code_tui::AppExitInfo;
+use darwin_code_tui::Cli;
+use darwin_code_tui::ExitReason;
+use darwin_code_tui::run_main;
+use darwin_code_utils_cli::CliConfigOverrides;
 use supports_color::Stream;
 
 fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<String> {
@@ -19,7 +19,7 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
 
     let mut lines = Vec::new();
     if !token_usage.is_zero() {
-        lines.push(codex_protocol::protocol::FinalOutput::from(token_usage).to_string());
+        lines.push(darwin_code_protocol::protocol::FinalOutput::from(token_usage).to_string());
     }
 
     if let Some(resume_cmd) = legacy_core::util::resume_command(thread_name.as_deref(), thread_id) {

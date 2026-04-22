@@ -14,10 +14,10 @@
 //! `SessionSource::SubAgent(ThreadSpawn { parent_thread_id, .. })` edges until no new children are
 //! found. The primary thread itself is never included in the output.
 
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::Thread;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_app_server_protocol::SessionSource;
+use darwin_code_app_server_protocol::Thread;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SubAgentSource;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -100,13 +100,13 @@ pub(crate) fn find_loaded_subagent_threads_for_primary(
 mod tests {
     use super::LoadedSubagentThread;
     use super::find_loaded_subagent_threads_for_primary;
-    use codex_app_server_protocol::SessionSource;
-    use codex_app_server_protocol::Thread;
-    use codex_app_server_protocol::ThreadStatus;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SubAgentSource;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_app_server_protocol::SessionSource;
+    use darwin_code_app_server_protocol::Thread;
+    use darwin_code_app_server_protocol::ThreadStatus;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::protocol::SubAgentSource;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     fn test_thread(thread_id: ThreadId, source: SessionSource) -> Thread {

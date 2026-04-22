@@ -1,6 +1,6 @@
 //! Session- and turn-scoped helpers for talking to model provider APIs.
 //!
-//! `ModelClient` is intended to live for the lifetime of a Codex session and holds the stable
+//! `ModelClient` is intended to live for the lifetime of a Darwin-Code session and holds the stable
 //! configuration and state needed to talk to a provider (auth, provider selection, conversation id,
 //! and transport fallback state).
 //!
@@ -10,7 +10,7 @@
 //!
 //! A [`ModelClientSession`] is created per turn and is used to stream one or more Responses API
 //! requests during that turn. It caches a Responses WebSocket connection (opened lazily) and stores
-//! per-turn state such as the `x-codex-turn-state` token used for sticky routing.
+//! per-turn state such as the `x-darwin-code-turn-state` token used for sticky routing.
 //!
 //! WebSocket prewarm is a v2-only `response.create` with `generate=false`; it waits for completion
 //! so the next request can reuse the same connection and `previous_response_id`.
@@ -31,56 +31,56 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-use codex_api::ApiError;
-use codex_api::AuthProvider;
-use codex_api::CompactClient as ApiCompactClient;
-use codex_api::CompactionInput as ApiCompactionInput;
-use codex_api::Compression;
-use codex_api::MemoriesClient as ApiMemoriesClient;
-use codex_api::MemorySummarizeInput as ApiMemorySummarizeInput;
-use codex_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
-use codex_api::Provider as ApiProvider;
-use codex_api::RawMemory as ApiRawMemory;
-use codex_api::RealtimeCallClient as ApiRealtimeCallClient;
-use codex_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
-use codex_api::Reasoning;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::ResponseCreateWsRequest;
-use codex_api::ResponsesApiRequest;
-use codex_api::ResponsesClient as ApiResponsesClient;
-use codex_api::ResponsesOptions as ApiResponsesOptions;
-use codex_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
-use codex_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
-use codex_api::ResponsesWsRequest;
-use codex_api::SharedAuthProvider;
-use codex_api::SseTelemetry;
-use codex_api::TransportError;
-use codex_api::WebsocketTelemetry;
-use codex_api::auth_header_telemetry;
-use codex_api::build_conversation_headers;
-use codex_api::create_text_param_for_request;
-use codex_api::response_create_client_metadata;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::RefreshTokenError;
-use codex_login::UnauthorizedRecovery;
-use codex_login::default_client::build_reqwest_client;
-use codex_otel::SessionTelemetry;
-use codex_otel::current_span_w3c_trace_context;
+use darwin_code_api::ApiError;
+use darwin_code_api::AuthProvider;
+use darwin_code_api::CompactClient as ApiCompactClient;
+use darwin_code_api::CompactionInput as ApiCompactionInput;
+use darwin_code_api::Compression;
+use darwin_code_api::MemoriesClient as ApiMemoriesClient;
+use darwin_code_api::MemorySummarizeInput as ApiMemorySummarizeInput;
+use darwin_code_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
+use darwin_code_api::Provider as ApiProvider;
+use darwin_code_api::RawMemory as ApiRawMemory;
+use darwin_code_api::RealtimeCallClient as ApiRealtimeCallClient;
+use darwin_code_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
+use darwin_code_api::Reasoning;
+use darwin_code_api::RequestTelemetry;
+use darwin_code_api::ReqwestTransport;
+use darwin_code_api::ResponseCreateWsRequest;
+use darwin_code_api::ResponsesApiRequest;
+use darwin_code_api::ResponsesClient as ApiResponsesClient;
+use darwin_code_api::ResponsesOptions as ApiResponsesOptions;
+use darwin_code_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
+use darwin_code_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
+use darwin_code_api::ResponsesWsRequest;
+use darwin_code_api::SharedAuthProvider;
+use darwin_code_api::SseTelemetry;
+use darwin_code_api::TransportError;
+use darwin_code_api::WebsocketTelemetry;
+use darwin_code_api::auth_header_telemetry;
+use darwin_code_api::build_conversation_headers;
+use darwin_code_api::create_text_param_for_request;
+use darwin_code_api::response_create_client_metadata;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::RefreshTokenError;
+use darwin_code_login::UnauthorizedRecovery;
+use darwin_code_login::default_client::build_reqwest_client;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::current_span_w3c_trace_context;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::Verbosity as VerbosityConfig;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_tools::create_tools_json_for_responses_api;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::Verbosity as VerbosityConfig;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
 use futures::StreamExt;
@@ -102,26 +102,26 @@ use tracing::warn;
 use crate::client_common::Prompt;
 use crate::client_common::ResponseEvent;
 use crate::client_common::ResponseStream;
-use crate::flags::CODEX_RS_SSE_FIXTURE;
+use crate::flags::DARWIN_CODE_RS_SSE_FIXTURE;
 use crate::util::emit_feedback_auth_recovery_tags;
-use codex_api::map_api_error;
-use codex_login::auth_env_telemetry::AuthEnvTelemetry;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
+use darwin_code_api::map_api_error;
+use darwin_code_login::auth_env_telemetry::AuthEnvTelemetry;
+use darwin_code_login::auth_env_telemetry::collect_auth_env_telemetry;
+use darwin_code_model_provider::SharedModelProvider;
+use darwin_code_model_provider::create_model_provider;
 #[cfg(test)]
-use codex_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
+use darwin_code_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result;
 
 pub const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
-pub const X_CODEX_INSTALLATION_ID_HEADER: &str = "x-codex-installation-id";
-pub const X_CODEX_TURN_STATE_HEADER: &str = "x-codex-turn-state";
-pub const X_CODEX_TURN_METADATA_HEADER: &str = "x-codex-turn-metadata";
-pub const X_CODEX_PARENT_THREAD_ID_HEADER: &str = "x-codex-parent-thread-id";
-pub const X_CODEX_WINDOW_ID_HEADER: &str = "x-codex-window-id";
+pub const X_DARWIN_CODE_INSTALLATION_ID_HEADER: &str = "x-darwin-code-installation-id";
+pub const X_DARWIN_CODE_TURN_STATE_HEADER: &str = "x-darwin-code-turn-state";
+pub const X_DARWIN_CODE_TURN_METADATA_HEADER: &str = "x-darwin-code-turn-metadata";
+pub const X_DARWIN_CODE_PARENT_THREAD_ID_HEADER: &str = "x-darwin-code-parent-thread-id";
+pub const X_DARWIN_CODE_WINDOW_ID_HEADER: &str = "x-darwin-code-window-id";
 pub const X_OPENAI_SUBAGENT_HEADER: &str = "x-openai-subagent";
 pub const X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER: &str =
     "x-responsesapi-include-timing-metrics";
@@ -158,7 +158,7 @@ struct ModelClientState {
 /// Keeping this as a single bundle ensures prewarm and normal request paths
 /// share the same auth/provider setup flow.
 struct CurrentClientSetup {
-    auth: Option<CodexAuth>,
+    auth: Option<DarwinCodeAuth>,
     api_provider: ApiProvider,
     api_auth: SharedAuthProvider,
 }
@@ -176,7 +176,7 @@ impl RequestRouteTelemetry {
 
 /// A session-scoped client for model-provider API calls.
 ///
-/// This holds configuration and state that should be shared across turns within a Codex session
+/// This holds configuration and state that should be shared across turns within a Darwin-Code session
 /// (auth, provider selection, conversation id, and transport fallback state).
 ///
 /// WebSocket fallback is session-scoped: once a turn activates the HTTP fallback, subsequent turns
@@ -197,10 +197,10 @@ pub struct ModelClient {
 ///
 /// - The last full request, so subsequent calls can reuse incremental websocket request payloads
 ///   only when the current request is an incremental extension of the previous one.
-/// - The `x-codex-turn-state` sticky-routing token, which must be replayed for all requests within
+/// - The `x-darwin-code-turn-state` sticky-routing token, which must be replayed for all requests within
 ///   the same turn.
 ///
-/// Create a fresh `ModelClientSession` for each Codex turn. Reusing it across turns would replay
+/// Create a fresh `ModelClientSession` for each Darwin-Code turn. Reusing it across turns would replay
 /// the previous turn's sticky-routing token into the next turn, which violates the client/server
 /// contract and can cause routing bugs.
 pub struct ModelClientSession {
@@ -209,8 +209,8 @@ pub struct ModelClientSession {
     /// Turn state for sticky routing.
     ///
     /// This is an `OnceLock` that stores the turn state value received from the server
-    /// on turn start via the `x-codex-turn-state` response header. Once set, this value
-    /// should be sent back to the server in the `x-codex-turn-state` request header for
+    /// on turn start via the `x-darwin-code-turn-state` response header. Once set, this value
+    /// should be sent back to the server in the `x-darwin-code-turn-state` request header for
     /// all subsequent requests within the same turn to maintain sticky routing.
     ///
     /// This is a contract between the client and server: we receive it at turn start,
@@ -280,7 +280,7 @@ impl ModelClient {
     #[allow(clippy::too_many_arguments)]
     /// Creates a new session-scoped `ModelClient`.
     ///
-    /// All arguments are expected to be stable for the lifetime of a Codex session. Per-turn values
+    /// All arguments are expected to be stable for the lifetime of a Darwin-Code session. Per-turn values
     /// are passed to [`ModelClientSession::stream`] (and other turn-scoped methods) explicitly.
     pub fn new(
         auth_manager: Option<Arc<AuthManager>>,
@@ -294,12 +294,12 @@ impl ModelClient {
         beta_features_header: Option<String>,
     ) -> Self {
         let model_provider = create_model_provider(provider_info, auth_manager);
-        let codex_api_key_env_enabled = model_provider
+        let darwin_code_api_key_env_enabled = model_provider
             .auth_manager()
             .as_ref()
-            .is_some_and(|manager| manager.codex_api_key_env_enabled());
+            .is_some_and(|manager| manager.darwin_code_api_key_env_enabled());
         let auth_env_telemetry =
-            collect_auth_env_telemetry(model_provider.info(), codex_api_key_env_enabled);
+            collect_auth_env_telemetry(model_provider.info(), darwin_code_api_key_env_enabled);
         Self {
             state: Arc::new(ModelClientState {
                 conversation_id,
@@ -380,7 +380,7 @@ impl ModelClient {
         if activated {
             warn!("falling back to HTTP");
             session_telemetry.counter(
-                "codex.transport.fallback_to_http",
+                "darwin-code.transport.fallback_to_http",
                 /*inc*/ 1,
                 &[("from_wire_api", "responses_websocket")],
             );
@@ -413,7 +413,7 @@ impl ModelClient {
         let request_telemetry = Self::build_request_telemetry(
             session_telemetry,
             AuthRequestTelemetryContext::new(
-                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.auth.as_ref().map(DarwinCodeAuth::auth_mode),
                 client_setup.api_auth.as_ref(),
                 PendingUnauthorizedRetry::default(),
             ),
@@ -452,7 +452,7 @@ impl ModelClient {
 
         let mut extra_headers = ApiHeaderMap::new();
         if let Ok(header_value) = HeaderValue::from_str(&self.state.installation_id) {
-            extra_headers.insert(X_CODEX_INSTALLATION_ID_HEADER, header_value);
+            extra_headers.insert(X_DARWIN_CODE_INSTALLATION_ID_HEADER, header_value);
         }
         extra_headers.extend(self.build_responses_identity_headers());
         extra_headers.extend(build_conversation_headers(Some(
@@ -512,7 +512,7 @@ impl ModelClient {
         let request_telemetry = Self::build_request_telemetry(
             session_telemetry,
             AuthRequestTelemetryContext::new(
-                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.auth.as_ref().map(DarwinCodeAuth::auth_mode),
                 client_setup.api_auth.as_ref(),
                 PendingUnauthorizedRetry::default(),
             ),
@@ -553,10 +553,10 @@ impl ModelClient {
         if let Some(parent_thread_id) = parent_thread_id_header_value(&self.state.session_source)
             && let Ok(val) = HeaderValue::from_str(&parent_thread_id)
         {
-            extra_headers.insert(X_CODEX_PARENT_THREAD_ID_HEADER, val);
+            extra_headers.insert(X_DARWIN_CODE_PARENT_THREAD_ID_HEADER, val);
         }
         if let Ok(val) = HeaderValue::from_str(&self.current_window_id()) {
-            extra_headers.insert(X_CODEX_WINDOW_ID_HEADER, val);
+            extra_headers.insert(X_DARWIN_CODE_WINDOW_ID_HEADER, val);
         }
         extra_headers
     }
@@ -567,11 +567,11 @@ impl ModelClient {
     ) -> HashMap<String, String> {
         let mut client_metadata = HashMap::new();
         client_metadata.insert(
-            X_CODEX_INSTALLATION_ID_HEADER.to_string(),
+            X_DARWIN_CODE_INSTALLATION_ID_HEADER.to_string(),
             self.state.installation_id.clone(),
         );
         client_metadata.insert(
-            X_CODEX_WINDOW_ID_HEADER.to_string(),
+            X_DARWIN_CODE_WINDOW_ID_HEADER.to_string(),
             self.current_window_id(),
         );
         if let Some(subagent) = subagent_header_value(&self.state.session_source) {
@@ -579,7 +579,7 @@ impl ModelClient {
         }
         if let Some(parent_thread_id) = parent_thread_id_header_value(&self.state.session_source) {
             client_metadata.insert(
-                X_CODEX_PARENT_THREAD_ID_HEADER.to_string(),
+                X_DARWIN_CODE_PARENT_THREAD_ID_HEADER.to_string(),
                 parent_thread_id,
             );
         }
@@ -587,7 +587,7 @@ impl ModelClient {
             && let Ok(turn_metadata) = turn_metadata_header.to_str()
         {
             client_metadata.insert(
-                X_CODEX_TURN_METADATA_HEADER.to_string(),
+                X_DARWIN_CODE_TURN_METADATA_HEADER.to_string(),
                 turn_metadata.to_string(),
             );
         }
@@ -636,7 +636,7 @@ impl ModelClient {
     pub fn responses_websocket_enabled(&self) -> bool {
         if !self.state.provider.info().supports_websockets
             || self.state.disable_websockets.load(Ordering::Relaxed)
-            || (*CODEX_RS_SSE_FIXTURE).is_some()
+            || (*DARWIN_CODE_RS_SSE_FIXTURE).is_some()
         {
             return false;
         }
@@ -667,7 +667,7 @@ impl ModelClient {
     async fn connect_websocket(
         &self,
         session_telemetry: &SessionTelemetry,
-        api_provider: codex_api::Provider,
+        api_provider: darwin_code_api::Provider,
         api_auth: SharedAuthProvider,
         turn_state: Option<Arc<OnceLock<String>>>,
         turn_metadata_header: Option<&str>,
@@ -687,7 +687,7 @@ impl ModelClient {
             websocket_connect_timeout,
             ApiWebSocketResponsesClient::new(api_provider, api_auth).connect(
                 headers,
-                codex_login::default_client::default_headers(),
+                darwin_code_login::default_client::default_headers(),
                 turn_state,
                 Some(websocket_telemetry),
             ),
@@ -801,7 +801,7 @@ impl ModelClientSession {
 
     fn build_responses_request(
         &self,
-        provider: &codex_api::Provider,
+        provider: &darwin_code_api::Provider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
@@ -864,7 +864,7 @@ impl ModelClientSession {
             prompt_cache_key,
             text,
             client_metadata: Some(HashMap::from([(
-                X_CODEX_INSTALLATION_ID_HEADER.to_string(),
+                X_DARWIN_CODE_INSTALLATION_ID_HEADER.to_string(),
                 self.client.state.installation_id.clone(),
             )])),
         };
@@ -998,7 +998,7 @@ impl ModelClientSession {
             ))
         })?;
         let auth_context = AuthRequestTelemetryContext::new(
-            client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+            client_setup.auth.as_ref().map(DarwinCodeAuth::auth_mode),
             client_setup.api_auth.as_ref(),
             PendingUnauthorizedRetry::default(),
         );
@@ -1094,9 +1094,9 @@ impl ModelClientSession {
             ))
     }
 
-    fn responses_request_compression(&self, auth: Option<&CodexAuth>) -> Compression {
+    fn responses_request_compression(&self, auth: Option<&DarwinCodeAuth>) -> Compression {
         if self.client.state.enable_request_compression
-            && auth.is_some_and(CodexAuth::is_chatgpt_auth)
+            && auth.is_some_and(DarwinCodeAuth::is_chatgpt_auth)
             && self.client.state.provider.info().is_openai()
         {
             Compression::Zstd
@@ -1133,9 +1133,9 @@ impl ModelClientSession {
         service_tier: Option<ServiceTier>,
         turn_metadata_header: Option<&str>,
     ) -> Result<ResponseStream> {
-        if let Some(path) = &*CODEX_RS_SSE_FIXTURE {
+        if let Some(path) = &*DARWIN_CODE_RS_SSE_FIXTURE {
             warn!(path, "Streaming from fixture");
-            let stream = codex_api::stream_from_fixture(
+            let stream = darwin_code_api::stream_from_fixture(
                 path,
                 self.client.state.provider.info().stream_idle_timeout(),
             )
@@ -1153,7 +1153,7 @@ impl ModelClientSession {
             let client_setup = self.client.current_client_setup().await?;
             let transport = ReqwestTransport::new(build_reqwest_client());
             let request_auth_context = AuthRequestTelemetryContext::new(
-                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.auth.as_ref().map(DarwinCodeAuth::auth_mode),
                 client_setup.api_auth.as_ref(),
                 pending_retry,
             );
@@ -1241,7 +1241,7 @@ impl ModelClientSession {
         loop {
             let client_setup = self.client.current_client_setup().await?;
             let request_auth_context = AuthRequestTelemetryContext::new(
-                client_setup.auth.as_ref().map(CodexAuth::auth_mode),
+                client_setup.auth.as_ref().map(DarwinCodeAuth::auth_mode),
                 client_setup.api_auth.as_ref(),
                 pending_retry,
             );
@@ -1464,7 +1464,7 @@ impl ModelClientSession {
         }
     }
 
-    /// Permanently disables WebSockets for this Codex session and resets WebSocket state.
+    /// Permanently disables WebSockets for this Darwin-Code session and resets WebSocket state.
     ///
     /// This is used after exhausting the provider retry budget, to force subsequent requests onto
     /// the HTTP transport.
@@ -1493,11 +1493,11 @@ fn parse_turn_metadata_header(turn_metadata_header: Option<&str>) -> Option<Head
 
 /// Builds the extra headers attached to Responses API requests.
 ///
-/// These headers implement Codex-specific conventions:
+/// These headers implement DarwinCode-specific conventions:
 ///
-/// - `x-codex-beta-features`: comma-separated beta feature keys enabled for the session.
-/// - `x-codex-turn-state`: sticky routing token captured earlier in the turn.
-/// - `x-codex-turn-metadata`: optional per-turn metadata for observability.
+/// - `x-darwin-code-beta-features`: comma-separated beta feature keys enabled for the session.
+/// - `x-darwin-code-turn-state`: sticky routing token captured earlier in the turn.
+/// - `x-darwin-code-turn-metadata`: optional per-turn metadata for observability.
 fn build_responses_headers(
     beta_features_header: Option<&str>,
     turn_state: Option<&Arc<OnceLock<String>>>,
@@ -1508,16 +1508,16 @@ fn build_responses_headers(
         && !value.is_empty()
         && let Ok(header_value) = HeaderValue::from_str(value)
     {
-        headers.insert("x-codex-beta-features", header_value);
+        headers.insert("x-darwin-code-beta-features", header_value);
     }
     if let Some(turn_state) = turn_state
         && let Some(state) = turn_state.get()
         && let Ok(header_value) = HeaderValue::from_str(state)
     {
-        headers.insert(X_CODEX_TURN_STATE_HEADER, header_value);
+        headers.insert(X_DARWIN_CODE_TURN_STATE_HEADER, header_value);
     }
     if let Some(header_value) = turn_metadata_header {
-        headers.insert(X_CODEX_TURN_METADATA_HEADER, header_value.clone());
+        headers.insert(X_DARWIN_CODE_TURN_METADATA_HEADER, header_value.clone());
     }
     headers
 }
@@ -1635,7 +1635,7 @@ where
 /// Handles a 401 response by optionally refreshing ChatGPT tokens once.
 ///
 /// When refresh succeeds, the caller should retry the API call; otherwise
-/// the mapped `CodexErr` is returned to the caller.
+/// the mapped `DarwinCodeErr` is returned to the caller.
 #[derive(Clone, Copy, Debug)]
 struct UnauthorizedRecoveryExecution {
     mode: &'static str,
@@ -1692,7 +1692,7 @@ impl AuthRequestTelemetryContext {
 
 struct WebsocketConnectParams<'a> {
     session_telemetry: &'a SessionTelemetry,
-    api_provider: codex_api::Provider,
+    api_provider: darwin_code_api::Provider,
     api_auth: SharedAuthProvider,
     turn_metadata_header: Option<&'a str>,
     options: &'a ApiResponsesOptions,
@@ -1756,7 +1756,7 @@ async fn handle_unauthorized(
                     debug.auth_error.as_deref(),
                     debug.auth_error_code.as_deref(),
                 );
-                Err(CodexErr::RefreshTokenFailed(failed))
+                Err(DarwinCodeErr::RefreshTokenFailed(failed))
             }
             Err(RefreshTokenError::Transient(other)) => {
                 session_telemetry.record_auth_recovery(
@@ -1779,7 +1779,7 @@ async fn handle_unauthorized(
                     debug.auth_error.as_deref(),
                     debug.auth_error_code.as_deref(),
                 );
-                Err(CodexErr::Io(other))
+                Err(DarwinCodeErr::Io(other))
             }
         };
     }

@@ -3,12 +3,12 @@
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_features::Feature;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -19,8 +19,8 @@ use core_test_support::responses::mount_sse_once_match;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::time::Duration;
@@ -79,7 +79,7 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config
             .features
             .disable(Feature::EnableRequestCompression)
@@ -100,11 +100,11 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     .await?;
 
     let parent_window_id = parent
-        .header("x-codex-window-id")
-        .ok_or_else(|| anyhow!("parent request missing x-codex-window-id"))?;
+        .header("x-darwin-code-window-id")
+        .ok_or_else(|| anyhow!("parent request missing x-darwin-code-window-id"))?;
     let child_window_id = child
-        .header("x-codex-window-id")
-        .ok_or_else(|| anyhow!("child request missing x-codex-window-id"))?;
+        .header("x-darwin-code-window-id")
+        .ok_or_else(|| anyhow!("child request missing x-darwin-code-window-id"))?;
     let (parent_thread_id, parent_generation) = split_window_id(&parent_window_id)?;
     let (child_thread_id, child_generation) = split_window_id(&child_window_id)?;
 
@@ -117,16 +117,16 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
         Some("collab_spawn")
     );
     assert_eq!(
-        child.header("x-codex-parent-thread-id").as_deref(),
+        child.header("x-darwin-code-parent-thread-id").as_deref(),
         Some(parent_thread_id)
     );
 
     Ok(())
 }
 
-async fn submit_turn_with_timeout(test: &TestCodex, prompt: &str) -> Result<()> {
+async fn submit_turn_with_timeout(test: &TestDarwinCode, prompt: &str) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -193,7 +193,7 @@ where
 }
 
 async fn wait_for_event_result<F>(
-    test: &TestCodex,
+    test: &TestDarwinCode,
     stage: &str,
     mut predicate: F,
 ) -> Result<EventMsg>
@@ -203,7 +203,7 @@ where
     let mut seen_events = Vec::new();
     tokio::time::timeout(TURN_TIMEOUT, async {
         loop {
-            let event = test.codex.next_event().await?;
+            let event = test.darwin-code.next_event().await?;
             seen_events.push(event_summary(&event.msg));
             if predicate(&event.msg) {
                 return Ok::<EventMsg, anyhow::Error>(event.msg);

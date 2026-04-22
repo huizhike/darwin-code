@@ -1,10 +1,10 @@
-pub use codex_api::ResponseEvent;
-use codex_config::types::Personality;
-use codex_protocol::error::Result;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ToolSpec;
+pub use darwin_code_api::ResponseEvent;
+use darwin_code_config::types::Personality;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_tools::ToolSpec;
 use futures::Stream;
 use serde::Deserialize;
 use serde_json::Value;

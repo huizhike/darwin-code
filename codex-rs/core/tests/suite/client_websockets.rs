@@ -1,34 +1,34 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
-use codex_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
-use codex_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
-use codex_core::ModelClient;
-use codex_core::ModelClientSession;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_otel::current_span_w3c_trace_context;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::UserInput;
+use darwin_code_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
+use darwin_code_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
+use darwin_code_core::ModelClient;
+use darwin_code_core::ModelClientSession;
+use darwin_code_core::Prompt;
+use darwin_code_core::ResponseEvent;
+use darwin_code_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_otel::MetricsClient;
+use darwin_code_otel::MetricsConfig;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::TelemetryAuthMode;
+use darwin_code_otel::current_span_w3c_trace_context;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::account::PlanType;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::W3cTraceContext;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::WebSocketTestServer;
@@ -38,7 +38,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::start_websocket_server;
 use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::tracing::install_test_tracing;
 use core_test_support::wait_for_event;
 use futures::StreamExt;
@@ -51,7 +51,7 @@ use tempfile::TempDir;
 use tracing::Instrument;
 use tracing_test::traced_test;
 
-const MODEL: &str = "gpt-5.2-codex";
+const MODEL: &str = "gpt-5.2-darwin-code";
 const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 const X_CLIENT_REQUEST_ID_HEADER: &str = "x-client-request-id";
@@ -84,7 +84,7 @@ fn assert_request_trace_matches(body: &serde_json::Value, expected_trace: &W3cTr
 }
 
 struct WebsocketTestHarness {
-    _codex_home: TempDir,
+    _darwin_code_home: TempDir,
     client: ModelClient,
     conversation_id: ThreadId,
     model_info: ModelInfo,
@@ -127,7 +127,7 @@ async fn responses_websocket_streams_request() {
         Some(harness.conversation_id.to_string())
     );
     assert_eq!(
-        body["client_metadata"]["x-codex-installation-id"].as_str(),
+        body["client_metadata"]["x-darwin-code-installation-id"].as_str(),
         Some(TEST_INSTALLATION_ID)
     );
 
@@ -866,7 +866,7 @@ async fn responses_websocket_emits_rate_limit_events() {
     skip_if_no_network!();
 
     let rate_limit_event = json!({
-        "type": "codex.rate_limits",
+        "type": "darwin-code.rate_limits",
         "plan_type": "plus",
         "rate_limits": {
             "allowed": true,
@@ -970,11 +970,11 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
             "resets_in_seconds": 1234
         },
         "headers": {
-            "x-codex-primary-used-percent": "100.0",
-            "x-codex-secondary-used-percent": "87.5",
-            "x-codex-primary-over-secondary-limit-percent": "95.0",
-            "x-codex-primary-window-minutes": "15",
-            "x-codex-secondary-window-minutes": "60"
+            "x-darwin-code-primary-used-percent": "100.0",
+            "x-darwin-code-secondary-used-percent": "87.5",
+            "x-darwin-code-primary-over-secondary-limit-percent": "95.0",
+            "x-darwin-code-primary-window-minutes": "15",
+            "x-darwin-code-secondary-window-minutes": "60"
         }
     });
 
@@ -986,17 +986,17 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         vec![usage_limit_error],
     ]])
     .await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.model_provider.request_max_retries = Some(0);
         config.model_provider.stream_max_retries = Some(0);
     });
     let test = builder
         .build_with_websocket_server(&server)
         .await
-        .expect("build websocket codex");
+        .expect("build websocket darwin-code");
 
     let submission_id = test
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1009,7 +1009,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         .expect("submission should succeed while emitting usage limit error events");
 
     let token_event =
-        wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
+        wait_for_event(&test.darwin-code, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let EventMsg::TokenCount(event) = token_event else {
         unreachable!();
     };
@@ -1020,7 +1020,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         json!({
             "info": null,
             "rate_limits": {
-                "limit_id": "codex",
+                "limit_id": "darwin-code",
                 "limit_name": null,
                 "primary": {
                     "used_percent": 100.0,
@@ -1039,7 +1039,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         })
     );
 
-    let error_event = wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::Error(_))).await;
+    let error_event = wait_for_event(&test.darwin-code, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
         unreachable!();
     };
@@ -1073,17 +1073,17 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
         vec![invalid_request_error],
     ]])
     .await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.model_provider.request_max_retries = Some(0);
         config.model_provider.stream_max_retries = Some(0);
     });
     let test = builder
         .build_with_websocket_server(&server)
         .await
-        .expect("build websocket codex");
+        .expect("build websocket darwin-code");
 
     let submission_id = test
-        .codex
+        .darwin-code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1095,7 +1095,7 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
         .await
         .expect("submission should succeed while emitting invalid request events");
 
-    let error_event = wait_for_event(&test.codex, |msg| matches!(msg, EventMsg::Error(_))).await;
+    let error_event = wait_for_event(&test.darwin-code, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
         unreachable!();
     };
@@ -1130,14 +1130,14 @@ async fn responses_websocket_connection_limit_error_reconnects_and_completes() {
         vec![vec![ev_response_created("resp-1"), ev_completed("resp-1")]],
     ])
     .await;
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         config.model_provider.request_max_retries = Some(0);
         config.model_provider.stream_max_retries = Some(1);
     });
     let test = builder
         .build_with_websocket_server(&server)
         .await
-        .expect("build websocket codex");
+        .expect("build websocket darwin-code");
 
     test.submit_turn("hello")
         .await
@@ -1212,7 +1212,7 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
     let mut client_session = harness.client.new_session();
     let first_turn_metadata =
         r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write"}"#;
-    let enriched_turn_metadata = r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write","workspaces":[{"root_path":"/tmp/repo","latest_git_commit_hash":"abc123","associated_remote_urls":["git@github.com:openai/codex.git"],"has_changes":true}]}"#;
+    let enriched_turn_metadata = r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write","workspaces":[{"root_path":"/tmp/repo","latest_git_commit_hash":"abc123","associated_remote_urls":["git@github.com:openai/darwin-code.git"],"has_changes":true}]}"#;
     let prompt_one = prompt_with_input(vec![message_item("hello")]);
     let prompt_two = prompt_with_input(vec![
         message_item("hello"),
@@ -1244,13 +1244,13 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
 
     assert_eq!(first["type"].as_str(), Some("response.create"));
     assert_eq!(
-        first["client_metadata"]["x-codex-turn-metadata"].as_str(),
+        first["client_metadata"]["x-darwin-code-turn-metadata"].as_str(),
         Some(first_turn_metadata)
     );
     assert_eq!(second["type"].as_str(), Some("response.create"));
     assert_eq!(second["previous_response_id"].as_str(), Some("resp-1"));
     assert_eq!(
-        second["client_metadata"]["x-codex-turn-metadata"].as_str(),
+        second["client_metadata"]["x-darwin-code-turn-metadata"].as_str(),
         Some(enriched_turn_metadata)
     );
 
@@ -1308,7 +1308,7 @@ async fn responses_websocket_preserves_custom_turn_metadata_fields() {
 
     assert_eq!(body["type"].as_str(), Some("response.create"));
     assert_eq!(
-        body["client_metadata"]["x-codex-turn-metadata"]
+        body["client_metadata"]["x-darwin-code-turn-metadata"]
             .as_str()
             .map(|value| serde_json::from_str::<serde_json::Value>(value).expect("valid json")),
         Some(json!({
@@ -1779,8 +1779,8 @@ async fn websocket_harness_with_provider_options(
     provider: ModelProviderInfo,
     runtime_metrics_enabled: bool,
 ) -> WebsocketTestHarness {
-    let codex_home = TempDir::new().unwrap();
-    let mut config = load_default_config_for_test(&codex_home).await;
+    let darwin_code_home = TempDir::new().unwrap();
+    let mut config = load_default_config_for_test(&darwin_code_home).await;
     config.model = Some(MODEL.to_string());
     if runtime_metrics_enabled {
         config
@@ -1789,13 +1789,13 @@ async fn websocket_harness_with_provider_options(
             .expect("test config should allow feature update");
     }
     let config = Arc::new(config);
-    let model_info = codex_core::test_support::construct_model_info_offline(MODEL, &config);
+    let model_info = darwin_code_core::test_support::construct_model_info_offline(MODEL, &config);
     let conversation_id = ThreadId::new();
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
+        darwin_code_core::test_support::auth_manager_from_auth(DarwinCodeAuth::from_api_key("Test API Key"));
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
+        MetricsConfig::in_memory("test", "darwin-code-core", env!("CARGO_PKG_VERSION"), exporter)
             .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
@@ -1827,7 +1827,7 @@ async fn websocket_harness_with_provider_options(
     );
 
     WebsocketTestHarness {
-        _codex_home: codex_home,
+        _darwin_code_home: darwin_code_home,
         client,
         conversation_id,
         model_info,

@@ -16,13 +16,13 @@ use crate::tools::events::ToolEventCtx;
 use crate::tools::events::ToolEventFailure;
 use crate::tools::events::ToolEventStage;
 use crate::unified_exec::head_tail_buffer::HeadTailBuffer;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandOutputDeltaEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::ExecOutputStream;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 pub(crate) const TRAILING_OUTPUT_GRACE: Duration = Duration::from_millis(100);
 

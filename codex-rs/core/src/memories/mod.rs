@@ -15,11 +15,11 @@ mod storage;
 mod tests;
 pub(crate) mod usage;
 
-use codex_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 
 pub use control::clear_memory_roots_contents;
 /// Starts the memory startup pipeline for eligible root sessions.
-/// This is the single entrypoint that `codex` uses to trigger memory startup.
+/// This is the single entrypoint that `darwin-code` uses to trigger memory startup.
 ///
 /// This is the entry point to read and understand this module.
 pub(crate) use start::start_memories_startup_task;
@@ -81,29 +81,29 @@ mod phase_two {
 
 mod metrics {
     /// Number of phase-1 startup jobs grouped by status.
-    pub(super) const MEMORY_PHASE_ONE_JOBS: &str = "codex.memory.phase1";
+    pub(super) const MEMORY_PHASE_ONE_JOBS: &str = "darwin-code.memory.phase1";
     /// End-to-end latency for a single phase-1 startup run.
-    pub(super) const MEMORY_PHASE_ONE_E2E_MS: &str = "codex.memory.phase1.e2e_ms";
+    pub(super) const MEMORY_PHASE_ONE_E2E_MS: &str = "darwin-code.memory.phase1.e2e_ms";
     /// Number of raw memories produced by phase-1 startup extraction.
-    pub(super) const MEMORY_PHASE_ONE_OUTPUT: &str = "codex.memory.phase1.output";
+    pub(super) const MEMORY_PHASE_ONE_OUTPUT: &str = "darwin-code.memory.phase1.output";
     /// Histogram for aggregate token usage across one phase-1 startup run.
-    pub(super) const MEMORY_PHASE_ONE_TOKEN_USAGE: &str = "codex.memory.phase1.token_usage";
+    pub(super) const MEMORY_PHASE_ONE_TOKEN_USAGE: &str = "darwin-code.memory.phase1.token_usage";
     /// Number of phase-2 startup jobs grouped by status.
-    pub(super) const MEMORY_PHASE_TWO_JOBS: &str = "codex.memory.phase2";
+    pub(super) const MEMORY_PHASE_TWO_JOBS: &str = "darwin-code.memory.phase2";
     /// End-to-end latency for a single phase-2 consolidation run.
-    pub(super) const MEMORY_PHASE_TWO_E2E_MS: &str = "codex.memory.phase2.e2e_ms";
+    pub(super) const MEMORY_PHASE_TWO_E2E_MS: &str = "darwin-code.memory.phase2.e2e_ms";
     /// Number of stage-1 memories included in each phase-2 consolidation step.
-    pub(super) const MEMORY_PHASE_TWO_INPUT: &str = "codex.memory.phase2.input";
+    pub(super) const MEMORY_PHASE_TWO_INPUT: &str = "darwin-code.memory.phase2.input";
     /// Histogram for aggregate token usage across one phase-2 consolidation run.
-    pub(super) const MEMORY_PHASE_TWO_TOKEN_USAGE: &str = "codex.memory.phase2.token_usage";
+    pub(super) const MEMORY_PHASE_TWO_TOKEN_USAGE: &str = "darwin-code.memory.phase2.token_usage";
 }
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
 
-pub fn memory_root(codex_home: &AbsolutePathBuf) -> AbsolutePathBuf {
-    codex_home.join("memories")
+pub fn memory_root(darwin_code_home: &AbsolutePathBuf) -> AbsolutePathBuf {
+    darwin_code_home.join("memories")
 }
 
 fn rollout_summaries_dir(root: &Path) -> PathBuf {

@@ -2,30 +2,30 @@ use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server_protocol::DynamicToolCallOutputContentItem;
-use codex_app_server_protocol::DynamicToolCallParams;
-use codex_app_server_protocol::DynamicToolCallResponse;
-use codex_app_server_protocol::DynamicToolSpec;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::ThreadUnsubscribeResponse;
-use codex_app_server_protocol::ThreadUnsubscribeStatus;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
+use darwin_code_app_server_protocol::DynamicToolCallOutputContentItem;
+use darwin_code_app_server_protocol::DynamicToolCallParams;
+use darwin_code_app_server_protocol::DynamicToolCallResponse;
+use darwin_code_app_server_protocol::DynamicToolSpec;
+use darwin_code_app_server_protocol::ItemStartedNotification;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadLoadedListParams;
+use darwin_code_app_server_protocol::ThreadLoadedListResponse;
+use darwin_code_app_server_protocol::ThreadReadParams;
+use darwin_code_app_server_protocol::ThreadReadResponse;
+use darwin_code_app_server_protocol::ThreadResumeParams;
+use darwin_code_app_server_protocol::ThreadResumeResponse;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::ThreadUnsubscribeParams;
+use darwin_code_app_server_protocol::ThreadUnsubscribeResponse;
+use darwin_code_app_server_protocol::ThreadUnsubscribeStatus;
+use darwin_code_app_server_protocol::TurnStartParams;
+use darwin_code_app_server_protocol::TurnStartResponse;
+use darwin_code_app_server_protocol::UserInput as V2UserInput;
 use core_test_support::responses;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
@@ -38,10 +38,10 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[tokio::test]
 async fn thread_unsubscribe_keeps_thread_loaded_until_idle_timeout() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -92,8 +92,8 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
     let tool_call_arguments = serde_json::to_string(&tool_args)?;
 
     let tmp = TempDir::new()?;
-    let codex_home = tmp.path().join("codex_home");
-    std::fs::create_dir(&codex_home)?;
+    let darwin_code_home = tmp.path().join("darwin_code_home");
+    std::fs::create_dir(&darwin_code_home)?;
     let working_directory = tmp.path().join("workdir");
     std::fs::create_dir(&working_directory)?;
 
@@ -118,9 +118,9 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
     .await;
     let first_response_completed = completions.remove(0);
     let final_response_completed = completions.remove(0);
-    create_config_toml(&codex_home, server.uri())?;
+    create_config_toml(&darwin_code_home, server.uri())?;
 
-    let mut mcp = McpProcess::new(&codex_home).await?;
+    let mut mcp = McpProcess::new(&darwin_code_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -247,10 +247,10 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         responses::sse_failed("resp-1", "server_error", "simulated failure"),
     )
     .await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -332,10 +332,10 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
 #[tokio::test]
 async fn thread_unsubscribe_reports_not_subscribed_before_idle_unload() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -391,8 +391,8 @@ async fn wait_for_dynamic_tool_started(
     }
 }
 
-fn create_config_toml(codex_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+fn create_config_toml(darwin_code_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

@@ -8,13 +8,13 @@ use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::McpServerToolCallParams;
+use darwin_code_app_server_protocol::McpServerToolCallResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
@@ -47,9 +47,9 @@ const TEST_TOOL_NAME: &str = "echo_tool";
 async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
     let responses_server = responses::start_mock_server().await;
     let (mcp_server_url, mcp_server_handle) = start_mcp_server().await?;
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     write_mock_responses_config_toml(
-        codex_home.path(),
+        darwin_code_home.path(),
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
@@ -58,7 +58,7 @@ async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
         "compact",
     )?;
 
-    let config_path = codex_home.path().join("config.toml");
+    let config_path = darwin_code_home.path().join("config.toml");
     let mut config_toml = std::fs::read_to_string(&config_path)?;
     config_toml.push_str(&format!(
         r#"
@@ -68,7 +68,7 @@ url = "{mcp_server_url}/mcp"
     ));
     std::fs::write(config_path, config_toml)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
@@ -132,8 +132,8 @@ url = "{mcp_server_url}/mcp"
 
 #[tokio::test]
 async fn mcp_server_tool_call_returns_error_for_unknown_thread() -> Result<()> {
-    let codex_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

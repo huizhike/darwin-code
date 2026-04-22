@@ -1,10 +1,10 @@
 use super::*;
-use codex_protocol::protocol::FileSystemAccessMode;
-use codex_protocol::protocol::FileSystemPath;
-use codex_protocol::protocol::FileSystemSandboxEntry;
-use codex_protocol::protocol::FileSystemSpecialPath;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::FileSystemAccessMode;
+use darwin_code_protocol::protocol::FileSystemPath;
+use darwin_code_protocol::protocol::FileSystemSandboxEntry;
+use darwin_code_protocol::protocol::FileSystemSpecialPath;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -70,7 +70,7 @@ fn external_sandbox_auto_approves_in_on_request() {
     let add_inside = ApplyPatchAction::new_add_for_test(&add_inside_path, "".to_string());
 
     let policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Enabled,
+        network_access: darwin_code_protocol::protocol::NetworkAccess::Enabled,
     };
 
     assert_eq!(
@@ -207,7 +207,7 @@ fn explicit_unreadable_paths_prevent_auto_approval_for_external_sandbox() {
     let blocked_absolute = blocked_path;
     let action = ApplyPatchAction::new_add_for_test(&blocked_absolute, "".to_string());
     let sandbox_policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Restricted,
+        network_access: darwin_code_protocol::protocol::NetworkAccess::Restricted,
     };
     let file_system_sandbox_policy = FileSystemSandboxPolicy::restricted(vec![
         FileSystemSandboxEntry {
@@ -251,7 +251,7 @@ fn explicit_read_only_subpaths_prevent_auto_approval_for_external_sandbox() {
     let docs_absolute = AbsolutePathBuf::resolve_path_against_base("docs", &cwd);
     let action = ApplyPatchAction::new_add_for_test(&blocked_absolute, "".to_string());
     let sandbox_policy = SandboxPolicy::ExternalSandbox {
-        network_access: codex_protocol::protocol::NetworkAccess::Restricted,
+        network_access: darwin_code_protocol::protocol::NetworkAccess::Restricted,
     };
     let file_system_sandbox_policy = FileSystemSandboxPolicy::restricted(vec![
         FileSystemSandboxEntry {
@@ -287,10 +287,10 @@ fn explicit_read_only_subpaths_prevent_auto_approval_for_external_sandbox() {
 }
 
 #[test]
-fn missing_project_dot_codex_config_requires_approval() {
+fn missing_project_dot_darwin_code_config_requires_approval() {
     let tmp = TempDir::new().unwrap();
     let cwd = tmp.path().abs();
-    let config_path = cwd.join(".codex").join("config.toml");
+    let config_path = cwd.join(".darwin-code").join("config.toml");
     let action = ApplyPatchAction::new_add_for_test(&config_path, "".to_string());
     let sandbox_policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],

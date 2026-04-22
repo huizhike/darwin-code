@@ -10,31 +10,31 @@ use crate::config::Constrained;
 use crate::sandboxing::SandboxPermissions;
 use crate::session::tests::make_session_and_context;
 use anyhow::Context;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::PolicyParser;
-use codex_execpolicy::RuleMatch;
-use codex_hooks::Hooks;
-use codex_hooks::HooksConfig;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::ReadOnlyAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxType;
-use codex_shell_escalation::EscalationExecution;
-use codex_shell_escalation::EscalationPermissions;
-use codex_shell_escalation::ExecResult;
-use codex_shell_escalation::Permissions as EscalatedPermissions;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::Evaluation;
+use darwin_code_execpolicy::PolicyParser;
+use darwin_code_execpolicy::RuleMatch;
+use darwin_code_hooks::Hooks;
+use darwin_code_hooks::HooksConfig;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::FileSystemSpecialPath;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::GuardianCommandSource;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_shell_escalation::EscalationExecution;
+use darwin_code_shell_escalation::EscalationPermissions;
+use darwin_code_shell_escalation::ExecResult;
+use darwin_code_shell_escalation::Permissions as EscalatedPermissions;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::path::PathBuf;
@@ -150,7 +150,7 @@ fn extract_shell_script_supports_wrapped_command_prefixes() {
     assert_eq!(
         extract_shell_script(&[
             "/usr/bin/env".into(),
-            "CODEX_EXECVE_WRAPPER=1".into(),
+            "DARWIN_CODE_EXECVE_WRAPPER=1".into(),
             "/bin/zsh".into(),
             "-lc".into(),
             "echo hello".into()
@@ -330,15 +330,15 @@ fn shell_request_escalation_execution_is_explicit() {
 #[tokio::test(flavor = "current_thread")]
 async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Result<()> {
     let (mut session, mut turn_context) = make_session_and_context().await;
-    std::fs::create_dir_all(&turn_context.config.codex_home)
-        .context("recreate codex home for hook fixtures")?;
+    std::fs::create_dir_all(&turn_context.config.darwin_code_home)
+        .context("recreate darwin-code home for hook fixtures")?;
     let script_path = turn_context
         .config
-        .codex_home
+        .darwin_code_home
         .join("permission_request_hook.py");
     let log_path = turn_context
         .config
-        .codex_home
+        .darwin_code_home
         .join("permission_request_hook_log.jsonl");
     std::fs::write(
         &script_path,
@@ -361,7 +361,7 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
             .with_context(|| format!("set hook script permissions on {}", script_path.display()))?;
     }
     std::fs::write(
-        turn_context.config.codex_home.join("hooks.json"),
+        turn_context.config.darwin_code_home.join("hooks.json"),
         serde_json::json!({
             "hooks": {
                 "PermissionRequest": [{
@@ -400,9 +400,9 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
     let target_str = target.display().to_string();
     let command = vec!["touch".to_string(), target_str.clone()];
     let expected_hook_command =
-        codex_shell_command::parse_command::shlex_join(&["/usr/bin/touch".to_string(), target_str]);
+        darwin_code_shell_command::parse_command::shlex_join(&["/usr/bin/touch".to_string(), target_str]);
     let provider = CoreShellActionProvider {
-        policy: std::sync::Arc::new(RwLock::new(codex_execpolicy::Policy::empty())),
+        policy: std::sync::Arc::new(RwLock::new(darwin_code_execpolicy::Policy::empty())),
         session: std::sync::Arc::new(session),
         turn: std::sync::Arc::new(turn_context),
         call_id: "execve-hook-call".to_string(),
@@ -414,12 +414,12 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
         sandbox_permissions: SandboxPermissions::RequireEscalated,
         approval_sandbox_permissions: SandboxPermissions::RequireEscalated,
         prompt_permissions: None,
-        stopwatch: codex_shell_escalation::Stopwatch::new(Duration::from_secs(1)),
+        stopwatch: darwin_code_shell_escalation::Stopwatch::new(Duration::from_secs(1)),
     };
 
     let action = tokio::time::timeout(
         Duration::from_secs(5),
-        codex_shell_escalation::EscalationPolicy::determine_action(
+        darwin_code_shell_escalation::EscalationPolicy::determine_action(
             &provider,
             &AbsolutePathBuf::from_absolute_path("/usr/bin/touch")
                 .context("build touch absolute path")?,
@@ -431,8 +431,8 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
     .context("timed out waiting for execve permission hook decision")??;
     assert!(matches!(
         action,
-        codex_shell_escalation::EscalationDecision::Escalate(
-            codex_shell_escalation::EscalationExecution::Unsandboxed
+        darwin_code_shell_escalation::EscalationDecision::Escalate(
+            darwin_code_shell_escalation::EscalationExecution::Unsandboxed
         )
     ));
 

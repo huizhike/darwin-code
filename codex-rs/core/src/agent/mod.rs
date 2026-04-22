@@ -5,7 +5,7 @@ mod registry;
 pub(crate) mod role;
 pub(crate) mod status;
 
-pub(crate) use codex_protocol::protocol::AgentStatus;
+pub(crate) use darwin_code_protocol::protocol::AgentStatus;
 pub(crate) use control::AgentControl;
 pub(crate) use mailbox::Mailbox;
 pub(crate) use mailbox::MailboxReceiver;

@@ -12,31 +12,31 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_core::CodexThread;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_core::shell::Shell;
-use codex_core::shell::get_shell_by_model_provided_path;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::RemoveOptions;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::config::Config;
+use darwin_code_core::shell::Shell;
+use darwin_code_core::shell::get_shell_by_model_provided_path;
+use darwin_code_exec_server::CreateDirectoryOptions;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_exec_server::RemoveOptions;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::built_in_model_providers;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionConfiguredEvent;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::future::BoxFuture;
 use serde_json::Value;
 use tempfile::TempDir;
@@ -59,14 +59,14 @@ type ConfigMutator = dyn FnOnce(&mut Config) + Send;
 type PreBuildHook = dyn FnOnce(&Path) + Send + 'static;
 type WorkspaceSetup = dyn FnOnce(AbsolutePathBuf, Arc<dyn ExecutorFileSystem>) -> BoxFuture<'static, Result<()>>
     + Send;
-const TEST_MODEL_WITH_EXPERIMENTAL_TOOLS: &str = "test-gpt-5.1-codex";
-const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "CODEX_TEST_REMOTE_EXEC_SERVER_URL";
+const TEST_MODEL_WITH_EXPERIMENTAL_TOOLS: &str = "test-gpt-5.1-darwin-code";
+const REMOTE_EXEC_SERVER_URL_ENV_VAR: &str = "DARWIN_CODE_TEST_REMOTE_EXEC_SERVER_URL";
 static REMOTE_TEST_INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(0);
 const SUBMIT_TURN_COMPLETE_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug)]
 pub struct TestEnv {
-    environment: codex_exec_server::Environment,
+    environment: darwin_code_exec_server::Environment,
     cwd: AbsolutePathBuf,
     local_cwd_temp_dir: Option<Arc<TempDir>>,
     remote_container_name: Option<String>,
@@ -76,7 +76,7 @@ impl TestEnv {
     pub async fn local() -> Result<Self> {
         let local_cwd_temp_dir = Arc::new(TempDir::new()?);
         let cwd = local_cwd_temp_dir.abs();
-        let environment = codex_exec_server::Environment::create(/*exec_server_url*/ None).await?;
+        let environment = darwin_code_exec_server::Environment::create(/*exec_server_url*/ None).await?;
         Ok(Self {
             environment,
             cwd,
@@ -89,7 +89,7 @@ impl TestEnv {
         &self.cwd
     }
 
-    pub fn environment(&self) -> &codex_exec_server::Environment {
+    pub fn environment(&self) -> &darwin_code_exec_server::Environment {
         &self.environment
     }
 
@@ -115,7 +115,7 @@ pub async fn test_env() -> Result<TestEnv> {
     match get_remote_test_env() {
         Some(remote_env) => {
             let websocket_url = remote_exec_server_url()?;
-            let environment = codex_exec_server::Environment::create(Some(websocket_url)).await?;
+            let environment = darwin_code_exec_server::Environment::create(Some(websocket_url)).await?;
             let cwd = remote_aware_cwd_path();
             environment
                 .get_filesystem()
@@ -138,7 +138,7 @@ pub async fn test_env() -> Result<TestEnv> {
 
 fn remote_aware_cwd_path() -> AbsolutePathBuf {
     PathBuf::from(format!(
-        "/tmp/codex-core-test-cwd-{}",
+        "/tmp/darwin-code-core-test-cwd-{}",
         remote_test_instance_id()
     ))
     .abs()
@@ -197,16 +197,16 @@ pub enum ShellModelOutput {
     // UnifiedExec has its own set of tests
 }
 
-pub struct TestCodexBuilder {
+pub struct TestDarwinCodeBuilder {
     config_mutators: Vec<Box<ConfigMutator>>,
-    auth: CodexAuth,
+    auth: DarwinCodeAuth,
     pre_build_hooks: Vec<Box<PreBuildHook>>,
     workspace_setups: Vec<Box<WorkspaceSetup>>,
     home: Option<Arc<TempDir>>,
     user_shell_override: Option<Shell>,
 }
 
-impl TestCodexBuilder {
+impl TestDarwinCodeBuilder {
     pub fn with_config<T>(mut self, mutator: T) -> Self
     where
         T: FnOnce(&mut Config) + Send + 'static,
@@ -215,7 +215,7 @@ impl TestCodexBuilder {
         self
     }
 
-    pub fn with_auth(mut self, auth: CodexAuth) -> Self {
+    pub fn with_auth(mut self, auth: DarwinCodeAuth) -> Self {
         self.auth = auth;
         self
     }
@@ -263,7 +263,7 @@ impl TestCodexBuilder {
         }
     }
 
-    pub async fn build(&mut self, server: &wiremock::MockServer) -> anyhow::Result<TestCodex> {
+    pub async fn build(&mut self, server: &wiremock::MockServer) -> anyhow::Result<TestDarwinCode> {
         let home = match self.home.clone() {
             Some(home) => home,
             None => Arc::new(TempDir::new()?),
@@ -277,7 +277,7 @@ impl TestCodexBuilder {
     pub async fn build_remote_aware(
         &mut self,
         server: &wiremock::MockServer,
-    ) -> anyhow::Result<TestCodex> {
+    ) -> anyhow::Result<TestDarwinCode> {
         let home = match self.home.clone() {
             Some(home) => home,
             None => Arc::new(TempDir::new()?),
@@ -291,7 +291,7 @@ impl TestCodexBuilder {
     pub async fn build_with_streaming_server(
         &mut self,
         server: &StreamingSseServer,
-    ) -> anyhow::Result<TestCodex> {
+    ) -> anyhow::Result<TestDarwinCode> {
         let base_url = server.uri();
         let home = match self.home.clone() {
             Some(home) => home,
@@ -310,7 +310,7 @@ impl TestCodexBuilder {
     pub async fn build_with_websocket_server(
         &mut self,
         server: &WebSocketTestServer,
-    ) -> anyhow::Result<TestCodex> {
+    ) -> anyhow::Result<TestDarwinCode> {
         let base_url = format!("{}/v1", server.uri());
         let home = match self.home.clone() {
             Some(home) => home,
@@ -333,7 +333,7 @@ impl TestCodexBuilder {
         server: &wiremock::MockServer,
         home: Arc<TempDir>,
         rollout_path: PathBuf,
-    ) -> anyhow::Result<TestCodex> {
+    ) -> anyhow::Result<TestDarwinCode> {
         let base_url = format!("{}/v1", server.uri());
         let test_env = TestEnv::local().await?;
         Box::pin(self.build_with_home_and_base_url(base_url, home, Some(rollout_path), test_env))
@@ -346,11 +346,11 @@ impl TestCodexBuilder {
         home: Arc<TempDir>,
         resume_from: Option<PathBuf>,
         test_env: TestEnv,
-    ) -> anyhow::Result<TestCodex> {
+    ) -> anyhow::Result<TestDarwinCode> {
         let (config, fallback_cwd) = self
             .prepare_config(base_url, &home, test_env.cwd().clone())
             .await?;
-        let environment_manager = Arc::new(codex_exec_server::EnvironmentManager::new(
+        let environment_manager = Arc::new(darwin_code_exec_server::EnvironmentManager::new(
             test_env.exec_server_url().map(str::to_owned),
         ));
         let file_system = test_env.environment().get_filesystem();
@@ -378,23 +378,23 @@ impl TestCodexBuilder {
         home: Arc<TempDir>,
         resume_from: Option<PathBuf>,
         test_env: TestEnv,
-        environment_manager: Arc<codex_exec_server::EnvironmentManager>,
-    ) -> anyhow::Result<TestCodex> {
+        environment_manager: Arc<darwin_code_exec_server::EnvironmentManager>,
+    ) -> anyhow::Result<TestDarwinCode> {
         let auth = self.auth.clone();
         let thread_manager = if config.model_catalog.is_some() {
             ThreadManager::new(
                 &config,
-                codex_core::test_support::auth_manager_from_auth(auth.clone()),
+                darwin_code_core::test_support::auth_manager_from_auth(auth.clone()),
                 SessionSource::Exec,
                 CollaborationModesConfig::default(),
                 Arc::clone(&environment_manager),
                 /*analytics_events_client*/ None,
             )
         } else {
-            codex_core::test_support::thread_manager_with_models_provider_and_home(
+            darwin_code_core::test_support::thread_manager_with_models_provider_and_home(
                 auth.clone(),
                 config.model_provider.clone(),
-                config.codex_home.to_path_buf(),
+                config.darwin_code_home.to_path_buf(),
                 Arc::clone(&environment_manager),
             )
         };
@@ -403,9 +403,9 @@ impl TestCodexBuilder {
 
         let new_conversation = match (resume_from, user_shell_override) {
             (Some(path), Some(user_shell_override)) => {
-                let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
+                let auth_manager = darwin_code_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(
-                    codex_core::test_support::resume_thread_from_rollout_with_user_shell_override(
+                    darwin_code_core::test_support::resume_thread_from_rollout_with_user_shell_override(
                         thread_manager.as_ref(),
                         config.clone(),
                         path,
@@ -416,7 +416,7 @@ impl TestCodexBuilder {
                 .await?
             }
             (Some(path), None) => {
-                let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
+                let auth_manager = darwin_code_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(thread_manager.resume_thread_from_rollout(
                     config.clone(),
                     path,
@@ -427,7 +427,7 @@ impl TestCodexBuilder {
             }
             (None, Some(user_shell_override)) => {
                 Box::pin(
-                    codex_core::test_support::start_thread_with_user_shell_override(
+                    darwin_code_core::test_support::start_thread_with_user_shell_override(
                         thread_manager.as_ref(),
                         config.clone(),
                         user_shell_override,
@@ -438,11 +438,11 @@ impl TestCodexBuilder {
             (None, None) => Box::pin(thread_manager.start_thread(config.clone())).await?,
         };
 
-        Ok(TestCodex {
+        Ok(TestDarwinCode {
             home,
             cwd,
             config,
-            codex: new_conversation.thread,
+            darwin-code: new_conversation.thread,
             session_configured: new_conversation.session_configured,
             thread_manager,
             _test_env: test_env,
@@ -469,21 +469,21 @@ impl TestCodexBuilder {
         for hook in self.pre_build_hooks.drain(..) {
             hook(home.path());
         }
-        if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
-            config.codex_self_exe = Some(path);
-        } else if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex-exec") {
-            // `codex-exec` also supports `--codex-run-as-apply-patch`, so use it
+        if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code") {
+            config.darwin_code_self_exe = Some(path);
+        } else if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-exec") {
+            // `darwin-code-exec` also supports `--darwin-code-run-as-apply-patch`, so use it
             // when the multitool binary is not available in test builds.
-            config.codex_self_exe = Some(path);
+            config.darwin_code_self_exe = Some(path);
         } else if let Ok(exe) = std::env::current_exe()
             && let Some(bin_dir) = exe.parent().and_then(|parent| parent.parent())
         {
-            let codex = bin_dir.join("codex");
-            let codex_exec = bin_dir.join("codex-exec");
-            if codex.is_file() {
-                config.codex_self_exe = Some(codex);
-            } else if codex_exec.is_file() {
-                config.codex_self_exe = Some(codex_exec);
+            let darwin-code = bin_dir.join("darwin-code");
+            let darwin_code_exec = bin_dir.join("darwin-code-exec");
+            if darwin-code.is_file() {
+                config.darwin_code_self_exe = Some(darwin-code);
+            } else if darwin_code_exec.is_file() {
+                config.darwin_code_self_exe = Some(darwin_code_exec);
             }
         }
 
@@ -516,9 +516,9 @@ fn ensure_test_model_catalog(config: &mut Config) -> Result<()> {
     let mut model = bundled_models
         .models
         .iter()
-        .find(|candidate| candidate.slug == "gpt-5.1-codex")
+        .find(|candidate| candidate.slug == "gpt-5.1-darwin-code")
         .cloned()
-        .unwrap_or_else(|| panic!("missing bundled model gpt-5.1-codex"));
+        .unwrap_or_else(|| panic!("missing bundled model gpt-5.1-darwin-code"));
     model.slug = TEST_MODEL_WITH_EXPERIMENTAL_TOOLS.to_string();
     model.display_name = TEST_MODEL_WITH_EXPERIMENTAL_TOOLS.to_string();
     model.experimental_supported_tools = vec!["test_sync_tool".to_string()];
@@ -528,23 +528,23 @@ fn ensure_test_model_catalog(config: &mut Config) -> Result<()> {
     Ok(())
 }
 
-pub struct TestCodex {
+pub struct TestDarwinCode {
     pub home: Arc<TempDir>,
     pub cwd: Arc<TempDir>,
-    pub codex: Arc<CodexThread>,
+    pub darwin-code: Arc<DarwinCodeThread>,
     pub session_configured: SessionConfiguredEvent,
     pub config: Config,
     pub thread_manager: Arc<ThreadManager>,
     _test_env: TestEnv,
 }
 
-impl TestCodex {
+impl TestDarwinCode {
     pub fn cwd_path(&self) -> &Path {
         self.cwd.path()
     }
 
-    pub fn codex_home_path(&self) -> &Path {
-        self.config.codex_home.as_path()
+    pub fn darwin_code_home_path(&self) -> &Path {
+        self.config.darwin_code_home.as_path()
     }
 
     pub fn workspace_path(&self, rel: impl AsRef<Path>) -> PathBuf {
@@ -614,7 +614,7 @@ impl TestCodex {
         service_tier: Option<Option<ServiceTier>>,
     ) -> Result<()> {
         let session_model = self.session_configured.model.clone();
-        self.codex
+        self.darwin-code
             .submit(Op::UserTurn {
                 items: vec![UserInput::Text {
                     text: prompt.into(),
@@ -634,13 +634,13 @@ impl TestCodex {
             })
             .await?;
 
-        let turn_id = wait_for_event_match(&self.codex, |event| match event {
+        let turn_id = wait_for_event_match(&self.darwin-code, |event| match event {
             EventMsg::TurnStarted(event) => Some(event.turn_id.clone()),
             _ => None,
         })
         .await;
         wait_for_event_with_timeout(
-            &self.codex,
+            &self.darwin-code,
             |event| match event {
                 EventMsg::TurnComplete(event) => event.turn_id == turn_id,
                 _ => false,
@@ -652,27 +652,27 @@ impl TestCodex {
     }
 }
 
-pub struct TestCodexHarness {
+pub struct TestDarwinCodeHarness {
     server: MockServer,
-    test: TestCodex,
+    test: TestDarwinCode,
 }
 
-impl TestCodexHarness {
+impl TestDarwinCodeHarness {
     pub async fn new() -> Result<Self> {
-        Self::with_builder(test_codex()).await
+        Self::with_builder(test_darwin_code()).await
     }
 
     pub async fn with_config(mutator: impl FnOnce(&mut Config) + Send + 'static) -> Result<Self> {
-        Self::with_builder(test_codex().with_config(mutator)).await
+        Self::with_builder(test_darwin_code().with_config(mutator)).await
     }
 
-    pub async fn with_builder(mut builder: TestCodexBuilder) -> Result<Self> {
+    pub async fn with_builder(mut builder: TestDarwinCodeBuilder) -> Result<Self> {
         let server = start_mock_server().await;
         let test = builder.build(&server).await?;
         Ok(Self { server, test })
     }
 
-    pub async fn with_remote_aware_builder(mut builder: TestCodexBuilder) -> Result<Self> {
+    pub async fn with_remote_aware_builder(mut builder: TestDarwinCodeBuilder) -> Result<Self> {
         let server = start_mock_server().await;
         let test = builder.build_remote_aware(&server).await?;
         Ok(Self { server, test })
@@ -682,7 +682,7 @@ impl TestCodexHarness {
         &self.server
     }
 
-    pub fn test(&self) -> &TestCodex {
+    pub fn test(&self) -> &TestDarwinCode {
         &self.test
     }
 
@@ -877,10 +877,10 @@ fn function_call_output<'a>(bodies: &'a [Value], call_id: &str) -> &'a Value {
     panic!("function_call_output {call_id} not found");
 }
 
-pub fn test_codex() -> TestCodexBuilder {
-    TestCodexBuilder {
+pub fn test_darwin_code() -> TestDarwinCodeBuilder {
+    TestDarwinCodeBuilder {
         config_mutators: vec![],
-        auth: CodexAuth::from_api_key("dummy"),
+        auth: DarwinCodeAuth::from_api_key("dummy"),
         pre_build_hooks: vec![],
         workspace_setups: vec![],
         home: None,

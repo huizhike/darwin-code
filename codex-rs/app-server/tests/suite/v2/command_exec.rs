@@ -5,17 +5,17 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use codex_app_server_protocol::CommandExecOutputDeltaNotification;
-use codex_app_server_protocol::CommandExecOutputStream;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecResponse;
-use codex_app_server_protocol::CommandExecTerminalSize;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::CommandExecOutputDeltaNotification;
+use darwin_code_app_server_protocol::CommandExecOutputStream;
+use darwin_code_app_server_protocol::CommandExecParams;
+use darwin_code_app_server_protocol::CommandExecResizeParams;
+use darwin_code_app_server_protocol::CommandExecResponse;
+use darwin_code_app_server_protocol::CommandExecTerminalSize;
+use darwin_code_app_server_protocol::CommandExecTerminateParams;
+use darwin_code_app_server_protocol::CommandExecWriteParams;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use tempfile::TempDir;
@@ -36,9 +36,9 @@ use super::connection_handling_websocket::spawn_websocket_server;
 #[tokio::test]
 async fn command_exec_without_streams_can_be_terminated() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "sleep-1".to_string();
@@ -85,9 +85,9 @@ async fn command_exec_without_streams_can_be_terminated() -> Result<()> {
 #[tokio::test]
 async fn command_exec_without_process_id_keeps_buffered_compatibility() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -132,10 +132,10 @@ async fn command_exec_without_process_id_keeps_buffered_compatibility() -> Resul
 async fn command_exec_env_overrides_merge_with_server_environment_and_support_unset() -> Result<()>
 {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[("COMMAND_EXEC_BASELINE", Some("server"))],
     )
     .await?;
@@ -146,7 +146,7 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
             command: vec![
                 "/bin/sh".to_string(),
                 "-lc".to_string(),
-                "printf '%s|%s|%s|%s' \"$COMMAND_EXEC_BASELINE\" \"$COMMAND_EXEC_EXTRA\" \"${RUST_LOG-unset}\" \"$CODEX_HOME\"".to_string(),
+                "printf '%s|%s|%s|%s' \"$COMMAND_EXEC_BASELINE\" \"$COMMAND_EXEC_EXTRA\" \"${RUST_LOG-unset}\" \"$DARWIN_CODE_HOME\"".to_string(),
             ],
             process_id: None,
             tty: false,
@@ -178,7 +178,7 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
         response,
         CommandExecResponse {
             exit_code: 0,
-            stdout: format!("request|added|unset|{}", codex_home.path().display()),
+            stdout: format!("request|added|unset|{}", darwin_code_home.path().display()),
             stderr: String::new(),
         }
     );
@@ -189,9 +189,9 @@ async fn command_exec_env_overrides_merge_with_server_environment_and_support_un
 #[tokio::test]
 async fn command_exec_rejects_disable_timeout_with_timeout_ms() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -226,9 +226,9 @@ async fn command_exec_rejects_disable_timeout_with_timeout_ms() -> Result<()> {
 #[tokio::test]
 async fn command_exec_rejects_disable_output_cap_with_output_bytes_cap() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -263,9 +263,9 @@ async fn command_exec_rejects_disable_output_cap_with_output_bytes_cap() -> Resu
 #[tokio::test]
 async fn command_exec_rejects_negative_timeout_ms() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -300,9 +300,9 @@ async fn command_exec_rejects_negative_timeout_ms() -> Result<()> {
 #[tokio::test]
 async fn command_exec_without_process_id_rejects_streaming() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -337,9 +337,9 @@ async fn command_exec_without_process_id_rejects_streaming() -> Result<()> {
 #[tokio::test]
 async fn command_exec_non_streaming_respects_output_cap() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let command_request_id = mcp
@@ -383,9 +383,9 @@ async fn command_exec_non_streaming_respects_output_cap() -> Result<()> {
 #[tokio::test]
 async fn command_exec_streaming_does_not_buffer_output() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "stream-cap-1".to_string();
@@ -446,9 +446,9 @@ async fn command_exec_streaming_does_not_buffer_output() -> Result<()> {
 #[tokio::test]
 async fn command_exec_pipe_streams_output_and_accepts_write() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "pipe-1".to_string();
@@ -521,9 +521,9 @@ async fn command_exec_pipe_streams_output_and_accepts_write() -> Result<()> {
 #[tokio::test]
 async fn command_exec_tty_implies_streaming_and_reports_pty_output() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "tty-1".to_string();
@@ -591,9 +591,9 @@ async fn command_exec_tty_implies_streaming_and_reports_pty_output() -> Result<(
 #[tokio::test]
 async fn command_exec_tty_supports_initial_size_and_resize() -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let process_id = "tty-size-1".to_string();
@@ -679,16 +679,16 @@ async fn command_exec_tty_supports_initial_size_and_resize() -> Result<()> {
 async fn command_exec_process_ids_are_connection_scoped_and_disconnect_terminates_process()
 -> Result<()> {
     let server = create_mock_responses_server_sequence_unchecked(Vec::new()).await;
-    let codex_home = TempDir::new()?;
-    create_config_toml(codex_home.path(), &server.uri(), "never")?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let marker = format!(
-        "codex-command-exec-marker-{}",
+        "darwin-code-command-exec-marker-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_nanos()
     );
 
-    let (mut process, bind_addr) = spawn_websocket_server(codex_home.path()).await?;
+    let (mut process, bind_addr) = spawn_websocket_server(darwin_code_home.path()).await?;
 
     let mut ws1 = connect_websocket(bind_addr).await?;
     let mut ws2 = connect_websocket(bind_addr).await?;

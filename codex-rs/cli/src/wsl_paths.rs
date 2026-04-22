@@ -1,7 +1,7 @@
 use std::ffi::OsStr;
 
 /// Returns true if the current process is running under WSL.
-pub use codex_utils_path::is_wsl;
+pub use darwin_code_utils_path::is_wsl;
 
 /// Convert a Windows absolute path (`C:\foo\bar` or `C:/foo/bar`) to a WSL mount path (`/mnt/c/foo/bar`).
 /// Returns `None` if the input does not look like a Windows drive path.
@@ -42,14 +42,14 @@ mod tests {
     #[test]
     fn win_to_wsl_basic() {
         assert_eq!(
-            win_path_to_wsl(r"C:\Temp\codex.zip").as_deref(),
-            Some("/mnt/c/Temp/codex.zip")
+            win_path_to_wsl(r"C:\Temp\darwin-code.zip").as_deref(),
+            Some("/mnt/c/Temp/darwin-code.zip")
         );
         assert_eq!(
-            win_path_to_wsl("D:/Work/codex.tgz").as_deref(),
-            Some("/mnt/d/Work/codex.tgz")
+            win_path_to_wsl("D:/Work/darwin-code.tgz").as_deref(),
+            Some("/mnt/d/Work/darwin-code.tgz")
         );
-        assert!(win_path_to_wsl("/home/user/codex").is_none());
+        assert!(win_path_to_wsl("/home/user/darwin-code").is_none());
     }
 
     #[test]

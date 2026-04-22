@@ -1,8 +1,8 @@
 use super::*;
-use codex_network_proxy::BlockedRequest;
-use codex_network_proxy::NetworkDecisionSource;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
+use darwin_code_network_proxy::BlockedRequest;
+use darwin_code_network_proxy::NetworkDecisionSource;
+use darwin_code_protocol::approvals::NetworkPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyRuleAction;
 use pretty_assertions::assert_eq;
 
 #[test]

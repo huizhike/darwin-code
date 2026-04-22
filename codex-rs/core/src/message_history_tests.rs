@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::ConfigBuilder;
-use codex_protocol::ThreadId;
+use darwin_code_protocol::ThreadId;
 use pretty_assertions::assert_eq;
 use std::fs::File;
 use std::io::Write;
@@ -87,10 +87,10 @@ async fn lookup_uses_stable_log_id_after_appends() {
 
 #[tokio::test]
 async fn append_entry_trims_history_when_beyond_max_bytes() {
-    let codex_home = TempDir::new().expect("create temp dir");
+    let darwin_code_home = TempDir::new().expect("create temp dir");
 
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .build()
         .await
         .expect("load config");
@@ -100,7 +100,7 @@ async fn append_entry_trims_history_when_beyond_max_bytes() {
     let entry_one = "a".repeat(200);
     let entry_two = "b".repeat(200);
 
-    let history_path = codex_home.path().join("history.jsonl");
+    let history_path = darwin_code_home.path().join("history.jsonl");
 
     append_entry(&entry_one, &conversation_id, &config)
         .await
@@ -134,10 +134,10 @@ async fn append_entry_trims_history_when_beyond_max_bytes() {
 
 #[tokio::test]
 async fn append_entry_trims_history_to_soft_cap() {
-    let codex_home = TempDir::new().expect("create temp dir");
+    let darwin_code_home = TempDir::new().expect("create temp dir");
 
     let mut config = ConfigBuilder::default()
-        .codex_home(codex_home.path().to_path_buf())
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
         .build()
         .await
         .expect("load config");
@@ -147,7 +147,7 @@ async fn append_entry_trims_history_to_soft_cap() {
     let short_entry = "a".repeat(200);
     let long_entry = "b".repeat(400);
 
-    let history_path = codex_home.path().join("history.jsonl");
+    let history_path = darwin_code_home.path().join("history.jsonl");
 
     append_entry(&short_entry, &conversation_id, &config)
         .await

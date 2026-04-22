@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_async_utils::CancelErr;
-use codex_async_utils::OrCancelExt;
-use codex_protocol::user_input::UserInput;
+use darwin_code_async_utils::CancelErr;
+use darwin_code_async_utils::OrCancelExt;
+use darwin_code_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use uuid::Uuid;
@@ -18,25 +18,25 @@ use crate::state::TaskKind;
 use crate::tools::format_exec_output_str;
 use crate::tools::runtimes::maybe_wrap_shell_lc_with_snapshot;
 use crate::user_shell_command::user_shell_command_record_item;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_sandboxing::SandboxType;
-use codex_shell_command::parse_command::parse_command;
+use darwin_code_protocol::exec_output::ExecToolCallOutput;
+use darwin_code_protocol::exec_output::StreamOutput;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::ExecCommandStatus;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::TurnStartedEvent;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_shell_command::parse_command::parse_command;
 
 use super::SessionTask;
 use super::SessionTaskContext;
 use crate::session::session::Session;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 
 const USER_SHELL_TIMEOUT_MS: u64 = 60 * 60 * 1000; // 1 hour
 
@@ -99,7 +99,7 @@ pub(crate) async fn execute_user_shell_command(
     session
         .services
         .session_telemetry
-        .counter("codex.task.user_shell", /*inc*/ 1, &[]);
+        .counter("darwin-code.task.user_shell", /*inc*/ 1, &[]);
 
     if mode == UserShellCommandMode::StandaloneTurn {
         // Auxiliary mode runs within an existing active turn. That turn already

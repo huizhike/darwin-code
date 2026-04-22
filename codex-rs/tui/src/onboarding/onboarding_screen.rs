@@ -1,13 +1,13 @@
 use crate::legacy_core::config::Config;
 #[cfg(target_os = "windows")]
 use crate::legacy_core::windows_sandbox::WindowsSandboxLevelExt;
-use codex_app_server_client::AppServerEvent;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::ServerNotification;
-use codex_exec_server::LOCAL_FS;
-use codex_git_utils::resolve_root_git_project_for_trust;
+use darwin_code_app_server_client::AppServerEvent;
+use darwin_code_app_server_client::AppServerRequestHandle;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_git_utils::resolve_root_git_project_for_trust;
 #[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -18,7 +18,7 @@ use ratatui::style::Color;
 use ratatui::widgets::Clear;
 use ratatui::widgets::WidgetRef;
 
-use codex_protocol::config_types::ForcedLoginMethod;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
 
 use crate::LoginStatus;
 use crate::app_server_session::AppServerSession;
@@ -88,7 +88,7 @@ impl OnboardingScreen {
             config,
         } = args;
         let cwd = config.cwd.to_path_buf();
-        let codex_home = config.codex_home.to_path_buf();
+        let darwin_code_home = config.darwin_code_home.to_path_buf();
         let forced_login_method = config.forced_login_method;
         let mut steps: Vec<Step> = Vec::new();
         steps.push(Step::Welcome(WelcomeWidget::new(
@@ -131,7 +131,7 @@ impl OnboardingScreen {
             steps.push(Step::TrustDirectory(TrustDirectoryWidget {
                 cwd,
                 trust_target,
-                codex_home,
+                darwin_code_home,
                 show_windows_create_sandbox_hint,
                 should_quit: false,
                 selection: None,

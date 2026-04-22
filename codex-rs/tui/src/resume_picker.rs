@@ -22,11 +22,11 @@ use crate::tui::Tui;
 use crate::tui::TuiEvent;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_protocol::ThreadId;
+use darwin_code_app_server_protocol::Thread;
+use darwin_code_app_server_protocol::ThreadListParams;
+use darwin_code_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
+use darwin_code_app_server_protocol::ThreadSourceKind;
+use darwin_code_protocol::ThreadId;
 use color_eyre::eyre::Result;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -252,7 +252,7 @@ async fn run_session_picker_with_loader(
     } else {
         ProviderFilter::MatchDefault(config.model_provider_id.to_string())
     };
-    let codex_home = config.codex_home.as_path();
+    let darwin_code_home = config.darwin_code_home.as_path();
     let filter_cwd = if show_all || is_remote {
         // Remote sessions live in the server's filesystem namespace, so the client
         // process cwd is not a meaningful row filter. If the user provided an
@@ -263,7 +263,7 @@ async fn run_session_picker_with_loader(
     };
 
     let mut state = PickerState::new(
-        codex_home.to_path_buf(),
+        darwin_code_home.to_path_buf(),
         alt.tui.frame_requester(),
         page_loader,
         provider_filter,
@@ -336,7 +336,7 @@ fn spawn_rollout_page_loader(
                 PAGE_SIZE,
                 cursor,
                 request.sort_key,
-                codex_rollout::SortDirection::Desc,
+                darwin_code_rollout::SortDirection::Desc,
                 INTERACTIVE_SESSION_SOURCES.as_slice(),
                 default_provider.as_ref().map(std::slice::from_ref),
                 default_provider.as_deref().unwrap_or_default(),
@@ -424,7 +424,7 @@ impl Drop for AltScreenGuard<'_> {
 }
 
 struct PickerState {
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     requester: FrameRequester,
     relative_time_reference: Option<DateTime<Utc>>,
     pagination: PaginationState,
@@ -574,7 +574,7 @@ impl Row {
 
 impl PickerState {
     fn new(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         requester: FrameRequester,
         page_loader: PageLoader,
         provider_filter: ProviderFilter,
@@ -583,7 +583,7 @@ impl PickerState {
         action: SessionPickerAction,
     ) -> Self {
         Self {
-            codex_home,
+            darwin_code_home,
             requester,
             relative_time_reference: None,
             pagination: PaginationState {
@@ -868,7 +868,7 @@ impl PickerState {
             return;
         }
 
-        let names = find_thread_names_by_ids(&self.codex_home, &missing_ids)
+        let names = find_thread_names_by_ids(&self.darwin_code_home, &missing_ids)
             .await
             .unwrap_or_default();
         for thread_id in missing_ids {
@@ -1685,9 +1685,9 @@ fn column_visibility(
 mod tests {
     use super::*;
     use chrono::Duration;
-    use codex_protocol::ThreadId;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
 
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
@@ -2176,7 +2176,7 @@ mod tests {
     //     );
     //
     //     let page = RolloutRecorder::list_threads(
-    //         &state.codex_home,
+    //         &state.darwin_code_home,
     //         PAGE_SIZE,
     //         None,
     //         ThreadSortKey::CreatedAt,
@@ -2716,11 +2716,11 @@ mod tests {
             model_provider: String::from("openai"),
             created_at: 1,
             updated_at: 2,
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: darwin_code_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: darwin_code_app_server_protocol::SessionSource::Cli,
             agent_nickname: None,
             agent_role: None,
             git_info: None,

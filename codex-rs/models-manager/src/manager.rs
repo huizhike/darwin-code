@@ -3,28 +3,28 @@ use crate::collaboration_mode_presets::CollaborationModesConfig;
 use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
-use codex_api::ModelsClient;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::TransportError;
-use codex_api::auth_header_telemetry;
-use codex_api::map_api_error;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthEnvTelemetry;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::collect_auth_env_telemetry;
-use codex_login::default_client::build_reqwest_client;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CoreResult;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelsResponse;
+use darwin_code_api::ModelsClient;
+use darwin_code_api::RequestTelemetry;
+use darwin_code_api::ReqwestTransport;
+use darwin_code_api::TransportError;
+use darwin_code_api::auth_header_telemetry;
+use darwin_code_api::map_api_error;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_login::AuthEnvTelemetry;
+use darwin_code_login::AuthManager;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_login::collect_auth_env_telemetry;
+use darwin_code_login::default_client::build_reqwest_client;
+use darwin_code_model_provider::SharedModelProvider;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_otel::TelemetryAuthMode;
+use darwin_code_protocol::config_types::CollaborationModeMask;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as CoreResult;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ModelsResponse;
 use http::HeaderMap;
 use std::fmt;
 use std::path::PathBuf;
@@ -64,9 +64,9 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             .unwrap_or_default();
         let status = status.map(|status| status.as_u16());
         tracing::event!(
-            target: "codex_otel.log_only",
+            target: "darwin_code_otel.log_only",
             tracing::Level::INFO,
-            event.name = "codex.api_request",
+            event.name = "darwin-code.api_request",
             duration_ms = %duration.as_millis(),
             http.response.status_code = status,
             success = success,
@@ -76,8 +76,8 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
             auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
-            auth.env_codex_api_key_present = self.auth_env.codex_api_key_env_present,
-            auth.env_codex_api_key_enabled = self.auth_env.codex_api_key_env_enabled,
+            auth.env_darwin_code_api_key_present = self.auth_env.darwin_code_api_key_env_present,
+            auth.env_darwin_code_api_key_enabled = self.auth_env.darwin_code_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
             auth.env_provider_key_present = self.auth_env.provider_env_key_present,
             auth.env_refresh_token_url_override_present = self.auth_env.refresh_token_url_override_present,
@@ -88,9 +88,9 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.mode = self.auth_mode.as_deref(),
         );
         tracing::event!(
-            target: "codex_otel.trace_safe",
+            target: "darwin_code_otel.trace_safe",
             tracing::Level::INFO,
-            event.name = "codex.api_request",
+            event.name = "darwin-code.api_request",
             duration_ms = %duration.as_millis(),
             http.response.status_code = status,
             success = success,
@@ -100,8 +100,8 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
             auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
-            auth.env_codex_api_key_present = self.auth_env.codex_api_key_env_present,
-            auth.env_codex_api_key_enabled = self.auth_env.codex_api_key_env_enabled,
+            auth.env_darwin_code_api_key_present = self.auth_env.darwin_code_api_key_env_present,
+            auth.env_darwin_code_api_key_enabled = self.auth_env.darwin_code_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
             auth.env_provider_key_present = self.auth_env.provider_env_key_present,
             auth.env_refresh_token_url_override_present = self.auth_env.refresh_token_url_override_present,
@@ -183,17 +183,17 @@ pub struct ModelsManager {
 impl ModelsManager {
     /// Construct a manager scoped to the provided `AuthManager`.
     ///
-    /// Uses `codex_home` to store cached model metadata and initializes with bundled catalog
+    /// Uses `darwin_code_home` to store cached model metadata and initializes with bundled catalog
     /// When `model_catalog` is provided, it becomes the authoritative remote model list and
     /// background refreshes from `/models` are disabled.
     pub fn new(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         auth_manager: Arc<AuthManager>,
         model_catalog: Option<ModelsResponse>,
         collaboration_modes_config: CollaborationModesConfig,
     ) -> Self {
         Self::new_with_provider(
-            codex_home,
+            darwin_code_home,
             auth_manager,
             model_catalog,
             collaboration_modes_config,
@@ -206,14 +206,14 @@ impl ModelsManager {
     // own or return the models manager instead of requiring the manager to construct and use
     // a provider from provider info.
     pub fn new_with_provider(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         auth_manager: Arc<AuthManager>,
         model_catalog: Option<ModelsResponse>,
         collaboration_modes_config: CollaborationModesConfig,
         provider_info: ModelProviderInfo,
     ) -> Self {
         let model_provider = create_model_provider(provider_info, Some(auth_manager));
-        let cache_path = codex_home.join(MODEL_CACHE_FILE);
+        let cache_path = darwin_code_home.join(MODEL_CACHE_FILE);
         let cache_manager = ModelsCacheManager::new(cache_path, DEFAULT_MODEL_CACHE_TTL);
         let catalog_mode = if model_catalog.is_some() {
             CatalogMode::Custom
@@ -355,7 +355,7 @@ impl ModelsManager {
         config: &ModelsManagerConfig,
     ) -> ModelInfo {
         // First use the normal longest-prefix match. If that misses, allow a narrowly scoped
-        // retry for namespaced slugs like `custom/gpt-5.3-codex`.
+        // retry for namespaced slugs like `custom/gpt-5.3-darwin-code`.
         let remote = Self::find_model_by_longest_prefix(model, candidates)
             .or_else(|| Self::find_model_by_namespaced_suffix(model, candidates));
         let model_info = if let Some(remote) = remote {
@@ -431,16 +431,16 @@ impl ModelsManager {
 
     async fn fetch_and_update_models(&self) -> CoreResult<()> {
         let _timer =
-            codex_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
+            darwin_code_otel::start_global_timer("darwin-code.remote_models.fetch_update.duration_ms", &[]);
         let auth_manager = self.provider.auth_manager();
-        let codex_api_key_env_enabled = auth_manager
+        let darwin_code_api_key_env_enabled = auth_manager
             .as_ref()
-            .is_some_and(|auth_manager| auth_manager.codex_api_key_env_enabled());
+            .is_some_and(|auth_manager| auth_manager.darwin_code_api_key_env_enabled());
         let auth = self.provider.auth().await;
-        let auth_mode = auth.as_ref().map(CodexAuth::auth_mode);
+        let auth_mode = auth.as_ref().map(DarwinCodeAuth::auth_mode);
         let api_provider = self.provider.api_provider().await?;
         let api_auth = self.provider.api_auth().await?;
-        let auth_env = collect_auth_env_telemetry(self.provider.info(), codex_api_key_env_enabled);
+        let auth_env = collect_auth_env_telemetry(self.provider.info(), darwin_code_api_key_env_enabled);
         let transport = ReqwestTransport::new(build_reqwest_client());
         let auth_telemetry = auth_header_telemetry(api_auth.as_ref());
         let request_telemetry: Arc<dyn RequestTelemetry> = Arc::new(ModelsRequestTelemetry {
@@ -458,7 +458,7 @@ impl ModelsManager {
             client.list_models(&client_version, HeaderMap::new()),
         )
         .await
-        .map_err(|_| CodexErr::Timeout)?
+        .map_err(|_| DarwinCodeErr::Timeout)?
         .map_err(map_api_error)?;
 
         self.apply_remote_models(models.clone()).await;
@@ -496,7 +496,7 @@ impl ModelsManager {
     /// Attempt to satisfy the refresh from the cache when it matches the provider and TTL.
     async fn try_load_cache(&self) -> bool {
         let _timer =
-            codex_otel::start_global_timer("codex.remote_models.load_cache.duration_ms", &[]);
+            darwin_code_otel::start_global_timer("darwin-code.remote_models.load_cache.duration_ms", &[]);
         let client_version = crate::client_version_to_whole();
         info!(client_version, "models cache: evaluating cache eligibility");
         let cache = match self.cache_manager.load_fresh(&client_version).await {
@@ -544,12 +544,12 @@ impl ModelsManager {
 
     /// Construct a manager with a specific provider for testing.
     pub fn with_provider_for_tests(
-        codex_home: PathBuf,
+        darwin_code_home: PathBuf,
         auth_manager: Arc<AuthManager>,
         provider: ModelProviderInfo,
     ) -> Self {
         Self::new_with_provider(
-            codex_home,
+            darwin_code_home,
             auth_manager,
             /*model_catalog*/ None,
             CollaborationModesConfig::default(),

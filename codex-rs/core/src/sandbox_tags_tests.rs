@@ -1,9 +1,9 @@
 use super::sandbox_tag;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::protocol::NetworkAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::get_platform_sandbox;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::protocol::NetworkAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::get_platform_sandbox;
 use pretty_assertions::assert_eq;
 
 #[test]

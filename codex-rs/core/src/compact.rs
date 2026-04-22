@@ -10,26 +10,26 @@ use crate::session::session::Session;
 use crate::session::turn::get_last_assistant_message_from_turn;
 use crate::session::turn_context::TurnContext;
 use crate::util::backoff;
-use codex_features::Feature;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::truncate_text;
+use darwin_code_features::Feature;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::items::ContextCompactionItem;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_output_truncation::TruncationPolicy;
+use darwin_code_utils_output_truncation::approx_token_count;
+use darwin_code_utils_output_truncation::truncate_text;
 use futures::prelude::*;
 use tracing::error;
 
-use codex_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::ModelProviderInfo;
 
 pub const SUMMARIZATION_PROMPT: &str = include_str!("../templates/compact/prompt.md");
 pub const SUMMARY_PREFIX: &str = include_str!("../templates/compact/summary_prefix.md");
@@ -60,7 +60,7 @@ pub(crate) async fn run_inline_auto_compact_task(
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
     phase: CompactionPhase,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let prompt = turn_context.compact_prompt().to_string();
     let input = vec![UserInput::Text {
         text: prompt,
@@ -85,7 +85,7 @@ pub(crate) async fn run_compact_task(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
     input: Vec<UserInput>,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let start_event = EventMsg::TurnStarted(TurnStartedEvent {
         turn_id: turn_context.sub_id.clone(),
         started_at: turn_context.turn_timing_state.started_at_unix_secs().await,
@@ -113,7 +113,7 @@ async fn run_compact_task_inner(
     trigger: CompactionTrigger,
     reason: CompactionReason,
     phase: CompactionPhase,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let attempt = CompactionAnalyticsAttempt::begin(
         sess.as_ref(),
         turn_context.as_ref(),
@@ -145,7 +145,7 @@ async fn run_compact_task_inner_impl(
     turn_context: Arc<TurnContext>,
     input: Vec<UserInput>,
     initial_context_injection: InitialContextInjection,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let compaction_item = TurnItem::ContextCompaction(ContextCompactionItem::new());
     sess.emit_turn_item_started(&turn_context, &compaction_item)
         .await;
@@ -201,10 +201,10 @@ async fn run_compact_task_inner_impl(
                 }
                 break;
             }
-            Err(CodexErr::Interrupted) => {
-                return Err(CodexErr::Interrupted);
+            Err(DarwinCodeErr::Interrupted) => {
+                return Err(DarwinCodeErr::Interrupted);
             }
-            Err(e @ CodexErr::ContextWindowExceeded) => {
+            Err(e @ DarwinCodeErr::ContextWindowExceeded) => {
                 if turn_input_len > 1 {
                     // Trim from the beginning to preserve cache (prefix-based) and keep recent messages intact.
                     error!(
@@ -335,7 +335,7 @@ impl CompactionAnalyticsAttempt {
         let active_context_tokens_after = sess.get_total_token_usage().await;
         sess.services
             .analytics_events_client
-            .track_compaction(CodexCompactionEvent {
+            .track_compaction(DarwinCodeCompactionEvent {
                 thread_id: self.thread_id,
                 turn_id: self.turn_id,
                 trigger: self.trigger,
@@ -356,10 +356,10 @@ impl CompactionAnalyticsAttempt {
     }
 }
 
-pub(crate) fn compaction_status_from_result<T>(result: &CodexResult<T>) -> CompactionStatus {
+pub(crate) fn compaction_status_from_result<T>(result: &DarwinCodeResult<T>) -> CompactionStatus {
     match result {
         Ok(_) => CompactionStatus::Completed,
-        Err(CodexErr::Interrupted | CodexErr::TurnAborted) => CompactionStatus::Interrupted,
+        Err(DarwinCodeErr::Interrupted | DarwinCodeErr::TurnAborted) => CompactionStatus::Interrupted,
         Err(_) => CompactionStatus::Failed,
     }
 }
@@ -528,7 +528,7 @@ async fn drain_to_completed(
     client_session: &mut ModelClientSession,
     turn_metadata_header: Option<&str>,
     prompt: &Prompt,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     let mut stream = client_session
         .stream(
             prompt,
@@ -543,7 +543,7 @@ async fn drain_to_completed(
     loop {
         let maybe_event = stream.next().await;
         let Some(event) = maybe_event else {
-            return Err(CodexErr::Stream(
+            return Err(DarwinCodeErr::Stream(
                 "stream closed before response.completed".into(),
                 None,
             ));

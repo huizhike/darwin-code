@@ -4,28 +4,28 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::manager::ModelsManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::built_in_model_providers;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_models_manager::manager::ModelsManager;
+use darwin_code_models_manager::manager::RefreshStrategy;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ModelVisibility;
+use darwin_code_protocol::openai_models::ModelsResponse;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffortPreset;
+use darwin_code_protocol::openai_models::TruncationPolicyConfig;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandSource;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -38,8 +38,8 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
 use core_test_support::skip_if_sandbox;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
@@ -52,7 +52,7 @@ use tokio::time::timeout;
 use wiremock::BodyPrintLimit;
 use wiremock::MockServer;
 
-const REMOTE_MODEL_SLUG: &str = "codex-test";
+const REMOTE_MODEL_SLUG: &str = "darwin-code-test";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<()> {
@@ -67,13 +67,13 @@ async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<(
         TruncationPolicyConfig::bytes(/*limit*/ 10_000),
     );
     let specific = test_remote_model_with_policy(
-        "gpt-5.3-codex",
+        "gpt-5.3-darwin-code",
         ModelVisibility::List,
         /*priority*/ 1_000,
         TruncationPolicyConfig::bytes(/*limit*/ 10_000),
     );
     let specific = ModelInfo {
-        display_name: "GPT 5.3 Codex".to_string(),
+        display_name: "GPT 5.3 Darwin-Code".to_string(),
         base_instructions: "use specific prefix".to_string(),
         ..specific
     };
@@ -90,27 +90,27 @@ async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<(
     )
     .await;
 
-    let codex_home = TempDir::new()?;
-    let config = load_default_config_for_test(&codex_home).await;
+    let darwin_code_home = TempDir::new()?;
+    let config = load_default_config_for_test(&darwin_code_home).await;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
     manager.list_models(RefreshStrategy::OnlineIfUncached).await;
 
     let model_info = manager
-        .get_model_info("gpt-5.3-codex-test", &config.to_models_manager_config())
+        .get_model_info("gpt-5.3-darwin-code-test", &config.to_models_manager_config())
         .await;
 
-    assert_eq!(model_info.slug, "gpt-5.3-codex-test");
+    assert_eq!(model_info.slug, "gpt-5.3-darwin-code-test");
     assert_eq!(model_info.base_instructions, specific.base_instructions);
 
     Ok(())
@@ -122,8 +122,8 @@ async fn remote_models_long_model_slug_is_sent_with_high_reasoning() -> Result<(
     skip_if_sandbox!(Ok(()));
 
     let server = MockServer::start().await;
-    let requested_model = "gpt-5.3-codex-test";
-    let prefix_model = "gpt-5.3-codex";
+    let requested_model = "gpt-5.3-darwin-code-test";
+    let prefix_model = "gpt-5.3-darwin-code";
     let mut remote_model = test_remote_model_with_policy(
         prefix_model,
         ModelVisibility::List,
@@ -157,17 +157,17 @@ async fn remote_models_long_model_slug_is_sent_with_high_reasoning() -> Result<(
     )
     .await;
 
-    let TestCodex {
-        codex, cwd, config, ..
-    } = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let TestDarwinCode {
+        darwin-code, cwd, config, ..
+    } = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some(requested_model.to_string());
         })
         .build(&server)
         .await?;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "check model slug".into(),
@@ -187,7 +187,7 @@ async fn remote_models_long_model_slug_is_sent_with_high_reasoning() -> Result<(
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let request = response_mock.single_request();
     let body = request.body_json();
@@ -212,21 +212,21 @@ async fn namespaced_model_slug_uses_catalog_metadata_without_fallback_warning() 
     skip_if_sandbox!(Ok(()));
 
     let server = MockServer::start().await;
-    let requested_model = "custom/gpt-5.2-codex";
+    let requested_model = "custom/gpt-5.2-darwin-code";
     let response_mock = mount_sse_once(
         &server,
         sse(vec![ev_response_created("resp-1"), ev_completed("resp-1")]),
     )
     .await;
 
-    let TestCodex {
-        codex, cwd, config, ..
-    } = test_codex()
+    let TestDarwinCode {
+        darwin-code, cwd, config, ..
+    } = test_darwin_code()
         .with_model(requested_model)
         .build(&server)
         .await?;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "check namespaced model metadata".into(),
@@ -252,7 +252,7 @@ async fn namespaced_model_slug_uses_catalog_metadata_without_fallback_warning() 
 
     let mut fallback_warning_count = 0;
     loop {
-        let event = wait_for_event(&codex, |_| true).await;
+        let event = wait_for_event(&darwin-code, |_| true).await;
         match event {
             EventMsg::Warning(warning)
                 if warning.message.contains("Defaulting to fallback metadata") =>
@@ -325,13 +325,13 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some("gpt-5.1".to_string());
         });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         config,
         thread_manager,
@@ -356,7 +356,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
         .await;
     assert_eq!(model_info.shell_type, ConfigShellToolType::UnifiedExec);
 
-    codex
+    darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -391,7 +391,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
     ];
     mount_sse_sequence(&server, responses).await;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run call".into(),
@@ -411,7 +411,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
         })
         .await?;
 
-    let begin_event = wait_for_event_match(&codex, |msg| match msg {
+    let begin_event = wait_for_event_match(&darwin-code, |msg| match msg {
         EventMsg::ExecCommandBegin(event) if event.call_id == call_id => Some(event.clone()),
         _ => None,
     })
@@ -419,7 +419,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
 
     assert_eq!(begin_event.source, ExecCommandSource::UnifiedExecStartup);
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     Ok(())
 }
@@ -434,7 +434,7 @@ async fn remote_models_truncation_policy_without_override_preserves_remote() -> 
         .start()
         .await;
 
-    let slug = "codex-test-truncation-policy";
+    let slug = "darwin-code-test-truncation-policy";
     let remote_model = test_remote_model_with_policy(
         slug,
         ModelVisibility::List,
@@ -449,8 +449,8 @@ async fn remote_models_truncation_policy_without_override_preserves_remote() -> 
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some("gpt-5.1".to_string());
         });
@@ -480,7 +480,7 @@ async fn remote_models_truncation_policy_with_tool_output_override() -> Result<(
         .start()
         .await;
 
-    let slug = "codex-test-truncation-override";
+    let slug = "darwin-code-test-truncation-override";
     let remote_model = test_remote_model_with_policy(
         slug,
         ModelVisibility::List,
@@ -495,8 +495,8 @@ async fn remote_models_truncation_policy_with_tool_output_override() -> Result<(
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some("gpt-5.1".to_string());
             config.tool_output_token_limit = Some(50);
@@ -583,13 +583,13 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config.model = Some("gpt-5.1".to_string());
         });
-    let TestCodex {
-        codex,
+    let TestDarwinCode {
+        darwin-code,
         cwd,
         config,
         thread_manager,
@@ -599,7 +599,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
     let models_manager = thread_manager.get_models_manager();
     wait_for_model_available(&models_manager, model).await;
 
-    codex
+    darwin-code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -615,7 +615,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         })
         .await?;
 
-    codex
+    darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello remote".into(),
@@ -635,7 +635,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
 
     let base_model_info = models_manager
         .get_model_info("gpt-5.1", &config.to_models_manager_config())
@@ -663,16 +663,16 @@ async fn remote_models_do_not_append_removed_builtin_presets() -> Result<()> {
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -724,16 +724,16 @@ async fn remote_models_merge_adds_new_high_priority_first() -> Result<()> {
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -771,16 +771,16 @@ async fn remote_models_merge_replaces_overlapping_model() -> Result<()> {
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -815,16 +815,16 @@ async fn remote_models_merge_preserves_bundled_models_on_empty_response() -> Res
     let server = MockServer::start().await;
     let _models_mock = mount_models_once(&server, ModelsResponse { models: Vec::new() }).await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -857,16 +857,16 @@ async fn remote_models_request_times_out_after_5s() -> Result<()> {
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -915,7 +915,7 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
 
     let server = MockServer::start().await;
     let remote_model = test_remote_model(
-        "codex-auto-balanced",
+        "darwin-code-auto-balanced",
         ModelVisibility::Hide,
         /*priority*/ 0,
     );
@@ -927,16 +927,16 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
     )
     .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
 
-    let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
+    let auth = DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
-        codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+    let manager = darwin_code_core::test_support::models_manager_with_provider(
+        darwin_code_home.path().to_path_buf(),
+        darwin_code_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -948,7 +948,7 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
     let available = manager.list_models(RefreshStrategy::OnlineIfUncached).await;
     let hidden = available
         .iter()
-        .find(|model| model.model == "codex-auto-balanced")
+        .find(|model| model.model == "darwin-code-auto-balanced")
         .expect("hidden remote model should be listed");
     assert!(!hidden.show_in_picker, "hidden models should remain hidden");
     assert_eq!(
@@ -990,7 +990,7 @@ fn bundled_model_slug() -> String {
 }
 
 fn bundled_default_model_slug() -> String {
-    codex_core::test_support::all_model_presets()
+    darwin_code_core::test_support::all_model_presets()
         .iter()
         .find(|preset| preset.is_default)
         .expect("bundled models should include a default")

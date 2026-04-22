@@ -12,13 +12,13 @@ use crate::tools::handlers::multi_agents::build_agent_spawn_config;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::protocol::AgentStatus;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use serde::Deserialize;
@@ -134,7 +134,7 @@ impl JobProgressEmitter {
         session: &Session,
         turn: &TurnContext,
         job_id: &str,
-        progress: &codex_state::AgentJobProgress,
+        progress: &darwin_code_state::AgentJobProgress,
         force: bool,
     ) -> anyhow::Result<()> {
         let processed = progress.completed_items + progress.failed_items;
@@ -299,7 +299,7 @@ mod spawn_agents_on_csv {
                 .zip(row.iter())
                 .map(|(header, value)| (header.clone(), Value::String(value.clone())))
                 .collect::<serde_json::Map<_, _>>();
-            items.push(codex_state::AgentJobItemCreateParams {
+            items.push(darwin_code_state::AgentJobItemCreateParams {
                 item_id,
                 row_index: idx as i64,
                 source_id,
@@ -320,7 +320,7 @@ mod spawn_agents_on_csv {
         )?;
         let _job = db
             .create_agent_job(
-                &codex_state::AgentJobCreateParams {
+                &darwin_code_state::AgentJobCreateParams {
                     id: job_id.clone(),
                     name: job_name,
                     instruction: args.instruction,
@@ -414,7 +414,7 @@ mod spawn_agents_on_csv {
             let items = db
                 .list_agent_job_items(
                     job_id.as_str(),
-                    Some(codex_state::AgentJobItemStatus::Failed),
+                    Some(darwin_code_state::AgentJobItemStatus::Failed),
                     Some(5),
                 )
                 .await
@@ -513,7 +513,7 @@ mod report_agent_job_result {
 
 fn required_state_db(
     session: &Arc<Session>,
-) -> Result<Arc<codex_state::StateRuntime>, FunctionCallError> {
+) -> Result<Arc<darwin_code_state::StateRuntime>, FunctionCallError> {
     session.state_db().ok_or_else(|| {
         FunctionCallError::Fatal("sqlite state db is unavailable for this session".to_string())
     })
@@ -567,7 +567,7 @@ fn normalize_max_runtime_seconds(requested: Option<u64>) -> Result<Option<u64>, 
 async fn run_agent_job_loop(
     session: Arc<Session>,
     turn: Arc<TurnContext>,
-    db: Arc<codex_state::StateRuntime>,
+    db: Arc<darwin_code_state::StateRuntime>,
     job_id: String,
     options: JobRunnerOptions,
 ) -> anyhow::Result<()> {
@@ -616,7 +616,7 @@ async fn run_agent_job_loop(
             let pending_items = db
                 .list_agent_job_items(
                     job_id.as_str(),
-                    Some(codex_state::AgentJobItemStatus::Pending),
+                    Some(darwin_code_state::AgentJobItemStatus::Pending),
                     Some(slots),
                 )
                 .await?;
@@ -639,7 +639,7 @@ async fn run_agent_job_loop(
                     .await
                 {
                     Ok(thread_id) => thread_id,
-                    Err(CodexErr::AgentLimitReached { .. }) => {
+                    Err(DarwinCodeErr::AgentLimitReached { .. }) => {
                         db.mark_agent_job_item_pending(
                             job_id.as_str(),
                             item.item_id.as_str(),
@@ -790,8 +790,8 @@ async fn run_agent_job_loop(
 }
 
 async fn export_job_csv_snapshot(
-    db: Arc<codex_state::StateRuntime>,
-    job: &codex_state::AgentJob,
+    db: Arc<darwin_code_state::StateRuntime>,
+    job: &darwin_code_state::AgentJob,
 ) -> anyhow::Result<()> {
     let items = db
         .list_agent_job_items(job.id.as_str(), /*status*/ None, /*limit*/ None)
@@ -808,7 +808,7 @@ async fn export_job_csv_snapshot(
 
 async fn recover_running_items(
     session: Arc<Session>,
-    db: Arc<codex_state::StateRuntime>,
+    db: Arc<darwin_code_state::StateRuntime>,
     job_id: &str,
     active_items: &mut HashMap<ThreadId, ActiveJobItem>,
     runtime_timeout: Duration,
@@ -816,7 +816,7 @@ async fn recover_running_items(
     let running_items = db
         .list_agent_job_items(
             job_id,
-            Some(codex_state::AgentJobItemStatus::Running),
+            Some(darwin_code_state::AgentJobItemStatus::Running),
             /*limit*/ None,
         )
         .await?;
@@ -932,7 +932,7 @@ async fn wait_for_status_change(active_items: &HashMap<ThreadId, ActiveJobItem>)
 
 async fn reap_stale_active_items(
     session: Arc<Session>,
-    db: Arc<codex_state::StateRuntime>,
+    db: Arc<darwin_code_state::StateRuntime>,
     job_id: &str,
     active_items: &mut HashMap<ThreadId, ActiveJobItem>,
     runtime_timeout: Duration,
@@ -962,7 +962,7 @@ async fn reap_stale_active_items(
 
 async fn finalize_finished_item(
     session: Arc<Session>,
-    db: Arc<codex_state::StateRuntime>,
+    db: Arc<darwin_code_state::StateRuntime>,
     job_id: &str,
     item_id: &str,
     thread_id: ThreadId,
@@ -973,7 +973,7 @@ async fn finalize_finished_item(
         .ok_or_else(|| {
             anyhow::anyhow!("job item not found for finalization: {job_id}/{item_id}")
         })?;
-    if matches!(item.status, codex_state::AgentJobItemStatus::Running) {
+    if matches!(item.status, darwin_code_state::AgentJobItemStatus::Running) {
         if item.result_json.is_some() {
             let _ = db.mark_agent_job_item_completed(job_id, item_id).await?;
         } else {
@@ -995,8 +995,8 @@ async fn finalize_finished_item(
 }
 
 fn build_worker_prompt(
-    job: &codex_state::AgentJob,
-    item: &codex_state::AgentJobItem,
+    job: &darwin_code_state::AgentJob,
+    item: &darwin_code_state::AgentJobItem,
 ) -> anyhow::Result<String> {
     let job_id = job.id.as_str();
     let item_id = item.item_id.as_str();
@@ -1028,8 +1028,8 @@ After the tool call succeeds, stop.",
 }
 
 fn render_instruction_template(instruction: &str, row_json: &Value) -> String {
-    const OPEN_BRACE_SENTINEL: &str = "__CODEX_OPEN_BRACE__";
-    const CLOSE_BRACE_SENTINEL: &str = "__CODEX_CLOSE_BRACE__";
+    const OPEN_BRACE_SENTINEL: &str = "__DARWIN_CODE_OPEN_BRACE__";
+    const CLOSE_BRACE_SENTINEL: &str = "__DARWIN_CODE_CLOSE_BRACE__";
 
     let mut rendered = instruction
         .replace("{{", OPEN_BRACE_SENTINEL)
@@ -1064,13 +1064,13 @@ fn ensure_unique_headers(headers: &[String]) -> Result<(), FunctionCallError> {
     Ok(())
 }
 
-fn job_runtime_timeout(job: &codex_state::AgentJob) -> Duration {
+fn job_runtime_timeout(job: &darwin_code_state::AgentJob) -> Duration {
     job.max_runtime_seconds
         .map(Duration::from_secs)
         .unwrap_or(DEFAULT_AGENT_JOB_ITEM_TIMEOUT)
 }
 
-fn started_at_from_item(item: &codex_state::AgentJobItem) -> Instant {
+fn started_at_from_item(item: &darwin_code_state::AgentJobItem) -> Instant {
     let now = chrono::Utc::now();
     let age = now.signed_duration_since(item.updated_at);
     if let Ok(age) = age.to_std() {
@@ -1080,7 +1080,7 @@ fn started_at_from_item(item: &codex_state::AgentJobItem) -> Instant {
     }
 }
 
-fn is_item_stale(item: &codex_state::AgentJobItem, runtime_timeout: Duration) -> bool {
+fn is_item_stale(item: &darwin_code_state::AgentJobItem, runtime_timeout: Duration) -> bool {
     let now = chrono::Utc::now();
     if let Ok(age) = now.signed_duration_since(item.updated_at).to_std() {
         age >= runtime_timeout
@@ -1126,7 +1126,7 @@ fn parse_csv(content: &str) -> Result<(Vec<String>, Vec<Vec<String>>), String> {
 
 fn render_job_csv(
     headers: &[String],
-    items: &[codex_state::AgentJobItem],
+    items: &[darwin_code_state::AgentJobItem],
 ) -> Result<String, FunctionCallError> {
     let mut csv = String::new();
     let mut output_headers = headers.to_vec();

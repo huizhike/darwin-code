@@ -5,29 +5,29 @@ use app_test_support::PathBufExt;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxMode;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadStatusChangedNotification;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::set_project_trust_level;
-use codex_core::config_loader::project_trust_key;
-use codex_exec_server::LOCAL_FS;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::openai_models::ReasoningEffort;
+use darwin_code_app_server_protocol::AskForApproval;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::McpServerStartupState;
+use darwin_code_app_server_protocol::McpServerStatusUpdatedNotification;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::SandboxMode;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ThreadStartParams;
+use darwin_code_app_server_protocol::ThreadStartResponse;
+use darwin_code_app_server_protocol::ThreadStartedNotification;
+use darwin_code_app_server_protocol::ThreadStatus;
+use darwin_code_app_server_protocol::ThreadStatusChangedNotification;
+use darwin_code_config::types::AuthCredentialsStoreMode;
+use darwin_code_core::config::set_project_trust_level;
+use darwin_code_core::config_loader::project_trust_key;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_git_utils::resolve_root_git_project_for_trust;
+use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -54,11 +54,11 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     // Provide a mock server and config so model wiring is valid.
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     // Start server and initialize.
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     // Start a v2 thread with an explicit model override.
@@ -169,15 +169,15 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
 #[tokio::test]
 async fn thread_start_response_includes_loaded_instruction_sources() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
-    let global_agents_path = codex_home.path().join("AGENTS.md");
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
+    let global_agents_path = darwin_code_home.path().join("AGENTS.md");
     std::fs::write(&global_agents_path, "global instructions")?;
     let workspace = TempDir::new()?;
     let project_agents_path = workspace.path().join("AGENTS.md");
     std::fs::write(&project_agents_path, "project instructions")?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -229,16 +229,16 @@ fn normalize_path_for_comparison(path: impl AsRef<Path>) -> PathBuf {
 async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
-    mount_analytics_capture(&server, codex_home.path()).await?;
+    mount_analytics_capture(&server, darwin_code_home.path()).await?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -262,16 +262,16 @@ async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
 async fn thread_start_does_not_track_thread_initialized_analytics_without_feature() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ false,
     )?;
-    mount_analytics_capture(&server, codex_home.path()).await?;
+    mount_analytics_capture(&server, darwin_code_home.path()).await?;
 
-    let mut mcp = McpProcess::new_without_managed_config(codex_home.path()).await?;
+    let mut mcp = McpProcess::new_without_managed_config(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -295,7 +295,7 @@ async fn assert_no_thread_initialized_analytics(
     tokio::time::sleep(wait_duration).await;
     let requests = server.received_requests().await.unwrap_or_default();
     for request in requests.iter().filter(|request| {
-        request.method == "POST" && request.url.path() == "/codex/analytics-events/events"
+        request.method == "POST" && request.url.path() == "/darwin-code/analytics-events/events"
     }) {
         let payload: Value = serde_json::from_slice(&request.body)?;
         assert!(
@@ -310,11 +310,11 @@ async fn assert_no_thread_initialized_analytics(
 async fn thread_start_respects_project_config_from_cwd() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".codex");
+    let project_config_dir = workspace.path().join(".darwin-code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -322,9 +322,9 @@ async fn thread_start_respects_project_config_from_cwd() -> Result<()> {
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(darwin_code_home.path(), workspace.path(), TrustLevel::Trusted)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -351,10 +351,10 @@ model_reasoning_effort = "high"
 async fn thread_start_accepts_flex_service_tier() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -379,10 +379,10 @@ async fn thread_start_accepts_flex_service_tier() -> Result<()> {
 async fn thread_start_accepts_metrics_service_name() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -406,10 +406,10 @@ async fn thread_start_accepts_metrics_service_name() -> Result<()> {
 #[tokio::test]
 async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -452,10 +452,10 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
 async fn thread_start_fails_when_required_mcp_server_fails_to_initialize() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_with_required_broken_mcp(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_with_required_broken_mcp(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -488,10 +488,10 @@ async fn thread_start_fails_when_required_mcp_server_fails_to_initialize() -> Re
 async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_with_optional_broken_mcp(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_with_optional_broken_mcp(darwin_code_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
@@ -601,17 +601,17 @@ async fn thread_start_surfaces_cloud_requirements_load_errors() -> Result<()> {
         .mount(&server)
         .await;
 
-    let codex_home = TempDir::new()?;
+    let darwin_code_home = TempDir::new()?;
     let model_server = create_mock_responses_server_repeating_assistant("Done").await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
     create_config_toml_with_chatgpt_base_url(
-        codex_home.path(),
+        darwin_code_home.path(),
         &model_server.uri(),
         &chatgpt_base_url,
         /*general_analytics_enabled*/ false,
     )?;
     write_chatgpt_auth(
-        codex_home.path(),
+        darwin_code_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
             .refresh_token("stale-refresh-token")
             .plan_type("business")
@@ -623,7 +623,7 @@ async fn thread_start_surfaces_cloud_requirements_load_errors() -> Result<()> {
 
     let refresh_token_url = format!("{}/oauth/token", server.uri());
     let mut mcp = McpProcess::new_with_env(
-        codex_home.path(),
+        darwin_code_home.path(),
         &[
             ("OPENAI_API_KEY", None),
             (
@@ -669,11 +669,11 @@ async fn thread_start_with_elevated_sandbox_trusts_project_and_followup_loads_pr
 -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".codex");
+    let project_config_dir = workspace.path().join(".darwin-code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -682,7 +682,7 @@ model_reasoning_effort = "high"
 "#,
     )?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let first_request = mcp
@@ -718,7 +718,7 @@ model_reasoning_effort = "high"
     assert_eq!(approval_policy, AskForApproval::OnRequest);
     assert_eq!(reasoning_effort, Some(ReasoningEffort::High));
 
-    let config_toml = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_toml = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     let workspace_abs = workspace.path().to_path_buf().abs();
     let trusted_root = resolve_root_git_project_for_trust(LOCAL_FS.as_ref(), &workspace_abs)
         .await
@@ -734,15 +734,15 @@ model_reasoning_effort = "high"
 async fn thread_start_with_nested_git_cwd_trusts_repo_root() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let repo_root = TempDir::new()?;
     std::fs::create_dir(repo_root.path().join(".git"))?;
     let nested = repo_root.path().join("nested/project");
     std::fs::create_dir_all(&nested)?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -758,7 +758,7 @@ async fn thread_start_with_nested_git_cwd_trusts_repo_root() -> Result<()> {
     )
     .await??;
 
-    let config_toml = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_toml = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     let nested_abs = nested.abs();
     let trusted_root = resolve_root_git_project_for_trust(LOCAL_FS.as_ref(), &nested_abs)
         .await
@@ -775,12 +775,12 @@ async fn thread_start_with_nested_git_cwd_trusts_repo_root() -> Result<()> {
 async fn thread_start_with_read_only_sandbox_does_not_persist_project_trust() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -795,7 +795,7 @@ async fn thread_start_with_read_only_sandbox_does_not_persist_project_trust() ->
     )
     .await??;
 
-    let config_toml = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_toml = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     assert!(!config_toml.contains("trust_level = \"trusted\""));
     assert!(!config_toml.contains(&workspace.path().display().to_string()));
 
@@ -806,11 +806,11 @@ async fn thread_start_with_read_only_sandbox_does_not_persist_project_trust() ->
 async fn thread_start_skips_trust_write_when_project_is_already_trusted() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
-    let codex_home = TempDir::new()?;
-    create_config_toml_without_approval_policy(codex_home.path(), &server.uri())?;
+    let darwin_code_home = TempDir::new()?;
+    create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".codex");
+    let project_config_dir = workspace.path().join(".darwin-code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -818,10 +818,10 @@ async fn thread_start_skips_trust_write_when_project_is_already_trusted() -> Res
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(codex_home.path(), workspace.path(), TrustLevel::Trusted)?;
-    let config_before = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    set_project_trust_level(darwin_code_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    let config_before = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
 
-    let mut mcp = McpProcess::new(codex_home.path()).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -845,27 +845,27 @@ model_reasoning_effort = "high"
     assert_eq!(approval_policy, AskForApproval::OnRequest);
     assert_eq!(reasoning_effort, Some(ReasoningEffort::High));
 
-    let config_after = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_after = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     assert_eq!(config_after, config_before);
 
     Ok(())
 }
 
 fn create_config_toml_without_approval_policy(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
 ) -> std::io::Result<()> {
     create_config_toml_with_optional_approval_policy(
-        codex_home, server_uri, /*approval_policy*/ None,
+        darwin_code_home, server_uri, /*approval_policy*/ None,
     )
 }
 
 fn create_config_toml_with_optional_approval_policy(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     approval_policy: Option<&str>,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     let approval_policy = approval_policy
         .map(|policy| format!("approval_policy = \"{policy}\"\n"))
         .unwrap_or_default();
@@ -890,7 +890,7 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_chatgpt_base_url(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
     chatgpt_base_url: &str,
     general_analytics_enabled: bool,
@@ -900,7 +900,7 @@ fn create_config_toml_with_chatgpt_base_url(
     } else {
         "\ngeneral_analytics = false".to_string()
     };
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -927,10 +927,10 @@ stream_max_retries = 0
 }
 
 fn create_config_toml_with_required_broken_mcp(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(
@@ -958,10 +958,10 @@ required = true
 }
 
 fn create_config_toml_with_optional_broken_mcp(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     server_uri: &str,
 ) -> std::io::Result<()> {
-    let config_toml = codex_home.join("config.toml");
+    let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
         format!(

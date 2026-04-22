@@ -2,11 +2,11 @@ use super::*;
 use crate::shell::default_user_shell;
 use crate::tools::handlers::parse_arguments_with_base_path;
 use crate::tools::handlers::resolve_workdir_base_path;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_tools::UnifiedExecShellMode;
-use codex_tools::ZshForkConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_tools::UnifiedExecShellMode;
+use darwin_code_tools::ZshForkConfig;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::fs;
@@ -133,16 +133,16 @@ fn test_get_command_ignores_explicit_shell_in_zsh_fork_mode() -> anyhow::Result<
     let json = r#"{"cmd": "echo hello", "shell": "/bin/bash"}"#;
     let args: ExecCommandArgs = parse_arguments(json)?;
     let shell_zsh_path = AbsolutePathBuf::from_absolute_path(if cfg!(windows) {
-        r"C:\opt\codex\zsh"
+        r"C:\opt\darwin-code\zsh"
     } else {
-        "/opt/codex/zsh"
+        "/opt/darwin-code/zsh"
     })?;
     let shell_mode = UnifiedExecShellMode::ZshFork(ZshForkConfig {
         shell_zsh_path: shell_zsh_path.clone(),
         main_execve_wrapper_exe: AbsolutePathBuf::from_absolute_path(if cfg!(windows) {
-            r"C:\opt\codex\codex-execve-wrapper"
+            r"C:\opt\darwin-code\darwin-code-execve-wrapper"
         } else {
-            "/opt/codex/codex-execve-wrapper"
+            "/opt/darwin-code/darwin-code-execve-wrapper"
         })?,
     });
 
@@ -212,7 +212,7 @@ async fn exec_command_pre_tool_use_payload_uses_raw_command() {
             turn: turn.into(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-43".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: darwin_code_tools::ToolName::plain("exec_command"),
             payload,
         }),
         Some(crate::tools::registry::PreToolUsePayload {
@@ -235,7 +235,7 @@ async fn exec_command_pre_tool_use_payload_skips_write_stdin() {
             turn: turn.into(),
             tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
             call_id: "call-44".to_string(),
-            tool_name: codex_tools::ToolName::plain("write_stdin"),
+            tool_name: darwin_code_tools::ToolName::plain("write_stdin"),
             payload,
         }),
         None

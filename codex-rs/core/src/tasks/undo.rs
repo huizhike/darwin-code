@@ -4,13 +4,13 @@ use crate::session::turn_context::TurnContext;
 use crate::state::TaskKind;
 use crate::tasks::SessionTask;
 use crate::tasks::SessionTaskContext;
-use codex_git_utils::RestoreGhostCommitOptions;
-use codex_git_utils::restore_ghost_commit_with_options;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::UndoCompletedEvent;
-use codex_protocol::protocol::UndoStartedEvent;
-use codex_protocol::user_input::UserInput;
+use darwin_code_git_utils::RestoreGhostCommitOptions;
+use darwin_code_git_utils::restore_ghost_commit_with_options;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::UndoCompletedEvent;
+use darwin_code_protocol::protocol::UndoStartedEvent;
+use darwin_code_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use tracing::info;
@@ -44,7 +44,7 @@ impl SessionTask for UndoTask {
             .session
             .services
             .session_telemetry
-            .counter("codex.task.undo", /*inc*/ 1, &[]);
+            .counter("darwin-code.task.undo", /*inc*/ 1, &[]);
         let sess = session.clone_session();
         sess.send_event(
             ctx.as_ref(),

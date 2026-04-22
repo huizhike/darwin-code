@@ -1,8 +1,8 @@
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::items::AgentMessageItem;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::FunctionCallOutputPayload;
+use darwin_code_protocol::models::ResponseItem;
 use pretty_assertions::assert_eq;
 use std::time::Instant;
 

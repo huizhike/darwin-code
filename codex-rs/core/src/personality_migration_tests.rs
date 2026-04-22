@@ -1,28 +1,28 @@
 use super::*;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use codex_rollout::SESSIONS_SUBDIR;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::UserMessageEvent;
+use darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR;
+use darwin_code_rollout::SESSIONS_SUBDIR;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
 const TEST_TIMESTAMP: &str = "2025-01-01T00-00-00";
 
-async fn read_config_toml(codex_home: &Path) -> io::Result<ConfigToml> {
-    let contents = tokio::fs::read_to_string(codex_home.join("config.toml")).await?;
+async fn read_config_toml(darwin_code_home: &Path) -> io::Result<ConfigToml> {
+    let contents = tokio::fs::read_to_string(darwin_code_home.join("config.toml")).await?;
     toml::from_str(&contents).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
 }
 
-async fn write_session_with_user_event(codex_home: &Path) -> io::Result<()> {
+async fn write_session_with_user_event(darwin_code_home: &Path) -> io::Result<()> {
     let thread_id = ThreadId::new();
-    let dir = codex_home
+    let dir = darwin_code_home
         .join(SESSIONS_SUBDIR)
         .join("2025")
         .join("01")
@@ -30,9 +30,9 @@ async fn write_session_with_user_event(codex_home: &Path) -> io::Result<()> {
     write_rollout_with_user_event(&dir, thread_id).await
 }
 
-async fn write_archived_session_with_user_event(codex_home: &Path) -> io::Result<()> {
+async fn write_archived_session_with_user_event(darwin_code_home: &Path) -> io::Result<()> {
     let thread_id = ThreadId::new();
-    let dir = codex_home.join(ARCHIVED_SESSIONS_SUBDIR);
+    let dir = darwin_code_home.join(ARCHIVED_SESSIONS_SUBDIR);
     write_rollout_with_user_event(&dir, thread_id).await
 }
 

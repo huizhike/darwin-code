@@ -6,15 +6,15 @@ use tempfile::TempDir;
 fn fixture_paths() -> (TempDir, PathBuf, PathBuf) {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
-    (root, external_agent_home, codex_home)
+    let darwin_code_home = root.path().join(".darwin-code");
+    (root, external_agent_home, darwin_code_home)
 }
 
 fn service_for_paths(
     external_agent_home: PathBuf,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
 ) -> ExternalAgentConfigService {
-    ExternalAgentConfigService::new_for_test(codex_home, external_agent_home)
+    ExternalAgentConfigService::new_for_test(darwin_code_home, external_agent_home)
 }
 
 fn github_plugin_details() -> MigrationDetails {
@@ -28,8 +28,8 @@ fn github_plugin_details() -> MigrationDetails {
 
 #[tokio::test]
 async fn detect_home_lists_config_skills_and_agents_md() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
-    let agents_skills = codex_home
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
+    let agents_skills = darwin_code_home
         .parent()
         .map(|parent| parent.join(".agents").join("skills"))
         .unwrap_or_else(|| PathBuf::from(".agents").join("skills"));
@@ -42,7 +42,7 @@ async fn detect_home_lists_config_skills_and_agents_md() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home.clone())
+    let items = service_for_paths(external_agent_home.clone(), darwin_code_home.clone())
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -56,7 +56,7 @@ async fn detect_home_lists_config_skills_and_agents_md() {
             description: format!(
                 "Migrate {} into {}",
                 external_agent_home.join("settings.json").display(),
-                codex_home.join("config.toml").display()
+                darwin_code_home.join("config.toml").display()
             ),
             cwd: None,
             details: None,
@@ -76,7 +76,7 @@ async fn detect_home_lists_config_skills_and_agents_md() {
             description: format!(
                 "Migrate {} to {}",
                 external_agent_home.join("CLAUDE.md").display(),
-                codex_home.join("AGENTS.md").display()
+                darwin_code_home.join("AGENTS.md").display()
             ),
             cwd: None,
             details: None,
@@ -95,7 +95,7 @@ async fn detect_repo_lists_agents_md_for_each_cwd() {
     fs::create_dir_all(&nested).expect("create nested");
     fs::write(repo_root.join("CLAUDE.md"), "Claude code guidance").expect("write source");
 
-    let items = service_for_paths(root.path().join(".claude"), root.path().join(".codex"))
+    let items = service_for_paths(root.path().join(".claude"), root.path().join(".darwin-code"))
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![nested, repo_root.clone()]),
@@ -133,13 +133,13 @@ async fn detect_repo_lists_agents_md_for_each_cwd() {
 async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid() {
     let root = TempDir::new().expect("create tempdir");
     let repo_root = root.path().join("repo");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude").join("skills").join("skill-a"))
         .expect("create repo skills");
-    fs::create_dir_all(&codex_home).expect("create codex home");
-    fs::write(codex_home.join("config.toml"), "this is not valid = [toml")
-        .expect("write invalid codex config");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
+    fs::write(darwin_code_home.join("config.toml"), "this is not valid = [toml")
+        .expect("write invalid darwin-code config");
     fs::write(
         repo_root.join(".claude").join("settings.json"),
         r#"{"env":{"FOO":"bar"}}"#,
@@ -160,7 +160,7 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
     )
     .expect("write agents");
 
-    let items = service_for_paths(root.path().join(".claude"), codex_home)
+    let items = service_for_paths(root.path().join(".claude"), darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -176,7 +176,7 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
                 description: format!(
                     "Migrate {} into {}",
                     repo_root.join(".claude").join("settings.json").display(),
-                    repo_root.join(".codex").join("config.toml").display()
+                    repo_root.join(".darwin-code").join("config.toml").display()
                 ),
                 cwd: Some(repo_root.clone()),
                 details: None,
@@ -207,15 +207,15 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
 
 #[tokio::test]
 async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
-    let agents_skills = codex_home
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
+    let agents_skills = darwin_code_home
         .parent()
         .map(|parent| parent.join(".agents").join("skills"))
         .unwrap_or_else(|| PathBuf::from(".agents").join("skills"));
     fs::create_dir_all(external_agent_home.join("skills").join("skill-a")).expect("create skills");
     fs::write(
             external_agent_home.join("settings.json"),
-            r#"{"model":"claude","permissions":{"ask":["git push"]},"env":{"FOO":"bar","CI":false,"MAX_RETRIES":3,"MY_TEAM":"codex","IGNORED":null,"LIST":["a","b"],"MAP":{"x":1}},"sandbox":{"enabled":true,"network":{"allowLocalBinding":true}}}"#,
+            r#"{"model":"claude","permissions":{"ask":["git push"]},"env":{"FOO":"bar","CI":false,"MAX_RETRIES":3,"MY_TEAM":"darwin-code","IGNORED":null,"LIST":["a","b"],"MAP":{"x":1}},"sandbox":{"enabled":true,"network":{"allowLocalBinding":true}}}"#,
         )
         .expect("write settings");
     fs::write(
@@ -232,7 +232,7 @@ async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
     )
     .expect("write agents");
 
-    service_for_paths(external_agent_home, codex_home.clone())
+    service_for_paths(external_agent_home, darwin_code_home.clone())
         .import(vec![
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
@@ -257,24 +257,24 @@ async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
         .expect("import");
 
     assert_eq!(
-        fs::read_to_string(codex_home.join("AGENTS.md")).expect("read agents"),
-        "Codex guidance"
+        fs::read_to_string(darwin_code_home.join("AGENTS.md")).expect("read agents"),
+        "Darwin-Code guidance"
     );
 
     assert_eq!(
-        fs::read_to_string(codex_home.join("config.toml")).expect("read config"),
-        "sandbox_mode = \"workspace-write\"\n\n[shell_environment_policy]\ninherit = \"core\"\n\n[shell_environment_policy.set]\nCI = \"false\"\nFOO = \"bar\"\nMAX_RETRIES = \"3\"\nMY_TEAM = \"codex\"\n"
+        fs::read_to_string(darwin_code_home.join("config.toml")).expect("read config"),
+        "sandbox_mode = \"workspace-write\"\n\n[shell_environment_policy]\ninherit = \"core\"\n\n[shell_environment_policy.set]\nCI = \"false\"\nFOO = \"bar\"\nMAX_RETRIES = \"3\"\nMY_TEAM = \"darwin-code\"\n"
     );
     assert_eq!(
         fs::read_to_string(agents_skills.join("skill-a").join("SKILL.md"))
             .expect("read copied skill"),
-        "Use Codex and Codex utilities."
+        "Use Darwin-Code and Darwin-Code utilities."
     );
 }
 
 #[tokio::test]
 async fn import_home_skips_empty_config_migration() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -282,7 +282,7 @@ async fn import_home_skips_empty_config_migration() {
     )
     .expect("write settings");
 
-    service_for_paths(external_agent_home, codex_home.clone())
+    service_for_paths(external_agent_home, darwin_code_home.clone())
         .import(vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Config,
             description: String::new(),
@@ -292,18 +292,18 @@ async fn import_home_skips_empty_config_migration() {
         .await
         .expect("import");
 
-    assert!(!codex_home.join("config.toml").exists());
+    assert!(!darwin_code_home.join("config.toml").exists());
 }
 
 #[tokio::test]
 async fn import_local_plugins_returns_completed_status() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     let marketplace_root = external_agent_home.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         external_agent_home.join("settings.json"),
@@ -337,12 +337,12 @@ async fn import_local_plugins_returns_completed_status() {
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let outcome = service_for_paths(external_agent_home, codex_home.clone())
+    let outcome = service_for_paths(external_agent_home, darwin_code_home.clone())
         .import(vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: String::new(),
@@ -358,14 +358,14 @@ async fn import_local_plugins_returns_completed_status() {
         .expect("import");
 
     assert_eq!(outcome, Vec::<PendingPluginImport>::new());
-    let config = fs::read_to_string(codex_home.join("config.toml")).expect("read config");
+    let config = fs::read_to_string(darwin_code_home.join("config.toml")).expect("read config");
     assert!(config.contains(r#"[plugins."cloudflare@my-plugins"]"#));
     assert!(config.contains("enabled = true"));
 }
 
 #[tokio::test]
 async fn import_git_plugins_returns_pending_async_status() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -382,7 +382,7 @@ async fn import_git_plugins_returns_pending_async_status() {
     )
     .expect("write settings");
 
-    let outcome = service_for_paths(external_agent_home, codex_home.clone())
+    let outcome = service_for_paths(external_agent_home, darwin_code_home.clone())
         .import(vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: String::new(),
@@ -409,21 +409,21 @@ async fn import_git_plugins_returns_pending_async_status() {
             },
         }]
     );
-    assert!(!codex_home.join("config.toml").exists());
+    assert!(!darwin_code_home.join("config.toml").exists());
 }
 
 #[tokio::test]
 async fn detect_home_skips_config_when_target_already_has_supported_fields() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
     fs::write(
         external_agent_home.join("settings.json"),
         r#"{"env":{"FOO":"bar"},"sandbox":{"enabled":true}}"#,
     )
     .expect("write settings");
     fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"
             sandbox_mode = "workspace-write"
 
@@ -436,7 +436,7 @@ async fn detect_home_skips_config_when_target_already_has_supported_fields() {
     )
     .expect("write config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -449,15 +449,15 @@ async fn detect_home_skips_config_when_target_already_has_supported_fields() {
 
 #[tokio::test]
 async fn detect_home_skips_skills_when_all_skill_directories_exist() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
-    let agents_skills = codex_home
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
+    let agents_skills = darwin_code_home
         .parent()
         .map(|parent| parent.join(".agents").join("skills"))
         .unwrap_or_else(|| PathBuf::from(".agents").join("skills"));
     fs::create_dir_all(external_agent_home.join("skills").join("skill-a")).expect("create source");
     fs::create_dir_all(agents_skills.join("skill-a")).expect("create target");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -487,7 +487,7 @@ async fn import_repo_agents_md_rewrites_terms_and_skips_non_empty_targets() {
     )
     .expect("write target");
 
-    service_for_paths(root.path().join(".claude"), root.path().join(".codex"))
+    service_for_paths(root.path().join(".claude"), root.path().join(".darwin-code"))
         .import(vec![
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
@@ -507,7 +507,7 @@ async fn import_repo_agents_md_rewrites_terms_and_skips_non_empty_targets() {
 
     assert_eq!(
         fs::read_to_string(repo_root.join("AGENTS.md")).expect("read target"),
-        "Codex\nCodex\nCodex\nSee AGENTS.md\n"
+        "Darwin-Code\nDarwinCode\nDarwinCode\nSee AGENTS.md\n"
     );
     assert_eq!(
         fs::read_to_string(repo_with_existing_target.join("AGENTS.md"))
@@ -524,7 +524,7 @@ async fn import_repo_agents_md_overwrites_empty_targets() {
     fs::write(repo_root.join("CLAUDE.md"), "Claude code guidance").expect("write source");
     fs::write(repo_root.join("AGENTS.md"), " \n\t").expect("write empty target");
 
-    service_for_paths(root.path().join(".claude"), root.path().join(".codex"))
+    service_for_paths(root.path().join(".claude"), root.path().join(".darwin-code"))
         .import(vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
             description: String::new(),
@@ -536,7 +536,7 @@ async fn import_repo_agents_md_overwrites_empty_targets() {
 
     assert_eq!(
         fs::read_to_string(repo_root.join("AGENTS.md")).expect("read target"),
-        "Codex guidance"
+        "Darwin-Code guidance"
     );
 }
 
@@ -553,7 +553,7 @@ async fn detect_repo_prefers_non_empty_external_agent_agents_source() {
     )
     .expect("write dot claude source");
 
-    let items = service_for_paths(root.path().join(".claude"), root.path().join(".codex"))
+    let items = service_for_paths(root.path().join(".claude"), root.path().join(".darwin-code"))
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -589,7 +589,7 @@ async fn import_repo_uses_non_empty_external_agent_agents_source() {
     )
     .expect("write dot claude source");
 
-    service_for_paths(root.path().join(".claude"), root.path().join(".codex"))
+    service_for_paths(root.path().join(".claude"), root.path().join(".darwin-code"))
         .import(vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
             description: String::new(),
@@ -601,7 +601,7 @@ async fn import_repo_uses_non_empty_external_agent_agents_source() {
 
     assert_eq!(
         fs::read_to_string(repo_root.join("AGENTS.md")).expect("read target"),
-        "Codex guidance"
+        "Darwin-Code guidance"
     );
 }
 
@@ -618,7 +618,7 @@ fn migration_metric_tags_for_skills_include_skills_count() {
 
 #[tokio::test]
 async fn detect_home_lists_enabled_plugins_from_settings() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -637,7 +637,7 @@ async fn detect_home_lists_enabled_plugins_from_settings() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let items = service_for_paths(external_agent_home.clone(), darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -665,14 +665,14 @@ async fn detect_home_lists_enabled_plugins_from_settings() {
 }
 
 #[tokio::test]
-async fn detect_repo_skips_plugins_that_are_already_configured_in_codex() {
+async fn detect_repo_skips_plugins_that_are_already_configured_in_darwin_code() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
     fs::write(
         repo_root.join(".claude").join("settings.json"),
         r#"{
@@ -689,15 +689,15 @@ async fn detect_repo_skips_plugins_that_are_already_configured_in_codex() {
     )
     .expect("write repo settings");
     fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"
 [plugins."formatter@acme-tools"]
 enabled = true
 "#,
     )
-    .expect("write codex config");
+    .expect("write darwin-code config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -725,14 +725,14 @@ enabled = true
 }
 
 #[tokio::test]
-async fn detect_repo_skips_plugins_that_are_disabled_in_codex() {
+async fn detect_repo_skips_plugins_that_are_disabled_in_darwin_code() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
     fs::write(
         repo_root.join(".claude").join("settings.json"),
         r#"{
@@ -748,15 +748,15 @@ async fn detect_repo_skips_plugins_that_are_disabled_in_codex() {
     )
     .expect("write repo settings");
     fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"
 [plugins."formatter@acme-tools"]
 enabled = false
 "#,
     )
-    .expect("write codex config");
+    .expect("write darwin-code config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root]),
@@ -768,14 +768,14 @@ enabled = false
 }
 
 #[tokio::test]
-async fn detect_repo_skips_plugins_without_explicit_enabled_in_codex() {
+async fn detect_repo_skips_plugins_without_explicit_enabled_in_darwin_code() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
     fs::write(
         repo_root.join(".claude").join("settings.json"),
         r#"{
@@ -791,14 +791,14 @@ async fn detect_repo_skips_plugins_without_explicit_enabled_in_codex() {
     )
     .expect("write repo settings");
     fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"
 [plugins."formatter@acme-tools"]
 "#,
     )
-    .expect("write codex config");
+    .expect("write darwin-code config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root]),
@@ -811,9 +811,9 @@ async fn detect_repo_skips_plugins_without_explicit_enabled_in_codex() {
 
 #[tokio::test]
 async fn import_plugins_requires_details() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
 
-    let err = service_for_paths(external_agent_home, codex_home)
+    let err = service_for_paths(external_agent_home, darwin_code_home)
         .import_plugins(/*cwd*/ None, /*details*/ None)
         .await
         .expect_err("expected missing details error");
@@ -823,15 +823,15 @@ async fn import_plugins_requires_details() {
 }
 
 #[tokio::test]
-async fn detect_repo_does_not_skip_plugins_only_configured_in_project_codex() {
+async fn detect_repo_does_not_skip_plugins_only_configured_in_project_darwin_code() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
-    fs::create_dir_all(repo_root.join(".codex")).expect("create repo codex dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(repo_root.join(".darwin-code")).expect("create repo darwin-code dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
     fs::write(
         repo_root.join(".claude").join("settings.json"),
         r#"{
@@ -847,15 +847,15 @@ async fn detect_repo_does_not_skip_plugins_only_configured_in_project_codex() {
     )
     .expect("write repo settings");
     fs::write(
-        repo_root.join(".codex").join("config.toml"),
+        repo_root.join(".darwin-code").join("config.toml"),
         r#"
 [plugins."formatter@acme-tools"]
 enabled = true
 "#,
     )
-    .expect("write project codex config");
+    .expect("write project darwin-code config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -884,7 +884,7 @@ enabled = true
 
 #[tokio::test]
 async fn detect_home_skips_plugins_without_marketplace_source() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -896,7 +896,7 @@ async fn detect_home_skips_plugins_without_marketplace_source() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -909,7 +909,7 @@ async fn detect_home_skips_plugins_without_marketplace_source() {
 
 #[tokio::test]
 async fn detect_home_skips_plugins_with_invalid_marketplace_source() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -926,7 +926,7 @@ async fn detect_home_skips_plugins_with_invalid_marketplace_source() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -941,9 +941,9 @@ async fn detect_home_skips_plugins_with_invalid_marketplace_source() {
 async fn detect_repo_filters_plugins_against_installed_marketplace() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
-    let marketplace_root = codex_home.join(".tmp").join("marketplaces").join("debug");
+    let marketplace_root = darwin_code_home.join(".tmp").join("marketplaces").join("debug");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
     fs::create_dir_all(marketplace_root.join(".agents").join("plugins"))
@@ -952,14 +952,14 @@ async fn detect_repo_filters_plugins_against_installed_marketplace() {
         marketplace_root
             .join("plugins")
             .join("sample")
-            .join(".codex-plugin"),
+            .join(".darwin-code-plugin"),
     )
     .expect("create sample plugin");
     fs::create_dir_all(
         marketplace_root
             .join("plugins")
             .join("available")
-            .join(".codex-plugin"),
+            .join(".darwin-code-plugin"),
     )
     .expect("create available plugin");
     fs::write(
@@ -979,14 +979,14 @@ async fn detect_repo_filters_plugins_against_installed_marketplace() {
     )
     .expect("write repo settings");
     fs::write(
-        codex_home.join("config.toml"),
+        darwin_code_home.join("config.toml"),
         r#"
 [marketplaces.debug]
 source_type = "git"
 source = "owner/debug-marketplace"
 "#,
     )
-    .expect("write codex config");
+    .expect("write darwin-code config");
     fs::write(
         marketplace_root
             .join(".agents")
@@ -1020,7 +1020,7 @@ source = "owner/debug-marketplace"
         marketplace_root
             .join("plugins")
             .join("sample")
-            .join(".codex-plugin")
+            .join(".darwin-code-plugin")
             .join("plugin.json"),
         r#"{"name":"sample"}"#,
     )
@@ -1029,13 +1029,13 @@ source = "owner/debug-marketplace"
         marketplace_root
             .join("plugins")
             .join("available")
-            .join(".codex-plugin")
+            .join(".darwin-code-plugin")
             .join("plugin.json"),
         r#"{"name":"available"}"#,
     )
     .expect("write available plugin manifest");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -1064,7 +1064,7 @@ source = "owner/debug-marketplace"
 
 #[tokio::test]
 async fn import_plugins_requires_source_marketplace_details() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -1082,7 +1082,7 @@ async fn import_plugins_requires_source_marketplace_details() {
     )
     .expect("write settings");
 
-    let outcome = service_for_paths(external_agent_home, codex_home)
+    let outcome = service_for_paths(external_agent_home, darwin_code_home)
         .import_plugins(
             /*cwd*/ None,
             Some(MigrationDetails {
@@ -1108,7 +1108,7 @@ async fn import_plugins_requires_source_marketplace_details() {
 
 #[tokio::test]
 async fn import_plugins_defers_marketplace_source_validation_to_add_marketplace() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     fs::create_dir_all(&external_agent_home).expect("create external agent home");
     fs::write(
         external_agent_home.join("settings.json"),
@@ -1126,7 +1126,7 @@ async fn import_plugins_defers_marketplace_source_validation_to_add_marketplace(
     )
     .expect("write settings");
 
-    let outcome = service_for_paths(external_agent_home, codex_home)
+    let outcome = service_for_paths(external_agent_home, darwin_code_home)
         .import_plugins(/*cwd*/ None, Some(github_plugin_details()))
         .await
         .expect("import plugins");
@@ -1144,13 +1144,13 @@ async fn import_plugins_defers_marketplace_source_validation_to_add_marketplace(
 
 #[tokio::test]
 async fn import_plugins_supports_external_agent_plugin_marketplace_layout() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     let marketplace_root = external_agent_home.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         external_agent_home.join("settings.json"),
@@ -1184,12 +1184,12 @@ async fn import_plugins_supports_external_agent_plugin_marketplace_layout() {
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let outcome = service_for_paths(external_agent_home, codex_home.clone())
+    let outcome = service_for_paths(external_agent_home, darwin_code_home.clone())
         .import_plugins(
             /*cwd*/ None,
             Some(MigrationDetails {
@@ -1211,20 +1211,20 @@ async fn import_plugins_supports_external_agent_plugin_marketplace_layout() {
             failed_plugin_ids: Vec::new(),
         }
     );
-    let config = fs::read_to_string(codex_home.join("config.toml")).expect("read config");
+    let config = fs::read_to_string(darwin_code_home.join("config.toml")).expect("read config");
     assert!(config.contains(r#"[plugins."cloudflare@my-plugins"]"#));
     assert!(config.contains("enabled = true"));
 }
 
 #[tokio::test]
 async fn detect_home_supports_relative_external_agent_plugin_marketplace_path() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     let marketplace_root = external_agent_home.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         external_agent_home.join("settings.json"),
@@ -1257,12 +1257,12 @@ async fn detect_home_supports_relative_external_agent_plugin_marketplace_path() 
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let items = service_for_paths(external_agent_home.clone(), darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -1291,13 +1291,13 @@ async fn detect_home_supports_relative_external_agent_plugin_marketplace_path() 
 
 #[tokio::test]
 async fn import_plugins_supports_relative_external_agent_plugin_marketplace_path() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
     let marketplace_root = external_agent_home.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         external_agent_home.join("settings.json"),
@@ -1330,12 +1330,12 @@ async fn import_plugins_supports_relative_external_agent_plugin_marketplace_path
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let outcome = service_for_paths(external_agent_home, codex_home.clone())
+    let outcome = service_for_paths(external_agent_home, darwin_code_home.clone())
         .import_plugins(
             /*cwd*/ None,
             Some(MigrationDetails {
@@ -1357,7 +1357,7 @@ async fn import_plugins_supports_relative_external_agent_plugin_marketplace_path
             failed_plugin_ids: Vec::new(),
         }
     );
-    let config = fs::read_to_string(codex_home.join("config.toml")).expect("read config");
+    let config = fs::read_to_string(darwin_code_home.join("config.toml")).expect("read config");
     assert!(config.contains(r#"[plugins."cloudflare@my-plugins"]"#));
     assert!(config.contains("enabled = true"));
 }
@@ -1366,7 +1366,7 @@ async fn import_plugins_supports_relative_external_agent_plugin_marketplace_path
 async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace_path() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     let marketplace_root = repo_root.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
@@ -1374,8 +1374,8 @@ async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         repo_root.join(".claude").join("settings.json"),
@@ -1408,12 +1408,12 @@ async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let items = service_for_paths(external_agent_home, darwin_code_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -1444,7 +1444,7 @@ async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace
 async fn import_plugins_supports_project_relative_external_agent_plugin_marketplace_path() {
     let root = TempDir::new().expect("create tempdir");
     let external_agent_home = root.path().join(".claude");
-    let codex_home = root.path().join(".codex");
+    let darwin_code_home = root.path().join(".darwin-code");
     let repo_root = root.path().join("repo");
     let marketplace_root = repo_root.join("my-marketplace");
     let plugin_root = marketplace_root.join("plugins").join("cloudflare");
@@ -1452,8 +1452,8 @@ async fn import_plugins_supports_project_relative_external_agent_plugin_marketpl
     fs::create_dir_all(repo_root.join(".claude")).expect("create repo external agent dir");
     fs::create_dir_all(marketplace_root.join(".claude-plugin"))
         .expect("create marketplace manifest dir");
-    fs::create_dir_all(plugin_root.join(".codex-plugin")).expect("create plugin manifest dir");
-    fs::create_dir_all(&codex_home).expect("create codex home");
+    fs::create_dir_all(plugin_root.join(".darwin-code-plugin")).expect("create plugin manifest dir");
+    fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
 
     fs::write(
         repo_root.join(".claude").join("settings.json"),
@@ -1486,12 +1486,12 @@ async fn import_plugins_supports_project_relative_external_agent_plugin_marketpl
     )
     .expect("write marketplace manifest");
     fs::write(
-        plugin_root.join(".codex-plugin").join("plugin.json"),
+        plugin_root.join(".darwin-code-plugin").join("plugin.json"),
         r#"{"name":"cloudflare","version":"0.1.0"}"#,
     )
     .expect("write plugin manifest");
 
-    let outcome = service_for_paths(external_agent_home, codex_home.clone())
+    let outcome = service_for_paths(external_agent_home, darwin_code_home.clone())
         .import_plugins(
             Some(repo_root.as_path()),
             Some(MigrationDetails {
@@ -1513,15 +1513,15 @@ async fn import_plugins_supports_project_relative_external_agent_plugin_marketpl
             failed_plugin_ids: Vec::new(),
         }
     );
-    let config = fs::read_to_string(codex_home.join("config.toml")).expect("read config");
+    let config = fs::read_to_string(darwin_code_home.join("config.toml")).expect("read config");
     assert!(config.contains(r#"[plugins."cloudflare@my-plugins"]"#));
     assert!(config.contains("enabled = true"));
 }
 
 #[test]
 fn import_skills_returns_only_new_skill_directory_count() {
-    let (_root, external_agent_home, codex_home) = fixture_paths();
-    let agents_skills = codex_home
+    let (_root, external_agent_home, darwin_code_home) = fixture_paths();
+    let agents_skills = darwin_code_home
         .parent()
         .map(|parent| parent.join(".agents").join("skills"))
         .unwrap_or_else(|| PathBuf::from(".agents").join("skills"));
@@ -1531,7 +1531,7 @@ fn import_skills_returns_only_new_skill_directory_count() {
         .expect("create source b");
     fs::create_dir_all(agents_skills.join("skill-a")).expect("create existing target");
 
-    let copied_count = service_for_paths(external_agent_home, codex_home)
+    let copied_count = service_for_paths(external_agent_home, darwin_code_home)
         .import_skills(/*cwd*/ None)
         .expect("import skills");
 

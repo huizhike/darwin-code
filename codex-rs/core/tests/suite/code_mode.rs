@@ -3,19 +3,19 @@
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_models_manager::bundled_models_response;
+use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use darwin_code_protocol::dynamic_tools::DynamicToolResponse;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
@@ -28,8 +28,8 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
-use core_test_support::test_codex::TestCodex;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
@@ -144,9 +144,9 @@ async fn run_code_mode_turn(
     prompt: &str,
     code: &str,
     include_apply_patch: bool,
-) -> Result<(TestCodex, ResponseMock)> {
-    let mut builder = test_codex()
-        .with_model("test-gpt-5.1-codex")
+) -> Result<(TestDarwinCode, ResponseMock)> {
+    let mut builder = test_darwin_code()
+        .with_model("test-gpt-5.1-darwin-code")
         .with_config(move |config| {
             let _ = config.features.enable(Feature::CodeMode);
             config.include_apply_patch_tool = include_apply_patch;
@@ -180,8 +180,8 @@ async fn run_code_mode_turn_with_rmcp(
     server: &MockServer,
     prompt: &str,
     code: &str,
-) -> Result<(TestCodex, ResponseMock)> {
-    run_code_mode_turn_with_rmcp_model(server, prompt, code, "test-gpt-5.1-codex").await
+) -> Result<(TestDarwinCode, ResponseMock)> {
+    run_code_mode_turn_with_rmcp_model(server, prompt, code, "test-gpt-5.1-darwin-code").await
 }
 
 async fn run_code_mode_turn_with_rmcp_model(
@@ -189,7 +189,7 @@ async fn run_code_mode_turn_with_rmcp_model(
     prompt: &str,
     code: &str,
     model: &'static str,
-) -> Result<(TestCodex, ResponseMock)> {
+) -> Result<(TestDarwinCode, ResponseMock)> {
     run_code_mode_turn_with_rmcp_config(server, prompt, code, model, /*code_mode_only*/ false).await
 }
 
@@ -198,8 +198,8 @@ async fn run_code_mode_turn_with_rmcp_mode(
     prompt: &str,
     code: &str,
     code_mode_only: bool,
-) -> Result<(TestCodex, ResponseMock)> {
-    run_code_mode_turn_with_rmcp_config(server, prompt, code, "test-gpt-5.1-codex", code_mode_only)
+) -> Result<(TestDarwinCode, ResponseMock)> {
+    run_code_mode_turn_with_rmcp_config(server, prompt, code, "test-gpt-5.1-darwin-code", code_mode_only)
         .await
 }
 
@@ -209,9 +209,9 @@ async fn run_code_mode_turn_with_rmcp_config(
     code: &str,
     model: &'static str,
     code_mode_only: bool,
-) -> Result<(TestCodex, ResponseMock)> {
+) -> Result<(TestDarwinCode, ResponseMock)> {
     let rmcp_test_server_bin = stdio_server_bin()?;
-    let mut builder = test_codex().with_model(model).with_config(move |config| {
+    let mut builder = test_darwin_code().with_model(model).with_config(move |config| {
         let _ = if code_mode_only {
             config.features.enable(Feature::CodeModeOnly)
         } else {
@@ -336,7 +336,7 @@ async fn code_mode_only_restricts_prompt_tools() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         let _ = config.features.enable(Feature::CodeModeOnly);
     });
     let test = builder.build(&server).await?;
@@ -366,7 +366,7 @@ async fn code_mode_only_guides_all_tools_search_and_calls_deferred_app_tools() -
                 "exec",
                 r#"
 const tool = ALL_TOOLS.find(
-  ({ name }) => name === "mcp__codex_apps__calendar_timezone_option_99"
+  ({ name }) => name === "mcp__darwin_code_apps__calendar_timezone_option_99"
 );
 if (!tool) {
   text(JSON.stringify({ found: false }));
@@ -394,8 +394,8 @@ if (!tool) {
     .await;
 
     let apps_base_url = apps_server.chatgpt_base_url.clone();
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| {
             config
                 .features
@@ -414,15 +414,15 @@ if (!tool) {
                 .enable(Feature::CodeModeOnly)
                 .expect("test config should allow feature update");
             config.chatgpt_base_url = apps_base_url;
-            config.model = Some("gpt-5-codex".to_string());
+            config.model = Some("gpt-5-darwin-code".to_string());
 
             let mut model_catalog = bundled_models_response()
                 .unwrap_or_else(|err| panic!("bundled models.json should parse: {err}"));
             let model = model_catalog
                 .models
                 .iter_mut()
-                .find(|model| model.slug == "gpt-5-codex")
-                .expect("gpt-5-codex exists in bundled models.json");
+                .find(|model| model.slug == "gpt-5-darwin-code")
+                .expect("gpt-5-darwin-code exists in bundled models.json");
             model.supports_search_tool = true;
             config.model_catalog = Some(model_catalog);
         });
@@ -507,7 +507,7 @@ text(output.output);
     )
     .await;
 
-    let mut builder = test_codex().with_config(|config| {
+    let mut builder = test_darwin_code().with_config(|config| {
         let _ = config.features.enable(Feature::CodeModeOnly);
     });
     let test = builder.build(&server).await?;
@@ -564,8 +564,8 @@ async fn code_mode_nested_tool_calls_can_run_in_parallel() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex()
-        .with_model("test-gpt-5.1-codex")
+    let mut builder = test_darwin_code()
+        .with_model("test-gpt-5.1-darwin-code")
         .with_config(move |config| {
             let _ = config.features.enable(Feature::CodeMode);
         });
@@ -780,7 +780,7 @@ async fn code_mode_can_yield_and_resume_with_wait() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -926,7 +926,7 @@ async fn code_mode_yield_timeout_works_for_busy_loop() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1020,7 +1020,7 @@ async fn code_mode_can_run_multiple_yielded_sessions() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1188,7 +1188,7 @@ async fn code_mode_wait_can_terminate_and_continue() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1314,7 +1314,7 @@ async fn code_mode_wait_returns_error_for_unknown_session() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1376,7 +1376,7 @@ async fn code_mode_wait_terminate_returns_completed_session_if_it_finished_after
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1571,7 +1571,7 @@ async fn code_mode_background_keeps_running_on_later_turn_without_wait() -> Resu
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1664,7 +1664,7 @@ async fn code_mode_wait_uses_its_own_max_tokens_budget() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;
@@ -1989,8 +1989,8 @@ async fn code_mode_can_use_view_image_result_with_image_helper() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex()
-        .with_model("gpt-5.3-codex")
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.3-darwin-code")
         .with_config(move |config| {
             let _ = config.features.enable(Feature::CodeMode);
         });
@@ -2084,7 +2084,7 @@ image(imageItem);
         &server,
         "use exec to call the rmcp image scenario tool and emit its image output",
         code,
-        "gpt-5.3-codex",
+        "gpt-5.3-darwin-code",
     )
     .await?;
 
@@ -2420,7 +2420,7 @@ text(JSON.stringify(Object.getOwnPropertyNames(globalThis).sort()));
         "WeakRef",
         "WeakSet",
         "WebAssembly",
-        "__codexContentItems",
+        "__darwinCodeContentItems",
         "add_content",
         "decodeURI",
         "decodeURIComponent",
@@ -2546,7 +2546,7 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let base_test = builder.build(&server).await?;
@@ -2571,7 +2571,7 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
         )
         .await?;
     let mut test = base_test;
-    test.codex = new_thread.thread;
+    test.darwin-code = new_thread.thread;
     test.session_configured = new_thread.session_configured;
 
     let code = r#"
@@ -2605,7 +2605,7 @@ text(
     )
     .await;
 
-    test.codex
+    test.darwin-code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "use exec to inspect and call hidden tools".into(),
@@ -2625,19 +2625,19 @@ text(
         })
         .await?;
 
-    let turn_id = wait_for_event_match(&test.codex, |event| match event {
+    let turn_id = wait_for_event_match(&test.darwin-code, |event| match event {
         EventMsg::TurnStarted(event) => Some(event.turn_id.clone()),
         _ => None,
     })
     .await;
-    let request = wait_for_event_match(&test.codex, |event| match event {
+    let request = wait_for_event_match(&test.darwin-code, |event| match event {
         EventMsg::DynamicToolCallRequest(request) => Some(request.clone()),
         _ => None,
     })
     .await;
     assert_eq!(request.tool, "hidden_dynamic_tool");
     assert_eq!(request.arguments, serde_json::json!({ "city": "Paris" }));
-    test.codex
+    test.darwin-code
         .submit(Op::DynamicToolResponse {
             id: request.call_id,
             response: DynamicToolResponse {
@@ -2648,7 +2648,7 @@ text(
             },
         })
         .await?;
-    wait_for_event(&test.codex, |event| match event {
+    wait_for_event(&test.darwin-code, |event| match event {
         EventMsg::TurnComplete(event) => event.turn_id == turn_id,
         _ => false,
     })
@@ -2775,7 +2775,7 @@ async fn code_mode_can_store_and_load_values_across_turns() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_codex().with_config(move |config| {
+    let mut builder = test_darwin_code().with_config(move |config| {
         let _ = config.features.enable(Feature::CodeMode);
     });
     let test = builder.build(&server).await?;

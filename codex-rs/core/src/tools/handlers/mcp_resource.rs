@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::function_call_output_content_items_to_text;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::models::function_call_output_content_items_to_text;
 use rmcp::model::ListResourceTemplatesResult;
 use rmcp::model::ListResourcesResult;
 use rmcp::model::PaginatedRequestParams;
@@ -25,10 +25,10 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::McpInvocation;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
 
 pub struct McpResourceHandler;
 
@@ -252,7 +252,7 @@ async fn handle_list_resources(
     let cursor = normalize_optional_string(cursor);
 
     let invocation = McpInvocation {
-        server: server.clone().unwrap_or_else(|| "codex".to_string()),
+        server: server.clone().unwrap_or_else(|| "darwin-code".to_string()),
         tool: "list_mcp_resources".to_string(),
         arguments: arguments.clone(),
     };
@@ -356,7 +356,7 @@ async fn handle_list_resource_templates(
     let cursor = normalize_optional_string(cursor);
 
     let invocation = McpInvocation {
-        server: server.clone().unwrap_or_else(|| "codex".to_string()),
+        server: server.clone().unwrap_or_else(|| "darwin-code".to_string()),
         tool: "list_mcp_resource_templates".to_string(),
         arguments: arguments.clone(),
     };

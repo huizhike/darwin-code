@@ -1,6 +1,6 @@
 use crate::plugins::PluginCapabilitySummary;
-use codex_protocol::protocol::PLUGINS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
+use darwin_code_protocol::protocol::PLUGINS_INSTRUCTIONS_CLOSE_TAG;
+use darwin_code_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
 
 pub(crate) fn render_plugins_section(plugins: &[PluginCapabilitySummary]) -> Option<String> {
     if plugins.is_empty() {

@@ -57,42 +57,42 @@ use crate::turn_timing::record_turn_ttft_metric;
 use crate::unavailable_tool::collect_unavailable_called_tools;
 use crate::util::backoff;
 use crate::util::error_or_panic;
-use codex_async_utils::OrCancelExt;
-use codex_features::Feature;
-use codex_hooks::HookEvent;
-use codex_hooks::HookEventAfterAgent;
-use codex_hooks::HookPayload;
-use codex_hooks::HookResult;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::PlanItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageContentDeltaEvent;
-use codex_protocol::protocol::AgentReasoningSectionBreakEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::PlanDeltaEvent;
-use codex_protocol::protocol::ReasoningContentDeltaEvent;
-use codex_protocol::protocol::ReasoningRawContentDeltaEvent;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolName;
-use codex_tools::filter_tool_suggest_discoverable_tools_for_client;
-use codex_utils_stream_parser::AssistantTextChunk;
-use codex_utils_stream_parser::AssistantTextStreamParser;
-use codex_utils_stream_parser::ProposedPlanSegment;
-use codex_utils_stream_parser::extract_proposed_plan_text;
-use codex_utils_stream_parser::strip_citations;
+use darwin_code_async_utils::OrCancelExt;
+use darwin_code_features::Feature;
+use darwin_code_hooks::HookEvent;
+use darwin_code_hooks::HookEventAfterAgent;
+use darwin_code_hooks::HookPayload;
+use darwin_code_hooks::HookResult;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::Result as DarwinCodeResult;
+use darwin_code_protocol::items::PlanItem;
+use darwin_code_protocol::items::TurnItem;
+use darwin_code_protocol::items::UserMessageItem;
+use darwin_code_protocol::items::build_hook_prompt_message;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseInputItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AgentMessageContentDeltaEvent;
+use darwin_code_protocol::protocol::AgentReasoningSectionBreakEvent;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
+use darwin_code_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::PlanDeltaEvent;
+use darwin_code_protocol::protocol::ReasoningContentDeltaEvent;
+use darwin_code_protocol::protocol::ReasoningRawContentDeltaEvent;
+use darwin_code_protocol::protocol::TurnDiffEvent;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_tools::ToolName;
+use darwin_code_tools::filter_tool_suggest_discoverable_tools_for_client;
+use darwin_code_utils_stream_parser::AssistantTextChunk;
+use darwin_code_utils_stream_parser::AssistantTextStreamParser;
+use darwin_code_utils_stream_parser::ProposedPlanSegment;
+use darwin_code_utils_stream_parser::extract_proposed_plan_text;
+use darwin_code_utils_stream_parser::strip_citations;
 use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesOrdered;
@@ -326,9 +326,9 @@ pub(crate) async fn run_turn(
             turn_context.as_ref(),
             EventMsg::Error(ErrorEvent {
                 message: format!(
-                    "Agent task registration failed. Please try again; Codex will attempt to register the task again on the next turn: {error}"
+                    "Agent task registration failed. Please try again; Darwin-Code will attempt to register the task again on the next turn: {error}"
                 ),
-                codex_error_info: Some(CodexErrorInfo::Other),
+                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         )
         .await;
@@ -351,7 +351,7 @@ pub(crate) async fn run_turn(
         .await;
     let mut last_agent_message: Option<String> = None;
     let mut stop_hook_active = false;
-    // Although from the perspective of codex.rs, TurnDiffTracker has the lifecycle of a Task which contains
+    // Although from the perspective of darwin-code.rs, TurnDiffTracker has the lifecycle of a Task which contains
     // many turns, from the perspective of the user, it is a single turn.
     let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
     let mut server_model_warning_emitted_for_turn = false;
@@ -505,7 +505,7 @@ pub(crate) async fn run_turn(
                         | AskForApproval::Granular(_) => "default",
                     }
                     .to_string();
-                    let stop_request = codex_hooks::StopRequest {
+                    let stop_request = darwin_code_hooks::StopRequest {
                         session_id: sess.conversation_id,
                         turn_id: turn_context.sub_id.clone(),
                         cwd: turn_context.cwd.clone(),
@@ -518,7 +518,7 @@ pub(crate) async fn run_turn(
                     for run in sess.hooks().preview_stop(&stop_request) {
                         sess.send_event(
                             &turn_context,
-                            EventMsg::HookStarted(codex_protocol::protocol::HookStartedEvent {
+                            EventMsg::HookStarted(darwin_code_protocol::protocol::HookStartedEvent {
                                 turn_id: Some(turn_context.sub_id.clone()),
                                 run,
                             }),
@@ -604,7 +604,7 @@ pub(crate) async fn run_turn(
                             &turn_context,
                             EventMsg::Error(ErrorEvent {
                                 message,
-                                codex_error_info: None,
+                                darwin_code_error_info: None,
                             }),
                         )
                         .await;
@@ -614,11 +614,11 @@ pub(crate) async fn run_turn(
                 }
                 continue;
             }
-            Err(CodexErr::TurnAborted) => {
+            Err(DarwinCodeErr::TurnAborted) => {
                 // Aborted turn is reported via a different event.
                 break;
             }
-            Err(CodexErr::InvalidImageRequest()) => {
+            Err(DarwinCodeErr::InvalidImageRequest()) => {
                 {
                     let mut state = sess.state.lock().await;
                     error_or_panic(
@@ -632,7 +632,7 @@ pub(crate) async fn run_turn(
                 let event = EventMsg::Error(ErrorEvent {
                     message: "Invalid image in your last message. Please remove it and try again."
                         .to_string(),
-                    codex_error_info: Some(CodexErrorInfo::BadRequest),
+                    darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
                 });
                 sess.send_event(&turn_context, event).await;
                 break;
@@ -699,7 +699,7 @@ async fn track_turn_resolved_config_analytics(
 async fn run_pre_sampling_compact(
     sess: &Arc<Session>,
     turn_context: &Arc<TurnContext>,
-) -> CodexResult<bool> {
+) -> DarwinCodeResult<bool> {
     let total_usage_tokens_before_compaction = sess.get_total_token_usage().await;
     let mut pre_sampling_compacted = maybe_run_previous_model_inline_compact(
         sess,
@@ -737,7 +737,7 @@ async fn maybe_run_previous_model_inline_compact(
     sess: &Arc<Session>,
     turn_context: &Arc<TurnContext>,
     total_usage_tokens: i64,
-) -> CodexResult<bool> {
+) -> DarwinCodeResult<bool> {
     let Some(previous_turn_settings) = sess.previous_turn_settings().await else {
         return Ok(false);
     };
@@ -780,7 +780,7 @@ async fn run_auto_compact(
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
     phase: CompactionPhase,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     if should_use_remote_compact_task(turn_context.provider.info()) {
         run_inline_remote_auto_compact_task(
             Arc::clone(sess),
@@ -982,7 +982,7 @@ async fn run_sampling_request(
     skills_outcome: Option<&SkillLoadOutcome>,
     server_model_warning_emitted_for_turn: &mut bool,
     cancellation_token: CancellationToken,
-) -> CodexResult<SamplingRequestResult> {
+) -> DarwinCodeResult<SamplingRequestResult> {
     let router = built_tools(
         sess.as_ref(),
         turn_context.as_ref(),
@@ -1043,16 +1043,16 @@ async fn run_sampling_request(
             Ok(output) => {
                 return Ok(output);
             }
-            Err(CodexErr::ContextWindowExceeded) => {
+            Err(DarwinCodeErr::ContextWindowExceeded) => {
                 sess.set_total_tokens_full(&turn_context).await;
-                return Err(CodexErr::ContextWindowExceeded);
+                return Err(DarwinCodeErr::ContextWindowExceeded);
             }
-            Err(CodexErr::UsageLimitReached(e)) => {
+            Err(DarwinCodeErr::UsageLimitReached(e)) => {
                 let rate_limits = e.rate_limits.clone();
                 if let Some(rate_limits) = rate_limits {
                     sess.update_rate_limits(&turn_context, *rate_limits).await;
                 }
-                return Err(CodexErr::UsageLimitReached(e));
+                return Err(DarwinCodeErr::UsageLimitReached(e));
             }
             Err(err) => err,
         };
@@ -1082,7 +1082,7 @@ async fn run_sampling_request(
         if retries < max_retries {
             retries += 1;
             let delay = match &err {
-                CodexErr::Stream(_, requested_delay) => {
+                DarwinCodeErr::Stream(_, requested_delay) => {
                     requested_delay.unwrap_or_else(|| backoff(retries))
                 }
                 _ => backoff(retries),
@@ -1121,7 +1121,7 @@ pub(crate) async fn built_tools(
     explicitly_enabled_connectors: &HashSet<String>,
     skills_outcome: Option<&SkillLoadOutcome>,
     cancellation_token: &CancellationToken,
-) -> CodexResult<Arc<ToolRouter>> {
+) -> DarwinCodeResult<Arc<ToolRouter>> {
     let mcp_connection_manager = sess.services.mcp_connection_manager.read().await;
     let has_mcp_servers = mcp_connection_manager.has_servers();
     let all_mcp_tools = mcp_connection_manager
@@ -1414,11 +1414,11 @@ async fn maybe_emit_pending_agent_message_start(
 }
 
 /// Agent messages are text-only today; concatenate all text entries.
-fn agent_message_text(item: &codex_protocol::items::AgentMessageItem) -> String {
+fn agent_message_text(item: &darwin_code_protocol::items::AgentMessageItem) -> String {
     item.content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            darwin_code_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect()
 }
@@ -1676,7 +1676,7 @@ async fn maybe_complete_plan_item_from_message(
 async fn emit_agent_message_in_plan_mode(
     sess: &Session,
     turn_context: &TurnContext,
-    agent_message: codex_protocol::items::AgentMessageItem,
+    agent_message: darwin_code_protocol::items::AgentMessageItem,
     state: &mut PlanModeStreamState,
 ) {
     let agent_message_id = agent_message.id.clone();
@@ -1697,7 +1697,7 @@ async fn emit_agent_message_in_plan_mode(
             .pending_agent_message_items
             .remove(&agent_message_id)
             .unwrap_or_else(|| {
-                TurnItem::AgentMessage(codex_protocol::items::AgentMessageItem {
+                TurnItem::AgentMessage(darwin_code_protocol::items::AgentMessageItem {
                     id: agent_message_id.clone(),
                     content: Vec::new(),
                     phase: None,
@@ -1773,10 +1773,10 @@ async fn handle_assistant_item_done_in_plan_mode(
 }
 
 async fn drain_in_flight(
-    in_flight: &mut FuturesOrdered<BoxFuture<'static, CodexResult<ResponseInputItem>>>,
+    in_flight: &mut FuturesOrdered<BoxFuture<'static, DarwinCodeResult<ResponseInputItem>>>,
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-) -> CodexResult<()> {
+) -> DarwinCodeResult<()> {
     while let Some(res) = in_flight.next().await {
         match res {
             Ok(response_input) => {
@@ -1816,7 +1816,7 @@ async fn try_run_sampling_request(
     server_model_warning_emitted_for_turn: &mut bool,
     prompt: &Prompt,
     cancellation_token: CancellationToken,
-) -> CodexResult<SamplingRequestResult> {
+) -> DarwinCodeResult<SamplingRequestResult> {
     feedback_tags!(
         model = turn_context.model_info.slug.clone(),
         approval_policy = turn_context.approval_policy.value(),
@@ -1838,7 +1838,7 @@ async fn try_run_sampling_request(
         .instrument(trace_span!("stream_request"))
         .or_cancel(&cancellation_token)
         .await??;
-    let mut in_flight: FuturesOrdered<BoxFuture<'static, CodexResult<ResponseInputItem>>> =
+    let mut in_flight: FuturesOrdered<BoxFuture<'static, DarwinCodeResult<ResponseInputItem>>> =
         FuturesOrdered::new();
     let mut needs_follow_up = false;
     let mut last_agent_message: Option<String> = None;
@@ -1852,7 +1852,7 @@ async fn try_run_sampling_request(
     let mut assistant_message_stream_parsers = AssistantMessageStreamParsers::new(plan_mode);
     let mut plan_mode_state = plan_mode.then(|| PlanModeStreamState::new(&turn_context.sub_id));
     let receiving_span = trace_span!("receiving_stream");
-    let outcome: CodexResult<SamplingRequestResult> = loop {
+    let outcome: DarwinCodeResult<SamplingRequestResult> = loop {
         let handle_responses = trace_span!(
             parent: &receiving_span,
             "handle_responses",
@@ -1868,14 +1868,14 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(codex_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
+            Err(darwin_code_async_utils::CancelErr::Cancelled) => break Err(DarwinCodeErr::TurnAborted),
         };
 
         let event = match event {
             Some(Ok(event)) => event,
             Some(Err(err)) => break Err(err),
             None => {
-                break Err(CodexErr::Stream(
+                break Err(DarwinCodeErr::Stream(
                     "stream closed before response.completed".into(),
                     None,
                 ));
@@ -1970,7 +1970,7 @@ async fn try_run_sampling_request(
                             assistant_message_stream_parsers.seed_item_text(&item_id, &raw_text);
                         if let TurnItem::AgentMessage(agent_message) = &mut turn_item {
                             agent_message.content =
-                                vec![codex_protocol::items::AgentMessageContent::Text {
+                                vec![darwin_code_protocol::items::AgentMessageContent::Text {
                                     text: if plan_mode {
                                         String::new()
                                     } else {
@@ -2158,7 +2158,7 @@ async fn try_run_sampling_request(
     drain_in_flight(&mut in_flight, sess.clone(), turn_context.clone()).await?;
 
     if cancellation_token.is_cancelled() {
-        return Err(CodexErr::TurnAborted);
+        return Err(DarwinCodeErr::TurnAborted);
     }
 
     if should_emit_turn_diff {

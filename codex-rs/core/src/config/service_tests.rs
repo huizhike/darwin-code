@@ -1,10 +1,10 @@
 use super::*;
 use anyhow::Result;
-use codex_app_server_protocol::AppConfig;
-use codex_app_server_protocol::AppToolApproval;
-use codex_app_server_protocol::AppsConfig;
-use codex_app_server_protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::AppConfig;
+use darwin_code_app_server_protocol::AppToolApproval;
+use darwin_code_app_server_protocol::AppsConfig;
+use darwin_code_app_server_protocol::AskForApproval;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use tempfile::tempdir;
@@ -61,7 +61,7 @@ X-Doc = "42"
 #[tokio::test]
 async fn write_value_preserves_comments_and_order() -> Result<()> {
     let tmp = tempdir().expect("tempdir");
-    let original = r#"# Codex user configuration
+    let original = r#"# Darwin-Code user configuration
 model = "gpt-5"
 approval_policy = "on-request"
 
@@ -87,7 +87,7 @@ unified_exec = true
         .expect("write succeeds");
 
     let updated = std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"# Codex user configuration
+    let expected = r#"# Darwin-Code user configuration
 model = "gpt-5"
 approval_policy = "on-request"
 

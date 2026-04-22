@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_models_manager::bundled_models_response;
+use darwin_code_models_manager::bundled_models_response;
 use serde_json::Value as JsonValue;
 use tempfile::tempdir;
 use tokio::select;
@@ -12,13 +12,13 @@ use tokio::time::timeout;
 
 #[tokio::test]
 async fn resume_startup_does_not_consume_model_availability_nux_count() -> Result<()> {
-    // run_codex_cli() does not work on Windows due to PTY limitations.
+    // run_darwin_code_cli() does not work on Windows due to PTY limitations.
     if cfg!(windows) {
         return Ok(());
     }
 
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
-    let codex_home = tempdir()?;
+    let repo_root = darwin_code_utils_cargo_bin::repo_root()?;
+    let darwin_code_home = tempdir()?;
 
     let mut source_catalog: JsonValue = serde_json::to_value(bundled_models_response()?)?;
     let models = source_catalog
@@ -46,7 +46,7 @@ async fn resume_startup_does_not_consume_model_availability_nux_count() -> Resul
         }),
     );
 
-    let custom_catalog_path = codex_home.path().join("catalog.json");
+    let custom_catalog_path = darwin_code_home.path().join("catalog.json");
     std::fs::write(
         &custom_catalog_path,
         serde_json::to_string(&source_catalog)?,
@@ -66,43 +66,43 @@ trust_level = "trusted"
 "{model_slug}" = 1
 "#
     );
-    std::fs::write(codex_home.path().join("config.toml"), config_contents)?;
+    std::fs::write(darwin_code_home.path().join("config.toml"), config_contents)?;
 
     let fixture_path =
-        codex_utils_cargo_bin::find_resource!("../core/tests/cli_responses_fixture.sse")?;
-    let codex = if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
+        darwin_code_utils_cargo_bin::find_resource!("../core/tests/cli_responses_fixture.sse")?;
+    let darwin-code = if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code") {
         path
     } else {
-        let fallback = repo_root.join("codex-rs/target/debug/codex");
+        let fallback = repo_root.join("darwin-code-rs/target/debug/darwin-code");
         if fallback.is_file() {
             fallback
         } else {
-            eprintln!("skipping integration test because codex binary is unavailable");
+            eprintln!("skipping integration test because darwin-code binary is unavailable");
             return Ok(());
         }
     };
 
-    let exec_output = std::process::Command::new(&codex)
+    let exec_output = std::process::Command::new(&darwin-code)
         .arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-C")
         .arg(&repo_root)
         .arg("seed session for resume")
-        .env("CODEX_HOME", codex_home.path())
+        .env("DARWIN_CODE_HOME", darwin_code_home.path())
         .env("OPENAI_API_KEY", "dummy")
-        .env("CODEX_RS_SSE_FIXTURE", fixture_path)
+        .env("DARWIN_CODE_RS_SSE_FIXTURE", fixture_path)
         .output()
-        .context("failed to execute codex exec")?;
+        .context("failed to execute darwin-code exec")?;
     anyhow::ensure!(
         exec_output.status.success(),
-        "codex exec failed: {}",
+        "darwin-code exec failed: {}",
         String::from_utf8_lossy(&exec_output.stderr)
     );
 
     let mut env = HashMap::new();
     env.insert(
-        "CODEX_HOME".to_string(),
-        codex_home.path().display().to_string(),
+        "DARWIN_CODE_HOME".to_string(),
+        darwin_code_home.path().display().to_string(),
     );
     env.insert("OPENAI_API_KEY".to_string(), "dummy".to_string());
 
@@ -116,24 +116,24 @@ trust_level = "trusted"
         "analytics.enabled=false".to_string(),
     ];
 
-    let spawned = codex_utils_pty::spawn_pty_process(
-        codex.to_string_lossy().as_ref(),
+    let spawned = darwin_code_utils_pty::spawn_pty_process(
+        darwin-code.to_string_lossy().as_ref(),
         &args,
         &repo_root,
         &env,
         &None,
-        codex_utils_pty::TerminalSize::default(),
+        darwin_code_utils_pty::TerminalSize::default(),
     )
     .await?;
 
     let mut output = Vec::new();
-    let codex_utils_pty::SpawnedProcess {
+    let darwin_code_utils_pty::SpawnedProcess {
         session,
         stdout_rx,
         stderr_rx,
         exit_rx,
     } = spawned;
-    let mut output_rx = codex_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
+    let mut output_rx = darwin_code_utils_pty::combine_output_receivers(stdout_rx, stderr_rx);
     let mut exit_rx = exit_rx;
     let writer_tx = session.writer_sender();
     let interrupt_writer = writer_tx.clone();
@@ -173,7 +173,7 @@ trust_level = "trusted"
         Ok(Err(err)) => return Err(err.into()),
         Err(_) => {
             session.terminate();
-            anyhow::bail!("timed out waiting for codex resume to exit");
+            anyhow::bail!("timed out waiting for darwin-code resume to exit");
         }
     };
     let output_text = String::from_utf8_lossy(&output);
@@ -186,10 +186,10 @@ trust_level = "trusted"
     };
     anyhow::ensure!(
         exit_code == 0 || exit_code == 130 || (exit_code == 1 && interrupt_only_output),
-        "unexpected exit code from codex resume: {exit_code}; output: {output_text}",
+        "unexpected exit code from darwin-code resume: {exit_code}; output: {output_text}",
     );
 
-    let config_contents = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+    let config_contents = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
     let config: toml::Value = toml::from_str(&config_contents)?;
     let shown_count = config
         .get("tui")

@@ -1,8 +1,8 @@
 #![cfg(unix)]
-use codex_core::spawn::StdioPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
+use darwin_code_core::spawn::StdioPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::test_support::PathBufExt;
 use std::collections::HashMap;
 use std::future::Future;
 use std::io;
@@ -19,16 +19,16 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::exec::ExecCapturePolicy;
-    use codex_core::exec::ExecParams;
-    use codex_core::exec::build_exec_request;
-    use codex_core::sandboxing::SandboxPermissions;
-    use codex_protocol::config_types::WindowsSandboxLevel;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
+    use darwin_code_core::exec::ExecCapturePolicy;
+    use darwin_code_core::exec::ExecParams;
+    use darwin_code_core::exec::build_exec_request;
+    use darwin_code_core::sandboxing::SandboxPermissions;
+    use darwin_code_protocol::config_types::WindowsSandboxLevel;
+    use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+    use darwin_code_protocol::permissions::NetworkSandboxPolicy;
     use std::process::Stdio;
 
-    let codex_linux_sandbox_exe = None;
+    let darwin_code_linux_sandbox_exe = None;
     let exec_request = build_exec_request(
         ExecParams {
             command,
@@ -47,7 +47,7 @@ async fn spawn_command_under_sandbox(
         &FileSystemSandboxPolicy::from_legacy_sandbox_policy(sandbox_policy, sandbox_cwd),
         NetworkSandboxPolicy::from(sandbox_policy),
         sandbox_cwd,
-        &codex_linux_sandbox_exe,
+        &darwin_code_linux_sandbox_exe,
         /*use_legacy_landlock*/ false,
     )
     .map_err(|err| io::Error::other(err.to_string()))?;
@@ -91,11 +91,11 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::spawn_command_under_linux_sandbox;
-    let codex_linux_sandbox_exe = core_test_support::find_codex_linux_sandbox_exe()
+    use darwin_code_core::spawn_command_under_linux_sandbox;
+    let darwin_code_linux_sandbox_exe = core_test_support::find_darwin_code_linux_sandbox_exe()
         .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;
     spawn_command_under_linux_sandbox(
-        codex_linux_sandbox_exe,
+        darwin_code_linux_sandbox_exe,
         command,
         command_cwd,
         sandbox_policy,
@@ -362,7 +362,7 @@ async fn sandbox_distinguishes_command_and_policy_cwds() {
 }
 
 #[tokio::test]
-async fn sandbox_blocks_first_time_dot_codex_creation() {
+async fn sandbox_blocks_first_time_dot_darwin_code_creation() {
     core_test_support::skip_if_sandbox!();
     #[cfg(target_os = "linux")]
     let sandbox_env = match linux_sandbox_test_env().await {
@@ -375,8 +375,8 @@ async fn sandbox_blocks_first_time_dot_codex_creation() {
     let temp = tempfile::tempdir().expect("should be able to create temp dir");
     let repo_root = temp.path().join("repo").abs();
     create_dir_all(&repo_root).await.expect("mkdir repo");
-    let dot_codex = repo_root.join(".codex");
-    let config_toml = dot_codex.join("config.toml");
+    let dot_darwin_code = repo_root.join(".darwin-code");
+    let config_toml = dot_darwin_code.join("config.toml");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
         read_only_access: Default::default(),
@@ -389,7 +389,7 @@ async fn sandbox_blocks_first_time_dot_codex_creation() {
         vec![
             "bash".to_string(),
             "-lc".to_string(),
-            "mkdir -p .codex && echo 'sandbox_mode = \"danger-full-access\"' > .codex/config.toml"
+            "mkdir -p .darwin-code && echo 'sandbox_mode = \"danger-full-access\"' > .darwin-code/config.toml"
                 .to_string(),
         ],
         repo_root.clone(),
@@ -399,26 +399,26 @@ async fn sandbox_blocks_first_time_dot_codex_creation() {
         sandbox_env,
     )
     .await
-    .expect("should spawn command creating .codex");
+    .expect("should spawn command creating .darwin-code");
 
-    let status = child.wait().await.expect("should wait for .codex command");
+    let status = child.wait().await.expect("should wait for .darwin-code command");
     assert!(
         !status.success(),
-        "sandbox unexpectedly allowed first-time .codex creation: {status:?}"
+        "sandbox unexpectedly allowed first-time .darwin-code creation: {status:?}"
     );
-    let dot_codex_metadata = tokio::fs::symlink_metadata(&dot_codex).await;
-    if let Ok(metadata) = dot_codex_metadata {
+    let dot_darwin_code_metadata = tokio::fs::symlink_metadata(&dot_darwin_code).await;
+    if let Ok(metadata) = dot_darwin_code_metadata {
         assert!(
             !metadata.is_dir(),
             "{} should not be creatable as a directory",
-            dot_codex.display()
+            dot_darwin_code.display()
         );
-    } else if let Err(err) = &dot_codex_metadata {
+    } else if let Err(err) = &dot_darwin_code_metadata {
         assert_eq!(
             err.kind(),
             io::ErrorKind::NotFound,
             "unexpected metadata error for {}: {err}",
-            dot_codex.display()
+            dot_darwin_code.display()
         );
     }
     let config_toml_exists = match tokio::fs::try_exists(&config_toml).await {

@@ -1,8 +1,8 @@
 use super::*;
 
-use codex_execpolicy::Decision;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
+use darwin_code_execpolicy::Decision;
+use darwin_code_execpolicy::NetworkRuleProtocol;
+use darwin_code_execpolicy::Policy;
 use pretty_assertions::assert_eq;
 
 #[test]

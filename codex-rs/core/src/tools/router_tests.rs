@@ -5,8 +5,8 @@ use crate::function_tool::FunctionCallError;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ToolName;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_tools::ToolName;
 
 use super::ToolCall;
 use super::ToolCallSource;
@@ -227,7 +227,7 @@ async fn build_tool_call_uses_namespace_for_registry_name() -> anyhow::Result<()
         ResponseItem::FunctionCall {
             id: None,
             name: tool_name.clone(),
-            namespace: Some("mcp__codex_apps__calendar".to_string()),
+            namespace: Some("mcp__darwin_code_apps__calendar".to_string()),
             arguments: "{}".to_string(),
             call_id: "call-namespace".to_string(),
         },
@@ -237,7 +237,7 @@ async fn build_tool_call_uses_namespace_for_registry_name() -> anyhow::Result<()
 
     assert_eq!(
         call.tool_name,
-        ToolName::namespaced("mcp__codex_apps__calendar", tool_name)
+        ToolName::namespaced("mcp__darwin_code_apps__calendar", tool_name)
     );
     assert_eq!(call.call_id, "call-namespace");
     match call.payload {

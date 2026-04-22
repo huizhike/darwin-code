@@ -2,20 +2,20 @@ use super::AuthRequestTelemetryContext;
 use super::ModelClient;
 use super::PendingUnauthorizedRetry;
 use super::UnauthorizedRecoveryExecution;
-use super::X_CODEX_INSTALLATION_ID_HEADER;
-use super::X_CODEX_PARENT_THREAD_ID_HEADER;
-use super::X_CODEX_TURN_METADATA_HEADER;
-use super::X_CODEX_WINDOW_ID_HEADER;
+use super::X_DARWIN_CODE_INSTALLATION_ID_HEADER;
+use super::X_DARWIN_CODE_PARENT_THREAD_ID_HEADER;
+use super::X_DARWIN_CODE_TURN_METADATA_HEADER;
+use super::X_DARWIN_CODE_WINDOW_ID_HEADER;
 use super::X_OPENAI_SUBAGENT_HEADER;
-use codex_app_server_protocol::AuthMode;
-use codex_model_provider::BearerAuthProvider;
-use codex_model_provider_info::WireApi;
-use codex_model_provider_info::create_oss_provider_with_base_url;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_model_provider::BearerAuthProvider;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_model_provider_info::create_oss_provider_with_base_url;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -110,11 +110,11 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
         client_metadata,
         std::collections::HashMap::from([
             (
-                X_CODEX_INSTALLATION_ID_HEADER.to_string(),
+                X_DARWIN_CODE_INSTALLATION_ID_HEADER.to_string(),
                 "11111111-1111-4111-8111-111111111111".to_string(),
             ),
             (
-                X_CODEX_WINDOW_ID_HEADER.to_string(),
+                X_DARWIN_CODE_WINDOW_ID_HEADER.to_string(),
                 format!("{conversation_id}:1"),
             ),
             (
@@ -122,11 +122,11 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
                 "collab_spawn".to_string(),
             ),
             (
-                X_CODEX_PARENT_THREAD_ID_HEADER.to_string(),
+                X_DARWIN_CODE_PARENT_THREAD_ID_HEADER.to_string(),
                 parent_thread_id.to_string(),
             ),
             (
-                X_CODEX_TURN_METADATA_HEADER.to_string(),
+                X_DARWIN_CODE_TURN_METADATA_HEADER.to_string(),
                 r#"{"turn_id":"turn-123"}"#.to_string(),
             ),
         ])

@@ -9,8 +9,8 @@ use crate::plugins::configured_plugins_from_stack;
 use crate::plugins::find_marketplace_manifest_path;
 use crate::plugins::is_local_marketplace_source;
 use crate::plugins::parse_marketplace_source;
-use codex_core_plugins::marketplace::MarketplacePluginInstallPolicy;
-use codex_protocol::protocol::Product;
+use darwin_code_core_plugins::marketplace::MarketplacePluginInstallPolicy;
+use darwin_code_protocol::protocol::Product;
 use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
@@ -21,8 +21,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 
-const EXTERNAL_AGENT_CONFIG_DETECT_METRIC: &str = "codex.external_agent_config.detect";
-const EXTERNAL_AGENT_CONFIG_IMPORT_METRIC: &str = "codex.external_agent_config.import";
+const EXTERNAL_AGENT_CONFIG_DETECT_METRIC: &str = "darwin-code.external_agent_config.detect";
+const EXTERNAL_AGENT_CONFIG_IMPORT_METRIC: &str = "darwin-code.external_agent_config.import";
 const EXTERNAL_AGENT_DIR: &str = ".claude";
 const EXTERNAL_AGENT_CONFIG_MD: &str = "CLAUDE.md";
 
@@ -76,23 +76,23 @@ pub struct ExternalAgentConfigMigrationItem {
 
 #[derive(Clone)]
 pub struct ExternalAgentConfigService {
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     external_agent_home: PathBuf,
 }
 
 impl ExternalAgentConfigService {
-    pub fn new(codex_home: PathBuf) -> Self {
+    pub fn new(darwin_code_home: PathBuf) -> Self {
         let external_agent_home = default_external_agent_home();
         Self {
-            codex_home,
+            darwin_code_home,
             external_agent_home,
         }
     }
 
     #[cfg(test)]
-    fn new_for_test(codex_home: PathBuf, external_agent_home: PathBuf) -> Self {
+    fn new_for_test(darwin_code_home: PathBuf, external_agent_home: PathBuf) -> Self {
         Self {
-            codex_home,
+            darwin_code_home,
             external_agent_home,
         }
     }
@@ -191,8 +191,8 @@ impl ExternalAgentConfigService {
         );
         let settings = read_external_settings(&source_settings)?;
         let target_config = repo_root.map_or_else(
-            || self.codex_home.join("config.toml"),
-            |repo_root| repo_root.join(".codex").join("config.toml"),
+            || self.darwin_code_home.join("config.toml"),
+            |repo_root| repo_root.join(".darwin-code").join("config.toml"),
         );
         if let Some(settings) = settings.as_ref() {
             let migrated = build_config_from_external(settings)?;
@@ -264,7 +264,7 @@ impl ExternalAgentConfigService {
             is_non_empty_text_file(&path)?.then_some(path)
         };
         let target_agents_md = repo_root.map_or_else(
-            || self.codex_home.join("AGENTS.md"),
+            || self.darwin_code_home.join("AGENTS.md"),
             |repo_root| repo_root.join("AGENTS.md"),
         );
         if let Some(source_agents_md) = source_agents_md
@@ -289,8 +289,8 @@ impl ExternalAgentConfigService {
 
         if let Some(settings) = settings.as_ref() {
             match ConfigBuilder::default()
-                .codex_home(self.codex_home.clone())
-                .fallback_cwd(Some(self.codex_home.clone()))
+                .darwin_code_home(self.darwin_code_home.clone())
+                .fallback_cwd(Some(self.darwin_code_home.clone()))
                 .build()
                 .await
             {
@@ -301,7 +301,7 @@ impl ExternalAgentConfigService {
                             .collect::<HashSet<_>>();
                     let configured_marketplace_plugins = configured_marketplace_plugins(
                         &config,
-                        &PluginsManager::new(self.codex_home.clone()),
+                        &PluginsManager::new(self.darwin_code_home.clone()),
                     )?;
                     if let Some(item) = self.detect_plugin_migration(
                         source_settings.as_path(),
@@ -328,7 +328,7 @@ impl ExternalAgentConfigService {
     }
 
     fn home_target_skills_dir(&self) -> PathBuf {
-        self.codex_home
+        self.darwin_code_home
             .parent()
             .map(|parent| parent.join(".agents").join("skills"))
             .unwrap_or_else(|| PathBuf::from(".agents").join("skills"))
@@ -419,7 +419,7 @@ impl ExternalAgentConfigService {
             ));
         };
         let mut outcome = PluginImportOutcome::default();
-        let plugins_manager = PluginsManager::new(self.codex_home.clone());
+        let plugins_manager = PluginsManager::new(self.darwin_code_home.clone());
         for plugin_group in plugins {
             let marketplace_name = plugin_group.marketplace_name.clone();
             let plugin_names = plugin_group.plugin_names;
@@ -445,7 +445,7 @@ impl ExternalAgentConfigService {
                 ref_name: import_source.ref_name,
                 sparse_paths: Vec::new(),
             };
-            let add_marketplace_outcome = add_marketplace(self.codex_home.clone(), request).await;
+            let add_marketplace_outcome = add_marketplace(self.darwin_code_home.clone(), request).await;
             let marketplace_path = match add_marketplace_outcome {
                 Ok(add_marketplace_outcome) => {
                     let Some(marketplace_path) = find_marketplace_manifest_path(
@@ -491,14 +491,14 @@ impl ExternalAgentConfigService {
         let (source_settings, target_config) = if let Some(repo_root) = find_repo_root(cwd)? {
             (
                 repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
-                repo_root.join(".codex").join("config.toml"),
+                repo_root.join(".darwin-code").join("config.toml"),
             )
         } else if cwd.is_some_and(|cwd| !cwd.as_os_str().is_empty()) {
             return Ok(());
         } else {
             (
                 self.external_agent_home.join("settings.json"),
-                self.codex_home.join("config.toml"),
+                self.darwin_code_home.join("config.toml"),
             )
         };
         if !source_settings.is_file() {
@@ -590,7 +590,7 @@ impl ExternalAgentConfigService {
         } else {
             (
                 self.external_agent_home.join(EXTERNAL_AGENT_CONFIG_MD),
-                self.codex_home.join("AGENTS.md"),
+                self.darwin_code_home.join("AGENTS.md"),
             )
         };
         if !is_non_empty_text_file(&source_agents_md)?
@@ -728,7 +728,7 @@ fn configured_marketplace_plugins(
                     .policy
                     .products
                     .as_deref()
-                    .is_none_or(|products| Product::Codex.matches_product_restriction(products))
+                    .is_none_or(|products| Product::Darwin-Code.matches_product_restriction(products))
             })
             .map(|plugin| plugin.name)
             .collect::<HashSet<_>>();
@@ -949,7 +949,7 @@ fn rewrite_external_agent_terms(content: &str) -> String {
         "claudecode",
         "claude",
     ] {
-        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "Codex");
+        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "Darwin-Code");
     }
     rewritten
 }
@@ -1133,7 +1133,7 @@ fn emit_migration_metric(
     item_type: ExternalAgentConfigMigrationItemType,
     skills_count: Option<usize>,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = darwin_code_otel::global() else {
         return;
     };
     let tags = migration_metric_tags(item_type, skills_count);

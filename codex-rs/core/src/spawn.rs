@@ -1,5 +1,5 @@
-use codex_network_proxy::NetworkProxy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_network_proxy::NetworkProxy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -7,22 +7,22 @@ use tokio::process::Child;
 use tokio::process::Command;
 use tracing::trace;
 
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 
 /// Experimental environment variable that will be set to some non-empty value
 /// if both of the following are true:
 ///
-/// 1. The process was spawned by Codex as part of a shell tool call.
+/// 1. The process was spawned by Darwin-Code as part of a shell tool call.
 /// 2. NetworkSandboxPolicy is restricted for the tool call.
 ///
 /// We may try to have just one environment variable for all sandboxing
 /// attributes, so this may change in the future.
-pub const CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR: &str = "CODEX_SANDBOX_NETWORK_DISABLED";
+pub const DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR: &str = "DARWIN_CODE_SANDBOX_NETWORK_DISABLED";
 
 /// Should be set when the process is spawned under a sandbox. Currently, the
 /// value is "seatbelt" for macOS, but it may change in the future to
 /// accommodate sandboxing configuration and other sandboxing mechanisms.
-pub const CODEX_SANDBOX_ENV_VAR: &str = "CODEX_SANDBOX";
+pub const DARWIN_CODE_SANDBOX_ENV_VAR: &str = "DARWIN_CODE_SANDBOX";
 
 #[derive(Debug, Clone, Copy)]
 pub enum StdioPolicy {
@@ -36,7 +36,7 @@ pub enum StdioPolicy {
 ///
 /// For now, we take `NetworkSandboxPolicy` as a parameter to spawn_child()
 /// because we need to determine whether to set the
-/// `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` environment variable.
+/// `DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR` environment variable.
 pub(crate) struct SpawnChildRequest<'a> {
     pub program: PathBuf,
     pub args: Vec<String>,
@@ -76,10 +76,10 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
     cmd.envs(env);
 
     if !network_sandbox_policy.is_enabled() {
-        cmd.env(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR, "1");
+        cmd.env(DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR, "1");
     }
 
-    // If this Codex process dies (including being killed via SIGKILL), we want
+    // If this Darwin-Code process dies (including being killed via SIGKILL), we want
     // any child processes that were spawned as part of a `"shell"` tool call
     // to also be terminated.
 
@@ -90,7 +90,7 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
         let parent_pid = libc::getpid();
         cmd.pre_exec(move || {
             if detach_from_tty {
-                codex_utils_pty::process_group::detach_from_tty()?;
+                darwin_code_utils_pty::process_group::detach_from_tty()?;
             }
 
             // This relies on prctl(2), so it only works on Linux.
@@ -98,7 +98,7 @@ pub(crate) async fn spawn_child_async(request: SpawnChildRequest<'_>) -> std::io
             {
                 // This prctl call effectively requests, "deliver SIGTERM when my
                 // current parent dies."
-                codex_utils_pty::process_group::set_parent_death_signal(parent_pid)?;
+                darwin_code_utils_pty::process_group::set_parent_death_signal(parent_pid)?;
             }
             Ok(())
         });

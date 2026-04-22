@@ -6,39 +6,39 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use tracing::warn;
 
-pub use codex_core_skills::SkillDependencyInfo;
-pub use codex_core_skills::SkillError;
-pub use codex_core_skills::SkillLoadOutcome;
-pub use codex_core_skills::SkillMetadata;
-pub use codex_core_skills::SkillPolicy;
-pub use codex_core_skills::SkillRenderReport;
-pub use codex_core_skills::SkillsLoadInput;
-pub use codex_core_skills::SkillsManager;
-pub use codex_core_skills::build_skill_name_counts;
-pub use codex_core_skills::collect_env_var_dependencies;
-pub use codex_core_skills::config_rules;
-pub use codex_core_skills::default_skill_metadata_budget;
-pub use codex_core_skills::detect_implicit_skill_invocation_for_command;
-pub use codex_core_skills::filter_skill_load_outcome_for_product;
-pub use codex_core_skills::injection;
-pub use codex_core_skills::injection::SkillInjections;
-pub use codex_core_skills::injection::build_skill_injections;
-pub use codex_core_skills::injection::collect_explicit_skill_mentions;
-pub use codex_core_skills::loader;
-pub use codex_core_skills::manager;
-pub use codex_core_skills::model;
-pub use codex_core_skills::remote;
-pub use codex_core_skills::render;
-pub use codex_core_skills::render::SkillRenderSideEffects;
-pub use codex_core_skills::render_skills_section;
-pub use codex_core_skills::system;
+pub use darwin_code_core_skills::SkillDependencyInfo;
+pub use darwin_code_core_skills::SkillError;
+pub use darwin_code_core_skills::SkillLoadOutcome;
+pub use darwin_code_core_skills::SkillMetadata;
+pub use darwin_code_core_skills::SkillPolicy;
+pub use darwin_code_core_skills::SkillRenderReport;
+pub use darwin_code_core_skills::SkillsLoadInput;
+pub use darwin_code_core_skills::SkillsManager;
+pub use darwin_code_core_skills::build_skill_name_counts;
+pub use darwin_code_core_skills::collect_env_var_dependencies;
+pub use darwin_code_core_skills::config_rules;
+pub use darwin_code_core_skills::default_skill_metadata_budget;
+pub use darwin_code_core_skills::detect_implicit_skill_invocation_for_command;
+pub use darwin_code_core_skills::filter_skill_load_outcome_for_product;
+pub use darwin_code_core_skills::injection;
+pub use darwin_code_core_skills::injection::SkillInjections;
+pub use darwin_code_core_skills::injection::build_skill_injections;
+pub use darwin_code_core_skills::injection::collect_explicit_skill_mentions;
+pub use darwin_code_core_skills::loader;
+pub use darwin_code_core_skills::manager;
+pub use darwin_code_core_skills::model;
+pub use darwin_code_core_skills::remote;
+pub use darwin_code_core_skills::render;
+pub use darwin_code_core_skills::render::SkillRenderSideEffects;
+pub use darwin_code_core_skills::render_skills_section;
+pub use darwin_code_core_skills::system;
 
 pub(crate) fn skills_load_input_from_config(
     config: &Config,
@@ -208,7 +208,7 @@ pub(crate) async fn maybe_emit_implicit_skill_invocation(
     }
 
     turn_context.session_telemetry.counter(
-        "codex.skill.injected",
+        "darwin-code.skill.injected",
         /*inc*/ 1,
         &[
             ("status", "ok"),

@@ -3,15 +3,15 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::util::resolve_path;
-use codex_apply_patch::ApplyPatchAction;
-use codex_apply_patch::ApplyPatchFileChange;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::get_platform_sandbox;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_apply_patch::ApplyPatchAction;
+use darwin_code_apply_patch::ApplyPatchFileChange;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_sandboxing::get_platform_sandbox;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 const PATCH_REJECTED_OUTSIDE_PROJECT_REASON: &str =
     "writing outside of the project; rejected by user approval settings";

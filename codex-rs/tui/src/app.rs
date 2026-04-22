@@ -70,77 +70,77 @@ use crate::test_support::test_path_display;
 use crate::tui;
 use crate::tui::TuiEvent;
 use crate::update_action::UpdateAction;
-use crate::version::CODEX_CLI_VERSION;
-use codex_ansi_escape::ansi_escape_line;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_client::TypedRequestError;
+use crate::version::DARWIN_CODE_CLI_VERSION;
+use darwin_code_ansi_escape::ansi_escape_line;
+use darwin_code_app_server_client::AppServerRequestHandle;
+use darwin_code_app_server_client::TypedRequestError;
 
 type FeedbackClient = ();
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FeedbackUploadResponse;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadMemoryMode;
-use codex_app_server_protocol::ThreadRollbackResponse;
-use codex_app_server_protocol::ThreadStartSource;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnError as AppServerTurnError;
-use codex_app_server_protocol::TurnStatus;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_exec_server::EnvironmentManager;
-use codex_features::Feature;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_models_manager::model_presets::HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG;
-use codex_models_manager::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::ExecApprovalRequestEvent;
-use codex_protocol::config_types::Personality;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::ConfigValueWriteParams;
+use darwin_code_app_server_protocol::ConfigWriteResponse;
+use darwin_code_app_server_protocol::FeedbackUploadParams;
+use darwin_code_app_server_protocol::FeedbackUploadResponse;
+use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
+use darwin_code_app_server_protocol::ListMcpServerStatusParams;
+use darwin_code_app_server_protocol::ListMcpServerStatusResponse;
+use darwin_code_app_server_protocol::McpServerStatus;
+use darwin_code_app_server_protocol::McpServerStatusDetail;
+use darwin_code_app_server_protocol::MergeStrategy;
+use darwin_code_app_server_protocol::PluginInstallParams;
+use darwin_code_app_server_protocol::PluginInstallResponse;
+use darwin_code_app_server_protocol::PluginListParams;
+use darwin_code_app_server_protocol::PluginListResponse;
+use darwin_code_app_server_protocol::PluginReadParams;
+use darwin_code_app_server_protocol::PluginReadResponse;
+use darwin_code_app_server_protocol::PluginUninstallParams;
+use darwin_code_app_server_protocol::PluginUninstallResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_app_server_protocol::SkillsListParams;
+use darwin_code_app_server_protocol::SkillsListResponse;
+use darwin_code_app_server_protocol::ThreadItem;
+use darwin_code_app_server_protocol::ThreadLoadedListParams;
+use darwin_code_app_server_protocol::ThreadMemoryMode;
+use darwin_code_app_server_protocol::ThreadRollbackResponse;
+use darwin_code_app_server_protocol::ThreadStartSource;
+use darwin_code_app_server_protocol::Turn;
+use darwin_code_app_server_protocol::TurnError as AppServerTurnError;
+use darwin_code_app_server_protocol::TurnStatus;
+use darwin_code_config::types::ApprovalsReviewer;
+use darwin_code_config::types::ModelAvailabilityNuxConfig;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_features::Feature;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_models_manager::model_presets::HIDE_GPT_5_1_DARWIN_CODE_MAX_MIGRATION_PROMPT_CONFIG;
+use darwin_code_models_manager::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::approvals::ExecApprovalRequestEvent;
+use darwin_code_protocol::config_types::Personality;
 #[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::openai_models::ModelAvailabilityNux;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelUpgrade;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::FinalOutput;
-use codex_protocol::protocol::GetHistoryEntryResponseEvent;
-use codex_protocol::protocol::ListSkillsResponseEvent;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::openai_models::ModelAvailabilityNux;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::ModelUpgrade;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::FinalOutput;
+use darwin_code_protocol::protocol::GetHistoryEntryResponseEvent;
+use darwin_code_protocol::protocol::ListSkillsResponseEvent;
 #[cfg(test)]
-use codex_protocol::protocol::McpAuthStatus;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillErrorInfo;
-use codex_protocol::protocol::TokenUsage;
-use codex_terminal_detection::user_agent;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::McpAuthStatus;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SkillErrorInfo;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_terminal_detection::user_agent;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use crossterm::event::KeyCode;
@@ -191,43 +191,43 @@ enum ThreadInteractiveRequest {
 }
 
 fn app_server_request_id_to_mcp_request_id(
-    request_id: &codex_app_server_protocol::RequestId,
-) -> codex_protocol::mcp::RequestId {
+    request_id: &darwin_code_app_server_protocol::RequestId,
+) -> darwin_code_protocol::mcp::RequestId {
     match request_id {
-        codex_app_server_protocol::RequestId::String(value) => {
-            codex_protocol::mcp::RequestId::String(value.clone())
+        darwin_code_app_server_protocol::RequestId::String(value) => {
+            darwin_code_protocol::mcp::RequestId::String(value.clone())
         }
-        codex_app_server_protocol::RequestId::Integer(value) => {
-            codex_protocol::mcp::RequestId::Integer(*value)
+        darwin_code_app_server_protocol::RequestId::Integer(value) => {
+            darwin_code_protocol::mcp::RequestId::Integer(*value)
         }
     }
 }
 
 fn command_execution_decision_to_review_decision(
-    decision: codex_app_server_protocol::CommandExecutionApprovalDecision,
-) -> codex_protocol::protocol::ReviewDecision {
+    decision: darwin_code_app_server_protocol::CommandExecutionApprovalDecision,
+) -> darwin_code_protocol::protocol::ReviewDecision {
     match decision {
-        codex_app_server_protocol::CommandExecutionApprovalDecision::Accept => {
-            codex_protocol::protocol::ReviewDecision::Approved
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Accept => {
+            darwin_code_protocol::protocol::ReviewDecision::Approved
         }
-        codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession => {
-            codex_protocol::protocol::ReviewDecision::ApprovedForSession
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::AcceptForSession => {
+            darwin_code_protocol::protocol::ReviewDecision::ApprovedForSession
         }
-        codex_app_server_protocol::CommandExecutionApprovalDecision::AcceptWithExecpolicyAmendment {
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::AcceptWithExecpolicyAmendment {
             execpolicy_amendment,
-        } => codex_protocol::protocol::ReviewDecision::ApprovedExecpolicyAmendment {
+        } => darwin_code_protocol::protocol::ReviewDecision::ApprovedExecpolicyAmendment {
             proposed_execpolicy_amendment: execpolicy_amendment.into_core(),
         },
-        codex_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::ApplyNetworkPolicyAmendment {
             network_policy_amendment,
-        } => codex_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
+        } => darwin_code_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
             network_policy_amendment: network_policy_amendment.into_core(),
         },
-        codex_app_server_protocol::CommandExecutionApprovalDecision::Decline => {
-            codex_protocol::protocol::ReviewDecision::Denied
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Decline => {
+            darwin_code_protocol::protocol::ReviewDecision::Denied
         }
-        codex_app_server_protocol::CommandExecutionApprovalDecision::Cancel => {
-            codex_protocol::protocol::ReviewDecision::Abort
+        darwin_code_app_server_protocol::CommandExecutionApprovalDecision::Cancel => {
+            darwin_code_protocol::protocol::ReviewDecision::Abort
         }
     }
 }
@@ -257,13 +257,13 @@ fn collab_receiver_thread_ids(notification: &ServerNotification) -> Option<&[Str
 }
 
 fn default_exec_approval_decisions(
-    network_approval_context: Option<&codex_protocol::protocol::NetworkApprovalContext>,
-    proposed_execpolicy_amendment: Option<&codex_protocol::approvals::ExecPolicyAmendment>,
+    network_approval_context: Option<&darwin_code_protocol::protocol::NetworkApprovalContext>,
+    proposed_execpolicy_amendment: Option<&darwin_code_protocol::approvals::ExecPolicyAmendment>,
     proposed_network_policy_amendments: Option<
-        &[codex_protocol::approvals::NetworkPolicyAmendment],
+        &[darwin_code_protocol::approvals::NetworkPolicyAmendment],
     >,
-    additional_permissions: Option<&codex_protocol::models::PermissionProfile>,
-) -> Vec<codex_protocol::protocol::ReviewDecision> {
+    additional_permissions: Option<&darwin_code_protocol::models::PermissionProfile>,
+) -> Vec<darwin_code_protocol::protocol::ReviewDecision> {
     ExecApprovalRequestEvent::default_available_decisions(
         network_approval_context,
         proposed_execpolicy_amendment,
@@ -389,17 +389,17 @@ fn list_skills_response_to_core(response: SkillsListResponse) -> ListSkillsRespo
         skills: response
             .data
             .into_iter()
-            .map(|entry| codex_protocol::protocol::SkillsListEntry {
+            .map(|entry| darwin_code_protocol::protocol::SkillsListEntry {
                 cwd: entry.cwd,
                 skills: entry
                     .skills
                     .into_iter()
-                    .map(|skill| codex_protocol::protocol::SkillMetadata {
+                    .map(|skill| darwin_code_protocol::protocol::SkillMetadata {
                         name: skill.name,
                         description: skill.description,
                         short_description: skill.short_description,
                         interface: skill.interface.map(|interface| {
-                            codex_protocol::protocol::SkillInterface {
+                            darwin_code_protocol::protocol::SkillInterface {
                                 display_name: interface.display_name,
                                 short_description: interface.short_description,
                                 icon_small: interface.icon_small,
@@ -409,11 +409,11 @@ fn list_skills_response_to_core(response: SkillsListResponse) -> ListSkillsRespo
                             }
                         }),
                         dependencies: skill.dependencies.map(|dependencies| {
-                            codex_protocol::protocol::SkillDependencies {
+                            darwin_code_protocol::protocol::SkillDependencies {
                                 tools: dependencies
                                     .tools
                                     .into_iter()
-                                    .map(|tool| codex_protocol::protocol::SkillToolDependency {
+                                    .map(|tool| darwin_code_protocol::protocol::SkillToolDependency {
                                         r#type: tool.r#type,
                                         value: tool.value,
                                         description: tool.description,
@@ -426,17 +426,17 @@ fn list_skills_response_to_core(response: SkillsListResponse) -> ListSkillsRespo
                         }),
                         path: skill.path,
                         scope: match skill.scope {
-                            codex_app_server_protocol::SkillScope::User => {
-                                codex_protocol::protocol::SkillScope::User
+                            darwin_code_app_server_protocol::SkillScope::User => {
+                                darwin_code_protocol::protocol::SkillScope::User
                             }
-                            codex_app_server_protocol::SkillScope::Repo => {
-                                codex_protocol::protocol::SkillScope::Repo
+                            darwin_code_app_server_protocol::SkillScope::Repo => {
+                                darwin_code_protocol::protocol::SkillScope::Repo
                             }
-                            codex_app_server_protocol::SkillScope::System => {
-                                codex_protocol::protocol::SkillScope::System
+                            darwin_code_app_server_protocol::SkillScope::System => {
+                                darwin_code_protocol::protocol::SkillScope::System
                             }
-                            codex_app_server_protocol::SkillScope::Admin => {
-                                codex_protocol::protocol::SkillScope::Admin
+                            darwin_code_app_server_protocol::SkillScope::Admin => {
+                                darwin_code_protocol::protocol::SkillScope::Admin
                             }
                         },
                         enabled: skill.enabled,
@@ -445,7 +445,7 @@ fn list_skills_response_to_core(response: SkillsListResponse) -> ListSkillsRespo
                 errors: entry
                     .errors
                     .into_iter()
-                    .map(|error| codex_protocol::protocol::SkillErrorInfo {
+                    .map(|error| darwin_code_protocol::protocol::SkillErrorInfo {
                         path: error.path,
                         message: error.message,
                     })
@@ -483,14 +483,14 @@ fn emit_project_config_warnings(app_event_tx: &AppEventSender, config: &Config) 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_darwin_code_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_codex_folder.as_path().display().to_string(),
+            dot_darwin_code_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -790,9 +790,9 @@ fn should_show_model_migration_prompt(
 
 fn migration_prompt_hidden(config: &Config, migration_config_key: &str) -> bool {
     match migration_config_key {
-        HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG => config
+        HIDE_GPT_5_1_DARWIN_CODE_MAX_MIGRATION_PROMPT_CONFIG => config
             .notices
-            .hide_gpt_5_1_codex_max_migration_prompt
+            .hide_gpt_5_1_darwin_code_max_migration_prompt
             .unwrap_or(false),
         HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG => {
             config.notices.hide_gpt5_1_migration_prompt.unwrap_or(false)
@@ -858,7 +858,7 @@ async fn prepare_startup_tooltip_override(
     let mut updated_shown_count = config.model_availability_nux.shown_count.clone();
     updated_shown_count.insert(tooltip_override.model_slug.clone(), next_count);
 
-    if let Err(err) = ConfigEditsBuilder::new(&config.codex_home)
+    if let Err(err) = ConfigEditsBuilder::new(&config.darwin_code_home)
         .set_model_availability_nux_count(&updated_shown_count)
         .apply()
         .await
@@ -1084,8 +1084,8 @@ fn active_turn_not_steerable_turn_error(error: &TypedRequestError) -> Option<App
     };
     let turn_error: AppServerTurnError = serde_json::from_value(source.data.clone()?).ok()?;
     matches!(
-        turn_error.codex_error_info,
-        Some(AppServerCodexErrorInfo::ActiveTurnNotSteerable { .. })
+        turn_error.darwin_code_error_info,
+        Some(AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. })
     )
     .then_some(turn_error)
 }
@@ -1153,7 +1153,7 @@ impl App {
         overrides.cwd = Some(cwd.clone());
         let cwd_display = cwd.display().to_string();
         ConfigBuilder::default()
-            .codex_home(self.config.codex_home.to_path_buf())
+            .darwin_code_home(self.config.darwin_code_home.to_path_buf())
             .cli_overrides(self.cli_kv_overrides.clone())
             .harness_overrides(overrides)
             .build()
@@ -1308,7 +1308,7 @@ impl App {
             (root_blocks_disable, profile_configured)
         };
         let mut permissions_history_label: Option<&'static str> = None;
-        let mut builder = ConfigEditsBuilder::new(&self.config.codex_home)
+        let mut builder = ConfigEditsBuilder::new(&self.config.darwin_code_home)
             .with_profile(self.active_profile.as_deref());
 
         for (feature, enabled) in updates {
@@ -1485,7 +1485,7 @@ impl App {
             #[cfg(target_os = "windows")]
             {
                 let windows_sandbox_level = WindowsSandboxLevel::from_config(&self.config);
-                self.app_event_tx.send(AppEvent::CodexOp(
+                self.app_event_tx.send(AppEvent::DarwinCodeOp(
                     AppCommand::override_turn_context(
                         /*cwd*/ None,
                         /*approval_policy*/ None,
@@ -1542,7 +1542,7 @@ impl App {
             },
         ];
 
-        if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+        if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
             .with_edits(edits)
             .apply()
             .await
@@ -1639,7 +1639,7 @@ impl App {
     }
 
     fn clear_ui_header_lines(&self, width: u16) -> Vec<Line<'static>> {
-        self.clear_ui_header_lines_with_version(width, CODEX_CLI_VERSION)
+        self.clear_ui_header_lines_with_version(width, DARWIN_CODE_CLI_VERSION)
     }
 
     fn queue_clear_ui_header(&mut self, tui: &mut tui::Tui) {
@@ -1891,14 +1891,14 @@ impl App {
                 let proposed_execpolicy_amendment = params
                     .proposed_execpolicy_amendment
                     .clone()
-                    .map(codex_app_server_protocol::ExecPolicyAmendment::into_core);
+                    .map(darwin_code_app_server_protocol::ExecPolicyAmendment::into_core);
                 let proposed_network_policy_amendments = params
                     .proposed_network_policy_amendments
                     .clone()
                     .map(|amendments| {
                         amendments
                             .into_iter()
-                            .map(codex_app_server_protocol::NetworkPolicyAmendment::into_core)
+                            .map(darwin_code_app_server_protocol::NetworkPolicyAmendment::into_core)
                             .collect::<Vec<_>>()
                     });
                 Some(ThreadInteractiveRequest::Approval(ApprovalRequest::Exec {
@@ -1963,11 +1963,11 @@ impl App {
                             server_name: params.server_name.clone(),
                             request_id: app_server_request_id_to_mcp_request_id(request_id),
                             message: match &params.request {
-                                codex_app_server_protocol::McpServerElicitationRequest::Form {
+                                darwin_code_app_server_protocol::McpServerElicitationRequest::Form {
                                     message,
                                     ..
                                 }
-                                | codex_app_server_protocol::McpServerElicitationRequest::Url {
+                                | darwin_code_app_server_protocol::McpServerElicitationRequest::Url {
                                     message,
                                     ..
                                 } => message.clone(),
@@ -2228,7 +2228,7 @@ impl App {
         }
 
         tokio::spawn(async move {
-            let plugins = PluginsManager::new(config.codex_home.to_path_buf())
+            let plugins = PluginsManager::new(config.darwin_code_home.to_path_buf())
                 .plugins_for_config(&config)
                 .await
                 .capability_summaries()
@@ -2408,7 +2408,7 @@ impl App {
     }
 
     /// Intercept composer-history operations and handle them locally against
-    /// `$CODEX_HOME/history.jsonl`, bypassing the app-server RPC layer.
+    /// `$DARWIN_CODE_HOME/history.jsonl`, bypassing the app-server RPC layer.
     async fn try_handle_local_history_op(
         &mut self,
         thread_id: ThreadId,
@@ -2451,7 +2451,7 @@ impl App {
                             offset,
                             log_id,
                             entry: entry_opt.map(|entry| {
-                                codex_protocol::message_history::HistoryEntry {
+                                darwin_code_protocol::message_history::HistoryEntry {
                                     conversation_id: entry.session_id,
                                     ts: entry.ts,
                                     text: entry.text,
@@ -2585,7 +2585,7 @@ impl App {
             AppCommandView::ListSkills { cwds, force_reload } => {
                 self.handle_skills_list_result(
                     app_server
-                        .skills_list(codex_app_server_protocol::SkillsListParams {
+                        .skills_list(darwin_code_app_server_protocol::SkillsListParams {
                             cwds: cwds.to_vec(),
                             force_reload,
                             per_cwd_extra_user_roots: None,
@@ -3251,7 +3251,7 @@ impl App {
                     }),
                     matches!(
                         thread.status,
-                        codex_app_server_protocol::ThreadStatus::NotLoaded
+                        darwin_code_app_server_protocol::ThreadStatus::NotLoaded
                     ),
                 );
                 true
@@ -3286,7 +3286,7 @@ impl App {
     async fn session_state_for_thread_read(
         &self,
         thread_id: ThreadId,
-        thread: &codex_app_server_protocol::Thread,
+        thread: &darwin_code_app_server_protocol::Thread,
     ) -> ThreadSessionState {
         let mut session = self
             .primary_session_configured
@@ -3960,7 +3960,7 @@ impl App {
             /*account_id*/ None,
             bootstrap.account_email.clone(),
             auth_mode,
-            codex_login::default_client::originator().value,
+            darwin_code_login::default_client::originator().value,
             config.otel.log_user_prompt,
             user_agent(),
             SessionSource::Cli,
@@ -3970,7 +3970,7 @@ impl App {
             .as_ref()
             .is_some_and(|cmd| !cmd.is_empty())
         {
-            session_telemetry.counter("codex.status_line", /*inc*/ 1, &[]);
+            session_telemetry.counter("darwin-code.status_line", /*inc*/ 1, &[]);
         }
 
         let status_line_invalid_items_warned = Arc::new(AtomicBool::new(false));
@@ -4047,7 +4047,7 @@ impl App {
             }
             SessionSelection::Fork(target_session) => {
                 session_telemetry.counter(
-                    "codex.thread.fork",
+                    "darwin-code.thread.fork",
                     /*inc*/ 1,
                     &[("source", "cli_subcommand")],
                 );
@@ -4150,8 +4150,8 @@ impl App {
                 != WindowsSandboxLevel::Disabled
                 && matches!(
                     app.config.permissions.sandbox_policy.get(),
-                    codex_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
-                        | codex_protocol::protocol::SandboxPolicy::ReadOnly { .. }
+                    darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
+                        | darwin_code_protocol::protocol::SandboxPolicy::ReadOnly { .. }
                 )
                 && !app
                     .config
@@ -4162,7 +4162,7 @@ impl App {
                 let cwd = app.config.cwd.clone();
                 let env_map: std::collections::HashMap<String, String> = std::env::vars().collect();
                 let tx = app.app_event_tx.clone();
-                let logs_base_dir = app.config.codex_home.clone();
+                let logs_base_dir = app.config.darwin_code_home.clone();
                 let sandbox_policy = app.config.permissions.sandbox_policy.get().clone();
                 Self::spawn_world_writable_scan(cwd, env_map, logs_base_dir, sandbox_policy, tx);
             }
@@ -4560,7 +4560,7 @@ impl App {
             AppEvent::ResumeSessionByIdOrName(id_or_name) => {
                 match crate::lookup_session_target_with_app_server(
                     app_server,
-                    self.config.codex_home.as_path(),
+                    self.config.darwin_code_home.as_path(),
                     &id_or_name,
                 )
                 .await?
@@ -4579,7 +4579,7 @@ impl App {
             }
             AppEvent::ForkCurrentSession => {
                 self.session_telemetry.counter(
-                    "codex.thread.fork",
+                    "darwin-code.thread.fork",
                     /*inc*/ 1,
                     &[("source", "slash_command")],
                 );
@@ -4712,7 +4712,7 @@ impl App {
             AppEvent::FatalExitRequest(message) => {
                 return Ok(AppRunControl::Exit(ExitReason::Fatal(message)));
             }
-            AppEvent::CodexOp(op) => {
+            AppEvent::DarwinCodeOp(op) => {
                 self.submit_active_thread_op(app_server, op.into()).await?;
             }
             AppEvent::SubmitThreadOp { thread_id, op } => {
@@ -5050,14 +5050,14 @@ impl App {
             }
             AppEvent::OpenWindowsSandboxFallbackPrompt { preset } => {
                 self.session_telemetry.counter(
-                    "codex.windows_sandbox.fallback_prompt_shown",
+                    "darwin-code.windows_sandbox.fallback_prompt_shown",
                     /*inc*/ 1,
                     &[],
                 );
                 self.chat_widget.clear_windows_sandbox_setup_status();
                 if let Some(started_at) = self.windows_sandbox.setup_started_at.take() {
                     self.session_telemetry.record_duration(
-                        "codex.windows_sandbox.elevated_setup_duration_ms",
+                        "darwin-code.windows_sandbox.elevated_setup_duration_ms",
                         started_at.elapsed(),
                         &[("result", "failure")],
                     );
@@ -5073,13 +5073,13 @@ impl App {
                     let command_cwd = policy_cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let darwin_code_home = self.config.darwin_code_home.clone();
                     let tx = self.app_event_tx.clone();
 
                     // If the elevated setup already ran on this machine, don't prompt for
                     // elevation again - just flip the config to use the elevated path.
                     if crate::legacy_core::windows_sandbox::sandbox_setup_is_complete(
-                        codex_home.as_path(),
+                        darwin_code_home.as_path(),
                     ) {
                         tx.send(AppEvent::EnableWindowsSandboxForAgentMode {
                             preset,
@@ -5097,12 +5097,12 @@ impl App {
                             policy_cwd.as_path(),
                             command_cwd.as_path(),
                             &env_map,
-                            codex_home.as_path(),
+                            darwin_code_home.as_path(),
                         );
                         let event = match result {
                             Ok(()) => {
                                 session_telemetry.counter(
-                                    "codex.windows_sandbox.elevated_setup_success",
+                                    "darwin-code.windows_sandbox.elevated_setup_success",
                                     /*inc*/ 1,
                                     &[],
                                 );
@@ -5159,7 +5159,7 @@ impl App {
                     let command_cwd = policy_cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let darwin_code_home = self.config.darwin_code_home.clone();
                     let tx = self.app_event_tx.clone();
                     let session_telemetry = self.session_telemetry.clone();
 
@@ -5171,11 +5171,11 @@ impl App {
                                 policy_cwd.as_path(),
                                 command_cwd.as_path(),
                                 &env_map,
-                                codex_home.as_path(),
+                                darwin_code_home.as_path(),
                             )
                         {
                             session_telemetry.counter(
-                                "codex.windows_sandbox.legacy_setup_preflight_failed",
+                                "darwin-code.windows_sandbox.legacy_setup_preflight_failed",
                                 /*inc*/ 1,
                                 &[],
                             );
@@ -5209,7 +5209,7 @@ impl App {
                     let command_cwd = self.config.cwd.clone();
                     let env_map: std::collections::HashMap<String, String> =
                         std::env::vars().collect();
-                    let codex_home = self.config.codex_home.clone();
+                    let darwin_code_home = self.config.darwin_code_home.clone();
                     let tx = self.app_event_tx.clone();
 
                     tokio::task::spawn_blocking(move || {
@@ -5219,7 +5219,7 @@ impl App {
                             policy_cwd.as_path(),
                             command_cwd.as_path(),
                             &env_map,
-                            codex_home.as_path(),
+                            darwin_code_home.as_path(),
                             requested_path.as_path(),
                         ) {
                             Ok(canonical_path) => AppEvent::WindowsSandboxGrantReadRootCompleted {
@@ -5258,14 +5258,14 @@ impl App {
                     self.chat_widget.clear_windows_sandbox_setup_status();
                     if let Some(started_at) = self.windows_sandbox.setup_started_at.take() {
                         self.session_telemetry.record_duration(
-                            "codex.windows_sandbox.elevated_setup_duration_ms",
+                            "darwin-code.windows_sandbox.elevated_setup_duration_ms",
                             started_at.elapsed(),
                             &[("result", "success")],
                         );
                     }
                     let profile = self.active_profile.as_deref();
                     let elevated_enabled = matches!(mode, WindowsSandboxEnableMode::Elevated);
-                    let builder = ConfigEditsBuilder::new(&self.config.codex_home)
+                    let builder = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                         .with_profile(profile)
                         .set_windows_sandbox_mode(if elevated_enabled {
                             "elevated"
@@ -5292,7 +5292,7 @@ impl App {
                             if let Some((sample_paths, extra_count, failed_scan)) =
                                 self.chat_widget.world_writable_warning_details()
                             {
-                                self.app_event_tx.send(AppEvent::CodexOp(
+                                self.app_event_tx.send(AppEvent::DarwinCodeOp(
                                     AppCommand::override_turn_context(
                                         /*cwd*/ None,
                                         /*approval_policy*/ None,
@@ -5318,7 +5318,7 @@ impl App {
                                     },
                                 );
                             } else {
-                                self.app_event_tx.send(AppEvent::CodexOp(
+                                self.app_event_tx.send(AppEvent::DarwinCodeOp(
                                     AppCommand::override_turn_context(
                                         /*cwd*/ None,
                                         Some(preset.approval),
@@ -5344,7 +5344,7 @@ impl App {
                                     Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
-                                        "Codex can now safely edit files and execute commands in your computer"
+                                        "Darwin-Code can now safely edit files and execute commands in your computer"
                                             .dark_gray(),
                                     ]),
                                 ]);
@@ -5368,7 +5368,7 @@ impl App {
             }
             AppEvent::PersistModelSelection { model, effort } => {
                 let profile = self.active_profile.as_deref();
-                match ConfigEditsBuilder::new(&self.config.codex_home)
+                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_profile(profile)
                     .set_model(Some(model.as_str()), effort)
                     .apply()
@@ -5446,7 +5446,7 @@ impl App {
             }
             AppEvent::PersistPersonalitySelection { personality } => {
                 let profile = self.active_profile.as_deref();
-                match ConfigEditsBuilder::new(&self.config.codex_home)
+                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_profile(profile)
                     .set_personality(Some(personality))
                     .apply()
@@ -5482,7 +5482,7 @@ impl App {
             AppEvent::PersistServiceTierSelection { service_tier } => {
                 self.refresh_status_line();
                 let profile = self.active_profile.as_deref();
-                match ConfigEditsBuilder::new(&self.config.codex_home)
+                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_profile(profile)
                     .set_service_tier(service_tier)
                     .apply()
@@ -5515,11 +5515,11 @@ impl App {
             AppEvent::PersistRealtimeAudioDeviceSelection { kind, name } => {
                 let builder = match kind {
                     RealtimeAudioDeviceKind::Microphone => {
-                        ConfigEditsBuilder::new(&self.config.codex_home)
+                        ConfigEditsBuilder::new(&self.config.darwin_code_home)
                             .set_realtime_microphone(name.as_deref())
                     }
                     RealtimeAudioDeviceKind::Speaker => {
-                        ConfigEditsBuilder::new(&self.config.codex_home)
+                        ConfigEditsBuilder::new(&self.config.darwin_code_home)
                             .set_realtime_speaker(name.as_deref())
                     }
                 };
@@ -5582,8 +5582,8 @@ impl App {
                 #[cfg(target_os = "windows")]
                 let policy_is_workspace_write_or_ro = matches!(
                     &policy,
-                    codex_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
-                        | codex_protocol::protocol::SandboxPolicy::ReadOnly { .. }
+                    darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite { .. }
+                        | darwin_code_protocol::protocol::SandboxPolicy::ReadOnly { .. }
                 );
                 let policy_for_chat = policy.clone();
 
@@ -5624,7 +5624,7 @@ impl App {
                         let env_map: std::collections::HashMap<String, String> =
                             std::env::vars().collect();
                         let tx = self.app_event_tx.clone();
-                        let logs_base_dir = self.config.codex_home.clone();
+                        let logs_base_dir = self.config.darwin_code_home.clone();
                         let sandbox_policy = self.config.permissions.sandbox_policy.get().clone();
                         Self::spawn_world_writable_scan(
                             cwd,
@@ -5649,7 +5649,7 @@ impl App {
                 } else {
                     vec!["approvals_reviewer".to_string()]
                 };
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_profile(profile)
                     .with_edits([ConfigEdit::SetPath {
                         segments,
@@ -5701,7 +5701,7 @@ impl App {
                 self.chat_widget.set_plan_mode_reasoning_effort(effort);
             }
             AppEvent::PersistFullAccessWarningAcknowledged => {
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .set_hide_full_access_warning(/*acknowledged*/ true)
                     .apply()
                     .await
@@ -5716,7 +5716,7 @@ impl App {
                 }
             }
             AppEvent::PersistWorldWritableWarningAcknowledged => {
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .set_hide_world_writable_warning(/*acknowledged*/ true)
                     .apply()
                     .await
@@ -5731,7 +5731,7 @@ impl App {
                 }
             }
             AppEvent::PersistRateLimitSwitchPromptHidden => {
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .set_hide_rate_limit_model_nudge(/*acknowledged*/ true)
                     .apply()
                     .await
@@ -5764,7 +5764,7 @@ impl App {
                 } else {
                     ConfigEdit::ClearPath { segments }
                 };
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits([edit])
                     .apply()
                     .await
@@ -5788,7 +5788,7 @@ impl App {
                 from_model,
                 to_model,
             } => {
-                if let Err(err) = ConfigEditsBuilder::new(&self.config.codex_home)
+                if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .record_model_migration_seen(from_model.as_str(), to_model.as_str())
                     .apply()
                     .await
@@ -5822,7 +5822,7 @@ impl App {
                     path: path.to_path_buf(),
                     enabled,
                 }];
-                match ConfigEditsBuilder::new(&self.config.codex_home)
+                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits(edits)
                     .apply()
                     .await
@@ -5874,7 +5874,7 @@ impl App {
                         },
                     ]
                 };
-                match ConfigEditsBuilder::new(&self.config.codex_home)
+                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits(edits)
                     .apply()
                     .await
@@ -5990,7 +5990,7 @@ impl App {
             AppEvent::StatusLineSetup { items } => {
                 let ids = items.iter().map(ToString::to_string).collect::<Vec<_>>();
                 let edit = crate::legacy_core::config::edit::status_line_items_edit(&ids);
-                let apply_result = ConfigEditsBuilder::new(&self.config.codex_home)
+                let apply_result = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits([edit])
                     .apply()
                     .await;
@@ -6016,7 +6016,7 @@ impl App {
             AppEvent::TerminalTitleSetup { items } => {
                 let ids = items.iter().map(ToString::to_string).collect::<Vec<_>>();
                 let edit = crate::legacy_core::config::edit::terminal_title_items_edit(&ids);
-                let apply_result = ConfigEditsBuilder::new(&self.config.codex_home)
+                let apply_result = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits([edit])
                     .apply()
                     .await;
@@ -6042,7 +6042,7 @@ impl App {
             }
             AppEvent::SyntaxThemeSelected { name } => {
                 let edit = crate::legacy_core::config::edit::syntax_theme_edit(&name);
-                let apply_result = ConfigEditsBuilder::new(&self.config.codex_home)
+                let apply_result = ConfigEditsBuilder::new(&self.config.darwin_code_home)
                     .with_edits([edit])
                     .apply()
                     .await;
@@ -6054,7 +6054,7 @@ impl App {
                         // navigating, the runtime theme must still be applied.
                         if let Some(theme) = crate::render::highlight::resolve_theme_by_name(
                             &name,
-                            Some(&self.config.codex_home),
+                            Some(&self.config.darwin_code_home),
                         ) {
                             crate::render::highlight::set_syntax_theme(theme);
                         }
@@ -6269,10 +6269,10 @@ impl App {
         model: &str,
         reasoning_effort: Option<ReasoningEffortConfig>,
     ) -> Option<&'static str> {
-        (!model.starts_with("codex-auto-")).then(|| Self::reasoning_label(reasoning_effort))
+        (!model.starts_with("darwin-code-auto-")).then(|| Self::reasoning_label(reasoning_effort))
     }
 
-    pub(crate) fn token_usage(&self) -> codex_protocol::protocol::TokenUsage {
+    pub(crate) fn token_usage(&self) -> darwin_code_protocol::protocol::TokenUsage {
         self.chat_widget.token_usage()
     }
 
@@ -6296,7 +6296,7 @@ impl App {
     fn restore_runtime_theme_from_config(&self) {
         if let Some(name) = self.config.tui_theme.as_deref()
             && let Some(theme) =
-                crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.codex_home))
+                crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.darwin_code_home))
         {
             crate::render::highlight::set_syntax_theme(theme);
             return;
@@ -6305,7 +6305,7 @@ impl App {
         let auto_theme_name = crate::render::highlight::adaptive_default_theme_name();
         if let Some(theme) = crate::render::highlight::resolve_theme_by_name(
             auto_theme_name,
-            Some(&self.config.codex_home),
+            Some(&self.config.darwin_code_home),
         ) {
             crate::render::highlight::set_syntax_theme(theme);
         }
@@ -6325,7 +6325,7 @@ impl App {
             Err(external_editor::EditorError::MissingEditor) => {
                 self.chat_widget
                     .add_to_history(history_cell::new_error_event(
-                    "Cannot open external editor: set $VISUAL or $EDITOR before starting Codex."
+                    "Cannot open external editor: set $VISUAL or $EDITOR before starting Darwin-Code."
                         .to_string(),
                 ));
                 self.reset_external_editor_state(tui);
@@ -6529,12 +6529,12 @@ impl App {
         cwd: AbsolutePathBuf,
         env_map: std::collections::HashMap<String, String>,
         logs_base_dir: AbsolutePathBuf,
-        sandbox_policy: codex_protocol::protocol::SandboxPolicy,
+        sandbox_policy: darwin_code_protocol::protocol::SandboxPolicy,
         tx: AppEventSender,
     ) {
         tokio::task::spawn_blocking(move || {
             let logs_base_dir_path = logs_base_dir.as_path();
-            let result = codex_windows_sandbox::apply_world_writable_scan_and_denies(
+            let result = darwin_code_windows_sandbox::apply_world_writable_scan_and_denies(
                 logs_base_dir_path,
                 cwd.as_path(),
                 &env_map,
@@ -6758,9 +6758,9 @@ async fn fetch_feedback_upload(
 /// renders directly from `McpServerStatus` rather than these maps.
 #[cfg(test)]
 type McpInventoryMaps = (
-    HashMap<String, codex_protocol::mcp::Tool>,
-    HashMap<String, Vec<codex_protocol::mcp::Resource>>,
-    HashMap<String, Vec<codex_protocol::mcp::ResourceTemplate>>,
+    HashMap<String, darwin_code_protocol::mcp::Tool>,
+    HashMap<String, Vec<darwin_code_protocol::mcp::Resource>>,
+    HashMap<String, Vec<darwin_code_protocol::mcp::ResourceTemplate>>,
     HashMap<String, McpAuthStatus>,
 );
 
@@ -6776,10 +6776,10 @@ fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -> McpInvent
         auth_statuses.insert(
             server_name.clone(),
             match status.auth_status {
-                codex_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                codex_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                codex_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
-                codex_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
+                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
+                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
+                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );
         resources.insert(server_name.clone(), status.resources);
@@ -6822,74 +6822,74 @@ mod tests {
 
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use codex_app_server_protocol::AdditionalFileSystemPermissions;
-    use codex_app_server_protocol::AdditionalNetworkPermissions;
-    use codex_app_server_protocol::AdditionalPermissionProfile;
-    use codex_app_server_protocol::AgentMessageDeltaNotification;
-    use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::HookCompletedNotification;
-    use codex_app_server_protocol::HookEventName as AppServerHookEventName;
-    use codex_app_server_protocol::HookExecutionMode as AppServerHookExecutionMode;
-    use codex_app_server_protocol::HookHandlerType as AppServerHookHandlerType;
-    use codex_app_server_protocol::HookOutputEntry as AppServerHookOutputEntry;
-    use codex_app_server_protocol::HookOutputEntryKind as AppServerHookOutputEntryKind;
-    use codex_app_server_protocol::HookRunStatus as AppServerHookRunStatus;
-    use codex_app_server_protocol::HookRunSummary as AppServerHookRunSummary;
-    use codex_app_server_protocol::HookScope as AppServerHookScope;
-    use codex_app_server_protocol::HookStartedNotification;
-    use codex_app_server_protocol::JSONRPCErrorError;
-    use codex_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
-    use codex_app_server_protocol::NetworkApprovalProtocol as AppServerNetworkApprovalProtocol;
-    use codex_app_server_protocol::NetworkPolicyAmendment as AppServerNetworkPolicyAmendment;
-    use codex_app_server_protocol::NetworkPolicyRuleAction as AppServerNetworkPolicyRuleAction;
-    use codex_app_server_protocol::NonSteerableTurnKind as AppServerNonSteerableTurnKind;
-    use codex_app_server_protocol::PermissionsRequestApprovalParams;
-    use codex_app_server_protocol::PluginMarketplaceEntry;
-    use codex_app_server_protocol::RequestId as AppServerRequestId;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_app_server_protocol::ServerRequest;
-    use codex_app_server_protocol::Thread;
-    use codex_app_server_protocol::ThreadClosedNotification;
-    use codex_app_server_protocol::ThreadItem;
-    use codex_app_server_protocol::ThreadStartedNotification;
-    use codex_app_server_protocol::ThreadTokenUsage;
-    use codex_app_server_protocol::ThreadTokenUsageUpdatedNotification;
-    use codex_app_server_protocol::TokenUsageBreakdown;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnError as AppServerTurnError;
-    use codex_app_server_protocol::TurnStartedNotification;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_app_server_protocol::UserInput as AppServerUserInput;
-    use codex_config::types::ModelAvailabilityNuxConfig;
-    use codex_otel::SessionTelemetry;
-    use codex_protocol::ThreadId;
-    use codex_protocol::config_types::CollaborationMode;
-    use codex_protocol::config_types::CollaborationModeMask;
-    use codex_protocol::config_types::ModeKind;
-    use codex_protocol::config_types::Settings;
-    use codex_protocol::mcp::Tool;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::openai_models::ModelAvailabilityNux;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::Event;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::McpAuthStatus;
-    use codex_protocol::protocol::NetworkApprovalContext;
-    use codex_protocol::protocol::NetworkApprovalProtocol;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::RolloutLine;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionConfiguredEvent;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::TurnContextItem;
-    use codex_protocol::request_permissions::RequestPermissionProfile;
-    use codex_protocol::user_input::TextElement;
-    use codex_protocol::user_input::UserInput;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_app_server_protocol::AdditionalFileSystemPermissions;
+    use darwin_code_app_server_protocol::AdditionalNetworkPermissions;
+    use darwin_code_app_server_protocol::AdditionalPermissionProfile;
+    use darwin_code_app_server_protocol::AgentMessageDeltaNotification;
+    use darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams;
+    use darwin_code_app_server_protocol::ConfigWarningNotification;
+    use darwin_code_app_server_protocol::HookCompletedNotification;
+    use darwin_code_app_server_protocol::HookEventName as AppServerHookEventName;
+    use darwin_code_app_server_protocol::HookExecutionMode as AppServerHookExecutionMode;
+    use darwin_code_app_server_protocol::HookHandlerType as AppServerHookHandlerType;
+    use darwin_code_app_server_protocol::HookOutputEntry as AppServerHookOutputEntry;
+    use darwin_code_app_server_protocol::HookOutputEntryKind as AppServerHookOutputEntryKind;
+    use darwin_code_app_server_protocol::HookRunStatus as AppServerHookRunStatus;
+    use darwin_code_app_server_protocol::HookRunSummary as AppServerHookRunSummary;
+    use darwin_code_app_server_protocol::HookScope as AppServerHookScope;
+    use darwin_code_app_server_protocol::HookStartedNotification;
+    use darwin_code_app_server_protocol::JSONRPCErrorError;
+    use darwin_code_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprovalContext;
+    use darwin_code_app_server_protocol::NetworkApprovalProtocol as AppServerNetworkApprovalProtocol;
+    use darwin_code_app_server_protocol::NetworkPolicyAmendment as AppServerNetworkPolicyAmendment;
+    use darwin_code_app_server_protocol::NetworkPolicyRuleAction as AppServerNetworkPolicyRuleAction;
+    use darwin_code_app_server_protocol::NonSteerableTurnKind as AppServerNonSteerableTurnKind;
+    use darwin_code_app_server_protocol::PermissionsRequestApprovalParams;
+    use darwin_code_app_server_protocol::PluginMarketplaceEntry;
+    use darwin_code_app_server_protocol::RequestId as AppServerRequestId;
+    use darwin_code_app_server_protocol::ServerNotification;
+    use darwin_code_app_server_protocol::ServerRequest;
+    use darwin_code_app_server_protocol::Thread;
+    use darwin_code_app_server_protocol::ThreadClosedNotification;
+    use darwin_code_app_server_protocol::ThreadItem;
+    use darwin_code_app_server_protocol::ThreadStartedNotification;
+    use darwin_code_app_server_protocol::ThreadTokenUsage;
+    use darwin_code_app_server_protocol::ThreadTokenUsageUpdatedNotification;
+    use darwin_code_app_server_protocol::TokenUsageBreakdown;
+    use darwin_code_app_server_protocol::Turn;
+    use darwin_code_app_server_protocol::TurnCompletedNotification;
+    use darwin_code_app_server_protocol::TurnError as AppServerTurnError;
+    use darwin_code_app_server_protocol::TurnStartedNotification;
+    use darwin_code_app_server_protocol::TurnStatus;
+    use darwin_code_app_server_protocol::UserInput as AppServerUserInput;
+    use darwin_code_config::types::ModelAvailabilityNuxConfig;
+    use darwin_code_otel::SessionTelemetry;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::config_types::CollaborationMode;
+    use darwin_code_protocol::config_types::CollaborationModeMask;
+    use darwin_code_protocol::config_types::ModeKind;
+    use darwin_code_protocol::config_types::Settings;
+    use darwin_code_protocol::mcp::Tool;
+    use darwin_code_protocol::models::FileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::models::PermissionProfile;
+    use darwin_code_protocol::openai_models::ModelAvailabilityNux;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::Event;
+    use darwin_code_protocol::protocol::EventMsg;
+    use darwin_code_protocol::protocol::McpAuthStatus;
+    use darwin_code_protocol::protocol::NetworkApprovalContext;
+    use darwin_code_protocol::protocol::NetworkApprovalProtocol;
+    use darwin_code_protocol::protocol::RolloutItem;
+    use darwin_code_protocol::protocol::RolloutLine;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SessionConfiguredEvent;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::TurnContextItem;
+    use darwin_code_protocol::request_permissions::RequestPermissionProfile;
+    use darwin_code_protocol::user_input::TextElement;
+    use darwin_code_protocol::user_input::UserInput;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use crossterm::event::KeyModifiers;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
@@ -6977,14 +6977,14 @@ mod tests {
                 )]),
                 resources: Vec::new(),
                 resource_templates: Vec::new(),
-                auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+                auth_status: darwin_code_app_server_protocol::McpAuthStatus::Unsupported,
             },
             McpServerStatus {
                 name: "disabled".to_string(),
                 tools: HashMap::new(),
                 resources: Vec::new(),
                 resource_templates: Vec::new(),
-                auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+                auth_status: darwin_code_app_server_protocol::McpAuthStatus::Unsupported,
             },
         ];
 
@@ -7020,7 +7020,7 @@ mod tests {
             tools: HashMap::new(),
             resources: Vec::new(),
             resource_templates: Vec::new(),
-            auth_status: codex_app_server_protocol::McpAuthStatus::Unsupported,
+            auth_status: darwin_code_app_server_protocol::McpAuthStatus::Unsupported,
         }]));
 
         assert_eq!(app.transcript_cells.len(), 0);
@@ -7349,7 +7349,7 @@ mod tests {
                     assert_eq!(op_thread_id, thread_id);
                     submitted_items = Some(items);
                 }
-                AppEvent::CodexOp(Op::UserTurn { items, .. }) => {
+                AppEvent::DarwinCodeOp(Op::UserTurn { items, .. }) => {
                     submitted_items = Some(items);
                 }
                 _ => {}
@@ -8470,8 +8470,8 @@ mod tests {
     #[tokio::test]
     async fn update_memory_settings_persists_and_updates_widget_config() -> Result<()> {
         let (mut app, _app_event_rx, _op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         let mut app_server = crate::start_embedded_app_server_for_picker(&app.config).await?;
 
         app.update_memory_settings_with_app_server(
@@ -8486,7 +8486,7 @@ mod tests {
         assert!(!app.chat_widget.config_ref().memories.use_memories);
         assert!(!app.chat_widget.config_ref().memories.generate_memories);
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         let config_value = toml::from_str::<TomlValue>(&config)?;
         let memories = config_value
             .as_table()
@@ -8513,8 +8513,8 @@ mod tests {
     #[tokio::test]
     async fn update_memory_settings_updates_current_thread_memory_mode() -> Result<()> {
         let (mut app, _app_event_rx, _op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         // Seed the previous setting so this test exercises the thread-mode update path.
         app.config.memories.generate_memories = true;
 
@@ -8530,8 +8530,8 @@ mod tests {
         )
         .await;
 
-        let state_db = codex_state::StateRuntime::init(
-            codex_home.path().to_path_buf(),
+        let state_db = darwin_code_state::StateRuntime::init(
+            darwin_code_home.path().to_path_buf(),
             app.config.model_provider_id.clone(),
         )
         .await
@@ -8549,12 +8549,12 @@ mod tests {
     #[tokio::test]
     async fn reset_memories_clears_local_memory_directories() -> Result<()> {
         let (mut app, _app_event_rx, _op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        app.config.sqlite_home = codex_home.path().to_path_buf();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        app.config.sqlite_home = darwin_code_home.path().to_path_buf();
 
-        let memory_root = codex_home.path().join("memories");
-        let extensions_root = codex_home.path().join("memories_extensions");
+        let memory_root = darwin_code_home.path().join("memories");
+        let extensions_root = darwin_code_home.path().join("memories_extensions");
         std::fs::create_dir_all(memory_root.join("rollout_summaries"))?;
         std::fs::create_dir_all(&extensions_root)?;
         std::fs::write(memory_root.join("MEMORY.md"), "stale memory\n")?;
@@ -8578,8 +8578,8 @@ mod tests {
     #[tokio::test]
     async fn update_feature_flags_enabling_guardian_selects_guardian_approvals() -> Result<()> {
         let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         let guardian_approvals = guardian_approvals_mode();
 
         app.update_feature_flags(vec![(Feature::GuardianApproval, true)])
@@ -8650,7 +8650,7 @@ mod tests {
             .join("\n");
         assert!(rendered.contains("Permissions updated to Auto-review"));
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(config.contains("guardian_approval = true"));
         assert!(config.contains("approvals_reviewer = \"guardian_subagent\""));
         assert!(config.contains("approval_policy = \"on-request\""));
@@ -8662,9 +8662,9 @@ mod tests {
     async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restores_default()
     -> Result<()> {
         let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = "approvals_reviewer = \"guardian_subagent\"\napproval_policy = \"on-request\"\nsandbox_mode = \"workspace-write\"\n\n[features]\nguardian_approval = true\n";
         std::fs::write(config_toml_path.as_path(), config_toml)?;
         let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -8741,7 +8741,7 @@ mod tests {
             .join("\n");
         assert!(rendered.contains("Permissions updated to Default"));
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(!config.contains("guardian_approval = true"));
         assert!(!config.contains("approvals_reviewer ="));
         assert!(config.contains("approval_policy = \"on-request\""));
@@ -8753,10 +8753,10 @@ mod tests {
     async fn update_feature_flags_enabling_guardian_overrides_explicit_manual_review_policy()
     -> Result<()> {
         let (mut app, _app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         let guardian_approvals = guardian_approvals_mode();
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = "approvals_reviewer = \"user\"\n";
         std::fs::write(config_toml_path.as_path(), config_toml)?;
         let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -8809,7 +8809,7 @@ mod tests {
             })
         );
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(config.contains("approvals_reviewer = \"guardian_subagent\""));
         assert!(config.contains("guardian_approval = true"));
         assert!(config.contains("approval_policy = \"on-request\""));
@@ -8821,9 +8821,9 @@ mod tests {
     async fn update_feature_flags_disabling_guardian_clears_manual_review_policy_without_history()
     -> Result<()> {
         let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = "approvals_reviewer = \"user\"\napproval_policy = \"on-request\"\nsandbox_mode = \"workspace-write\"\n\n[features]\nguardian_approval = true\n";
         std::fs::write(config_toml_path.as_path(), config_toml)?;
         let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -8870,7 +8870,7 @@ mod tests {
             "manual review should not emit a permissions history update when the effective state stays default"
         );
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(!config.contains("guardian_approval = true"));
         assert!(!config.contains("approvals_reviewer ="));
         Ok(())
@@ -8880,11 +8880,11 @@ mod tests {
     async fn update_feature_flags_enabling_guardian_in_profile_sets_profile_auto_review_policy()
     -> Result<()> {
         let (mut app, _app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         let guardian_approvals = guardian_approvals_mode();
         app.active_profile = Some("guardian".to_string());
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = "profile = \"guardian\"\napprovals_reviewer = \"user\"\n";
         std::fs::write(config_toml_path.as_path(), config_toml)?;
         let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -8925,7 +8925,7 @@ mod tests {
             })
         );
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         let config_value = toml::from_str::<TomlValue>(&config)?;
         let profile_config = config_value
             .as_table()
@@ -8951,10 +8951,10 @@ mod tests {
     async fn update_feature_flags_disabling_guardian_in_profile_allows_inherited_user_reviewer()
     -> Result<()> {
         let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         app.active_profile = Some("guardian".to_string());
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = r#"
 profile = "guardian"
 approvals_reviewer = "user"
@@ -9023,7 +9023,7 @@ guardian_approval = true
             .join("\n");
         assert!(rendered.contains("Permissions updated to Default"));
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(!config.contains("guardian_approval = true"));
         assert!(!config.contains("guardian_subagent"));
         assert_eq!(
@@ -9039,10 +9039,10 @@ guardian_approval = true
     async fn update_feature_flags_disabling_guardian_in_profile_keeps_inherited_non_user_reviewer_enabled()
     -> Result<()> {
         let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         app.active_profile = Some("guardian".to_string());
-        let config_toml_path = codex_home.path().join("config.toml").abs();
+        let config_toml_path = darwin_code_home.path().join("config.toml").abs();
         let config_toml = "profile = \"guardian\"\napprovals_reviewer = \"guardian_subagent\"\n\n[features]\nguardian_approval = true\n";
         std::fs::write(config_toml_path.as_path(), config_toml)?;
         let user_config = toml::from_str::<TomlValue>(config_toml)?;
@@ -9093,7 +9093,7 @@ guardian_approval = true
             "blocking disable with inherited guardian review should not emit a permissions history update: {app_events:?}"
         );
 
-        let config = std::fs::read_to_string(codex_home.path().join("config.toml"))?;
+        let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
         assert!(config.contains("guardian_approval = true"));
         assert_eq!(
             toml::from_str::<TomlValue>(&config)?
@@ -9287,15 +9287,15 @@ guardian_approval = true
         assert_eq!(
             available_decisions,
             vec![
-                codex_protocol::protocol::ReviewDecision::Approved,
-                codex_protocol::protocol::ReviewDecision::ApprovedForSession,
-                codex_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
-                    network_policy_amendment: codex_protocol::approvals::NetworkPolicyAmendment {
+                darwin_code_protocol::protocol::ReviewDecision::Approved,
+                darwin_code_protocol::protocol::ReviewDecision::ApprovedForSession,
+                darwin_code_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
+                    network_policy_amendment: darwin_code_protocol::approvals::NetworkPolicyAmendment {
                         host: "example.com".to_string(),
-                        action: codex_protocol::approvals::NetworkPolicyRuleAction::Allow,
+                        action: darwin_code_protocol::approvals::NetworkPolicyRuleAction::Allow,
                     },
                 },
-                codex_protocol::protocol::ReviewDecision::Abort,
+                darwin_code_protocol::protocol::ReviewDecision::Abort,
             ]
         );
     }
@@ -9346,7 +9346,7 @@ guardian_approval = true
                 turn_id: "turn-approval".to_string(),
                 item_id: "call-approval".to_string(),
                 reason: Some("Need access to .git".to_string()),
-                permissions: codex_app_server_protocol::RequestPermissionProfile {
+                permissions: darwin_code_app_server_protocol::RequestPermissionProfile {
                     network: Some(AdditionalNetworkPermissions {
                         enabled: Some(true),
                     }),
@@ -9511,11 +9511,11 @@ guardian_approval = true
                     model_provider: "agent-provider".to_string(),
                     created_at: 1,
                     updated_at: 2,
-                    status: codex_app_server_protocol::ThreadStatus::Idle,
+                    status: darwin_code_app_server_protocol::ThreadStatus::Idle,
                     path: Some(rollout_path.clone()),
                     cwd: test_path_buf("/tmp/agent").abs(),
                     cli_version: "0.0.0".to_string(),
-                    source: codex_app_server_protocol::SessionSource::Unknown,
+                    source: darwin_code_app_server_protocol::SessionSource::Unknown,
                     agent_nickname: Some("Robie".to_string()),
                     agent_role: Some("explorer".to_string()),
                     git_info: None,
@@ -9592,11 +9592,11 @@ guardian_approval = true
                     model_provider: "agent-provider".to_string(),
                     created_at: 1,
                     updated_at: 2,
-                    status: codex_app_server_protocol::ThreadStatus::Idle,
+                    status: darwin_code_app_server_protocol::ThreadStatus::Idle,
                     path: None,
                     cwd: test_path_buf("/tmp/agent").abs(),
                     cli_version: "0.0.0".to_string(),
-                    source: codex_app_server_protocol::SessionSource::Unknown,
+                    source: darwin_code_app_server_protocol::SessionSource::Unknown,
                     agent_nickname: Some("Robie".to_string()),
                     agent_role: Some("explorer".to_string()),
                     git_info: None,
@@ -9684,7 +9684,7 @@ guardian_approval = true
 
         assert_eq!(
             app.active_non_primary_shutdown_target(&ServerNotification::SkillsChanged(
-                codex_app_server_protocol::SkillsChangedNotification {},
+                darwin_code_app_server_protocol::SkillsChangedNotification {},
             )),
             None
         );
@@ -9901,7 +9901,7 @@ guardian_approval = true
         app.chat_widget
             .set_reasoning_effort(Some(ReasoningEffortConfig::XHigh));
         app.chat_widget
-            .set_service_tier(Some(codex_protocol::config_types::ServiceTier::Fast));
+            .set_service_tier(Some(darwin_code_protocol::config_types::ServiceTier::Fast));
         set_chatgpt_auth(&mut app.chat_widget);
         set_fast_mode_test_catalog(&mut app.chat_widget);
 
@@ -10135,7 +10135,7 @@ guardian_approval = true
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: darwin_code_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Running,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -10158,7 +10158,7 @@ guardian_approval = true
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: darwin_code_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Stopped,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -10283,7 +10283,7 @@ guardian_approval = true
             /*approval_id*/ None,
         ));
         store.push_notification(ServerNotification::ServerRequestResolved(
-            codex_app_server_protocol::ServerRequestResolvedNotification {
+            darwin_code_app_server_protocol::ServerRequestResolvedNotification {
                 request_id: AppServerRequestId::Integer(1),
                 thread_id: thread_id.to_string(),
             },
@@ -10557,31 +10557,31 @@ guardian_approval = true
         let seen = BTreeMap::new();
         assert!(should_show_model_migration_prompt(
             "gpt-5",
-            "gpt-5.2-codex",
+            "gpt-5.2-darwin-code",
             &seen,
             &all_model_presets()
         ));
         assert!(should_show_model_migration_prompt(
-            "gpt-5-codex",
-            "gpt-5.2-codex",
+            "gpt-5-darwin-code",
+            "gpt-5.2-darwin-code",
             &seen,
             &all_model_presets()
         ));
         assert!(should_show_model_migration_prompt(
-            "gpt-5-codex-mini",
-            "gpt-5.2-codex",
+            "gpt-5-darwin-code-mini",
+            "gpt-5.2-darwin-code",
             &seen,
             &all_model_presets()
         ));
         assert!(should_show_model_migration_prompt(
-            "gpt-5.1-codex",
-            "gpt-5.2-codex",
+            "gpt-5.1-darwin-code",
+            "gpt-5.2-darwin-code",
             &seen,
             &all_model_presets()
         ));
         assert!(!should_show_model_migration_prompt(
-            "gpt-5.1-codex",
-            "gpt-5.1-codex",
+            "gpt-5.1-darwin-code",
+            "gpt-5.1-darwin-code",
             &seen,
             &all_model_presets()
         ));
@@ -10651,7 +10651,7 @@ guardian_approval = true
     fn active_turn_not_steerable_turn_error_extracts_structured_server_error() {
         let turn_error = AppServerTurnError {
             message: "cannot steer a review turn".to_string(),
-            codex_error_info: Some(AppServerCodexErrorInfo::ActiveTurnNotSteerable {
+            darwin_code_error_info: Some(AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: AppServerNonSteerableTurnKind::Review,
             }),
             additional_details: None,
@@ -10786,7 +10786,7 @@ guardian_approval = true
         let mut available = all_model_presets();
         let mut current = available
             .iter()
-            .find(|preset| preset.model == "gpt-5-codex")
+            .find(|preset| preset.model == "gpt-5-darwin-code")
             .cloned()
             .expect("preset present");
         current.upgrade = Some(ModelUpgrade {
@@ -10797,7 +10797,7 @@ guardian_approval = true
             upgrade_copy: None,
             migration_markdown: None,
         });
-        available.retain(|preset| preset.model != "gpt-5-codex");
+        available.retain(|preset| preset.model != "gpt-5-darwin-code");
         available.push(current.clone());
 
         assert!(!should_show_model_migration_prompt(
@@ -10812,24 +10812,24 @@ guardian_approval = true
         let mut with_hidden_target = all_model_presets();
         let target = with_hidden_target
             .iter_mut()
-            .find(|preset| preset.model == "gpt-5.2-codex")
+            .find(|preset| preset.model == "gpt-5.2-darwin-code")
             .expect("target preset present");
         target.show_in_picker = false;
 
         assert!(!should_show_model_migration_prompt(
-            "gpt-5-codex",
-            "gpt-5.2-codex",
+            "gpt-5-darwin-code",
+            "gpt-5.2-darwin-code",
             &BTreeMap::new(),
             &with_hidden_target,
         ));
-        assert!(target_preset_for_upgrade(&with_hidden_target, "gpt-5.2-codex").is_none());
+        assert!(target_preset_for_upgrade(&with_hidden_target, "gpt-5.2-darwin-code").is_none());
     }
 
     #[tokio::test]
     async fn model_migration_prompt_shows_for_hidden_model() {
-        let codex_home = tempdir().expect("temp codex home");
+        let darwin_code_home = tempdir().expect("temp darwin-code home");
         let config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
             .await
             .expect("config");
@@ -10837,12 +10837,12 @@ guardian_approval = true
         let mut available_models = all_model_presets();
         let current = available_models
             .iter()
-            .find(|preset| preset.model == "gpt-5.1-codex")
+            .find(|preset| preset.model == "gpt-5.1-darwin-code")
             .cloned()
-            .expect("gpt-5.1-codex preset present");
+            .expect("gpt-5.1-darwin-code preset present");
         assert!(
             !current.show_in_picker,
-            "expected gpt-5.1-codex to be hidden from picker for this test"
+            "expected gpt-5.1-darwin-code to be hidden from picker for this test"
         );
 
         let upgrade = current.upgrade.as_ref().expect("upgrade configured");
@@ -10907,13 +10907,13 @@ guardian_approval = true
     #[tokio::test]
     async fn refresh_in_memory_config_from_disk_loads_latest_apps_state() -> Result<()> {
         let mut app = make_test_app().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
         let app_id = "unit_test_refresh_in_memory_config_connector".to_string();
 
         assert_eq!(app_enabled_in_effective_config(&app.config, &app_id), None);
 
-        ConfigEditsBuilder::new(&app.config.codex_home)
+        ConfigEditsBuilder::new(&app.config.darwin_code_home)
             .with_edits([
                 ConfigEdit::SetPath {
                     segments: vec!["apps".to_string(), app_id.clone(), "enabled".to_string()],
@@ -10947,9 +10947,9 @@ guardian_approval = true
     async fn refresh_in_memory_config_from_disk_best_effort_keeps_current_config_on_error()
     -> Result<()> {
         let mut app = make_test_app().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        std::fs::write(codex_home.path().join("config.toml"), "[broken")?;
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        std::fs::write(darwin_code_home.path().join("config.toml"), "[broken")?;
         let original_config = app.config.clone();
 
         app.refresh_in_memory_config_from_disk_best_effort("starting a new thread")
@@ -10966,7 +10966,7 @@ guardian_approval = true
         let next_cwd_tmp = tempdir()?;
         let next_cwd = next_cwd_tmp.path().to_path_buf();
 
-        app.chat_widget.handle_codex_event(Event {
+        app.chat_widget.handle_darwin_code_event(Event {
             id: String::new(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id: ThreadId::new(),
@@ -11001,9 +11001,9 @@ guardian_approval = true
     async fn rebuild_config_for_resume_or_fallback_uses_current_config_on_same_cwd_error()
     -> Result<()> {
         let mut app = make_test_app().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        std::fs::write(codex_home.path().join("config.toml"), "[broken")?;
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        std::fs::write(darwin_code_home.path().join("config.toml"), "[broken")?;
         let current_config = app.config.clone();
         let current_cwd = current_config.cwd.clone();
 
@@ -11018,9 +11018,9 @@ guardian_approval = true
     #[tokio::test]
     async fn rebuild_config_for_resume_or_fallback_errors_when_cwd_changes() -> Result<()> {
         let mut app = make_test_app().await;
-        let codex_home = tempdir()?;
-        app.config.codex_home = codex_home.path().to_path_buf().abs();
-        std::fs::write(codex_home.path().join("config.toml"), "[broken")?;
+        let darwin_code_home = tempdir()?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        std::fs::write(darwin_code_home.path().join("config.toml"), "[broken")?;
         let current_cwd = app.config.cwd.clone();
         let next_cwd_tmp = tempdir()?;
         let next_cwd = next_cwd_tmp.path().to_path_buf();
@@ -11050,13 +11050,13 @@ guardian_approval = true
     async fn fresh_session_config_uses_current_service_tier() {
         let mut app = make_test_app().await;
         app.chat_widget
-            .set_service_tier(Some(codex_protocol::config_types::ServiceTier::Fast));
+            .set_service_tier(Some(darwin_code_protocol::config_types::ServiceTier::Fast));
 
         let config = app.fresh_session_config();
 
         assert_eq!(
             config.service_tier,
-            Some(codex_protocol::config_types::ServiceTier::Fast)
+            Some(darwin_code_protocol::config_types::ServiceTier::Fast)
         );
     }
 
@@ -11145,7 +11145,7 @@ guardian_approval = true
         assert_eq!(user_count(&app.transcript_cells), 2);
 
         let base_id = ThreadId::new();
-        app.chat_widget.handle_codex_event(Event {
+        app.chat_widget.handle_darwin_code_event(Event {
             id: String::new(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id: base_id,
@@ -11238,7 +11238,7 @@ guardian_approval = true
         let (mut app, _app_event_rx, mut op_rx) = make_test_app_with_channels().await;
 
         let thread_id = ThreadId::new();
-        app.chat_widget.handle_codex_event(Event {
+        app.chat_widget.handle_darwin_code_event(Event {
             id: String::new(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id: thread_id,
@@ -11414,13 +11414,13 @@ guardian_approval = true
                 session: None,
                 turns: Vec::new(),
                 events: vec![ThreadBufferedEvent::Notification(
-                    ServerNotification::ItemStarted(codex_app_server_protocol::ItemStartedNotification {
+                    ServerNotification::ItemStarted(darwin_code_app_server_protocol::ItemStartedNotification {
                         thread_id: "thread-1".to_string(),
                         turn_id: "turn-1".to_string(),
                         item: ThreadItem::CollabAgentToolCall {
                             id: "wait-1".to_string(),
-                            tool: codex_app_server_protocol::CollabAgentTool::Wait,
-                            status: codex_app_server_protocol::CollabAgentToolCallStatus::InProgress,
+                            tool: darwin_code_app_server_protocol::CollabAgentTool::Wait,
+                            status: darwin_code_app_server_protocol::CollabAgentToolCallStatus::InProgress,
                             sender_thread_id: ThreadId::new().to_string(),
                             receiver_thread_ids: vec![receiver_thread_id.to_string()],
                             prompt: None,
@@ -11593,7 +11593,7 @@ guardian_approval = true
                     model_provider: "openai".to_string(),
                     created_at: 0,
                     updated_at: 0,
-                    status: codex_app_server_protocol::ThreadStatus::Idle,
+                    status: darwin_code_app_server_protocol::ThreadStatus::Idle,
                     path: None,
                     cwd: test_path_buf("/tmp/project").abs(),
                     cli_version: "0.0.0".to_string(),
@@ -11639,7 +11639,7 @@ guardian_approval = true
             rollout_path: Some(PathBuf::new()),
         };
 
-        app.chat_widget.handle_codex_event(Event {
+        app.chat_widget.handle_darwin_code_event(Event {
             id: String::new(),
             msg: EventMsg::SessionConfigured(event),
         });
@@ -11734,7 +11734,7 @@ guardian_approval = true
     async fn clear_only_ui_reset_preserves_chat_session_state() {
         let mut app = make_test_app().await;
         let thread_id = ThreadId::new();
-        app.chat_widget.handle_codex_event(Event {
+        app.chat_widget.handle_darwin_code_event(Event {
             id: String::new(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id: thread_id,
@@ -11842,7 +11842,7 @@ guardian_approval = true
         );
         assert_eq!(
             summary.resume_command,
-            Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+            Some("darwin-code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
         );
     }
 
@@ -11868,7 +11868,7 @@ guardian_approval = true
         .expect("summary");
         assert_eq!(
             summary.resume_command,
-            Some("codex resume my-session".to_string())
+            Some("darwin-code resume my-session".to_string())
         );
     }
 }

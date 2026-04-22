@@ -1,32 +1,32 @@
 use crate::config::Config;
-pub use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-pub use codex_rollout::Cursor;
-pub use codex_rollout::EventPersistenceMode;
-pub use codex_rollout::INTERACTIVE_SESSION_SOURCES;
-pub use codex_rollout::RolloutRecorder;
-pub use codex_rollout::RolloutRecorderParams;
-pub use codex_rollout::SESSIONS_SUBDIR;
-pub use codex_rollout::SessionMeta;
-pub use codex_rollout::SortDirection;
-pub use codex_rollout::ThreadItem;
-pub use codex_rollout::ThreadSortKey;
-pub use codex_rollout::ThreadsPage;
-pub use codex_rollout::append_thread_name;
-pub use codex_rollout::find_archived_thread_path_by_id_str;
+pub use darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR;
+pub use darwin_code_rollout::Cursor;
+pub use darwin_code_rollout::EventPersistenceMode;
+pub use darwin_code_rollout::INTERACTIVE_SESSION_SOURCES;
+pub use darwin_code_rollout::RolloutRecorder;
+pub use darwin_code_rollout::RolloutRecorderParams;
+pub use darwin_code_rollout::SESSIONS_SUBDIR;
+pub use darwin_code_rollout::SessionMeta;
+pub use darwin_code_rollout::SortDirection;
+pub use darwin_code_rollout::ThreadItem;
+pub use darwin_code_rollout::ThreadSortKey;
+pub use darwin_code_rollout::ThreadsPage;
+pub use darwin_code_rollout::append_thread_name;
+pub use darwin_code_rollout::find_archived_thread_path_by_id_str;
 #[deprecated(note = "use find_thread_path_by_id_str")]
-pub use codex_rollout::find_conversation_path_by_id_str;
-pub use codex_rollout::find_thread_meta_by_name_str;
-pub use codex_rollout::find_thread_name_by_id;
-pub use codex_rollout::find_thread_names_by_ids;
-pub use codex_rollout::find_thread_path_by_id_str;
-pub use codex_rollout::parse_cursor;
-pub use codex_rollout::read_head_for_summary;
-pub use codex_rollout::read_session_meta_line;
-pub use codex_rollout::rollout_date_parts;
+pub use darwin_code_rollout::find_conversation_path_by_id_str;
+pub use darwin_code_rollout::find_thread_meta_by_name_str;
+pub use darwin_code_rollout::find_thread_name_by_id;
+pub use darwin_code_rollout::find_thread_names_by_ids;
+pub use darwin_code_rollout::find_thread_path_by_id_str;
+pub use darwin_code_rollout::parse_cursor;
+pub use darwin_code_rollout::read_head_for_summary;
+pub use darwin_code_rollout::read_session_meta_line;
+pub use darwin_code_rollout::rollout_date_parts;
 
-impl codex_rollout::RolloutConfigView for Config {
-    fn codex_home(&self) -> &std::path::Path {
-        self.codex_home.as_path()
+impl darwin_code_rollout::RolloutConfigView for Config {
+    fn darwin_code_home(&self) -> &std::path::Path {
+        self.darwin_code_home.as_path()
     }
 
     fn sqlite_home(&self) -> &std::path::Path {
@@ -47,20 +47,20 @@ impl codex_rollout::RolloutConfigView for Config {
 }
 
 pub(crate) mod list {
-    pub use codex_rollout::find_thread_path_by_id_str;
+    pub use darwin_code_rollout::find_thread_path_by_id_str;
 }
 
 pub(crate) mod metadata {
-    pub(crate) use codex_rollout::builder_from_items;
+    pub(crate) use darwin_code_rollout::builder_from_items;
 }
 
 pub(crate) mod policy {
-    pub use codex_rollout::EventPersistenceMode;
-    pub use codex_rollout::should_persist_response_item_for_memories;
+    pub use darwin_code_rollout::EventPersistenceMode;
+    pub use darwin_code_rollout::should_persist_response_item_for_memories;
 }
 
 pub(crate) mod recorder {
-    pub use codex_rollout::RolloutRecorder;
+    pub use darwin_code_rollout::RolloutRecorder;
 }
 
 pub(crate) use crate::session_rollout_init_error::map_session_init_error;

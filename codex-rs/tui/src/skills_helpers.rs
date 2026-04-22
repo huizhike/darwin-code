@@ -1,5 +1,5 @@
 use crate::legacy_core::skills::model::SkillMetadata;
-use codex_utils_fuzzy_match::fuzzy_match;
+use darwin_code_utils_fuzzy_match::fuzzy_match;
 
 use crate::text_formatting::truncate_text;
 

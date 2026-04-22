@@ -1,7 +1,7 @@
 use super::*;
-use codex_network_proxy::BlockedRequestArgs;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_network_proxy::BlockedRequestArgs;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]

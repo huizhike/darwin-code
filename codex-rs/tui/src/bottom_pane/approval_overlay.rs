@@ -17,20 +17,20 @@ use crate::key_hint::KeyBinding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
-use codex_features::Features;
-use codex_protocol::ThreadId;
-use codex_protocol::mcp::RequestId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::ElicitationAction;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::NetworkApprovalContext;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
+use darwin_code_features::Features;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::mcp::RequestId;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::protocol::ElicitationAction;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::NetworkApprovalContext;
+use darwin_code_protocol::protocol::NetworkPolicyRuleAction;
 #[cfg(test)]
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::request_permissions::PermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -352,7 +352,7 @@ impl ApprovalOverlay {
         self.app_event_tx.request_permissions_response(
             thread_id,
             call_id.to_string(),
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            darwin_code_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: granted_permissions,
                 scope,
             },
@@ -776,7 +776,7 @@ fn exec_options(
             }),
             ReviewDecision::TimedOut => None,
             ReviewDecision::Abort => Some(ApprovalOption {
-                label: "No, and tell Codex what to do differently".to_string(),
+                label: "No, and tell Darwin-Code what to do differently".to_string(),
                 decision: ApprovalDecision::Review(ReviewDecision::Abort),
                 display_shortcut: Some(key_hint::plain(KeyCode::Esc)),
                 additional_shortcuts: vec![key_hint::plain(KeyCode::Char('n'))],
@@ -843,7 +843,7 @@ fn patch_options() -> Vec<ApprovalOption> {
             additional_shortcuts: vec![key_hint::plain(KeyCode::Char('a'))],
         },
         ApprovalOption {
-            label: "No, and tell Codex what to do differently".to_string(),
+            label: "No, and tell Darwin-Code what to do differently".to_string(),
             decision: ApprovalDecision::Review(ReviewDecision::Abort),
             display_shortcut: Some(key_hint::plain(KeyCode::Esc)),
             additional_shortcuts: vec![key_hint::plain(KeyCode::Char('n'))],
@@ -901,12 +901,12 @@ fn elicitation_options() -> Vec<ApprovalOption> {
 mod tests {
     use super::*;
     use crate::app_event::AppEvent;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::protocol::ExecPolicyAmendment;
-    use codex_protocol::protocol::NetworkApprovalProtocol;
-    use codex_protocol::protocol::NetworkPolicyAmendment;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::models::FileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::protocol::ExecPolicyAmendment;
+    use darwin_code_protocol::protocol::NetworkApprovalProtocol;
+    use darwin_code_protocol::protocol::NetworkPolicyAmendment;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc::unbounded_channel;
@@ -1235,7 +1235,7 @@ mod tests {
                 "Yes, just this once".to_string(),
                 "Yes, and allow this host for this conversation".to_string(),
                 "Yes, and allow this host in the future".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell Darwin-Code what to do differently".to_string(),
             ]
         );
     }
@@ -1258,7 +1258,7 @@ mod tests {
             vec![
                 "Yes, proceed".to_string(),
                 "Yes, and don't ask again for this command in this session".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell Darwin-Code what to do differently".to_string(),
             ]
         );
     }
@@ -1283,7 +1283,7 @@ mod tests {
             labels,
             vec![
                 "Yes, proceed".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell Darwin-Code what to do differently".to_string(),
             ]
         );
     }
@@ -1505,7 +1505,7 @@ mod tests {
             })
             .collect();
         let expected = vec![
-            "✔ You approved codex to run".to_string(),
+            "✔ You approved darwin-code to run".to_string(),
             "  git add tui/src/render/".to_string(),
             "  mod.rs tui/src/render/".to_string(),
             "  renderable.rs this time".to_string(),

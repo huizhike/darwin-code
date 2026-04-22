@@ -1,14 +1,14 @@
 use anyhow::Result;
-use codex_exec_server::CreateDirectoryOptions;
+use darwin_code_exec_server::CreateDirectoryOptions;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
-use core_test_support::test_codex::TestCodexBuilder;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
+use core_test_support::test_darwin_code::test_darwin_code;
 
-async fn agents_instructions(mut builder: TestCodexBuilder) -> Result<String> {
+async fn agents_instructions(mut builder: TestDarwinCodeBuilder) -> Result<String> {
     let server = start_mock_server().await;
     let resp_mock = mount_sse_once(
         &server,
@@ -30,7 +30,7 @@ async fn agents_instructions(mut builder: TestCodexBuilder) -> Result<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agents_override_is_preferred_over_agents_md() -> Result<()> {
     let instructions =
-        agents_instructions(test_codex().with_workspace_setup(|cwd, fs| async move {
+        agents_instructions(test_darwin_code().with_workspace_setup(|cwd, fs| async move {
             let agents_md = cwd.join("AGENTS.md");
             let override_md = cwd.join("AGENTS.override.md");
             fs.write_file(&agents_md, b"base doc".to_vec(), /*sandbox*/ None)
@@ -60,7 +60,7 @@ async fn agents_override_is_preferred_over_agents_md() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn configured_fallback_is_used_when_agents_candidate_is_directory() -> Result<()> {
     let instructions = agents_instructions(
-        test_codex()
+        test_darwin_code()
             .with_config(|config| {
                 config.project_doc_fallback_filenames = vec!["WORKFLOW.md".to_string()];
             })
@@ -91,7 +91,7 @@ async fn configured_fallback_is_used_when_agents_candidate_is_directory() -> Res
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agents_docs_are_concatenated_from_project_root_to_cwd() -> Result<()> {
     let instructions = agents_instructions(
-        test_codex()
+        test_darwin_code()
             .with_config(|config| {
                 config.cwd = config.cwd.join("nested/workspace");
             })

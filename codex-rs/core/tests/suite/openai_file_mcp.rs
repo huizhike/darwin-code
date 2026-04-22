@@ -1,11 +1,11 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_core::config::Config;
+use darwin_code_features::Feature;
+use darwin_code_login::DarwinCodeAuth;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::DOCUMENT_EXTRACT_TEXT_RESOURCE_URI;
 use core_test_support::responses::ev_assistant_message;
@@ -15,7 +15,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
-use core_test_support::test_codex::test_codex;
+use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -26,7 +26,7 @@ use wiremock::matchers::header;
 use wiremock::matchers::method;
 use wiremock::matchers::path;
 
-const DOCUMENT_EXTRACT_NAMESPACE: &str = "mcp__codex_apps__calendar";
+const DOCUMENT_EXTRACT_NAMESPACE: &str = "mcp__darwin_code_apps__calendar";
 const DOCUMENT_EXTRACT_TOOL: &str = "_extract_text";
 
 fn configure_apps(config: &mut Config, chatgpt_base_url: &str) {
@@ -37,7 +37,7 @@ fn configure_apps(config: &mut Config, chatgpt_base_url: &str) {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn codex_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Result<()> {
+async fn darwin_code_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Result<()> {
     let server = start_mock_server().await;
     let apps_server = AppsTestServer::mount(&server).await?;
 
@@ -47,7 +47,7 @@ async fn codex_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Res
         .and(body_json(json!({
             "file_name": "report.txt",
             "file_size": 11,
-            "use_case": "codex",
+            "use_case": "darwin-code",
         })))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "file_id": "file_123",
@@ -99,8 +99,8 @@ async fn codex_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Res
     )
     .await;
 
-    let mut builder = test_codex()
-        .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
+    let mut builder = test_darwin_code()
+        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(move |config| configure_apps(config, apps_server.chatgpt_base_url.as_str()));
     let test = builder.build(&server).await?;
     tokio::fs::write(test.cwd.path().join("report.txt"), b"hello world").await?;
@@ -136,7 +136,7 @@ async fn codex_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Res
         .into_iter()
         .find_map(|request| {
             let body: Value = serde_json::from_slice(&request.body).ok()?;
-            (request.url.path() == "/api/codex/apps"
+            (request.url.path() == "/api/darwin-code/apps"
                 && body.get("method").and_then(Value::as_str) == Some("tools/call")
                 && body.pointer("/params/name").and_then(Value::as_str)
                     == Some("calendar_extract_text"))
@@ -156,7 +156,7 @@ async fn codex_apps_file_params_upload_local_paths_before_mcp_tool_call() -> Res
         }))
     );
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/_codex_apps"),
+        apps_tool_call.pointer("/params/_meta/_darwin_code_apps"),
         Some(&json!({
             "resource_uri": DOCUMENT_EXTRACT_TEXT_RESOURCE_URI,
             "contains_mcp_source": true,

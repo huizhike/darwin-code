@@ -178,7 +178,7 @@ struct PluginCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum PluginSubcommand {
-    /// Manage plugin marketplaces for Codex.
+    /// Manage plugin marketplaces for Darwin-Code.
     Marketplace(MarketplaceCli),
 }
 
@@ -424,7 +424,7 @@ enum AppServerSubcommand {
     /// [experimental] Generate JSON Schema for the app server protocol.
     GenerateJsonSchema(GenerateJsonSchemaCommand),
 
-    /// [internal] Generate internal JSON Schema artifacts for Codex tooling.
+    /// [internal] Generate internal JSON Schema artifacts for Darwin-Code tooling.
     #[clap(hide = true)]
     GenerateInternalJsonSchema(GenerateInternalJsonSchemaCommand),
 }
@@ -524,7 +524,7 @@ fn handle_app_exit(exit_info: AppExitInfo) -> anyhow::Result<()> {
 fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     println!();
     let cmd_str = action.command_str();
-    println!("Updating Codex via `{cmd_str}`...");
+    println!("Updating Darwin-Code via `{cmd_str}`...");
 
     let status = {
         #[cfg(windows)]
@@ -559,7 +559,7 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     if !status.success() {
         anyhow::bail!("`{cmd_str}` failed with status {status}");
     }
-    println!("\n🎉 Update ran successfully! Please restart Codex.");
+    println!("\n🎉 Update ran successfully! Please restart Darwin-Code.");
     Ok(())
 }
 
@@ -1151,7 +1151,7 @@ async fn run_exec_server_command(
     let darwin_code_self_exe = arg0_paths
         .darwin_code_self_exe
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("Codex executable path is not configured"))?;
+        .ok_or_else(|| anyhow::anyhow!("Darwin-Code executable path is not configured"))?;
     let runtime_paths = darwin_code_exec_server::ExecServerRuntimePaths::new(
         darwin_code_self_exe,
         arg0_paths.darwin_code_linux_sandbox_exe.clone(),
@@ -1401,7 +1401,7 @@ async fn run_interactive_tui(
         }
 
         eprintln!(
-            "WARNING: TERM is set to \"dumb\". Codex's interactive TUI may not work in this terminal."
+            "WARNING: TERM is set to \"dumb\". Darwin-Code's interactive TUI may not work in this terminal."
         );
         if !confirm("Continue anyway? [y/N]: ")? {
             return Ok(AppExitInfo::fatal(
@@ -1999,14 +1999,14 @@ mod tests {
         let cli = MultitoolCli::try_parse_from([
             "darwin-code",
             "--remote-auth-token-env",
-            "CODEX_REMOTE_AUTH_TOKEN",
+            "DARWIN_CODE_REMOTE_AUTH_TOKEN",
             "--remote",
             "ws://127.0.0.1:4500",
         ])
         .expect("parse");
         assert_eq!(
             cli.remote.remote_auth_token_env.as_deref(),
-            Some("CODEX_REMOTE_AUTH_TOKEN")
+            Some("DARWIN_CODE_REMOTE_AUTH_TOKEN")
         );
     }
 
@@ -2041,7 +2041,7 @@ mod tests {
     fn reject_remote_auth_token_env_for_non_interactive_subcommands() {
         let err = reject_remote_mode_for_subcommand(
             /*remote*/ None,
-            Some("CODEX_REMOTE_AUTH_TOKEN"),
+            Some("DARWIN_CODE_REMOTE_AUTH_TOKEN"),
             "exec",
         )
         .expect_err("non-interactive subcommands should reject --remote-auth-token-env");
@@ -2059,7 +2059,7 @@ mod tests {
             });
         let err = reject_remote_mode_for_app_server_subcommand(
             /*remote*/ None,
-            Some("CODEX_REMOTE_AUTH_TOKEN"),
+            Some("DARWIN_CODE_REMOTE_AUTH_TOKEN"),
             Some(&subcommand),
         )
         .expect_err("non-interactive app-server subcommands should reject --remote-auth-token-env");
@@ -2068,7 +2068,7 @@ mod tests {
 
     #[test]
     fn read_remote_auth_token_from_env_var_reports_missing_values() {
-        let err = read_remote_auth_token_from_env_var_with("CODEX_REMOTE_AUTH_TOKEN", |_| {
+        let err = read_remote_auth_token_from_env_var_with("DARWIN_CODE_REMOTE_AUTH_TOKEN", |_| {
             Err(std::env::VarError::NotPresent)
         })
         .expect_err("missing env vars should be rejected");
@@ -2078,7 +2078,7 @@ mod tests {
     #[test]
     fn read_remote_auth_token_from_env_var_trims_values() {
         let auth_token =
-            read_remote_auth_token_from_env_var_with("CODEX_REMOTE_AUTH_TOKEN", |_| {
+            read_remote_auth_token_from_env_var_with("DARWIN_CODE_REMOTE_AUTH_TOKEN", |_| {
                 Ok("  bearer-token  ".to_string())
             })
             .expect("env var should parse");
@@ -2087,7 +2087,7 @@ mod tests {
 
     #[test]
     fn read_remote_auth_token_from_env_var_rejects_empty_values() {
-        let err = read_remote_auth_token_from_env_var_with("CODEX_REMOTE_AUTH_TOKEN", |_| {
+        let err = read_remote_auth_token_from_env_var_with("DARWIN_CODE_REMOTE_AUTH_TOKEN", |_| {
             Ok(" \n\t ".to_string())
         })
         .expect_err("empty env vars should be rejected");

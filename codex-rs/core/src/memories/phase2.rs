@@ -13,19 +13,19 @@ use crate::memories::storage::rollout_summary_file_stem;
 use crate::memories::storage::sync_rollout_summaries_from_memories;
 use crate::session::emit_subagent_session_started;
 use crate::session::session::Session;
-use codex_config::Constrained;
-use codex_features::Feature;
-use codex_protocol::ThreadId;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::user_input::UserInput;
-use codex_state::Stage1Output;
-use codex_state::StateRuntime;
+use darwin_code_config::Constrained;
+use darwin_code_features::Feature;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_state::Stage1Output;
+use darwin_code_state::StateRuntime;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,7 +56,7 @@ pub(super) async fn run(session: &Arc<Session>, config: Arc<Config>) {
         // This should not happen.
         return;
     };
-    let root = memory_root(&config.codex_home);
+    let root = memory_root(&config.darwin_code_home);
     let max_raw_memories = config.memories.max_raw_memories_for_consolidation;
     let max_unused_days = config.memories.max_unused_days;
 
@@ -193,7 +193,7 @@ pub(super) async fn run(session: &Arc<Session>, config: Arc<Config>) {
 }
 
 fn artifact_memories_for_phase2(
-    selection: &codex_state::Phase2InputSelection,
+    selection: &darwin_code_state::Phase2InputSelection,
 ) -> Vec<Stage1Output> {
     let mut seen = HashSet::new();
     let mut memories = selection.selected.clone();
@@ -224,7 +224,7 @@ mod job {
                 "failed_claim"
             })?;
         let (token, watermark) = match claim {
-            codex_state::Phase2JobClaimOutcome::Claimed {
+            darwin_code_state::Phase2JobClaimOutcome::Claimed {
                 ownership_token,
                 input_watermark,
             } => {
@@ -235,8 +235,8 @@ mod job {
                 );
                 (ownership_token, input_watermark)
             }
-            codex_state::Phase2JobClaimOutcome::SkippedNotDirty => return Err("skipped_not_dirty"),
-            codex_state::Phase2JobClaimOutcome::SkippedRunning => return Err("skipped_running"),
+            darwin_code_state::Phase2JobClaimOutcome::SkippedNotDirty => return Err("skipped_not_dirty"),
+            darwin_code_state::Phase2JobClaimOutcome::SkippedRunning => return Err("skipped_running"),
         };
 
         Ok(Claim { token, watermark })
@@ -277,7 +277,7 @@ mod job {
         db: &StateRuntime,
         claim: &Claim,
         completion_watermark: i64,
-        selected_outputs: &[codex_state::Stage1Output],
+        selected_outputs: &[darwin_code_state::Stage1Output],
         reason: &'static str,
     ) -> bool {
         session.services.session_telemetry.counter(
@@ -295,7 +295,7 @@ mod agent {
     use super::*;
 
     pub(super) fn get_config(config: Arc<Config>) -> Option<Config> {
-        let root = memory_root(&config.codex_home);
+        let root = memory_root(&config.darwin_code_home);
         let mut agent_config = config.as_ref().clone();
 
         agent_config.cwd = root.clone();
@@ -350,10 +350,10 @@ mod agent {
 
     pub(super) fn get_prompt(
         config: Arc<Config>,
-        selection: &codex_state::Phase2InputSelection,
+        selection: &darwin_code_state::Phase2InputSelection,
         removed_extension_resources: &[crate::memories::extensions::RemovedExtensionResource],
     ) -> Vec<UserInput> {
-        let root = memory_root(&config.codex_home);
+        let root = memory_root(&config.darwin_code_home);
         let prompt = build_consolidation_prompt(&root, selection, removed_extension_resources);
         vec![UserInput::Text {
             text: prompt,
@@ -366,10 +366,10 @@ mod agent {
         session: &Arc<Session>,
         claim: Claim,
         new_watermark: i64,
-        selected_outputs: Vec<codex_state::Stage1Output>,
+        selected_outputs: Vec<darwin_code_state::Stage1Output>,
         pending_extension_resource_removals: Vec<PendingExtensionResourceRemoval>,
         thread_id: ThreadId,
-        phase_two_e2e_timer: Option<codex_otel::Timer>,
+        phase_two_e2e_timer: Option<darwin_code_otel::Timer>,
     ) {
         let Some(db) = session.services.state_db.clone() else {
             return;
@@ -489,7 +489,7 @@ mod agent {
 
 pub(super) fn get_watermark(
     claimed_watermark: i64,
-    latest_memories: &[codex_state::Stage1Output],
+    latest_memories: &[darwin_code_state::Stage1Output],
 ) -> i64 {
     latest_memories
         .iter()

@@ -1,8 +1,8 @@
-load("//:defs.bzl", "MACOS_WEBRTC_RUSTC_LINK_FLAGS", "codex_rust_crate")
+load("//:defs.bzl", "MACOS_WEBRTC_RUSTC_LINK_FLAGS", "darwin_code_rust_crate")
 
-codex_rust_crate(
+darwin_code_rust_crate(
     name = "tui",
-    crate_name = "codex_tui",
+    crate_name = "darwin_code_tui",
     compile_data = glob(
         include = ["**"],
         exclude = [
@@ -12,16 +12,16 @@ codex_rust_crate(
         ],
         allow_empty = True,
     ) + [
-        "//codex-rs/collaboration-mode-templates:templates/default.md",
-        "//codex-rs/collaboration-mode-templates:templates/plan.md",
+        "//darwin-code-rs/collaboration-mode-templates:templates/default.md",
+        "//darwin-code-rs/collaboration-mode-templates:templates/plan.md",
     ],
     test_data_extra = glob([
         "src/**/*.rs",
         "src/**/snapshots/**",
-    ]) + ["//codex-rs/core:model_availability_nux_fixtures"],
+    ]) + ["//darwin-code-rs/core:model_availability_nux_fixtures"],
     integration_compile_data_extra = ["src/test_backend.rs"],
     extra_binaries = [
-        "//codex-rs/cli:codex",
+        "//darwin-code-rs/cli:darwin-code",
     ],
     rustc_flags_extra = MACOS_WEBRTC_RUSTC_LINK_FLAGS,
     test_shard_counts = {

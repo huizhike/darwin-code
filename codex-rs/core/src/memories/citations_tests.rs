@@ -1,6 +1,6 @@
 use super::get_thread_id_from_citations;
 use super::parse_memory_citation;
-use codex_protocol::ThreadId;
+use darwin_code_protocol::ThreadId;
 use pretty_assertions::assert_eq;
 
 #[test]

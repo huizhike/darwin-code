@@ -6,8 +6,8 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
-use codex_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
+use darwin_code_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
+use darwin_code_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
 use reqwest::Client;
 use serde::Deserialize;
 use tempfile::TempDir;
@@ -16,8 +16,8 @@ use tracing::warn;
 use zip::ZipArchive;
 
 use crate::config::Config;
-use codex_login::AuthManager;
-use codex_login::default_client::build_reqwest_client;
+use darwin_code_login::AuthManager;
+use darwin_code_login::default_client::build_reqwest_client;
 
 use super::PluginsManager;
 
@@ -34,7 +34,7 @@ const CURATED_PLUGINS_BACKUP_ARCHIVE_FALLBACK_VERSION: &str = "export-backup";
 const CURATED_PLUGINS_GIT_TIMEOUT: Duration = Duration::from_secs(30);
 const CURATED_PLUGINS_HTTP_TIMEOUT: Duration = Duration::from_secs(30);
 const CURATED_PLUGINS_BACKUP_ARCHIVE_TIMEOUT: Duration = Duration::from_secs(30);
-// Keep this comfortably above a normal sync attempt so we do not race another Codex process.
+// Keep this comfortably above a normal sync attempt so we do not race another Darwin-Code process.
 const CURATED_PLUGINS_STALE_TEMP_DIR_MAX_AGE: Duration = Duration::from_secs(10 * 60);
 const STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE: &str = ".tmp/app-server-remote-plugin-sync-v1";
 const STARTUP_REMOTE_PLUGIN_SYNC_PREREQUISITE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -59,21 +59,21 @@ struct CuratedPluginsBackupArchiveResponse {
     download_url: String,
 }
 
-pub(crate) fn curated_plugins_repo_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(CURATED_PLUGINS_RELATIVE_DIR)
+pub(crate) fn curated_plugins_repo_path(darwin_code_home: &Path) -> PathBuf {
+    darwin_code_home.join(CURATED_PLUGINS_RELATIVE_DIR)
 }
 
-pub(crate) fn read_curated_plugins_sha(codex_home: &Path) -> Option<String> {
-    read_sha_file(curated_plugins_sha_path(codex_home).as_path())
+pub(crate) fn read_curated_plugins_sha(darwin_code_home: &Path) -> Option<String> {
+    read_sha_file(curated_plugins_sha_path(darwin_code_home).as_path())
 }
 
-fn curated_plugins_sha_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(CURATED_PLUGINS_SHA_FILE)
+fn curated_plugins_sha_path(darwin_code_home: &Path) -> PathBuf {
+    darwin_code_home.join(CURATED_PLUGINS_SHA_FILE)
 }
 
-pub(crate) fn sync_openai_plugins_repo(codex_home: &Path) -> Result<String, String> {
+pub(crate) fn sync_openai_plugins_repo(darwin_code_home: &Path) -> Result<String, String> {
     sync_openai_plugins_repo_with_transport_overrides(
-        codex_home,
+        darwin_code_home,
         "git",
         GITHUB_API_BASE_URL,
         CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL,
@@ -81,12 +81,12 @@ pub(crate) fn sync_openai_plugins_repo(codex_home: &Path) -> Result<String, Stri
 }
 
 fn sync_openai_plugins_repo_with_transport_overrides(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     git_binary: &str,
     api_base_url: &str,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
-    match sync_openai_plugins_repo_via_git(codex_home, git_binary) {
+    match sync_openai_plugins_repo_via_git(darwin_code_home, git_binary) {
         Ok(remote_sha) => {
             emit_curated_plugins_startup_sync_metric("git", "success");
             emit_curated_plugins_startup_sync_final_metric("git", "success");
@@ -99,7 +99,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                 git_binary,
                 "git sync failed for curated plugin sync; falling back to GitHub HTTP"
             );
-            match sync_openai_plugins_repo_via_http(codex_home, api_base_url) {
+            match sync_openai_plugins_repo_via_http(darwin_code_home, api_base_url) {
                 Ok(remote_sha) => {
                     emit_curated_plugins_startup_sync_metric("http", "success");
                     emit_curated_plugins_startup_sync_final_metric("http", "success");
@@ -107,7 +107,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                 }
                 Err(http_err) => {
                     emit_curated_plugins_startup_sync_metric("http", "failure");
-                    if has_local_curated_plugins_snapshot(codex_home) {
+                    if has_local_curated_plugins_snapshot(darwin_code_home) {
                         emit_curated_plugins_startup_sync_final_metric("http", "failure");
                         warn!(
                             error = %http_err,
@@ -125,7 +125,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                             "GitHub HTTP sync failed for curated plugin sync; falling back to export archive"
                         );
                         let result = sync_openai_plugins_repo_via_backup_archive(
-                            codex_home,
+                            darwin_code_home,
                             backup_archive_api_url,
                         );
                         let status = if result.is_ok() { "success" } else { "failure" };
@@ -143,9 +143,9 @@ fn sync_openai_plugins_repo_with_transport_overrides(
     }
 }
 
-fn sync_openai_plugins_repo_via_git(codex_home: &Path, git_binary: &str) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = codex_home.join(CURATED_PLUGINS_SHA_FILE);
+fn sync_openai_plugins_repo_via_git(darwin_code_home: &Path, git_binary: &str) -> Result<String, String> {
+    let repo_path = curated_plugins_repo_path(darwin_code_home);
+    let sha_path = darwin_code_home.join(CURATED_PLUGINS_SHA_FILE);
     let remote_sha = git_ls_remote_head_sha(git_binary)?;
     let local_sha = read_local_git_or_sha_file(&repo_path, &sha_path, git_binary);
 
@@ -181,11 +181,11 @@ fn sync_openai_plugins_repo_via_git(codex_home: &Path, git_binary: &str) -> Resu
 }
 
 fn sync_openai_plugins_repo_via_http(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     api_base_url: &str,
 ) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = codex_home.join(CURATED_PLUGINS_SHA_FILE);
+    let repo_path = curated_plugins_repo_path(darwin_code_home);
+    let sha_path = darwin_code_home.join(CURATED_PLUGINS_SHA_FILE);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -207,11 +207,11 @@ fn sync_openai_plugins_repo_via_http(
 }
 
 fn sync_openai_plugins_repo_via_backup_archive(
-    codex_home: &Path,
+    darwin_code_home: &Path,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
-    let repo_path = curated_plugins_repo_path(codex_home);
-    let sha_path = curated_plugins_sha_path(codex_home);
+    let repo_path = curated_plugins_repo_path(darwin_code_home);
+    let sha_path = curated_plugins_sha_path(darwin_code_home);
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -231,11 +231,11 @@ fn sync_openai_plugins_repo_via_backup_archive(
 
 pub(super) fn start_startup_remote_plugin_sync_once(
     manager: Arc<PluginsManager>,
-    codex_home: PathBuf,
+    darwin_code_home: PathBuf,
     config: Config,
     auth_manager: Arc<AuthManager>,
 ) {
-    let marker_path = startup_remote_plugin_sync_marker_path(codex_home.as_path());
+    let marker_path = startup_remote_plugin_sync_marker_path(darwin_code_home.as_path());
     if marker_path.is_file() {
         return;
     }
@@ -245,9 +245,9 @@ pub(super) fn start_startup_remote_plugin_sync_once(
             return;
         }
 
-        if !wait_for_startup_remote_plugin_sync_prerequisites(codex_home.as_path()).await {
+        if !wait_for_startup_remote_plugin_sync_prerequisites(darwin_code_home.as_path()).await {
             warn!(
-                codex_home = %codex_home.display(),
+                darwin_code_home = %darwin_code_home.display(),
                 "skipping startup remote plugin sync because curated marketplace is not ready"
             );
             return;
@@ -267,7 +267,7 @@ pub(super) fn start_startup_remote_plugin_sync_once(
                     "completed startup remote plugin sync"
                 );
                 if let Err(err) =
-                    write_startup_remote_plugin_sync_marker(codex_home.as_path()).await
+                    write_startup_remote_plugin_sync_marker(darwin_code_home.as_path()).await
                 {
                     warn!(
                         error = %err,
@@ -286,21 +286,21 @@ pub(super) fn start_startup_remote_plugin_sync_once(
     });
 }
 
-fn startup_remote_plugin_sync_marker_path(codex_home: &Path) -> PathBuf {
-    codex_home.join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE)
+fn startup_remote_plugin_sync_marker_path(darwin_code_home: &Path) -> PathBuf {
+    darwin_code_home.join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE)
 }
 
-fn has_local_curated_plugins_snapshot(codex_home: &Path) -> bool {
-    curated_plugins_repo_path(codex_home)
+fn has_local_curated_plugins_snapshot(darwin_code_home: &Path) -> bool {
+    curated_plugins_repo_path(darwin_code_home)
         .join(".agents/plugins/marketplace.json")
         .is_file()
-        && codex_home.join(CURATED_PLUGINS_SHA_FILE).is_file()
+        && darwin_code_home.join(CURATED_PLUGINS_SHA_FILE).is_file()
 }
 
-async fn wait_for_startup_remote_plugin_sync_prerequisites(codex_home: &Path) -> bool {
+async fn wait_for_startup_remote_plugin_sync_prerequisites(darwin_code_home: &Path) -> bool {
     let deadline = tokio::time::Instant::now() + STARTUP_REMOTE_PLUGIN_SYNC_PREREQUISITE_TIMEOUT;
     loop {
-        if has_local_curated_plugins_snapshot(codex_home) {
+        if has_local_curated_plugins_snapshot(darwin_code_home) {
             return true;
         }
         if tokio::time::Instant::now() >= deadline {
@@ -310,8 +310,8 @@ async fn wait_for_startup_remote_plugin_sync_prerequisites(codex_home: &Path) ->
     }
 }
 
-async fn write_startup_remote_plugin_sync_marker(codex_home: &Path) -> std::io::Result<()> {
-    let marker_path = startup_remote_plugin_sync_marker_path(codex_home);
+async fn write_startup_remote_plugin_sync_marker(darwin_code_home: &Path) -> std::io::Result<()> {
+    let marker_path = startup_remote_plugin_sync_marker_path(darwin_code_home);
     if let Some(parent) = marker_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
@@ -451,7 +451,7 @@ fn emit_curated_plugins_startup_sync_counter(
     transport: &'static str,
     status: &'static str,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = darwin_code_otel::global() else {
         return;
     };
     let tags = [("transport", transport), ("status", status)];
