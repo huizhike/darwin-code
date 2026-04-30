@@ -823,15 +823,6 @@ fn normalize_plugin_mcp_server_value(
         }
     }
 
-    if let Some(JsonValue::Object(oauth)) = object.remove("oauth")
-        && oauth.contains_key("callbackPort")
-    {
-        warn!(
-            plugin = %plugin_root.display(),
-            "plugin MCP server OAuth callbackPort is ignored; Codex uses global MCP OAuth callback settings"
-        );
-    }
-
     if let Some(JsonValue::String(cwd)) = object.get("cwd")
         && !Path::new(cwd).is_absolute()
     {

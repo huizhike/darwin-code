@@ -30,7 +30,6 @@ use darwin_code_protocol::openai_models::ModelsResponse;
 use darwin_code_protocol::protocol::AskForApproval;
 use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::protocol::SessionConfiguredEvent;
 use darwin_code_protocol::protocol::SessionSource;
@@ -45,7 +44,6 @@ use crate::PathBufExt;
 use crate::TempDirExt;
 use crate::get_remote_test_env;
 use crate::load_default_config_for_test;
-use crate::responses::WebSocketTestServer;
 use crate::responses::output_value_to_text;
 use crate::responses::start_mock_server;
 use crate::streaming_sse::StreamingSseServer;
@@ -308,26 +306,6 @@ impl TestDarwinCodeBuilder {
         .await
     }
 
-    pub async fn build_with_websocket_server(
-        &mut self,
-        server: &WebSocketTestServer,
-    ) -> anyhow::Result<TestDarwinCode> {
-        let base_url = format!("{}/v1", server.uri());
-        let home = match self.home.clone() {
-            Some(home) => home,
-            None => Arc::new(TempDir::new()?),
-        };
-        let base_url_clone = base_url.clone();
-        self.config_mutators.push(Box::new(move |config| {
-            config.model_provider.base_url = Some(base_url_clone);
-            config.model_provider.supports_websockets = true;
-            config.realtime.version = RealtimeWsVersion::V1;
-        }));
-        let test_env = TestEnv::local().await?;
-        Box::pin(self.build_with_home_and_base_url(base_url, home, /*resume_from*/ None, test_env))
-            .await
-    }
-
     pub async fn resume(
         &mut self,
         server: &wiremock::MockServer,
@@ -452,7 +430,6 @@ impl TestDarwinCodeBuilder {
             base_url: Some(base_url),
             // Most core tests use SSE-only mock servers, so keep websocket transport off unless
             // a test explicitly opts into websocket coverage.
-            supports_websockets: false,
             ..ModelProviderInfo::create_openai_provider(None, None)
         };
         let cwd = Arc::new(TempDir::new()?);

@@ -2108,7 +2108,6 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
                 darwin_code_app_server_protocol::McpAuthStatus::BearerToken => {
                     McpAuthStatus::BearerToken
                 }
-                darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             })
             .unwrap_or(McpAuthStatus::Unsupported);
         lines.push(vec!["    • Auth: ".into(), auth_status.to_string().into()].into());
@@ -2751,73 +2750,6 @@ pub(crate) fn runtime_metrics_label(summary: RuntimeMetricsSummary) -> Option<St
             summary.tool_calls.count
         ));
     }
-    if summary.api_calls.count > 0 {
-        let duration = format_duration_ms(summary.api_calls.duration_ms);
-        let calls = pluralize(summary.api_calls.count, "call", "calls");
-        parts.push(format!(
-            "Inference: {} {calls} ({duration})",
-            summary.api_calls.count
-        ));
-    }
-    if summary.websocket_calls.count > 0 {
-        let duration = format_duration_ms(summary.websocket_calls.duration_ms);
-        parts.push(format!(
-            "WebSocket: {} events send ({duration})",
-            summary.websocket_calls.count
-        ));
-    }
-    if summary.streaming_events.count > 0 {
-        let duration = format_duration_ms(summary.streaming_events.duration_ms);
-        let stream_label = pluralize(summary.streaming_events.count, "Stream", "Streams");
-        let events = pluralize(summary.streaming_events.count, "event", "events");
-        parts.push(format!(
-            "{stream_label}: {} {events} ({duration})",
-            summary.streaming_events.count
-        ));
-    }
-    if summary.websocket_events.count > 0 {
-        let duration = format_duration_ms(summary.websocket_events.duration_ms);
-        parts.push(format!(
-            "{} events received ({duration})",
-            summary.websocket_events.count
-        ));
-    }
-    if summary.responses_api_overhead_ms > 0 {
-        let duration = format_duration_ms(summary.responses_api_overhead_ms);
-        parts.push(format!("Responses API overhead: {duration}"));
-    }
-    if summary.responses_api_inference_time_ms > 0 {
-        let duration = format_duration_ms(summary.responses_api_inference_time_ms);
-        parts.push(format!("Responses API inference: {duration}"));
-    }
-    if summary.responses_api_engine_iapi_ttft_ms > 0
-        || summary.responses_api_engine_service_ttft_ms > 0
-    {
-        let mut ttft_parts = Vec::new();
-        if summary.responses_api_engine_iapi_ttft_ms > 0 {
-            let duration = format_duration_ms(summary.responses_api_engine_iapi_ttft_ms);
-            ttft_parts.push(format!("{duration} (iapi)"));
-        }
-        if summary.responses_api_engine_service_ttft_ms > 0 {
-            let duration = format_duration_ms(summary.responses_api_engine_service_ttft_ms);
-            ttft_parts.push(format!("{duration} (service)"));
-        }
-        parts.push(format!("TTFT: {}", ttft_parts.join(" ")));
-    }
-    if summary.responses_api_engine_iapi_tbt_ms > 0
-        || summary.responses_api_engine_service_tbt_ms > 0
-    {
-        let mut tbt_parts = Vec::new();
-        if summary.responses_api_engine_iapi_tbt_ms > 0 {
-            let duration = format_duration_ms(summary.responses_api_engine_iapi_tbt_ms);
-            tbt_parts.push(format!("{duration} (iapi)"));
-        }
-        if summary.responses_api_engine_service_tbt_ms > 0 {
-            let duration = format_duration_ms(summary.responses_api_engine_service_tbt_ms);
-            tbt_parts.push(format!("{duration} (service)"));
-        }
-        parts.push(format!("TBT: {}", tbt_parts.join(" ")));
-    }
     if parts.is_empty() {
         None
     } else {
@@ -3112,28 +3044,6 @@ mod tests {
                 count: 3,
                 duration_ms: 2_450,
             },
-            api_calls: RuntimeMetricTotals {
-                count: 2,
-                duration_ms: 1_200,
-            },
-            streaming_events: RuntimeMetricTotals {
-                count: 6,
-                duration_ms: 900,
-            },
-            websocket_calls: RuntimeMetricTotals {
-                count: 1,
-                duration_ms: 700,
-            },
-            websocket_events: RuntimeMetricTotals {
-                count: 4,
-                duration_ms: 1_200,
-            },
-            responses_api_overhead_ms: 650,
-            responses_api_inference_time_ms: 1_940,
-            responses_api_engine_iapi_ttft_ms: 410,
-            responses_api_engine_service_ttft_ms: 460,
-            responses_api_engine_iapi_tbt_ms: 1_180,
-            responses_api_engine_service_tbt_ms: 1_240,
             turn_ttft_ms: 0,
             turn_ttfm_ms: 0,
         };

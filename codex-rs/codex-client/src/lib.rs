@@ -4,7 +4,6 @@ mod error;
 mod request;
 mod retry;
 mod sse;
-mod telemetry;
 mod transport;
 
 pub use crate::custom_ca::BuildCustomCaTransportError;
@@ -47,7 +46,6 @@ pub use crate::retry::RetryPolicy;
 pub use crate::retry::backoff;
 pub use crate::retry::run_with_retry;
 pub use crate::sse::sse_stream;
-pub use crate::telemetry::RequestTelemetry;
 pub use crate::transport::ByteStream;
 pub use crate::transport::HttpTransport;
 pub use crate::transport::ReqwestTransport;

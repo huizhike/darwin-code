@@ -60,7 +60,7 @@ pub fn extract_response_debug_context_from_api_error(error: &ApiError) -> Respon
     }
 }
 
-pub fn telemetry_transport_error_message(error: &TransportError) -> String {
+pub fn transport_error_message(error: &TransportError) -> String {
     match error {
         TransportError::Http { status, .. } => format!("http {}", status.as_u16()),
         TransportError::RetryLimit => "retry limit reached".to_string(),
@@ -70,9 +70,9 @@ pub fn telemetry_transport_error_message(error: &TransportError) -> String {
     }
 }
 
-pub fn telemetry_api_error_message(error: &ApiError) -> String {
+pub fn api_error_message(error: &ApiError) -> String {
     match error {
-        ApiError::Transport(transport) => telemetry_transport_error_message(transport),
+        ApiError::Transport(transport) => transport_error_message(transport),
         ApiError::Api { status, .. } => format!("api error {}", status.as_u16()),
         ApiError::Stream(err) => err.to_string(),
         ApiError::ContextWindowExceeded => "context window exceeded".to_string(),
@@ -88,9 +88,9 @@ pub fn telemetry_api_error_message(error: &ApiError) -> String {
 #[cfg(test)]
 mod tests {
     use super::ResponseDebugContext;
+    use super::api_error_message;
     use super::extract_response_debug_context;
-    use super::telemetry_api_error_message;
-    use super::telemetry_transport_error_message;
+    use super::transport_error_message;
     use codex_api::ApiError;
     use codex_api::TransportError;
     use http::HeaderMap;
@@ -139,9 +139,9 @@ mod tests {
             body: Some(r#"{"error":{"message":"secret token leaked"}}"#.to_string()),
         };
 
-        assert_eq!(telemetry_transport_error_message(&transport), "http 401");
+        assert_eq!(transport_error_message(&transport), "http 401");
         assert_eq!(
-            telemetry_api_error_message(&ApiError::Transport(transport)),
+            api_error_message(&ApiError::Transport(transport)),
             "http 401"
         );
     }
@@ -152,14 +152,8 @@ mod tests {
         let build = TransportError::Build("invalid header value".to_string());
         let stream = ApiError::Stream("socket closed".to_string());
 
-        assert_eq!(
-            telemetry_transport_error_message(&network),
-            "dns lookup failed"
-        );
-        assert_eq!(
-            telemetry_transport_error_message(&build),
-            "invalid header value"
-        );
-        assert_eq!(telemetry_api_error_message(&stream), "socket closed");
+        assert_eq!(transport_error_message(&network), "dns lookup failed");
+        assert_eq!(transport_error_message(&build), "invalid header value");
+        assert_eq!(api_error_message(&stream), "socket closed");
     }
 }

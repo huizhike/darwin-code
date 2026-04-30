@@ -365,8 +365,7 @@ v2_enum_from_core!(
     pub enum McpAuthStatus from darwin_code_protocol::protocol::McpAuthStatus {
         Unsupported,
         NotLoggedIn,
-        BearerToken,
-        OAuth
+        BearerToken
     }
 );
 
@@ -2005,26 +2004,6 @@ pub struct McpServerRefreshParams {}
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct McpServerRefreshResponse {}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct McpServerOauthLoginParams {
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
-    pub scopes: Option<Vec<String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional = nullable)]
-    pub timeout_secs: Option<i64>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct McpServerOauthLoginResponse {
-    pub authorization_url: String,
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
@@ -5498,17 +5477,6 @@ pub struct McpToolCallProgressNotification {
     pub turn_id: String,
     pub item_id: String,
     pub message: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct McpServerOauthLoginCompletedNotification {
-    pub name: String,
-    pub success: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
-    pub error: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]

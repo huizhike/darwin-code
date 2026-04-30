@@ -381,8 +381,6 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
                 default_tools_approval_mode: None,
                 enabled_tools: None,
                 disabled_tools: None,
-                scopes: None,
-                oauth_resource: None,
                 tools: HashMap::new(),
             },
         );

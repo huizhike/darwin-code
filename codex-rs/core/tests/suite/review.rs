@@ -560,10 +560,10 @@ async fn review_input_isolated_from_parent_history() {
             content: vec![darwin_code_protocol::models::ContentItem::InputText {
                 text: "parent: earlier user message".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    };
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        };
         let user_json = serde_json::to_value(&user).unwrap();
         let user_line = serde_json::json!({
             "timestamp": "2024-01-01T00:00:01.000Z",
@@ -581,10 +581,10 @@ async fn review_input_isolated_from_parent_history() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: "parent: assistant reply".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    };
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        };
         let assistant_json = serde_json::to_value(&assistant).unwrap();
         let assistant_line = serde_json::json!({
             "timestamp": "2024-01-01T00:00:02.000Z",

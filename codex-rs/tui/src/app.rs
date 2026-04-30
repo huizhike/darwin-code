@@ -6702,7 +6702,6 @@ fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -> McpInvent
                 darwin_code_app_server_protocol::McpAuthStatus::BearerToken => {
                     McpAuthStatus::BearerToken
                 }
-                darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );
         resources.insert(server_name.clone(), status.resources);

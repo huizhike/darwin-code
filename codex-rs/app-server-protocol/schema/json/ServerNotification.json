@@ -1609,27 +1609,6 @@
       ],
       "type": "object"
     },
-    "McpServerOauthLoginCompletedNotification": {
-      "properties": {
-        "error": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "success": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "name",
-        "success"
-      ],
-      "type": "object"
-    },
     "McpServerStartupState": {
       "enum": [
         "starting",
@@ -4480,26 +4459,6 @@
         "params"
       ],
       "title": "Item/mcpToolCall/progressNotification",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "method": {
-          "enum": [
-            "mcpServer/oauthLogin/completed"
-          ],
-          "title": "McpServer/oauthLogin/completedNotificationMethod",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/definitions/McpServerOauthLoginCompletedNotification"
-        }
-      },
-      "required": [
-        "method",
-        "params"
-      ],
-      "title": "McpServer/oauthLogin/completedNotification",
       "type": "object"
     },
     {

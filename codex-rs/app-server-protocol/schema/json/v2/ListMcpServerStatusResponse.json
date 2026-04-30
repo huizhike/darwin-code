@@ -5,8 +5,7 @@
       "enum": [
         "unsupported",
         "notLoggedIn",
-        "bearerToken",
-        "oAuth"
+        "bearerToken"
       ],
       "type": "string"
     },

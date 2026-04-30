@@ -8,19 +8,15 @@ use crate::requests::headers::build_conversation_headers;
 use crate::requests::headers::insert_header;
 use crate::requests::headers::subagent_header;
 use crate::sse::spawn_chat_completions_stream;
-use crate::telemetry::SseTelemetry;
 use darwin_code_client::HttpTransport;
-use darwin_code_client::RequestTelemetry;
 use darwin_code_protocol::protocol::SessionSource;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
-use std::sync::Arc;
 use tracing::instrument;
 
 pub struct ChatCompletionsClient<T: HttpTransport> {
     session: EndpointSession<T>,
-    sse_telemetry: Option<Arc<dyn SseTelemetry>>,
 }
 
 #[derive(Default)]
@@ -34,18 +30,6 @@ impl<T: HttpTransport> ChatCompletionsClient<T> {
     pub fn new(transport: T, provider: Provider, auth: SharedAuthProvider) -> Self {
         Self {
             session: EndpointSession::new(transport, provider, auth),
-            sse_telemetry: None,
-        }
-    }
-
-    pub fn with_telemetry(
-        self,
-        request: Option<Arc<dyn RequestTelemetry>>,
-        sse: Option<Arc<dyn SseTelemetry>>,
-    ) -> Self {
-        Self {
-            session: self.session.with_request_telemetry(request),
-            sse_telemetry: sse,
         }
     }
 
@@ -124,7 +108,6 @@ impl<T: HttpTransport> ChatCompletionsClient<T> {
         Ok(spawn_chat_completions_stream(
             stream_response,
             self.session.provider().stream_idle_timeout,
-            self.sse_telemetry.clone(),
         ))
     }
 }

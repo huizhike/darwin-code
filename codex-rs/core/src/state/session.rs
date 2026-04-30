@@ -10,7 +10,6 @@ use crate::agent_identity::RegisteredAgentTask;
 use crate::context_manager::ContextManager;
 use crate::session::PreviousTurnSettings;
 use crate::session::session::SessionConfiguration;
-use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
 use darwin_code_protocol::protocol::RateLimitSnapshot;
 use darwin_code_protocol::protocol::TokenUsage;
 use darwin_code_protocol::protocol::TokenUsageInfo;
@@ -29,8 +28,6 @@ pub(crate) struct SessionState {
     /// model/realtime handling on subsequent regular turns (including full-context
     /// reinjection after resume or `/compact`).
     previous_turn_settings: Option<PreviousTurnSettings>,
-    /// Startup prewarmed session prepared during session initialization.
-    pub(crate) startup_prewarm: Option<SessionStartupPrewarmHandle>,
     pub(crate) agent_task: Option<RegisteredAgentTask>,
     pub(crate) active_connector_selection: HashSet<String>,
     pub(crate) pending_session_start_source: Option<darwin_code_hooks::SessionStartSource>,
@@ -50,7 +47,6 @@ impl SessionState {
             dependency_env: HashMap::new(),
             mcp_dependency_prompted: HashSet::new(),
             previous_turn_settings: None,
-            startup_prewarm: None,
             agent_task: None,
             active_connector_selection: HashSet::new(),
             pending_session_start_source: None,
@@ -176,17 +172,6 @@ impl SessionState {
 
     pub(crate) fn dependency_env(&self) -> HashMap<String, String> {
         self.dependency_env.clone()
-    }
-
-    pub(crate) fn set_session_startup_prewarm(
-        &mut self,
-        startup_prewarm: SessionStartupPrewarmHandle,
-    ) {
-        self.startup_prewarm = Some(startup_prewarm);
-    }
-
-    pub(crate) fn take_session_startup_prewarm(&mut self) -> Option<SessionStartupPrewarmHandle> {
-        self.startup_prewarm.take()
     }
 
     pub(crate) fn agent_task(&self) -> Option<RegisteredAgentTask> {

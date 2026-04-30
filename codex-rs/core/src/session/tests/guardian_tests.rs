@@ -256,20 +256,20 @@ async fn process_compacted_history_preserves_separate_guardian_developer_message
                 content: vec![ContentItem::InputText {
                     text: "stale developer message".to_string(),
                 }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                end_turn: None,
+                phase: None,
+                reasoning_content: None,
+            },
             ResponseItem::Message {
                 id: None,
                 role: "user".to_string(),
                 content: vec![ContentItem::InputText {
                     text: "summary".to_string(),
                 }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                end_turn: None,
+                phase: None,
+                reasoning_content: None,
+            },
         ],
         InitialContextInjection::BeforeLastUserMessage,
     )

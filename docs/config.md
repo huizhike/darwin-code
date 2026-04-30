@@ -99,8 +99,8 @@ runtime-gap error instead of silently falling back to OpenAI. Until those native
 use an OpenAI-compatible gateway via `[openai_compatible.<id>]`.
 
 Advanced users may still define custom providers under `[model_providers.<id>]`, but that
-inherited compatibility surface is constrained by the BYOK boundary: use direct `api_key`; do not
-configure `experimental_bearer_token`, `[auth]`, `requires_openai_auth`, or `supports_websockets`.
+inherited compatibility surface is constrained by the BYOK boundary: use direct `api_key` or
+`api_key_env`; do not configure hosted-account authentication.
 
 ## Product configuration boundary
 

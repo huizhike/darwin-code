@@ -1,15 +1,7 @@
 pub(crate) mod auth;
 mod skill_dependencies;
 pub use auth::McpAuthStatusEntry;
-pub use auth::McpOAuthLoginConfig;
-pub use auth::McpOAuthLoginSupport;
-pub use auth::McpOAuthScopesSource;
-pub use auth::ResolvedMcpOAuthScopes;
 pub use auth::compute_auth_statuses;
-pub use auth::discover_supported_scopes;
-pub use auth::oauth_login_support;
-pub use auth::resolve_oauth_scopes;
-pub use auth::should_retry_without_scopes;
 pub use skill_dependencies::canonical_mcp_server_key;
 pub use skill_dependencies::collect_missing_mcp_dependencies;
 
@@ -20,7 +12,6 @@ use async_channel::unbounded;
 use codex_plugin::PluginCapabilitySummary;
 use darwin_code_config::Constrained;
 use darwin_code_config::McpServerConfig;
-use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_protocol::mcp::Resource;
 use darwin_code_protocol::mcp::ResourceTemplate;
 use darwin_code_protocol::mcp::Tool;
@@ -94,21 +85,15 @@ pub fn mcp_permission_prompt_is_auto_approved(
 ///
 /// This struct should contain only long-lived configuration values that the
 /// `codex-mcp` crate needs to construct server transports, enforce MCP
-/// approval/sandbox policy, locate OAuth state, and merge plugin-provided MCP
-/// servers. Request-scoped or auth-scoped state should not be stored here;
+/// approval/sandbox policy, and merge plugin-provided MCP servers.
+/// Request-scoped auth state should not be stored here;
 /// thread those values explicitly into runtime entry points such as
 /// [`with_codex_apps_mcp`] and [`collect_mcp_snapshot`] so config objects do
 /// not go stale when auth changes.
 #[derive(Debug, Clone)]
 pub struct McpConfig {
-    /// Codex home directory used for MCP OAuth state and app-tool cache files.
+    /// Codex home directory used for app-tool cache files.
     pub codex_home: PathBuf,
-    /// Preferred credential store for MCP OAuth tokens.
-    pub mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
-    /// Optional fixed localhost callback port for MCP OAuth login.
-    pub mcp_oauth_callback_port: Option<u16>,
-    /// Optional OAuth redirect URI override for MCP login.
-    pub mcp_oauth_callback_url: Option<String>,
     /// Whether skill MCP dependency installation prompts are enabled.
     pub skill_mcp_dependency_install_enabled: bool,
     /// Approval policy used for MCP tool calls and MCP elicitation requests.
@@ -228,15 +213,13 @@ pub async fn collect_mcp_snapshot_with_detail(
         };
     }
 
-    let auth_status_entries =
-        compute_auth_statuses(mcp_servers.iter(), config.mcp_oauth_credentials_store_mode).await;
+    let auth_status_entries = compute_auth_statuses(mcp_servers.iter()).await;
 
     let (tx_event, rx_event) = unbounded();
     drop(rx_event);
 
     let (mcp_connection_manager, cancel_token) = McpConnectionManager::new(
         &mcp_servers,
-        config.mcp_oauth_credentials_store_mode,
         auth_status_entries.clone(),
         &config.approval_policy,
         submit_id,
@@ -291,15 +274,13 @@ pub async fn collect_mcp_server_status_snapshot_with_detail(
         };
     }
 
-    let auth_status_entries =
-        compute_auth_statuses(mcp_servers.iter(), config.mcp_oauth_credentials_store_mode).await;
+    let auth_status_entries = compute_auth_statuses(mcp_servers.iter()).await;
 
     let (tx_event, rx_event) = unbounded();
     drop(rx_event);
 
     let (mcp_connection_manager, cancel_token) = McpConnectionManager::new(
         &mcp_servers,
-        config.mcp_oauth_credentials_store_mode,
         auth_status_entries.clone(),
         &config.approval_policy,
         submit_id,

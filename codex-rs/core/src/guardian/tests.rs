@@ -104,10 +104,10 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                         text: "Please check the repo visibility and push the docs fix if needed."
                             .to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::FunctionCall {
                     id: None,
                     name: "gh_repo_view".to_string(),
@@ -128,10 +128,10 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                         text: "The repo is public; I now need approval to push the docs fix."
                             .to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             turn.as_ref(),
         )
@@ -275,20 +275,20 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
                     content: vec![ContentItem::InputText {
                         text: "Please also push the second docs fix.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the second push.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             turn.as_ref(),
         )
@@ -410,20 +410,20 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
                     content: vec![ContentItem::InputText {
                         text: "Compacted retained user request.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "Compacted summary of earlier guardian context.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             /*reference_context_item*/ None,
         )
@@ -437,20 +437,20 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
                     content: vec![ContentItem::InputText {
                         text: "Please push after the compaction.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the post-compaction push.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             turn.as_ref(),
         )
@@ -497,20 +497,20 @@ fn collect_guardian_transcript_entries_skips_contextual_user_messages() {
             content: vec![ContentItem::InputText {
                 text: "<environment_context>\n<cwd>/tmp</cwd>\n</environment_context>".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
             content: vec![ContentItem::OutputText {
                 text: "hello".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
 
     let entries = collect_guardian_transcript_entries(&items);
@@ -534,10 +534,10 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
             content: vec![ContentItem::InputText {
                 text: "check the repo".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::FunctionCall {
             id: None,
             name: "read_file".to_string(),
@@ -557,10 +557,10 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
             content: vec![ContentItem::OutputText {
                 text: "I need to push a fix".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
 
     let entries = collect_guardian_transcript_entries(&items);
@@ -1034,20 +1034,20 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
                     content: vec![ContentItem::InputText {
                         text: "Please push the second docs fix too.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the second docs fix.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             turn.as_ref(),
         )
@@ -1082,20 +1082,20 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
                     content: vec![ContentItem::InputText {
                         text: "Please push the third docs fix too.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the third docs fix.".to_string(),
                     }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                    end_turn: None,
+                    phase: None,
+                    reasoning_content: None,
+                },
             ],
             turn.as_ref(),
         )

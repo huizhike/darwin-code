@@ -105,14 +105,6 @@ pub struct McpServerConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub disabled_tools: Option<Vec<String>>,
 
-    /// Optional OAuth scopes to request during MCP login.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub scopes: Option<Vec<String>>,
-
-    /// Optional OAuth resource parameter to include during MCP login (RFC 8707).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub oauth_resource: Option<String>,
-
     /// Per-tool approval settings keyed by tool name.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub tools: HashMap<String, McpServerToolConfig>,
@@ -167,10 +159,6 @@ pub struct RawMcpServerConfig {
     pub enabled_tools: Option<Vec<String>>,
     #[serde(default)]
     pub disabled_tools: Option<Vec<String>>,
-    #[serde(default)]
-    pub scopes: Option<Vec<String>>,
-    #[serde(default)]
-    pub oauth_resource: Option<String>,
     /// Legacy display-name field accepted for backward compatibility.
     #[serde(default, rename = "name")]
     pub _name: Option<String>,
@@ -203,8 +191,6 @@ impl TryFrom<RawMcpServerConfig> for McpServerConfig {
             default_tools_approval_mode,
             enabled_tools,
             disabled_tools,
-            scopes,
-            oauth_resource,
             _name: _,
             tools,
         } = raw;
@@ -234,7 +220,6 @@ impl TryFrom<RawMcpServerConfig> for McpServerConfig {
             throw_if_set("stdio", "bearer_token", bearer_token.as_ref())?;
             throw_if_set("stdio", "http_headers", http_headers.as_ref())?;
             throw_if_set("stdio", "env_http_headers", env_http_headers.as_ref())?;
-            throw_if_set("stdio", "oauth_resource", oauth_resource.as_ref())?;
             McpServerTransportConfig::Stdio {
                 command,
                 args: args.unwrap_or_default(),
@@ -270,8 +255,6 @@ impl TryFrom<RawMcpServerConfig> for McpServerConfig {
             default_tools_approval_mode,
             enabled_tools,
             disabled_tools,
-            scopes,
-            oauth_resource,
             tools: tools.unwrap_or_default(),
         })
     }

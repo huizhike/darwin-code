@@ -178,7 +178,6 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         mcp_servers: HashMap<String, McpServerConfig>,
-        store_mode: OAuthCredentialsStoreMode,
     ) {
         let config = self.get_config().await;
         let mcp_config = config
@@ -190,7 +189,7 @@ impl Session {
             .tool_plugin_provenance(config.as_ref())
             .await;
         let mcp_servers = with_darwin_code_apps_mcp(mcp_servers, &mcp_config);
-        let auth_statuses = compute_auth_statuses(mcp_servers.iter(), store_mode).await;
+        let auth_statuses = compute_auth_statuses(mcp_servers.iter()).await;
         {
             let mut guard = self.services.mcp_startup_cancellation_token.lock().await;
             guard.cancel();
@@ -198,7 +197,6 @@ impl Session {
         }
         let (refreshed_manager, cancel_token) = McpConnectionManager::new(
             &mcp_servers,
-            store_mode,
             auth_statuses,
             &turn_context.config.permissions.approval_policy,
             turn_context.sub_id.clone(),
@@ -227,10 +225,7 @@ impl Session {
             return;
         };
 
-        let McpServerRefreshConfig {
-            mcp_servers,
-            mcp_oauth_credentials_store_mode,
-        } = refresh_config;
+        let McpServerRefreshConfig { mcp_servers } = refresh_config;
 
         let mcp_servers =
             match serde_json::from_value::<HashMap<String, McpServerConfig>>(mcp_servers) {
@@ -240,17 +235,7 @@ impl Session {
                     return;
                 }
             };
-        let store_mode = match serde_json::from_value::<OAuthCredentialsStoreMode>(
-            mcp_oauth_credentials_store_mode,
-        ) {
-            Ok(mode) => mode,
-            Err(err) => {
-                warn!("failed to parse MCP OAuth refresh config: {err}");
-                return;
-            }
-        };
-
-        self.refresh_mcp_servers_inner(turn_context, mcp_servers, store_mode)
+        self.refresh_mcp_servers_inner(turn_context, mcp_servers)
             .await;
     }
 
@@ -258,9 +243,8 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         mcp_servers: HashMap<String, McpServerConfig>,
-        store_mode: OAuthCredentialsStoreMode,
     ) {
-        self.refresh_mcp_servers_inner(turn_context, mcp_servers, store_mode)
+        self.refresh_mcp_servers_inner(turn_context, mcp_servers)
             .await;
     }
 

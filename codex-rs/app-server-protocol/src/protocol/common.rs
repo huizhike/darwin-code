@@ -455,11 +455,6 @@ client_request_definitions! {
         response: v2::MockExperimentalMethodResponse,
     },
 
-    McpServerOauthLogin => "mcpServer/oauth/login" {
-        params: v2::McpServerOauthLoginParams,
-        response: v2::McpServerOauthLoginResponse,
-    },
-
     McpServerRefresh => "config/mcpServer/reload" {
         params: #[ts(type = "undefined")] #[serde(skip_serializing_if = "Option::is_none")] Option<()>,
         response: v2::McpServerRefreshResponse,
@@ -957,7 +952,6 @@ server_notification_definitions! {
     FileChangeOutputDelta => "item/fileChange/outputDelta" (v2::FileChangeOutputDeltaNotification),
     ServerRequestResolved => "serverRequest/resolved" (v2::ServerRequestResolvedNotification),
     McpToolCallProgress => "item/mcpToolCall/progress" (v2::McpToolCallProgressNotification),
-    McpServerOauthLoginCompleted => "mcpServer/oauthLogin/completed" (v2::McpServerOauthLoginCompletedNotification),
     McpServerStatusUpdated => "mcpServer/startupStatus/updated" (v2::McpServerStatusUpdatedNotification),
     AppListUpdated => "app/list/updated" (v2::AppListUpdatedNotification),
     ExternalAgentConfigImportCompleted => "externalAgentConfig/import/completed" (v2::ExternalAgentConfigImportCompletedNotification),

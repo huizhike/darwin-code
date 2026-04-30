@@ -1947,19 +1947,7 @@ impl ChatWidget {
     }
 
     fn apply_runtime_metrics_delta(&mut self, delta: RuntimeMetricsSummary) {
-        let should_log_timing = has_websocket_timing_metrics(delta);
         self.turn_runtime_metrics.merge(delta);
-        if should_log_timing {
-            self.log_websocket_timing_totals(delta);
-        }
-    }
-
-    fn log_websocket_timing_totals(&mut self, delta: RuntimeMetricsSummary) {
-        if let Some(label) = history_cell::runtime_metrics_label(delta.responses_api_summary()) {
-            self.add_plain_history_lines(vec![
-                vec!["• ".dim(), format!("WebSocket timing: {label}").dark_gray()].into(),
-            ]);
-        }
     }
 
     fn refresh_runtime_metrics(&mut self) {
@@ -6317,7 +6305,6 @@ impl ChatWidget {
             | ServerNotification::RawResponseItemCompleted(_)
             | ServerNotification::CommandExecOutputDelta(_)
             | ServerNotification::McpToolCallProgress(_)
-            | ServerNotification::McpServerOauthLoginCompleted(_)
             | ServerNotification::AppListUpdated(_)
             | ServerNotification::ExternalAgentConfigImportCompleted(_)
             | ServerNotification::FsChanged(_)
@@ -7431,7 +7418,7 @@ impl ChatWidget {
 
     #[cfg_attr(not(test), allow(dead_code))]
     fn should_prefetch_rate_limits(&self) -> bool {
-        self.config.model_provider.requires_openai_auth && self.has_account_backed_features
+        false
     }
 
     fn lower_cost_preset(&self) -> Option<ModelPreset> {
@@ -10796,15 +10783,6 @@ impl ChatWidget {
         // Ensure the UI redraws to reflect placeholder removal.
         self.request_redraw();
     }
-}
-
-fn has_websocket_timing_metrics(summary: RuntimeMetricsSummary) -> bool {
-    summary.responses_api_overhead_ms > 0
-        || summary.responses_api_inference_time_ms > 0
-        || summary.responses_api_engine_iapi_ttft_ms > 0
-        || summary.responses_api_engine_service_ttft_ms > 0
-        || summary.responses_api_engine_iapi_tbt_ms > 0
-        || summary.responses_api_engine_service_tbt_ms > 0
 }
 
 impl Drop for ChatWidget {

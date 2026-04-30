@@ -14,7 +14,6 @@ use crate::types::History;
 use crate::types::MarketplaceConfig;
 use crate::types::McpServerConfig;
 use crate::types::MemoriesToml;
-use crate::types::OAuthCredentialsStoreMode;
 use crate::types::PluginConfig;
 use crate::types::SandboxWorkspaceWrite;
 use crate::types::ShellEnvironmentPolicyToml;
@@ -451,24 +450,6 @@ pub struct ConfigToml {
     // Uses the raw MCP input shape (custom deserialization) rather than `McpServerConfig`.
     #[schemars(schema_with = "crate::schema::mcp_servers_schema")]
     pub mcp_servers: HashMap<String, McpServerConfig>,
-
-    /// Preferred backend for storing MCP OAuth credentials.
-    /// keyring: Use an OS-specific keyring service.
-    ///          https://github.com/openai/codex/blob/main/codex-rs/rmcp-client/src/oauth.rs#L2
-    /// file: Use a file in the Codex home directory.
-    /// auto (default): Use the OS-specific keyring service if available, otherwise use a file.
-    #[serde(default)]
-    pub mcp_oauth_credentials_store: Option<OAuthCredentialsStoreMode>,
-
-    /// Optional fixed port for the local HTTP callback server used during MCP OAuth login.
-    /// When unset, Codex will bind to an ephemeral port chosen by the OS.
-    pub mcp_oauth_callback_port: Option<u16>,
-
-    /// Optional redirect URI to use during MCP OAuth login.
-    /// When set, this URI is used in the OAuth authorization request instead
-    /// of the local listener address. The local callback listener still binds
-    /// to 127.0.0.1 (using `mcp_oauth_callback_port` when provided).
-    pub mcp_oauth_callback_url: Option<String>,
 
     /// Maximum number of bytes to include from an AGENTS.md project doc file.
     pub project_doc_max_bytes: Option<usize>,
@@ -1032,9 +1013,4 @@ pub fn validate_model_providers(
             .map_err(|message| format!("model_providers.{key}: {message}"))?;
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

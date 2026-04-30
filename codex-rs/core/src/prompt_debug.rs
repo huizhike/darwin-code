@@ -124,10 +124,10 @@ mod tests {
             content: vec![ContentItem::InputText {
                 text: "hello from debug prompt".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    };
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        };
         assert_eq!(input.last(), Some(&expected_user_message));
         assert!(input.iter().any(|item| {
             let ResponseItem::Message { content, .. } = item else {

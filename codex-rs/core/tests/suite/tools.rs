@@ -171,8 +171,6 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
                     default_tools_approval_mode: None,
                     enabled_tools: None,
                     disabled_tools: None,
-                    scopes: None,
-                    oauth_resource: None,
                     tools: HashMap::new(),
                 },
             );

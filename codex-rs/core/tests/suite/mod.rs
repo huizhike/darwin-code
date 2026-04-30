@@ -3,7 +3,6 @@
 
 mod abort_tasks;
 mod agent_jobs;
-mod agent_websocket;
 mod agents_md;
 mod apply_patch_cli;
 mod approvals;
@@ -73,5 +72,4 @@ mod user_notification;
 mod user_shell_cmd;
 mod view_image;
 mod web_search;
-mod websocket_fallback;
 mod window_headers;

@@ -1,26 +1,6 @@
 pub const TOOL_CALL_COUNT_METRIC: &str = "darwin_code.tool.call";
 pub const TOOL_CALL_DURATION_METRIC: &str = "darwin_code.tool.call.duration_ms";
 pub const TOOL_CALL_UNIFIED_EXEC_METRIC: &str = "darwin_code.tool.unified_exec";
-pub const API_CALL_COUNT_METRIC: &str = "darwin_code.api_request";
-pub const API_CALL_DURATION_METRIC: &str = "darwin_code.api_request.duration_ms";
-pub const SSE_EVENT_COUNT_METRIC: &str = "darwin_code.sse_event";
-pub const SSE_EVENT_DURATION_METRIC: &str = "darwin_code.sse_event.duration_ms";
-pub const WEBSOCKET_REQUEST_COUNT_METRIC: &str = "darwin_code.websocket.request";
-pub const WEBSOCKET_REQUEST_DURATION_METRIC: &str = "darwin_code.websocket.request.duration_ms";
-pub const WEBSOCKET_EVENT_COUNT_METRIC: &str = "darwin_code.websocket.event";
-pub const WEBSOCKET_EVENT_DURATION_METRIC: &str = "darwin_code.websocket.event.duration_ms";
-pub const RESPONSES_API_OVERHEAD_DURATION_METRIC: &str =
-    "darwin_code.responses_api_overhead.duration_ms";
-pub const RESPONSES_API_INFERENCE_TIME_DURATION_METRIC: &str =
-    "darwin_code.responses_api_inference_time.duration_ms";
-pub const RESPONSES_API_ENGINE_IAPI_TTFT_DURATION_METRIC: &str =
-    "darwin_code.responses_api_engine_iapi_ttft.duration_ms";
-pub const RESPONSES_API_ENGINE_SERVICE_TTFT_DURATION_METRIC: &str =
-    "darwin_code.responses_api_engine_service_ttft.duration_ms";
-pub const RESPONSES_API_ENGINE_IAPI_TBT_DURATION_METRIC: &str =
-    "darwin_code.responses_api_engine_iapi_tbt.duration_ms";
-pub const RESPONSES_API_ENGINE_SERVICE_TBT_DURATION_METRIC: &str =
-    "darwin_code.responses_api_engine_service_tbt.duration_ms";
 pub const TURN_E2E_DURATION_METRIC: &str = "darwin_code.turn.e2e_duration_ms";
 pub const TURN_TTFT_DURATION_METRIC: &str = "darwin_code.turn.ttft.duration_ms";
 pub const TURN_TTFM_DURATION_METRIC: &str = "darwin_code.turn.ttfm.duration_ms";

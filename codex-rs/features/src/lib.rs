@@ -193,10 +193,6 @@ pub enum Feature {
     TuiAppServer,
     /// Prevent idle system sleep while a turn is actively running.
     PreventIdleSleep,
-    /// Legacy rollout flag for Responses API WebSocket transport experiments.
-    ResponsesWebsockets,
-    /// Legacy rollout flag for Responses API WebSocket transport v2 experiments.
-    ResponsesWebsocketsV2,
     /// Removed agent identity registration compatibility flag retained as a no-op.
     UseAgentIdentity,
     /// Enable workspace dependency support.
@@ -961,18 +957,6 @@ pub const FEATURES: &[FeatureSpec] = &[
         } else {
             Stage::UnderDevelopment
         },
-        default_enabled: false,
-    },
-    FeatureSpec {
-        id: Feature::ResponsesWebsockets,
-        key: "responses_websockets",
-        stage: Stage::Removed,
-        default_enabled: false,
-    },
-    FeatureSpec {
-        id: Feature::ResponsesWebsocketsV2,
-        key: "responses_websockets_v2",
-        stage: Stage::Removed,
         default_enabled: false,
     },
     FeatureSpec {

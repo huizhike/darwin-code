@@ -644,8 +644,6 @@ async fn js_repl_can_invoke_mcp_tools_by_display_name() -> Result<()> {
                 default_tools_approval_mode: None,
                 enabled_tools: None,
                 disabled_tools: None,
-                scopes: None,
-                oauth_resource: None,
                 tools: HashMap::new(),
             },
         );

@@ -262,16 +262,6 @@ mod document_helpers {
         {
             entry["disabled_tools"] = array_from_iter(disabled_tools.iter().cloned());
         }
-        if let Some(scopes) = &config.scopes
-            && !scopes.is_empty()
-        {
-            entry["scopes"] = array_from_iter(scopes.iter().cloned());
-        }
-        if let Some(resource) = &config.oauth_resource
-            && !resource.is_empty()
-        {
-            entry["oauth_resource"] = value(resource.clone());
-        }
         if !config.tools.is_empty() {
             let mut tools = new_implicit_table();
             let mut tool_entries: Vec<_> = config.tools.iter().collect();

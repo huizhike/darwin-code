@@ -326,11 +326,7 @@ impl Session {
         let mcp_manager_for_mcp = Arc::clone(&mcp_manager);
         let mcp_fut = async move {
             let mcp_servers = mcp_manager_for_mcp.effective_servers(&config_for_mcp).await;
-            let auth_statuses = compute_auth_statuses(
-                mcp_servers.iter(),
-                config_for_mcp.mcp_oauth_credentials_store_mode,
-            )
-            .await;
+            let auth_statuses = compute_auth_statuses(mcp_servers.iter()).await;
             (mcp_servers, auth_statuses)
         }
         .instrument(info_span!(
@@ -666,7 +662,6 @@ impl Session {
         }
         let (mcp_connection_manager, cancel_token) = McpConnectionManager::new(
             &mcp_servers,
-            config.mcp_oauth_credentials_store_mode,
             auth_statuses.clone(),
             &session_configuration.approval_policy,
             INITIAL_SUBMIT_ID.to_owned(),
@@ -718,8 +713,6 @@ impl Session {
                 ));
             }
         }
-        sess.schedule_startup_prewarm(session_configuration.base_instructions.clone())
-            .await;
         let session_start_source = match &initial_history {
             InitialHistory::Resumed(_) => darwin_code_hooks::SessionStartSource::Resume,
             InitialHistory::New | InitialHistory::Forked(_) => {

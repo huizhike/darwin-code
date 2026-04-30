@@ -1178,33 +1178,6 @@
       ],
       "type": "object"
     },
-    "McpServerOauthLoginParams": {
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "scopes": {
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "timeoutSecs": {
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "name"
-      ],
-      "type": "object"
-    },
     "McpServerStatusDetail": {
       "enum": [
         "full",
@@ -1642,6 +1615,12 @@
                 {
                   "type": "null"
                 }
+              ]
+            },
+            "reasoning_content": {
+              "type": [
+                "string",
+                "null"
               ]
             },
             "role": {
@@ -4632,30 +4611,6 @@
         "params"
       ],
       "title": "ExperimentalFeature/enablement/setRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "mcpServer/oauth/login"
-          ],
-          "title": "McpServer/oauth/loginRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/definitions/McpServerOauthLoginParams"
-        }
-      },
-      "required": [
-        "id",
-        "method",
-        "params"
-      ],
-      "title": "McpServer/oauth/loginRequest",
       "type": "object"
     },
     {

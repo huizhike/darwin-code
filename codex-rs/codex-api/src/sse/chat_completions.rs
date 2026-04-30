@@ -2,7 +2,6 @@ use crate::common::ResponseEvent;
 use crate::common::ResponseStream;
 use crate::error::ApiError;
 use crate::rate_limits::parse_all_rate_limits;
-use crate::telemetry::SseTelemetry;
 use darwin_code_client::ByteStream;
 use darwin_code_client::StreamResponse;
 use darwin_code_protocol::models::ContentItem;
@@ -12,10 +11,8 @@ use eventsource_stream::Eventsource;
 use futures::StreamExt;
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::Instant;
 use tokio::time::timeout;
 use tracing::debug;
 use tracing::trace;
@@ -23,7 +20,6 @@ use tracing::trace;
 pub fn spawn_chat_completions_stream(
     stream_response: StreamResponse,
     idle_timeout: Duration,
-    telemetry: Option<Arc<dyn SseTelemetry>>,
 ) -> ResponseStream {
     let rate_limit_snapshots = parse_all_rate_limits(&stream_response.headers);
     let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent, ApiError>>(1600);
@@ -31,7 +27,7 @@ pub fn spawn_chat_completions_stream(
         for snapshot in rate_limit_snapshots {
             let _ = tx_event.send(Ok(ResponseEvent::RateLimits(snapshot))).await;
         }
-        process_sse(stream_response.bytes, tx_event, idle_timeout, telemetry).await;
+        process_sse(stream_response.bytes, tx_event, idle_timeout).await;
     });
 
     ResponseStream { rx_event }
@@ -245,17 +241,12 @@ pub async fn process_sse(
     stream: ByteStream,
     tx_event: mpsc::Sender<Result<ResponseEvent, ApiError>>,
     idle_timeout: Duration,
-    telemetry: Option<Arc<dyn SseTelemetry>>,
 ) {
     let mut stream = stream.eventsource();
     let mut state = ChatStreamState::default();
 
     loop {
-        let start = Instant::now();
         let response = timeout(idle_timeout, stream.next()).await;
-        if let Some(t) = telemetry.as_ref() {
-            t.on_sse_poll(&response, start.elapsed());
-        }
         let sse = match response {
             Ok(Some(Ok(sse))) => sse,
             Ok(Some(Err(e))) => {
@@ -339,7 +330,6 @@ pub async fn process_sse(
                     return;
                 }
             }
-
         }
 
         state.absorb_chunk(chunk);
@@ -361,7 +351,7 @@ mod tests {
             .collect::<Vec<Result<Bytes, TransportError>>>();
         let stream = Box::pin(stream::iter(byte_chunks));
         let (tx_event, mut rx_event) = mpsc::channel::<Result<ResponseEvent, ApiError>>(16);
-        tokio::spawn(process_sse(stream, tx_event, Duration::from_secs(5), None));
+        tokio::spawn(process_sse(stream, tx_event, Duration::from_secs(5)));
         let mut events = Vec::new();
         while let Some(event) = rx_event.recv().await {
             events.push(event);

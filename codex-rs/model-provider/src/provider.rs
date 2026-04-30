@@ -74,7 +74,6 @@ mod tests {
                     .try_into()
                     .expect("current dir should be absolute"),
             }),
-            requires_openai_auth: false,
             ..ModelProviderInfo::create_openai_compatible_provider(
                 "Test BYOK".to_string(),
                 "https://api.openai.com/v1".to_string(),

@@ -139,7 +139,6 @@ pub struct W3cTraceContext {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct McpServerRefreshConfig {
     pub mcp_servers: Value,
-    pub mcp_oauth_credentials_store_mode: Value,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
@@ -3360,7 +3359,6 @@ pub enum McpAuthStatus {
     Unsupported,
     NotLoggedIn,
     BearerToken,
-    OAuth,
 }
 
 impl fmt::Display for McpAuthStatus {
@@ -3369,7 +3367,6 @@ impl fmt::Display for McpAuthStatus {
             McpAuthStatus::Unsupported => "Unsupported",
             McpAuthStatus::NotLoggedIn => "Not logged in",
             McpAuthStatus::BearerToken => "Bearer token",
-            McpAuthStatus::OAuth => "OAuth",
         };
         f.write_str(text)
     }

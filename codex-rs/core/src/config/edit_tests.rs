@@ -449,357 +449,6 @@ hide_full_access_warning = true
 }
 
 #[test]
-fn blocking_set_hide_rate_limit_model_nudge_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::SetNoticeHideRateLimitModelNudge(true)],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-hide_rate_limit_model_nudge = true
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_hide_gpt5_1_migration_prompt_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::SetNoticeHideModelMigrationPrompt(
-            "hide_gpt5_1_migration_prompt".to_string(),
-            true,
-        )],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-hide_gpt5_1_migration_prompt = true
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_hide_gpt_5_1_darwin_code_max_migration_prompt_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::SetNoticeHideModelMigrationPrompt(
-            "hide_gpt-5.1-darwin-code-max_migration_prompt".to_string(),
-            true,
-        )],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-"hide_gpt-5.1-darwin-code-max_migration_prompt" = true
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_record_model_migration_seen_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::RecordModelMigrationSeen {
-            from: "gpt-5".to_string(),
-            to: "gpt-5.1".to_string(),
-        }],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-
-[notice.model_migrations]
-gpt-5 = "gpt-5.1"
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_hide_external_config_migration_prompt_home_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::SetNoticeHideExternalConfigMigrationPromptHome(
-            true,
-        )],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-
-[notice.external_config_migration_prompts]
-home = true
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_hide_external_config_migration_prompt_project_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[
-            ConfigEdit::SetNoticeHideExternalConfigMigrationPromptProject(
-                "/Users/alexsong/code/skills".to_string(),
-                true,
-            ),
-        ],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-
-[notice.external_config_migration_prompts.projects]
-"/Users/alexsong/code/skills" = true
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_external_config_migration_prompt_home_last_prompted_at_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::SetNoticeExternalConfigMigrationPromptHomeLastPromptedAt(1_760_000_000)],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-
-[notice.external_config_migration_prompts]
-home_last_prompted_at = 1760000000
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_set_external_config_migration_prompt_project_last_prompted_at_preserves_table() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-    std::fs::write(
-        darwin_code_home.join(CONFIG_TOML_FILE),
-        r#"[notice]
-existing = "value"
-"#,
-    )
-    .expect("seed");
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[
-            ConfigEdit::SetNoticeExternalConfigMigrationPromptProjectLastPromptedAt(
-                "/Users/alexsong/code/skills".to_string(),
-                1_760_000_000,
-            ),
-        ],
-    )
-    .expect("persist");
-
-    let contents =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"[notice]
-existing = "value"
-
-[notice.external_config_migration_prompts.project_last_prompted_at]
-"/Users/alexsong/code/skills" = 1760000000
-"#;
-    assert_eq!(contents, expected);
-}
-
-#[test]
-fn blocking_replace_mcp_servers_round_trips() {
-    let tmp = tempdir().expect("tmpdir");
-    let darwin_code_home = tmp.path();
-
-    let mut servers = BTreeMap::new();
-    servers.insert(
-        "stdio".to_string(),
-        McpServerConfig {
-            transport: McpServerTransportConfig::Stdio {
-                command: "cmd".to_string(),
-                args: vec!["--flag".to_string()],
-                env: Some(
-                    [
-                        ("B".to_string(), "2".to_string()),
-                        ("A".to_string(), "1".to_string()),
-                    ]
-                    .into_iter()
-                    .collect(),
-                ),
-                env_vars: vec!["FOO".to_string()],
-                cwd: None,
-            },
-            experimental_environment: None,
-            enabled: true,
-            required: false,
-            supports_parallel_tool_calls: true,
-            disabled_reason: None,
-            startup_timeout_sec: None,
-            tool_timeout_sec: None,
-            default_tools_approval_mode: None,
-            enabled_tools: Some(vec!["one".to_string(), "two".to_string()]),
-            disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
-            tools: HashMap::new(),
-        },
-    );
-
-    servers.insert(
-        "http".to_string(),
-        McpServerConfig {
-            transport: McpServerTransportConfig::StreamableHttp {
-                url: "https://example.com".to_string(),
-                bearer_token_env_var: Some("TOKEN".to_string()),
-                http_headers: Some(
-                    [("Z-Header".to_string(), "z".to_string())]
-                        .into_iter()
-                        .collect(),
-                ),
-                env_http_headers: None,
-            },
-            experimental_environment: None,
-            enabled: false,
-            required: false,
-            supports_parallel_tool_calls: false,
-            disabled_reason: None,
-            startup_timeout_sec: Some(std::time::Duration::from_secs(5)),
-            tool_timeout_sec: None,
-            default_tools_approval_mode: None,
-            enabled_tools: None,
-            disabled_tools: Some(vec!["forbidden".to_string()]),
-            scopes: None,
-            oauth_resource: Some("https://resource.example.com".to_string()),
-            tools: HashMap::new(),
-        },
-    );
-
-    apply_blocking(
-        darwin_code_home,
-        /*profile*/ None,
-        &[ConfigEdit::ReplaceMcpServers(servers.clone())],
-    )
-    .expect("persist");
-
-    let raw =
-        std::fs::read_to_string(darwin_code_home.join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = "\
-[mcp_servers.http]
-url = \"https://example.com\"
-bearer_token_env_var = \"TOKEN\"
-enabled = false
-startup_timeout_sec = 5.0
-disabled_tools = [\"forbidden\"]
-oauth_resource = \"https://resource.example.com\"
-
-[mcp_servers.http.http_headers]
-Z-Header = \"z\"
-
-[mcp_servers.stdio]
-command = \"cmd\"
-args = [\"--flag\"]
-env_vars = [\"FOO\"]
-supports_parallel_tool_calls = true
-enabled_tools = [\"one\", \"two\"]
-
-[mcp_servers.stdio.env]
-A = \"1\"
-B = \"2\"
-";
-    assert_eq!(raw, expected);
-}
-
-#[test]
 fn blocking_replace_mcp_servers_serializes_tool_approval_overrides() {
     let tmp = tempdir().expect("tmpdir");
     let darwin_code_home = tmp.path();
@@ -825,8 +474,6 @@ fn blocking_replace_mcp_servers_serializes_tool_approval_overrides() {
             default_tools_approval_mode: Some(AppToolApproval::Prompt),
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::from([(
                 "search".to_string(),
                 McpServerToolConfig {
@@ -890,8 +537,6 @@ foo = { command = "cmd" }
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
     );
@@ -945,8 +590,6 @@ foo = { command = "cmd" } # keep me
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
     );
@@ -999,8 +642,6 @@ foo = { command = "cmd", args = ["--flag"] } # keep me
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
     );
@@ -1054,8 +695,6 @@ foo = { command = "cmd" }
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
     );

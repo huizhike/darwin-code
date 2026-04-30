@@ -2353,10 +2353,10 @@ async fn resume_agent_restores_closed_agent_and_accepts_send_input() {
                 content: vec![ContentItem::InputText {
                     text: "materialized".to_string(),
                 }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    })]),
+                end_turn: None,
+                phase: None,
+                reasoning_content: None,
+            })]),
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )

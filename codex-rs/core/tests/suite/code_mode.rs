@@ -250,8 +250,6 @@ async fn run_code_mode_turn_with_rmcp_config(
                     default_tools_approval_mode: None,
                     enabled_tools: None,
                     disabled_tools: None,
-                    scopes: None,
-                    oauth_resource: None,
                     tools: HashMap::new(),
                 },
             );

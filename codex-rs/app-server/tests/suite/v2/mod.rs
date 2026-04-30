@@ -27,7 +27,7 @@ mod plan_item;
 mod plugin_list;
 mod plugin_read;
 // missing in current repo snapshot
-mod realtime_conversation;
+// Realtime model transport suite removed with WebSocket/realtime provider cleanup.
 mod request_permissions;
 mod request_user_input;
 mod review;

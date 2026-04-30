@@ -23,7 +23,6 @@ use std::time::Duration;
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_STREAM_MAX_RETRIES: u64 = 5;
 const DEFAULT_REQUEST_MAX_RETRIES: u64 = 4;
-pub const DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS: u64 = 15_000;
 /// Hard cap for user-configured `stream_max_retries`.
 const MAX_STREAM_MAX_RETRIES: u64 = 100;
 /// Hard cap for user-configured `request_max_retries`.
@@ -150,18 +149,6 @@ pub struct ModelProviderInfo {
     /// Idle timeout (in milliseconds) to wait for activity on a streaming response before treating
     /// the connection as lost.
     pub stream_idle_timeout_ms: Option<u64>,
-    /// Maximum time (in milliseconds) to wait for a websocket connection attempt before treating
-    /// it as failed.
-    pub websocket_connect_timeout_ms: Option<u64>,
-    /// Legacy OpenAI-login gate retained only for config-schema compatibility.
-    /// DarwinCode provider runtime is BYOK-only and rejects this in user
-    /// `model_providers`.
-    #[serde(default)]
-    pub requires_openai_auth: bool,
-    /// Legacy Responses WebSocket capability. DarwinCode's BYOK runtime uses
-    /// HTTP/SSE and rejects this in user `model_providers`.
-    #[serde(default)]
-    pub supports_websockets: bool,
 }
 
 impl ModelProviderInfo {
@@ -175,18 +162,6 @@ impl ModelProviderInfo {
         if self.auth.is_some() {
             return Err(
                 "BYOK-only provider auth rejects command-backed auth; use direct api_key"
-                    .to_string(),
-            );
-        }
-        if self.requires_openai_auth {
-            return Err(
-                "BYOK-only provider auth rejects requires_openai_auth; use direct api_key"
-                    .to_string(),
-            );
-        }
-        if self.supports_websockets {
-            return Err(
-                "BYOK-only providers must use HTTP/SSE; supports_websockets is unsupported"
                     .to_string(),
             );
         }
@@ -276,13 +251,6 @@ impl ModelProviderInfo {
             .unwrap_or(Duration::from_millis(DEFAULT_STREAM_IDLE_TIMEOUT_MS))
     }
 
-    /// Effective timeout for websocket connect attempts.
-    pub fn websocket_connect_timeout(&self) -> Duration {
-        self.websocket_connect_timeout_ms
-            .map(Duration::from_millis)
-            .unwrap_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS))
-    }
-
     pub fn create_openai_provider(
         base_url: Option<String>,
         api_key: Option<String>,
@@ -315,9 +283,6 @@ impl ModelProviderInfo {
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
-            supports_websockets: false,
         }
     }
 
@@ -342,9 +307,6 @@ impl ModelProviderInfo {
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
-            supports_websockets: false,
         }
     }
 
@@ -369,9 +331,6 @@ impl ModelProviderInfo {
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
-            supports_websockets: false,
         }
     }
 
@@ -394,9 +353,6 @@ impl ModelProviderInfo {
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
-            supports_websockets: false,
         }
     }
 

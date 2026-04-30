@@ -1156,30 +1156,6 @@
             },
             "method": {
               "enum": [
-                "mcpServer/oauth/login"
-              ],
-              "title": "McpServer/oauth/loginRequestMethod",
-              "type": "string"
-            },
-            "params": {
-              "$ref": "#/definitions/v2/McpServerOauthLoginParams"
-            }
-          },
-          "required": [
-            "id",
-            "method",
-            "params"
-          ],
-          "title": "McpServer/oauth/loginRequest",
-          "type": "object"
-        },
-        {
-          "properties": {
-            "id": {
-              "$ref": "#/definitions/v2/RequestId"
-            },
-            "method": {
-              "enum": [
                 "config/mcpServer/reload"
               ],
               "title": "Config/mcpServer/reloadRequestMethod",
@@ -3865,26 +3841,6 @@
             "params"
           ],
           "title": "Item/mcpToolCall/progressNotification",
-          "type": "object"
-        },
-        {
-          "properties": {
-            "method": {
-              "enum": [
-                "mcpServer/oauthLogin/completed"
-              ],
-              "title": "McpServer/oauthLogin/completedNotificationMethod",
-              "type": "string"
-            },
-            "params": {
-              "$ref": "#/definitions/v2/McpServerOauthLoginCompletedNotification"
-            }
-          },
-          "required": [
-            "method",
-            "params"
-          ],
-          "title": "McpServer/oauthLogin/completedNotification",
           "type": "object"
         },
         {
@@ -8492,8 +8448,7 @@
         "enum": [
           "unsupported",
           "notLoggedIn",
-          "bearerToken",
-          "oAuth"
+          "bearerToken"
         ],
         "type": "string"
       },
@@ -8532,71 +8487,6 @@
           "contents"
         ],
         "title": "McpResourceReadResponse",
-        "type": "object"
-      },
-      "McpServerOauthLoginCompletedNotification": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "properties": {
-          "error": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "name": {
-            "type": "string"
-          },
-          "success": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "name",
-          "success"
-        ],
-        "title": "McpServerOauthLoginCompletedNotification",
-        "type": "object"
-      },
-      "McpServerOauthLoginParams": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "scopes": {
-            "items": {
-              "type": "string"
-            },
-            "type": [
-              "array",
-              "null"
-            ]
-          },
-          "timeoutSecs": {
-            "format": "int64",
-            "type": [
-              "integer",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "name"
-        ],
-        "title": "McpServerOauthLoginParams",
-        "type": "object"
-      },
-      "McpServerOauthLoginResponse": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "properties": {
-          "authorizationUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "authorizationUrl"
-        ],
-        "title": "McpServerOauthLoginResponse",
         "type": "object"
       },
       "McpServerRefreshResponse": {
@@ -10377,6 +10267,12 @@
                   {
                     "type": "null"
                   }
+                ]
+              },
+              "reasoning_content": {
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
               "role": {

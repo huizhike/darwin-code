@@ -15,16 +15,8 @@ use darwin_code_core::config::edit::ConfigEditsBuilder;
 use darwin_code_core::config::find_darwin_code_home;
 use darwin_code_core::config::load_global_mcp_servers;
 use darwin_code_core::plugins::PluginsManager;
-use darwin_code_mcp::McpOAuthLoginSupport;
-use darwin_code_mcp::ResolvedMcpOAuthScopes;
 use darwin_code_mcp::compute_auth_statuses;
-use darwin_code_mcp::discover_supported_scopes;
-use darwin_code_mcp::oauth_login_support;
-use darwin_code_mcp::resolve_oauth_scopes;
-use darwin_code_mcp::should_retry_without_scopes;
 use darwin_code_protocol::protocol::McpAuthStatus;
-use darwin_code_rmcp_client::delete_oauth_tokens;
-use darwin_code_rmcp_client::perform_oauth_login;
 use darwin_code_utils_cli::CliConfigOverrides;
 use darwin_code_utils_cli::format_env_display;
 
@@ -33,8 +25,6 @@ use darwin_code_utils_cli::format_env_display;
 /// - `get`    — show a single server (with `--json`)
 /// - `add`    — add a server launcher entry to `~/.darwin_code/config.toml`
 /// - `remove` — delete a server entry
-/// - `login`  — authenticate with MCP server using OAuth
-/// - `logout` — remove OAuth credentials for MCP server
 #[derive(Debug, clap::Parser)]
 pub struct McpCli {
     #[clap(flatten)]
@@ -50,8 +40,6 @@ pub enum McpSubcommand {
     Get(GetArgs),
     Add(AddArgs),
     Remove(RemoveArgs),
-    Login(LoginArgs),
-    Logout(LogoutArgs),
 }
 
 #[derive(Debug, clap::Parser)]
@@ -140,22 +128,6 @@ pub struct RemoveArgs {
     pub name: String,
 }
 
-#[derive(Debug, clap::Parser)]
-pub struct LoginArgs {
-    /// Name of the MCP server to authenticate with oauth.
-    pub name: String,
-
-    /// Comma-separated list of OAuth scopes to request.
-    #[arg(long, value_delimiter = ',', value_name = "SCOPE,SCOPE")]
-    pub scopes: Vec<String>,
-}
-
-#[derive(Debug, clap::Parser)]
-pub struct LogoutArgs {
-    /// Name of the MCP server to deauthenticate.
-    pub name: String,
-}
-
 impl McpCli {
     pub async fn run(self) -> Result<()> {
         let McpCli {
@@ -176,74 +148,17 @@ impl McpCli {
             McpSubcommand::Remove(args) => {
                 run_remove(&config_overrides, args).await?;
             }
-            McpSubcommand::Login(args) => {
-                run_login(&config_overrides, args).await?;
-            }
-            McpSubcommand::Logout(args) => {
-                run_logout(&config_overrides, args).await?;
-            }
         }
 
         Ok(())
     }
 }
 
-/// Preserve compatibility with servers that still expect the legacy empty-scope
-/// OAuth request. If a discovered-scope request is rejected by the provider,
-/// retry the login flow once without scopes.
-#[allow(clippy::too_many_arguments)]
-async fn perform_oauth_login_retry_without_scopes(
-    name: &str,
-    url: &str,
-    store_mode: darwin_code_config::types::OAuthCredentialsStoreMode,
-    http_headers: Option<HashMap<String, String>>,
-    env_http_headers: Option<HashMap<String, String>>,
-    resolved_scopes: &ResolvedMcpOAuthScopes,
-    oauth_resource: Option<&str>,
-    callback_port: Option<u16>,
-    callback_url: Option<&str>,
-) -> Result<()> {
-    match perform_oauth_login(
-        name,
-        url,
-        store_mode,
-        http_headers.clone(),
-        env_http_headers.clone(),
-        &resolved_scopes.scopes,
-        oauth_resource,
-        callback_port,
-        callback_url,
-    )
-    .await
-    {
-        Ok(()) => Ok(()),
-        Err(err) if should_retry_without_scopes(resolved_scopes, &err) => {
-            println!("OAuth provider rejected discovered scopes. Retrying without scopes…");
-            perform_oauth_login(
-                name,
-                url,
-                store_mode,
-                http_headers,
-                env_http_headers,
-                &[],
-                oauth_resource,
-                callback_port,
-                callback_url,
-            )
-            .await
-        }
-        Err(err) => Err(err),
-    }
-}
-
 async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Result<()> {
     // Validate any provided overrides even though they are not currently applied.
-    let overrides = config_overrides
+    config_overrides
         .parse_overrides()
         .map_err(anyhow::Error::msg)?;
-    let config = Config::load_with_cli_overrides(overrides)
-        .await
-        .context("failed to load configuration")?;
 
     let AddArgs {
         name,
@@ -313,8 +228,6 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         default_tools_approval_mode: None,
         enabled_tools: None,
         disabled_tools: None,
-        scopes: None,
-        oauth_resource: None,
         tools: HashMap::new(),
     };
 
@@ -332,34 +245,6 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         })?;
 
     println!("Added global MCP server '{name}'.");
-
-    match oauth_login_support(&transport).await {
-        McpOAuthLoginSupport::Supported(oauth_config) => {
-            println!("Detected OAuth support. Starting OAuth flow…");
-            let resolved_scopes = resolve_oauth_scopes(
-                /*explicit_scopes*/ None,
-                /*configured_scopes*/ None,
-                oauth_config.discovered_scopes.clone(),
-            );
-            perform_oauth_login_retry_without_scopes(
-                &name,
-                &oauth_config.url,
-                config.mcp_oauth_credentials_store_mode,
-                oauth_config.http_headers,
-                oauth_config.env_http_headers,
-                &resolved_scopes,
-                /*oauth_resource*/ None,
-                config.mcp_oauth_callback_port,
-                config.mcp_oauth_callback_url.as_deref(),
-            )
-            .await?;
-            println!("Successfully logged in.");
-        }
-        McpOAuthLoginSupport::Unsupported => {}
-        McpOAuthLoginSupport::Unknown(_) => println!(
-            "MCP server may or may not require login. Run `darwin_code mcp login {name}` to login."
-        ),
-    }
 
     Ok(())
 }
@@ -407,91 +292,6 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
     Ok(())
 }
 
-async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs) -> Result<()> {
-    let overrides = config_overrides
-        .parse_overrides()
-        .map_err(anyhow::Error::msg)?;
-    let config = Config::load_with_cli_overrides(overrides)
-        .await
-        .context("failed to load configuration")?;
-    let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.darwin_code_home.to_path_buf(),
-    )));
-    let mcp_servers = mcp_manager.effective_servers(&config).await;
-
-    let LoginArgs { name, scopes } = login_args;
-
-    let Some(server) = mcp_servers.get(&name) else {
-        bail!("No MCP server named '{name}' found.");
-    };
-
-    let (url, http_headers, env_http_headers) = match &server.transport {
-        McpServerTransportConfig::StreamableHttp {
-            url,
-            http_headers,
-            env_http_headers,
-            ..
-        } => (url.clone(), http_headers.clone(), env_http_headers.clone()),
-        _ => bail!("OAuth login is only supported for streamable HTTP servers."),
-    };
-
-    let explicit_scopes = (!scopes.is_empty()).then_some(scopes);
-    let discovered_scopes = if explicit_scopes.is_none() && server.scopes.is_none() {
-        discover_supported_scopes(&server.transport).await
-    } else {
-        None
-    };
-    let resolved_scopes =
-        resolve_oauth_scopes(explicit_scopes, server.scopes.clone(), discovered_scopes);
-
-    perform_oauth_login_retry_without_scopes(
-        &name,
-        &url,
-        config.mcp_oauth_credentials_store_mode,
-        http_headers,
-        env_http_headers,
-        &resolved_scopes,
-        server.oauth_resource.as_deref(),
-        config.mcp_oauth_callback_port,
-        config.mcp_oauth_callback_url.as_deref(),
-    )
-    .await?;
-    println!("Successfully logged in to MCP server '{name}'.");
-    Ok(())
-}
-
-async fn run_logout(config_overrides: &CliConfigOverrides, logout_args: LogoutArgs) -> Result<()> {
-    let overrides = config_overrides
-        .parse_overrides()
-        .map_err(anyhow::Error::msg)?;
-    let config = Config::load_with_cli_overrides(overrides)
-        .await
-        .context("failed to load configuration")?;
-    let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
-        config.darwin_code_home.to_path_buf(),
-    )));
-    let mcp_servers = mcp_manager.effective_servers(&config).await;
-
-    let LogoutArgs { name } = logout_args;
-
-    let server = mcp_servers
-        .get(&name)
-        .ok_or_else(|| anyhow!("No MCP server named '{name}' found in configuration."))?;
-
-    let url = match &server.transport {
-        McpServerTransportConfig::StreamableHttp { url, .. } => url.clone(),
-        _ => bail!("OAuth logout is only supported for streamable_http transports."),
-    };
-
-    match delete_oauth_tokens(&name, &url, config.mcp_oauth_credentials_store_mode) {
-        Ok(true) => println!("Removed OAuth credentials for '{name}'."),
-        Ok(false) => println!("No OAuth credentials stored for '{name}'."),
-        Err(err) => return Err(anyhow!("failed to delete OAuth credentials: {err}")),
-    }
-
-    Ok(())
-}
-
 async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) -> Result<()> {
     let overrides = config_overrides
         .parse_overrides()
@@ -506,8 +306,7 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
 
     let mut entries: Vec<_> = mcp_servers.iter().collect();
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
-    let auth_statuses =
-        compute_auth_statuses(mcp_servers.iter(), config.mcp_oauth_credentials_store_mode).await;
+    let auth_statuses = compute_auth_statuses(mcp_servers.iter()).await;
 
     if list_args.json {
         let json_entries: Vec<_> = entries

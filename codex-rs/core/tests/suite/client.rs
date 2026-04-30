@@ -1599,9 +1599,6 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         request_max_retries: Some(0),
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     let darwin_code_home = TempDir::new().unwrap();
@@ -1777,7 +1774,6 @@ async fn token_count_includes_rate_limits_snapshot() {
 
     let mut provider = ModelProviderInfo::create_openai_provider(None, None);
     provider.base_url = Some(format!("{}/v1", server.uri()));
-    provider.supports_websockets = false;
 
     let mut builder = test_darwin_code()
         .with_auth(ByokTestAuth::from_api_key("test"))
@@ -2223,9 +2219,6 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     // Init session
@@ -2310,9 +2303,6 @@ async fn env_var_overrides_loaded_auth() {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     // Init session

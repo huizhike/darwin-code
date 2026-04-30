@@ -4,7 +4,6 @@ use tokio_util::sync::CancellationToken;
 
 use crate::session::turn::run_turn;
 use crate::session::turn_context::TurnContext;
-use crate::session_startup_prewarm::SessionStartupPrewarmResolution;
 use crate::state::TaskKind;
 use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::TurnStartedEvent;
@@ -52,18 +51,8 @@ impl SessionTask for RegularTask {
         });
         sess.send_event(ctx.as_ref(), event).await;
         sess.set_server_reasoning_included(/*included*/ false).await;
-        let prewarmed_client_session = match sess
-            .consume_startup_prewarm_for_regular_turn(&cancellation_token)
-            .await
-        {
-            SessionStartupPrewarmResolution::Cancelled => return None,
-            SessionStartupPrewarmResolution::Unavailable { .. } => None,
-            SessionStartupPrewarmResolution::Ready(prewarmed_client_session) => {
-                Some(*prewarmed_client_session)
-            }
-        };
         let mut next_input = input;
-        let mut prewarmed_client_session = prewarmed_client_session;
+        let mut prewarmed_client_session = None;
         loop {
             let last_agent_message = run_turn(
                 Arc::clone(&sess),

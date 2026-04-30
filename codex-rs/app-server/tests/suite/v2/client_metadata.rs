@@ -12,7 +12,6 @@ use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnSteerParams;
 use darwin_code_app_server_protocol::TurnSteerResponse;
 use darwin_code_app_server_protocol::UserInput as V2UserInput;
-use darwin_code_core::config::ConfigBuilder;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::Path;
@@ -39,11 +38,7 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
     .await;
 
     let darwin_code_home = TempDir::new()?;
-    create_config_toml(
-        darwin_code_home.path(),
-        &server.uri(),
-        /*supports_websockets*/ false,
-    )?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -121,11 +116,7 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     let request_log =
         responses::mount_response_sequence(&server, vec![first_response, second_response]).await;
 
-    create_config_toml(
-        darwin_code_home.path(),
-        &server.uri(),
-        /*supports_websockets*/ false,
-    )?;
+    create_config_toml(darwin_code_home.path(), &server.uri())?;
 
     let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -224,36 +215,8 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     Ok(())
 }
 
-#[tokio::test]
-async fn legacy_responses_websocket_provider_config_is_rejected_byok() -> Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    create_config_toml(
-        darwin_code_home.path(),
-        "http://127.0.0.1:9",
-        /*supports_websockets*/ true,
-    )?;
-
-    let err = ConfigBuilder::default()
-        .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .build()
-        .await
-        .expect_err("legacy responses websocket provider config should be rejected");
-    assert!(
-        err.to_string().contains("supports_websockets"),
-        "unexpected config error: {err}"
-    );
-    Ok(())
-}
-
-fn create_config_toml(
-    darwin_code_home: &Path,
-    server_uri: &str,
-    supports_websockets: bool,
-) -> std::io::Result<()> {
+fn create_config_toml(darwin_code_home: &Path, server_uri: &str) -> std::io::Result<()> {
     let config_toml = darwin_code_home.join("config.toml");
-    let websocket_line = supports_websockets
-        .then_some("supports_websockets = true\n")
-        .unwrap_or("");
     std::fs::write(
         config_toml,
         format!(
@@ -270,7 +233,6 @@ base_url = "{server_uri}/v1"
 wire_api = "responses"
 request_max_retries = 0
 stream_max_retries = 0
-{websocket_line}
 "#
         ),
     )

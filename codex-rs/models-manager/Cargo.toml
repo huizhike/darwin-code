@@ -15,8 +15,6 @@ workspace = true
 [dependencies]
 chrono = { workspace = true, features = ["serde"] }
 codex-collaboration-mode-templates = { workspace = true }
-codex-feedback = { workspace = true }
-codex-response-debug-context = { workspace = true }
 darwin-code-api = { workspace = true }
 darwin-code-app-server-protocol = { workspace = true }
 darwin-code-client = { workspace = true }
@@ -35,12 +33,10 @@ tokio = { workspace = true, features = ["fs", "sync", "time"] }
 tracing = { workspace = true, features = ["log"] }
 
 [dev-dependencies]
-base64 = { workspace = true }
 darwin-code-utils-absolute-path = { workspace = true }
 core_test_support = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
-tracing-subscriber = { workspace = true }
 wiremock = { workspace = true }

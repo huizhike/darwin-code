@@ -32,8 +32,6 @@ async fn replace_mcp_servers_serializes_per_tool_approval_overrides() -> anyhow:
             default_tools_approval_mode: Some(AppToolApproval::Auto),
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::from([
                 (
                     "search".to_string(),

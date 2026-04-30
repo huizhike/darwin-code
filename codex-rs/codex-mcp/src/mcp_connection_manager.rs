@@ -35,7 +35,6 @@ use async_channel::Sender;
 use darwin_code_async_utils::CancelErr;
 use darwin_code_async_utils::OrCancelExt;
 use darwin_code_config::Constrained;
-use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_protocol::ToolName;
 use darwin_code_protocol::approvals::ElicitationRequest;
 use darwin_code_protocol::approvals::ElicitationRequestEvent;
@@ -475,7 +474,6 @@ impl AsyncManagedClient {
     fn new(
         server_name: String,
         config: McpServerConfig,
-        store_mode: OAuthCredentialsStoreMode,
         cancel_token: CancellationToken,
         tx_event: Sender<Event>,
         elicitation_requests: ElicitationRequestManager,
@@ -497,8 +495,7 @@ impl AsyncManagedClient {
                     return Err(error.into());
                 }
 
-                let client =
-                    Arc::new(make_rmcp_client(&server_name, config.transport, store_mode).await?);
+                let client = Arc::new(make_rmcp_client(&server_name, config.transport).await?);
                 match start_server_task(
                     server_name,
                     client,
@@ -688,7 +685,6 @@ impl McpConnectionManager {
     #[allow(clippy::new_ret_no_self, clippy::too_many_arguments)]
     pub async fn new(
         mcp_servers: &HashMap<String, McpServerConfig>,
-        store_mode: OAuthCredentialsStoreMode,
         auth_entries: HashMap<String, McpAuthStatusEntry>,
         approval_policy: &Constrained<AskForApproval>,
         submit_id: String,
@@ -732,7 +728,6 @@ impl McpConnectionManager {
             let async_managed_client = AsyncManagedClient::new(
                 server_name.clone(),
                 cfg,
-                store_mode,
                 cancel_token.clone(),
                 tx_event.clone(),
                 elicitation_requests.clone(),
@@ -1469,7 +1464,6 @@ struct StartServerTaskParams {
 async fn make_rmcp_client(
     server_name: &str,
     transport: McpServerTransportConfig,
-    store_mode: OAuthCredentialsStoreMode,
 ) -> Result<RmcpClient, StartupOutcomeError> {
     match transport {
         McpServerTransportConfig::Stdio {
@@ -1508,7 +1502,6 @@ async fn make_rmcp_client(
                 resolved_bearer_token,
                 http_headers,
                 env_http_headers,
-                store_mode,
             )
             .await
             .map_err(StartupOutcomeError::from)
@@ -1706,11 +1699,11 @@ fn mcp_init_error_display(
         && http_headers.as_ref().map(HashMap::is_empty).unwrap_or(true)
     {
         format!(
-            "GitHub MCP does not support OAuth. Log in by adding a personal access token (https://github.com/settings/personal-access-tokens) to your environment and config.toml:\n[mcp_servers.{server_name}]\nbearer_token_env_var = CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
+            "GitHub MCP requires a personal access token (https://github.com/settings/personal-access-tokens) in your environment and config.toml:\n[mcp_servers.{server_name}]\nbearer_token_env_var = CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
         )
     } else if is_mcp_client_auth_required_error(err) {
         format!(
-            "The {server_name} MCP server is not logged in. Run `codex mcp login {server_name}`."
+            "The {server_name} MCP server requires authentication. Configure bearer_token_env_var or Authorization headers in config.toml."
         )
     } else if is_mcp_client_startup_timeout_error(err) {
         let startup_timeout_secs = match entry {

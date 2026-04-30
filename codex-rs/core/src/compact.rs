@@ -170,9 +170,7 @@ async fn run_compact_task_inner_impl(
     let max_retries = turn_context.provider.info().stream_max_retries();
     let mut retries = 0;
     let mut client_session = sess.services.model_client.new_session();
-    // Reuse one client session so turn-scoped state (sticky routing, websocket incremental
-    // request tracking)
-    // survives retries within this compact turn.
+    // Reuse one client session so turn-scoped state survives retries within this compact turn.
 
     loop {
         // Clone is required because of the loop
@@ -281,7 +279,6 @@ async fn run_compact_task_inner_impl(
     };
     sess.replace_compacted_history(new_history, reference_context_item, compacted_item)
         .await;
-    client_session.reset_websocket_session();
     sess.recompute_token_usage(&turn_context).await;
 
     sess.emit_turn_item_completed(&turn_context, compaction_item)

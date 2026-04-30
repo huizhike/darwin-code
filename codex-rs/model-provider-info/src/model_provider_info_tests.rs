@@ -15,9 +15,6 @@ fn expected_minimal_provider(name: &str, base_url: &str) -> ModelProviderInfo {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     }
 }
 
@@ -57,9 +54,6 @@ query_params = { api-version = "2025-04-01-preview" }
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
@@ -96,9 +90,6 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
@@ -133,37 +124,6 @@ wire_api = "chat-completions"
 }
 
 #[test]
-fn test_deserialize_websocket_connect_timeout() {
-    let provider_toml = r#"
-name = "OpenAI"
-base_url = "https://api.openai.com/v1"
-websocket_connect_timeout_ms = 15000
-        "#;
-
-    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
-    assert_eq!(provider.websocket_connect_timeout_ms, Some(15_000));
-}
-
-#[test]
-fn test_deserialize_supports_websockets_is_rejected() {
-    let provider_toml = r#"
-name = "OpenAI"
-base_url = "https://api.openai.com/v1"
-supports_websockets = true
-        "#;
-
-    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
-    let err = provider
-        .validate()
-        .expect_err("BYOK-only provider configs must not enable websockets");
-
-    assert!(
-        err.contains("supports_websockets"),
-        "unexpected error: {err}"
-    );
-}
-
-#[test]
 fn test_builtin_openai_provider_is_byok_http_sse() {
     let provider =
         ModelProviderInfo::create_openai_provider(/*base_url*/ None, /*api_key*/ None);
@@ -174,8 +134,6 @@ fn test_builtin_openai_provider_is_byok_http_sse() {
         Some("https://api.openai.com/v1")
     );
     assert_eq!(provider.api_key().expect("direct key read"), None);
-    assert!(!provider.requires_openai_auth);
-    assert!(!provider.supports_websockets);
 }
 
 #[test]
@@ -202,9 +160,6 @@ fn test_create_openai_compatible_provider_uses_direct_api_key() {
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
-            supports_websockets: false,
         }
     );
     assert_eq!(
@@ -274,9 +229,6 @@ fn test_supports_remote_compaction_for_azure_name() {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     assert!(provider.supports_remote_compaction());
@@ -297,9 +249,6 @@ fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     assert!(!provider.supports_remote_compaction());

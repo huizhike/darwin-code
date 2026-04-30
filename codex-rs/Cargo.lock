@@ -2057,10 +2057,8 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-test",
- "tokio-tungstenite",
  "tokio-util",
  "tracing",
- "tungstenite",
  "url",
  "wiremock",
 ]
@@ -2384,7 +2382,6 @@ dependencies = [
  "clap",
  "codex-analytics",
  "codex-connectors",
- "codex-feedback",
  "codex-otel",
  "codex-plugin",
  "codex-response-debug-context",
@@ -2843,12 +2840,9 @@ dependencies = [
 name = "darwin-code-models-manager"
 version = "0.0.0"
 dependencies = [
- "base64 0.22.1",
  "chrono",
  "codex-collaboration-mode-templates",
- "codex-feedback",
  "codex-otel",
- "codex-response-debug-context",
  "codex-utils-output-truncation",
  "core_test_support",
  "darwin-code-api",
@@ -2868,7 +2862,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "wiremock",
 ]
 
@@ -2932,7 +2925,6 @@ dependencies = [
  "darwin-code-config",
  "darwin-code-protocol",
  "futures",
- "oauth2",
  "pretty_assertions",
  "reqwest",
  "rmcp",
@@ -4002,7 +3994,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b375d6465b98090a5f25b1c7703f3859783755aa9a80433b36e0379a3ec2f369"
 dependencies = [
  "crc32fast",
- "libz-sys",
  "miniz_oxide",
 ]
 
@@ -5482,17 +5473,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "webrtc-sys",
-]
-
-[[package]]
-name = "libz-sys"
-version = "1.1.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15d118bbf3771060e7311cc7bb0545b01d08a8b4a7de949198dec1fa0ca1c0f7"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]
@@ -9898,7 +9878,6 @@ source = "git+https://github.com/openai-oss-forks/tungstenite-rs?rev=9200079d3b5
 dependencies = [
  "bytes",
  "data-encoding",
- "flate2",
  "headers",
  "http 1.4.0",
  "httparse",

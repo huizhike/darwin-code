@@ -40,7 +40,6 @@ use codex_analytics::SubAgentThreadStartedInput;
 use darwin_code_app_server_protocol::McpServerElicitationRequest;
 use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
 use darwin_code_client::originator;
-use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_exec_server::Environment;
 use darwin_code_exec_server::EnvironmentManager;
 use darwin_code_exec_server::FileSystemSandboxContext;
@@ -252,7 +251,6 @@ use crate::rollout::RolloutRecorderParams;
 use crate::rollout::map_session_init_error;
 use crate::rollout::metadata;
 use crate::rollout::policy::EventPersistenceMode;
-use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
 use crate::shell;
 use crate::shell_snapshot::ShellSnapshot;
 use crate::skills_watcher::SkillsWatcher;
@@ -1309,19 +1307,6 @@ impl Session {
         }
 
         Ok(())
-    }
-
-    pub(crate) async fn set_session_startup_prewarm(
-        &self,
-        startup_prewarm: SessionStartupPrewarmHandle,
-    ) {
-        let mut state = self.state.lock().await;
-        state.set_session_startup_prewarm(startup_prewarm);
-    }
-
-    pub(crate) async fn take_session_startup_prewarm(&self) -> Option<SessionStartupPrewarmHandle> {
-        let mut state = self.state.lock().await;
-        state.take_session_startup_prewarm()
     }
 
     pub(crate) async fn get_config(&self) -> std::sync::Arc<Config> {

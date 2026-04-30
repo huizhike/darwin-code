@@ -3,15 +3,8 @@ use crate::collaboration_mode_presets::CollaborationModesConfig;
 use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
-use codex_feedback::FeedbackRequestTags;
-use codex_feedback::emit_feedback_request_tags;
-use codex_response_debug_context::extract_response_debug_context;
-use codex_response_debug_context::telemetry_transport_error_message;
 use darwin_code_api::ModelsClient;
-use darwin_code_api::RequestTelemetry;
 use darwin_code_api::ReqwestTransport;
-use darwin_code_api::TransportError;
-use darwin_code_api::auth_header_telemetry;
 use darwin_code_api::map_api_error;
 use darwin_code_model_provider::SharedModelProvider;
 use darwin_code_model_provider::create_model_provider;
@@ -25,7 +18,6 @@ use darwin_code_protocol::openai_models::ModelsResponse;
 use http::HeaderMap;
 use std::fmt;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::sync::TryLockError;
@@ -37,80 +29,6 @@ use tracing::instrument;
 const MODEL_CACHE_FILE: &str = "models_cache.json";
 const DEFAULT_MODEL_CACHE_TTL: Duration = Duration::from_secs(300);
 const MODELS_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
-const MODELS_ENDPOINT: &str = "/models";
-#[derive(Clone)]
-struct ModelsRequestTelemetry {
-    auth_header_attached: bool,
-    auth_header_name: Option<&'static str>,
-}
-
-impl RequestTelemetry for ModelsRequestTelemetry {
-    fn on_request(
-        &self,
-        attempt: u64,
-        status: Option<http::StatusCode>,
-        error: Option<&TransportError>,
-        duration: Duration,
-    ) {
-        let success = status.is_some_and(|code| code.is_success()) && error.is_none();
-        let error_message = error.map(telemetry_transport_error_message);
-        let response_debug = error
-            .map(extract_response_debug_context)
-            .unwrap_or_default();
-        let status = status.map(|status| status.as_u16());
-        tracing::event!(
-            target: "darwin_code_otel.log_only",
-            tracing::Level::INFO,
-            event.name = "darwin_code.api_request",
-            duration_ms = %duration.as_millis(),
-            http.response.status_code = status,
-            success = success,
-            error.message = error_message.as_deref(),
-            attempt = attempt,
-            endpoint = MODELS_ENDPOINT,
-            auth.header_attached = self.auth_header_attached,
-            auth.header_name = self.auth_header_name,
-            auth.request_id = response_debug.request_id.as_deref(),
-            auth.cf_ray = response_debug.cf_ray.as_deref(),
-            auth.error = response_debug.auth_error.as_deref(),
-            auth.error_code = response_debug.auth_error_code.as_deref(),
-        );
-        tracing::event!(
-            target: "darwin_code_otel.trace_safe",
-            tracing::Level::INFO,
-            event.name = "darwin_code.api_request",
-            duration_ms = %duration.as_millis(),
-            http.response.status_code = status,
-            success = success,
-            error.message = error_message.as_deref(),
-            attempt = attempt,
-            endpoint = MODELS_ENDPOINT,
-            auth.header_attached = self.auth_header_attached,
-            auth.header_name = self.auth_header_name,
-            auth.request_id = response_debug.request_id.as_deref(),
-            auth.cf_ray = response_debug.cf_ray.as_deref(),
-            auth.error = response_debug.auth_error.as_deref(),
-            auth.error_code = response_debug.auth_error_code.as_deref(),
-        );
-        emit_feedback_request_tags(&FeedbackRequestTags {
-            endpoint: MODELS_ENDPOINT,
-            auth_header_attached: self.auth_header_attached,
-            auth_header_name: self.auth_header_name,
-            auth_mode: None,
-            auth_retry_after_unauthorized: None,
-            auth_recovery_mode: None,
-            auth_recovery_phase: None,
-            auth_connection_reused: None,
-            auth_request_id: response_debug.request_id.as_deref(),
-            auth_cf_ray: response_debug.cf_ray.as_deref(),
-            auth_error: response_debug.auth_error.as_deref(),
-            auth_error_code: response_debug.auth_error_code.as_deref(),
-            auth_recovery_followup_success: None,
-            auth_recovery_followup_status: None,
-        });
-    }
-}
-
 /// Strategy for refreshing available models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RefreshStrategy {
@@ -400,13 +318,7 @@ impl ModelsManager {
         let api_provider = self.provider.api_provider().await?;
         let api_auth = self.provider.api_auth().await?;
         let transport = ReqwestTransport::new(darwin_code_client::build_reqwest_client());
-        let auth_telemetry = auth_header_telemetry(api_auth.as_ref());
-        let request_telemetry: Arc<dyn RequestTelemetry> = Arc::new(ModelsRequestTelemetry {
-            auth_header_attached: auth_telemetry.attached,
-            auth_header_name: auth_telemetry.name,
-        });
-        let client = ModelsClient::new(transport, api_provider, api_auth)
-            .with_telemetry(Some(request_telemetry));
+        let client = ModelsClient::new(transport, api_provider, api_auth);
 
         let client_version = crate::client_version_to_whole();
         let (models, etag) = timeout(

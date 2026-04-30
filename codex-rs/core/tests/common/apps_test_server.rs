@@ -38,7 +38,6 @@ impl AppsTestServer {
     }
 
     pub async fn mount_searchable(server: &MockServer) -> Result<Self> {
-        mount_oauth_metadata(server).await;
         mount_connectors_directory(server).await;
         mount_streamable_http_json_rpc(
             server,
@@ -56,7 +55,6 @@ impl AppsTestServer {
         server: &MockServer,
         connector_name: &str,
     ) -> Result<Self> {
-        mount_oauth_metadata(server).await;
         mount_connectors_directory(server).await;
         mount_streamable_http_json_rpc(
             server,
@@ -69,18 +67,6 @@ impl AppsTestServer {
             base_url: server.uri(),
         })
     }
-}
-
-async fn mount_oauth_metadata(server: &MockServer) {
-    Mock::given(method("GET"))
-        .and(path("/.well-known/oauth-authorization-server/mcp"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-            "authorization_endpoint": format!("{}/oauth/authorize", server.uri()),
-            "token_endpoint": format!("{}/oauth/token", server.uri()),
-            "scopes_supported": [""],
-        })))
-        .mount(server)
-        .await;
 }
 
 async fn mount_connectors_directory(server: &MockServer) {

@@ -473,7 +473,7 @@ pub async fn list_mcp_tools(sess: &Session, config: &Arc<Config>, sub_id: String
     let mcp_servers = sess.services.mcp_manager.effective_servers(config).await;
     let snapshot = collect_mcp_snapshot_from_manager(
         &mcp_connection_manager,
-        compute_auth_statuses(mcp_servers.iter(), config.mcp_oauth_credentials_store_mode).await,
+        compute_auth_statuses(mcp_servers.iter()).await,
     )
     .await;
     let event = Event {

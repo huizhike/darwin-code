@@ -154,8 +154,6 @@ fn insert_mcp_server(
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
     );
@@ -1451,233 +1449,13 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// This test writes to a fallback credentials file in DARWIN_CODE_HOME.
-/// Ideally, we wouldn't need to serialize the test but it's much more cumbersome to wire DARWIN_CODE_HOME through the code.
-#[test]
-#[serial(darwin_code_home)]
-fn streamable_http_with_oauth_round_trip() -> anyhow::Result<()> {
-    const TEST_STACK_SIZE_BYTES: usize = 8 * 1024 * 1024;
-
-    let handle = std::thread::Builder::new()
-        .name("streamable_http_with_oauth_round_trip".to_string())
-        .stack_size(TEST_STACK_SIZE_BYTES)
-        .spawn(|| -> anyhow::Result<()> {
-            let runtime = tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(1)
-                .enable_all()
-                .build()?;
-            runtime.block_on(streamable_http_with_oauth_round_trip_impl())
-        })?;
-
-    match handle.join() {
-        Ok(result) => result,
-        Err(_) => Err(anyhow::anyhow!(
-            "streamable_http_with_oauth_round_trip thread panicked"
-        )),
-    }
-}
-
-#[allow(clippy::expect_used)]
-async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
-    skip_if_no_network!(Ok(()));
-
-    let server = responses::start_mock_server().await;
-
-    let call_id = "call-789";
-    let server_name = "rmcp_http_oauth";
-    let tool_name = format!("mcp__{server_name}__echo");
-    let namespace = format!("mcp__{server_name}__");
-
-    mount_sse_once(
-        &server,
-        responses::sse(vec![
-            responses::ev_response_created("resp-1"),
-            responses::ev_function_call_with_namespace(
-                call_id,
-                &namespace,
-                "echo",
-                "{\"message\":\"ping\"}",
-            ),
-            responses::ev_completed("resp-1"),
-        ]),
-    )
-    .await;
-    mount_sse_once(
-        &server,
-        responses::sse(vec![
-            responses::ev_assistant_message(
-                "msg-1",
-                "rmcp streamable http oauth echo tool completed successfully.",
-            ),
-            responses::ev_completed("resp-2"),
-        ]),
-    )
-    .await;
-
-    let expected_env_value = "propagated-env-http-oauth";
-    let expected_token = "initial-access-token";
-    let client_id = "test-client-id";
-    let refresh_token = "initial-refresh-token";
-    let rmcp_http_server_bin = match cargo_bin("test_streamable_http_server") {
-        Ok(path) => path,
-        Err(err) => {
-            eprintln!("test_streamable_http_server binary not available, skipping test: {err}");
-            return Ok(());
-        }
-    };
-
-    let listener = TcpListener::bind("127.0.0.1:0")?;
-    let port = listener.local_addr()?.port();
-    drop(listener);
-    let bind_addr = format!("127.0.0.1:{port}");
-    let server_url = format!("http://{bind_addr}/mcp");
-
-    let mut http_server_child = Command::new(&rmcp_http_server_bin)
-        .kill_on_drop(true)
-        .env("MCP_STREAMABLE_HTTP_BIND_ADDR", &bind_addr)
-        .env("MCP_EXPECT_BEARER", expected_token)
-        .env("MCP_TEST_VALUE", expected_env_value)
-        .spawn()?;
-
-    wait_for_streamable_http_server(&mut http_server_child, &bind_addr, Duration::from_secs(5))
-        .await?;
-
-    let temp_home = Arc::new(tempdir()?);
-    let _darwin_code_home_guard =
-        EnvVarGuard::set("DARWIN_CODE_HOME", temp_home.path().as_os_str());
-    write_fallback_oauth_tokens(
-        temp_home.path(),
-        server_name,
-        &server_url,
-        client_id,
-        expected_token,
-        refresh_token,
-    )?;
-
-    let fixture = test_darwin_code()
-        .with_home(temp_home.clone())
-        .with_config(move |config| {
-            // Keep OAuth credentials isolated to this test home because Bazel
-            // runs the full core suite in one process.
-            config.mcp_oauth_credentials_store_mode = serde_json::from_value(json!("file"))
-                .expect("`file` should deserialize as OAuthCredentialsStoreMode");
-            insert_mcp_server(
-                config,
-                server_name,
-                McpServerTransportConfig::StreamableHttp {
-                    url: server_url,
-                    bearer_token_env_var: None,
-                    http_headers: None,
-                    env_http_headers: None,
-                },
-                TestMcpServerOptions::default(),
-            );
-        })
-        .build(&server)
-        .await?;
-    let session_model = fixture.session_configured.model.clone();
-
-    wait_for_mcp_tool(&fixture, &tool_name).await?;
-
-    fixture
-        .darwin_code
-        .submit(Op::UserTurn {
-            items: vec![UserInput::Text {
-                text: "call the rmcp streamable http oauth echo tool".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            cwd: fixture.cwd.path().to_path_buf(),
-            approval_policy: AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy: SandboxPolicy::new_read_only_policy(),
-            model: session_model,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
-        })
-        .await?;
-
-    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
-        matches!(ev, EventMsg::McpToolCallBegin(_))
-    })
-    .await;
-
-    let EventMsg::McpToolCallBegin(begin) = begin_event else {
-        unreachable!("event guard guarantees McpToolCallBegin");
-    };
-    assert_eq!(begin.invocation.server, server_name);
-    assert_eq!(begin.invocation.tool, "echo");
-
-    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
-        matches!(ev, EventMsg::McpToolCallEnd(_))
-    })
-    .await;
-    let EventMsg::McpToolCallEnd(end) = end_event else {
-        unreachable!("event guard guarantees McpToolCallEnd");
-    };
-
-    let result = end
-        .result
-        .as_ref()
-        .expect("rmcp echo tool should return success");
-    assert_eq!(result.is_error, Some(false));
-    assert!(
-        result.content.is_empty(),
-        "content should default to an empty array"
-    );
-
-    let structured = result
-        .structured_content
-        .as_ref()
-        .expect("structured content");
-    let Value::Object(map) = structured else {
-        panic!("structured content should be an object: {structured:?}");
-    };
-    let echo_value = map
-        .get("echo")
-        .and_then(Value::as_str)
-        .expect("echo payload present");
-    assert_eq!(echo_value, "ECHOING: ping");
-    let env_value = map
-        .get("env")
-        .and_then(Value::as_str)
-        .expect("env snapshot inserted");
-    assert_eq!(env_value, expected_env_value);
-
-    wait_for_event(&fixture.darwin_code, |ev| {
-        matches!(ev, EventMsg::TurnComplete(_))
-    })
-    .await;
-
-    server.verify().await;
-
-    match http_server_child.try_wait() {
-        Ok(Some(_)) => {}
-        Ok(None) => {
-            let _ = http_server_child.kill().await;
-        }
-        Err(error) => {
-            eprintln!("failed to check streamable http oauth server status: {error}");
-            let _ = http_server_child.kill().await;
-        }
-    }
-    if let Err(error) = http_server_child.wait().await {
-        eprintln!("failed to await streamable http oauth server shutdown: {error}");
-    }
-
-    Ok(())
-}
-
 async fn wait_for_streamable_http_server(
     server_child: &mut Child,
     address: &str,
     timeout: Duration,
 ) -> anyhow::Result<()> {
     let deadline = Instant::now() + timeout;
-    let metadata_url = format!("http://{address}/.well-known/oauth-authorization-server/mcp");
+    let health_url = format!("http://{address}/test/health");
     let client = Client::builder().no_proxy().build()?;
     loop {
         if let Some(status) = server_child.try_wait()? {
@@ -1690,16 +1468,16 @@ async fn wait_for_streamable_http_server(
 
         if remaining.is_zero() {
             return Err(anyhow::anyhow!(
-                "timed out waiting for streamable HTTP server metadata at {metadata_url}: deadline reached"
+                "timed out waiting for streamable HTTP test server at {health_url}: deadline reached"
             ));
         }
 
-        match tokio::time::timeout(remaining, client.get(&metadata_url).send()).await {
+        match tokio::time::timeout(remaining, client.get(&health_url).send()).await {
             Ok(Ok(response)) if response.status() == StatusCode::OK => return Ok(()),
             Ok(Ok(response)) => {
                 if Instant::now() >= deadline {
                     return Err(anyhow::anyhow!(
-                        "timed out waiting for streamable HTTP server metadata at {metadata_url}: HTTP {}",
+                        "timed out waiting for streamable HTTP test server at {health_url}: HTTP {}",
                         response.status()
                     ));
                 }
@@ -1707,50 +1485,19 @@ async fn wait_for_streamable_http_server(
             Ok(Err(error)) => {
                 if Instant::now() >= deadline {
                     return Err(anyhow::anyhow!(
-                        "timed out waiting for streamable HTTP server metadata at {metadata_url}: {error}"
+                        "timed out waiting for streamable HTTP test server at {health_url}: {error}"
                     ));
                 }
             }
             Err(_) => {
                 return Err(anyhow::anyhow!(
-                    "timed out waiting for streamable HTTP server metadata at {metadata_url}: request timed out"
+                    "timed out waiting for streamable HTTP test server at {health_url}: request timed out"
                 ));
             }
         }
 
         sleep(Duration::from_millis(50)).await;
     }
-}
-
-fn write_fallback_oauth_tokens(
-    home: &Path,
-    server_name: &str,
-    server_url: &str,
-    client_id: &str,
-    access_token: &str,
-    refresh_token: &str,
-) -> anyhow::Result<()> {
-    let expires_at = SystemTime::now()
-        .checked_add(Duration::from_secs(3600))
-        .ok_or_else(|| anyhow::anyhow!("failed to compute expiry time"))?
-        .duration_since(UNIX_EPOCH)?
-        .as_millis() as u64;
-
-    let store = serde_json::json!({
-        "stub": {
-            "server_name": server_name,
-            "server_url": server_url,
-            "client_id": client_id,
-            "access_token": access_token,
-            "expires_at": expires_at,
-            "refresh_token": refresh_token,
-            "scopes": ["profile"],
-        }
-    });
-
-    let file_path = home.join(".credentials.json");
-    fs::write(&file_path, serde_json::to_vec(&store)?)?;
-    Ok(())
 }
 
 struct EnvVarGuard {

@@ -523,10 +523,10 @@ async fn append_message_records_assistant_message() {
                 content: vec![ContentItem::InputText {
                     text: message.to_string(),
                 }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+                end_turn: None,
+                phase: None,
+                reasoning_content: None,
+            },
         )
         .await
         .expect("append_message should succeed");
@@ -681,10 +681,10 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
             content: vec![ContentItem::InputText {
                 text: "parent seed context".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         assistant_message("parent final answer", Some(MessagePhase::FinalAnswer)),
     ];
     assert_eq!(

@@ -802,18 +802,16 @@ fn mcp_init_error_display_prompts_for_github_pat() {
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
         auth_status: McpAuthStatus::Unsupported,
     };
-    let err: StartupOutcomeError = anyhow::anyhow!("OAuth is unsupported").into();
+    let err: StartupOutcomeError = anyhow::anyhow!("authentication is required").into();
 
     let display = mcp_init_error_display(server_name, Some(&entry), &err);
 
     let expected = format!(
-        "GitHub MCP does not support OAuth. Log in by adding a personal access token (https://github.com/settings/personal-access-tokens) to your environment and config.toml:\n[mcp_servers.{server_name}]\nbearer_token_env_var = CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
+        "GitHub MCP requires a personal access token (https://github.com/settings/personal-access-tokens) in your environment and config.toml:\n[mcp_servers.{server_name}]\nbearer_token_env_var = CODEX_GITHUB_PERSONAL_ACCESS_TOKEN"
     );
 
     assert_eq!(expected, display);
@@ -854,8 +852,6 @@ fn mcp_init_error_display_reports_generic_errors() {
             default_tools_approval_mode: None,
             enabled_tools: None,
             disabled_tools: None,
-            scopes: None,
-            oauth_resource: None,
             tools: HashMap::new(),
         },
         auth_status: McpAuthStatus::Unsupported,

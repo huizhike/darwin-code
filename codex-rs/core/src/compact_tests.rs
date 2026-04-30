@@ -61,20 +61,20 @@ fn collect_user_messages_extracts_user_text_only() {
             content: vec![ContentItem::OutputText {
                 text: "ignored".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: Some("user".to_string()),
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "first".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Other,
     ];
 
@@ -97,30 +97,30 @@ do things
 </INSTRUCTIONS>"#
                     .to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "<ENVIRONMENT_CONTEXT>cwd=/tmp</ENVIRONMENT_CONTEXT>".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "real user message".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
 
     let collected = collect_user_messages(&items);
@@ -209,9 +209,6 @@ fn should_use_remote_compact_task_for_azure_provider() {
         request_max_retries: None,
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     };
 
     assert!(should_use_remote_compact_task(&provider));
@@ -226,30 +223,30 @@ async fn process_compacted_history_replaces_developer_messages() {
             content: vec![ContentItem::InputText {
                 text: "stale permissions".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "summary".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "developer".to_string(),
             content: vec![ContentItem::InputText {
                 text: "stale personality".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     let (refreshed, mut expected) = process_compacted_history_with_test_session(
         compacted_history,
@@ -313,10 +310,10 @@ keep me updated
 </INSTRUCTIONS>"#
                     .to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
@@ -327,10 +324,10 @@ keep me updated
 </environment_context>"#
                     .to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
@@ -341,30 +338,30 @@ keep me updated
 </turn_aborted>"#
                     .to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "summary".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "developer".to_string(),
             content: vec![ContentItem::InputText {
                 text: "stale developer instructions".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     let (refreshed, mut expected) = process_compacted_history_with_test_session(
         compacted_history,
@@ -393,30 +390,30 @@ async fn process_compacted_history_inserts_context_before_last_real_user_message
             content: vec![ContentItem::InputText {
                 text: "older user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: format!("{SUMMARY_PREFIX}\nsummary text"),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "latest user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
 
     let (refreshed, initial_context) = process_compacted_history_with_test_session(
@@ -431,20 +428,20 @@ async fn process_compacted_history_inserts_context_before_last_real_user_message
             content: vec![ContentItem::InputText {
                 text: "older user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: format!("{SUMMARY_PREFIX}\nsummary text"),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     expected.extend(initial_context);
     expected.push(ResponseItem::Message {
@@ -515,30 +512,30 @@ fn insert_initial_context_before_last_real_user_or_summary_keeps_summary_last() 
             content: vec![ContentItem::InputText {
                 text: "older user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "latest user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: format!("{SUMMARY_PREFIX}\nsummary text"),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     let initial_context = vec![ResponseItem::Message {
         id: None,
@@ -560,40 +557,40 @@ fn insert_initial_context_before_last_real_user_or_summary_keeps_summary_last() 
             content: vec![ContentItem::InputText {
                 text: "older user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "developer".to_string(),
             content: vec![ContentItem::InputText {
                 text: "fresh permissions".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: "latest user".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: format!("{SUMMARY_PREFIX}\nsummary text"),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     assert_eq!(refreshed, expected);
 }
@@ -623,10 +620,10 @@ fn insert_initial_context_before_last_real_user_or_summary_keeps_compaction_last
             content: vec![ContentItem::InputText {
                 text: "fresh permissions".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         ResponseItem::Compaction {
             encrypted_content: "encrypted".to_string(),
         },

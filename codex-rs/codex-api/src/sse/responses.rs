@@ -2,7 +2,6 @@ use crate::common::ResponseEvent;
 use crate::common::ResponseStream;
 use crate::error::ApiError;
 use crate::rate_limits::parse_all_rate_limits;
-use crate::telemetry::SseTelemetry;
 use darwin_code_client::ByteStream;
 use darwin_code_client::StreamResponse;
 use darwin_code_client::TransportError;
@@ -21,7 +20,6 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tokio::time::Instant;
 use tokio::time::timeout;
 use tokio_util::io::ReaderStream;
 use tracing::debug;
@@ -47,19 +45,13 @@ pub fn stream_from_fixture(
     let reader = std::io::Cursor::new(content);
     let stream = ReaderStream::new(reader).map_err(|err| TransportError::Network(err.to_string()));
     let (tx_event, rx_event) = mpsc::channel::<Result<ResponseEvent, ApiError>>(1600);
-    tokio::spawn(process_sse(
-        Box::pin(stream),
-        tx_event,
-        idle_timeout,
-        /*telemetry*/ None,
-    ));
+    tokio::spawn(process_sse(Box::pin(stream), tx_event, idle_timeout));
     Ok(ResponseStream { rx_event })
 }
 
 pub fn spawn_response_stream(
     stream_response: StreamResponse,
     idle_timeout: Duration,
-    telemetry: Option<Arc<dyn SseTelemetry>>,
     turn_state: Option<Arc<OnceLock<String>>>,
 ) -> ResponseStream {
     let rate_limit_snapshots = parse_all_rate_limits(&stream_response.headers);
@@ -101,7 +93,7 @@ pub fn spawn_response_stream(
                 .send(Ok(ResponseEvent::ServerReasoningIncluded(true)))
                 .await;
         }
-        process_sse(stream_response.bytes, tx_event, idle_timeout, telemetry).await;
+        process_sse(stream_response.bytes, tx_event, idle_timeout).await;
     });
 
     ResponseStream { rx_event }
@@ -402,18 +394,13 @@ pub async fn process_sse(
     stream: ByteStream,
     tx_event: mpsc::Sender<Result<ResponseEvent, ApiError>>,
     idle_timeout: Duration,
-    telemetry: Option<Arc<dyn SseTelemetry>>,
 ) {
     let mut stream = stream.eventsource();
     let mut response_error: Option<ApiError> = None;
     let mut last_server_model: Option<String> = None;
 
     loop {
-        let start = Instant::now();
         let response = timeout(idle_timeout, stream.next()).await;
-        if let Some(t) = telemetry.as_ref() {
-            t.on_sse_poll(&response, start.elapsed());
-        }
         let sse = match response {
             Ok(Some(Ok(sse))) => sse,
             Ok(Some(Err(e))) => {
@@ -559,12 +546,7 @@ mod tests {
         let stream =
             ReaderStream::new(reader).map_err(|err| TransportError::Network(err.to_string()));
         let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent, ApiError>>(16);
-        tokio::spawn(process_sse(
-            Box::pin(stream),
-            tx,
-            idle_timeout(),
-            /*telemetry*/ None,
-        ));
+        tokio::spawn(process_sse(Box::pin(stream), tx, idle_timeout()));
 
         let mut events = Vec::new();
         while let Some(ev) = rx.recv().await {
@@ -590,12 +572,7 @@ mod tests {
         let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent, ApiError>>(8);
         let stream = ReaderStream::new(std::io::Cursor::new(body))
             .map_err(|err| TransportError::Network(err.to_string()));
-        tokio::spawn(process_sse(
-            Box::pin(stream),
-            tx,
-            idle_timeout(),
-            /*telemetry*/ None,
-        ));
+        tokio::spawn(process_sse(Box::pin(stream), tx, idle_timeout()));
 
         let mut out = Vec::new();
         while let Some(ev) = rx.recv().await {
@@ -781,12 +758,7 @@ mod tests {
         let stream: ByteStream = Box::pin(stream);
 
         let (tx, mut rx) = mpsc::channel::<Result<ResponseEvent, ApiError>>(8);
-        tokio::spawn(process_sse(
-            stream,
-            tx,
-            idle_timeout(),
-            /*telemetry*/ None,
-        ));
+        tokio::spawn(process_sse(stream, tx, idle_timeout()));
 
         let events = tokio::time::timeout(Duration::from_millis(1000), async {
             let mut events = Vec::new();
@@ -985,12 +957,8 @@ mod tests {
             bytes: Box::pin(bytes),
         };
 
-        let mut stream = spawn_response_stream(
-            stream_response,
-            idle_timeout(),
-            /*telemetry*/ None,
-            /*turn_state*/ None,
-        );
+        let mut stream =
+            spawn_response_stream(stream_response, idle_timeout(), /*turn_state*/ None);
         let event = stream
             .rx_event
             .recv()

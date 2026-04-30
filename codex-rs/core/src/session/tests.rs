@@ -237,111 +237,6 @@ fn skill_message(text: &str) -> ResponseItem {
     }
 }
 
-#[tokio::test]
-async fn regular_turn_emits_turn_started_without_waiting_for_startup_prewarm() {
-    let (sess, tc, rx) = make_session_and_context_with_rx().await;
-    let (_tx, startup_prewarm_rx) = tokio::sync::oneshot::channel::<()>();
-    let handle = tokio::spawn(async move {
-        let _ = startup_prewarm_rx.await;
-        Ok(test_model_client_session())
-    });
-
-    sess.set_session_startup_prewarm(
-        crate::session_startup_prewarm::SessionStartupPrewarmHandle::new(
-            handle,
-            std::time::Instant::now(),
-            crate::client::WEBSOCKET_CONNECT_TIMEOUT,
-        ),
-    )
-    .await;
-    sess.spawn_task(
-        Arc::clone(&tc),
-        Vec::new(),
-        crate::tasks::RegularTask::new(),
-    )
-    .await;
-
-    let first = tokio::time::timeout(std::time::Duration::from_millis(200), rx.recv())
-        .await
-        .expect("expected turn started event without waiting for startup prewarm")
-        .expect("channel open");
-    assert!(matches!(
-        first.msg,
-        EventMsg::TurnStarted(TurnStartedEvent { turn_id, .. }) if turn_id == tc.sub_id
-    ));
-
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
-}
-
-#[tokio::test]
-async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted() {
-    let (sess, tc, rx) = make_session_and_context_with_rx().await;
-    let (_tx, startup_prewarm_rx) = tokio::sync::oneshot::channel::<()>();
-    let handle = tokio::spawn(async move {
-        let _ = startup_prewarm_rx.await;
-        Ok(test_model_client_session())
-    });
-
-    sess.set_session_startup_prewarm(
-        crate::session_startup_prewarm::SessionStartupPrewarmHandle::new(
-            handle,
-            std::time::Instant::now(),
-            crate::client::WEBSOCKET_CONNECT_TIMEOUT,
-        ),
-    )
-    .await;
-    sess.spawn_task(
-        Arc::clone(&tc),
-        Vec::new(),
-        crate::tasks::RegularTask::new(),
-    )
-    .await;
-
-    let first = tokio::time::timeout(std::time::Duration::from_millis(200), rx.recv())
-        .await
-        .expect("expected turn started event without waiting for startup prewarm")
-        .expect("channel open");
-    assert!(matches!(
-        first.msg,
-        EventMsg::TurnStarted(TurnStartedEvent { turn_id, .. }) if turn_id == tc.sub_id
-    ));
-
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
-
-    let second = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
-        .await
-        .expect("expected turn aborted event")
-        .expect("channel open");
-    let EventMsg::TurnAborted(TurnAbortedEvent {
-        turn_id,
-        reason,
-        completed_at,
-        duration_ms,
-    }) = second.msg
-    else {
-        panic!("expected turn aborted event");
-    };
-    assert_eq!(turn_id, Some(tc.sub_id.clone()));
-    assert_eq!(reason, TurnAbortReason::Interrupted);
-    assert!(completed_at.is_some());
-    assert!(duration_ms.is_some());
-}
-
-fn test_model_client_session() -> crate::client::ModelClientSession {
-    crate::client::ModelClient::new(
-        ThreadId::try_from("00000000-0000-4000-8000-000000000001")
-            .expect("test thread id should be valid"),
-        /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None, None),
-        darwin_code_protocol::protocol::SessionSource::Exec,
-        /*model_verbosity*/ None,
-        /*enable_request_compression*/ false,
-        /*include_timing_metrics*/ false,
-        /*beta_features_header*/ None,
-    )
-    .new_session()
-}
-
 fn developer_input_texts(items: &[ResponseItem]) -> Vec<&str> {
     items
         .iter()
@@ -775,10 +670,10 @@ async fn reconstruct_history_uses_replacement_history_verbatim() {
             content: vec![ContentItem::InputText {
                 text: "stale developer instructions".to_string(),
             }],
-                end_turn: None,
-                phase: None,
-                reasoning_content: None,
-            },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
     ];
     let rollout_items = vec![RolloutItem::Compacted(CompactedItem {
         message: String::new(),
@@ -3701,11 +3596,8 @@ async fn refresh_mcp_servers_is_deferred_until_next_turn() {
     let old_token = session.mcp_startup_cancellation_token().await;
     assert!(!old_token.is_cancelled());
 
-    let mcp_oauth_credentials_store_mode =
-        serde_json::to_value(OAuthCredentialsStoreMode::Auto).expect("serialize store mode");
     let refresh_config = McpServerRefreshConfig {
         mcp_servers: json!({}),
-        mcp_oauth_credentials_store_mode,
     };
     {
         let mut guard = session.pending_mcp_server_refresh_config.lock().await;

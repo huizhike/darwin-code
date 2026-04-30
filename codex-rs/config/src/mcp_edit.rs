@@ -206,16 +206,6 @@ fn serialize_mcp_server(config: &McpServerConfig) -> TomlItem {
     {
         entry["disabled_tools"] = array_from_strings(disabled_tools);
     }
-    if let Some(scopes) = &config.scopes
-        && !scopes.is_empty()
-    {
-        entry["scopes"] = array_from_strings(scopes);
-    }
-    if let Some(resource) = &config.oauth_resource
-        && !resource.is_empty()
-    {
-        entry["oauth_resource"] = value(resource.clone());
-    }
     if !config.tools.is_empty() {
         let mut tools = TomlTable::new();
         tools.set_implicit(false);

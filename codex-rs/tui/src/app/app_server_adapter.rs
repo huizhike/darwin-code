@@ -401,7 +401,6 @@ fn server_notification_thread_target(
         ServerNotification::Warning(notification) => notification.thread_id.as_deref(),
         ServerNotification::SkillsChanged(_)
         | ServerNotification::McpServerStatusUpdated(_)
-        | ServerNotification::McpServerOauthLoginCompleted(_)
         | ServerNotification::AppListUpdated(_)
         | ServerNotification::ExternalAgentConfigImportCompleted(_)
         | ServerNotification::DeprecationNotice(_)

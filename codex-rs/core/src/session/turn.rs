@@ -150,8 +150,8 @@ pub(crate) async fn run_turn(
             return None;
         }
     };
-    if pre_sampling_compacted && let Some(mut client_session) = prewarmed_client_session.take() {
-        client_session.reset_websocket_session();
+    if pre_sampling_compacted {
+        prewarmed_client_session.take();
     }
 
     let skills_outcome = Some(turn_context.turn_skills.outcome.as_ref());
@@ -495,7 +495,6 @@ pub(crate) async fn run_turn(
                     {
                         return None;
                     }
-                    client_session.reset_websocket_session();
                     can_drain_pending_input = !model_needs_follow_up;
                     continue;
                 }
@@ -1064,22 +1063,6 @@ async fn run_sampling_request(
 
         // Use the configured provider-specific stream retry budget.
         let max_retries = turn_context.provider.info().stream_max_retries();
-        if retries >= max_retries
-            && client_session.try_switch_fallback_transport(
-                &turn_context.session_telemetry,
-                &turn_context.model_info,
-            )
-        {
-            sess.send_event(
-                &turn_context,
-                EventMsg::Warning(WarningEvent {
-                    message: format!("Falling back from WebSockets to HTTPS transport. {err:#}"),
-                }),
-            )
-            .await;
-            retries = 0;
-            continue;
-        }
         if retries < max_retries {
             retries += 1;
             let delay = match &err {
@@ -1092,22 +1075,14 @@ async fn run_sampling_request(
                 "stream disconnected - retrying sampling request ({retries}/{max_retries} in {delay:?})...",
             );
 
-            // In release builds, hide the first websocket retry notification to reduce noisy
-            // transient reconnect messages. In debug builds, keep full visibility for diagnosis.
-            let report_error = retries > 1
-                || cfg!(debug_assertions)
-                || !sess.services.model_client.responses_websocket_enabled();
-            if report_error {
-                // Surface retry information to any UI/front‑end so the
-                // user understands what is happening instead of staring
-                // at a seemingly frozen screen.
-                sess.notify_stream_error(
-                    &turn_context,
-                    format!("Reconnecting... {retries}/{max_retries}"),
-                    err,
-                )
-                .await;
-            }
+            // Surface retry information to any UI/front-end so the user understands what is
+            // happening instead of staring at a seemingly frozen screen.
+            sess.notify_stream_error(
+                &turn_context,
+                format!("Reconnecting... {retries}/{max_retries}"),
+                err,
+            )
+            .await;
             tokio::time::sleep(delay).await;
         } else {
             return Err(err);

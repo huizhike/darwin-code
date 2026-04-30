@@ -13,7 +13,6 @@ use axum::http::Method;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
-use axum::http::header::CONTENT_TYPE;
 use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -59,6 +58,7 @@ const MEMO_URI: &str = "memo://codex/example-note";
 const MEMO_CONTENT: &str = "This is a sample MCP resource served by the rmcp test server.";
 const MCP_SESSION_ID_HEADER: &str = "mcp-session-id";
 const SESSION_POST_FAILURE_CONTROL_PATH: &str = "/test/control/session-post-failure";
+const HEALTH_PATH: &str = "/test/health";
 
 impl TestToolServer {
     fn new() -> Self {
@@ -320,29 +320,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("starting rmcp streamable http test server on http://{bind_addr}/mcp");
 
     let router = Router::new()
+        .route(HEALTH_PATH, get(|| async { StatusCode::OK }))
         .route(
             SESSION_POST_FAILURE_CONTROL_PATH,
             post(arm_session_post_failure),
-        )
-        .route(
-            "/.well-known/oauth-authorization-server/mcp",
-            get({
-                move || async move {
-                    let metadata_base = format!("http://{bind_addr}");
-                    #[expect(clippy::expect_used)]
-                    Response::builder()
-                        .status(StatusCode::OK)
-                        .header(CONTENT_TYPE, "application/json")
-                        .body(Body::from(
-                            serde_json::to_vec(&json!({
-                                "authorization_endpoint": format!("{metadata_base}/oauth/authorize"),
-                                "token_endpoint": format!("{metadata_base}/oauth/token"),
-                                "scopes_supported": [""],
-                            })).expect("failed to serialize metadata"),
-                        ))
-                        .expect("valid metadata response")
-                }
-            }),
         )
         .nest_service(
             "/mcp",

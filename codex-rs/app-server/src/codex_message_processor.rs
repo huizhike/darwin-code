@@ -71,9 +71,6 @@ use darwin_code_app_server_protocol::MarketplaceAddResponse;
 use darwin_code_app_server_protocol::MarketplaceInterface;
 use darwin_code_app_server_protocol::McpResourceReadParams;
 use darwin_code_app_server_protocol::McpResourceReadResponse;
-use darwin_code_app_server_protocol::McpServerOauthLoginCompletedNotification;
-use darwin_code_app_server_protocol::McpServerOauthLoginParams;
-use darwin_code_app_server_protocol::McpServerOauthLoginResponse;
 use darwin_code_app_server_protocol::McpServerRefreshResponse;
 use darwin_code_app_server_protocol::McpServerStatus;
 use darwin_code_app_server_protocol::McpServerStatusDetail;
@@ -189,7 +186,6 @@ use darwin_code_app_server_protocol::WindowsSandboxSetupStartParams;
 use darwin_code_app_server_protocol::WindowsSandboxSetupStartResponse;
 use darwin_code_app_server_protocol::build_turns_from_rollout_items;
 use darwin_code_arg0::Arg0DispatchPaths;
-use darwin_code_config::types::McpServerTransportConfig;
 use darwin_code_core::DarwinCodeThread;
 use darwin_code_core::ForkSnapshot;
 use darwin_code_core::NewThread;
@@ -246,9 +242,7 @@ use darwin_code_git_utils::resolve_root_git_project_for_trust;
 use darwin_code_mcp::McpServerStatusSnapshot;
 use darwin_code_mcp::McpSnapshotDetail;
 use darwin_code_mcp::collect_mcp_server_status_snapshot_with_detail;
-use darwin_code_mcp::discover_supported_scopes;
 use darwin_code_mcp::effective_mcp_servers;
-use darwin_code_mcp::resolve_oauth_scopes;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::config_types::CollaborationMode;
@@ -283,7 +277,6 @@ use darwin_code_protocol::protocol::USER_MESSAGE_BEGIN;
 use darwin_code_protocol::protocol::W3cTraceContext;
 use darwin_code_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use darwin_code_protocol::user_input::UserInput as CoreInputItem;
-use darwin_code_rmcp_client::perform_oauth_login_return_url;
 use darwin_code_rollout::append_rollout_item_to_path;
 use darwin_code_rollout::state_db::StateDbHandle;
 use darwin_code_rollout::state_db::get_state_db;
@@ -335,8 +328,6 @@ use darwin_code_app_server_protocol::ServerRequest;
 mod apps_list_helpers;
 #[path = "codex_message_processor/plugin_app_helpers.rs"]
 mod plugin_app_helpers;
-#[path = "codex_message_processor/plugin_mcp_oauth.rs"]
-mod plugin_mcp_oauth;
 #[path = "codex_message_processor/token_usage_replay.rs"]
 mod token_usage_replay;
 
@@ -979,10 +970,6 @@ impl DarwinCodeMessageProcessor {
             }
             ClientRequest::MockExperimentalMethod { request_id, params } => {
                 self.mock_experimental_method(to_connection_request_id(request_id), params)
-                    .await;
-            }
-            ClientRequest::McpServerOauthLogin { request_id, params } => {
-                self.mcp_server_oauth_login(to_connection_request_id(request_id), params)
                     .await;
             }
             ClientRequest::McpServerRefresh { request_id, params } => {
@@ -4591,140 +4578,13 @@ impl DarwinCodeMessageProcessor {
             }
         };
 
-        let mcp_oauth_credentials_store_mode =
-            match serde_json::to_value(config.mcp_oauth_credentials_store_mode) {
-                Ok(value) => value,
-                Err(err) => {
-                    return Err(JSONRPCErrorError {
-                        code: INTERNAL_ERROR_CODE,
-                        message: format!(
-                            "failed to serialize MCP OAuth credentials store mode: {err}"
-                        ),
-                        data: None,
-                    });
-                }
-            };
-
-        let refresh_config = McpServerRefreshConfig {
-            mcp_servers,
-            mcp_oauth_credentials_store_mode,
-        };
+        let refresh_config = McpServerRefreshConfig { mcp_servers };
 
         // Refresh requests are queued per thread; each thread rebuilds MCP connections on its next
         // active turn to avoid work for threads that never resume.
         let thread_manager = Arc::clone(&self.thread_manager);
         thread_manager.refresh_mcp_servers(refresh_config).await;
         Ok(())
-    }
-
-    async fn mcp_server_oauth_login(
-        &self,
-        request_id: ConnectionRequestId,
-        params: McpServerOauthLoginParams,
-    ) {
-        let config = match self.load_latest_config(/*fallback_cwd*/ None).await {
-            Ok(config) => config,
-            Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
-                return;
-            }
-        };
-
-        let McpServerOauthLoginParams {
-            name,
-            scopes,
-            timeout_secs,
-        } = params;
-
-        let configured_servers = self
-            .thread_manager
-            .mcp_manager()
-            .configured_servers(&config)
-            .await;
-        let Some(server) = configured_servers.get(&name) else {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: format!("No MCP server named '{name}' found."),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        };
-
-        let (url, http_headers, env_http_headers) = match &server.transport {
-            McpServerTransportConfig::StreamableHttp {
-                url,
-                http_headers,
-                env_http_headers,
-                ..
-            } => (url.clone(), http_headers.clone(), env_http_headers.clone()),
-            _ => {
-                let error = JSONRPCErrorError {
-                    code: INVALID_REQUEST_ERROR_CODE,
-                    message: "OAuth login is only supported for streamable HTTP servers."
-                        .to_string(),
-                    data: None,
-                };
-                self.outgoing.send_error(request_id, error).await;
-                return;
-            }
-        };
-
-        let discovered_scopes = if scopes.is_none() && server.scopes.is_none() {
-            discover_supported_scopes(&server.transport).await
-        } else {
-            None
-        };
-        let resolved_scopes =
-            resolve_oauth_scopes(scopes, server.scopes.clone(), discovered_scopes);
-
-        match perform_oauth_login_return_url(
-            &name,
-            &url,
-            config.mcp_oauth_credentials_store_mode,
-            http_headers,
-            env_http_headers,
-            &resolved_scopes.scopes,
-            server.oauth_resource.as_deref(),
-            timeout_secs,
-            config.mcp_oauth_callback_port,
-            config.mcp_oauth_callback_url.as_deref(),
-        )
-        .await
-        {
-            Ok(handle) => {
-                let authorization_url = handle.authorization_url().to_string();
-                let notification_name = name.clone();
-                let outgoing = Arc::clone(&self.outgoing);
-
-                tokio::spawn(async move {
-                    let (success, error) = match handle.wait().await {
-                        Ok(()) => (true, None),
-                        Err(err) => (false, Some(err.to_string())),
-                    };
-
-                    let notification = ServerNotification::McpServerOauthLoginCompleted(
-                        McpServerOauthLoginCompletedNotification {
-                            name: notification_name,
-                            success,
-                            error,
-                        },
-                    );
-                    outgoing.send_server_notification(notification).await;
-                });
-
-                let response = McpServerOauthLoginResponse { authorization_url };
-                self.outgoing.send_response(request_id, response).await;
-            }
-            Err(err) => {
-                let error = JSONRPCErrorError {
-                    code: INTERNAL_ERROR_CODE,
-                    message: format!("failed to login to MCP server '{name}': {err}"),
-                    data: None,
-                };
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
     }
 
     async fn list_mcp_server_status(
@@ -5892,8 +5752,6 @@ impl DarwinCodeMessageProcessor {
                             "failed to queue MCP refresh after plugin install: {err:?}"
                         );
                     }
-                    self.start_plugin_mcp_oauth_logins(&config, plugin_mcp_servers)
-                        .await;
                 }
 
                 let plugin_apps = load_plugin_apps(result.installed_path.as_path()).await;

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use crate::ModelClient;
 use darwin_code_api::RawMemory as ApiRawMemory;
 use darwin_code_api::RawMemoryMetadata as ApiRawMemoryMetadata;
-use darwin_code_otel::SessionTelemetry;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::error::Result;
 use darwin_code_protocol::openai_models::ModelInfo;
@@ -31,14 +30,13 @@ struct PreparedTrace {
 /// The request/response wiring mirrors the memory summarize E2E flow:
 /// `/v1/memories/trace_summarize` with one output object per input raw memory.
 ///
-/// The caller provides the model selection, reasoning effort, and telemetry context explicitly so
-/// the session-scoped [`ModelClient`] can be reused across turns.
+/// The caller provides the model selection and reasoning effort explicitly so the session-scoped
+/// [`ModelClient`] can be reused across turns.
 pub async fn build_memories_from_trace_files(
     client: &ModelClient,
     trace_paths: &[PathBuf],
     model_info: &ModelInfo,
     effort: Option<ReasoningEffortConfig>,
-    session_telemetry: &SessionTelemetry,
 ) -> Result<Vec<BuiltMemory>> {
     if trace_paths.is_empty() {
         return Ok(Vec::new());
@@ -51,7 +49,7 @@ pub async fn build_memories_from_trace_files(
 
     let raw_memories = prepared.iter().map(|trace| trace.payload.clone()).collect();
     let output = client
-        .summarize_memories(raw_memories, model_info, effort, session_telemetry)
+        .summarize_memories(raw_memories, model_info, effort)
         .await?;
     if output.len() != prepared.len() {
         return Err(DarwinCodeErr::InvalidRequest(format!(

@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
 
-use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_rmcp_client::ElicitationAction;
 use darwin_code_rmcp_client::ElicitationResponse;
 use darwin_code_rmcp_client::RmcpClient;
@@ -76,7 +75,6 @@ async fn create_client(base_url: &str) -> anyhow::Result<RmcpClient> {
         Some("test-bearer".to_string()),
         /*http_headers*/ None,
         /*env_http_headers*/ None,
-        OAuthCredentialsStoreMode::File,
     )
     .await?;
 

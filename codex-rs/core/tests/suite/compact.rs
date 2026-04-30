@@ -97,7 +97,6 @@ fn non_openai_model_provider(server: &MockServer) -> ModelProviderInfo {
     let mut provider = ModelProviderInfo::create_openai_provider(None, None);
     provider.name = "OpenAI (test)".into();
     provider.base_url = Some(format!("{}/v1", server.uri()));
-    provider.supports_websockets = false;
     provider
 }
 
@@ -1609,10 +1608,10 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: remote_summary.to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         darwin_code_protocol::models::ResponseItem::Compaction {
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
         },
@@ -2840,10 +2839,10 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
-        end_turn: None,
-        phase: None,
-        reasoning_content: None,
-    },
+            end_turn: None,
+            phase: None,
+            reasoning_content: None,
+        },
         darwin_code_protocol::models::ResponseItem::Compaction {
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
         },

@@ -36,7 +36,6 @@ use darwin_code_config::types::McpServerTransportConfig;
 use darwin_code_config::types::MemoriesConfig;
 use darwin_code_config::types::ModelAvailabilityNuxConfig;
 use darwin_code_config::types::Notice;
-use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_config::types::OtelConfig;
 use darwin_code_config::types::ShellEnvironmentPolicy;
 use darwin_code_config::types::ToolSuggestConfig;
@@ -158,19 +157,6 @@ fn resolve_cli_auth_credentials_store_mode(
             LOCAL_DEV_BUILD_VERSION,
             AuthCredentialsStoreMode::Keyring | AuthCredentialsStoreMode::Auto,
         ) => AuthCredentialsStoreMode::File,
-        (_, mode) => mode,
-    }
-}
-
-fn resolve_mcp_oauth_credentials_store_mode(
-    configured: OAuthCredentialsStoreMode,
-    package_version: &str,
-) -> OAuthCredentialsStoreMode {
-    match (package_version, configured) {
-        (
-            LOCAL_DEV_BUILD_VERSION,
-            OAuthCredentialsStoreMode::Keyring | OAuthCredentialsStoreMode::Auto,
-        ) => OAuthCredentialsStoreMode::File,
         (_, mode) => mode,
     }
 }
@@ -380,27 +366,6 @@ pub struct Config {
 
     /// Definition for MCP servers that DarwinCode can reach out to for tool calls.
     pub mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
-
-    /// Preferred store for MCP OAuth credentials.
-    /// keyring: Use an OS-specific keyring service.
-    ///          Credentials stored in the keyring will only be readable by DarwinCode unless the user explicitly grants access via OS-level keyring access.
-    ///          https://github.com/openai/darwin_code/blob/main/darwin_code-rs/rmcp-client/src/oauth.rs#L2
-    /// file: DARWIN_CODE_HOME/.credentials.json
-    ///       This file will be readable to DarwinCode and other applications running as the same user.
-    /// auto (default): keyring if available, otherwise file.
-    pub mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
-
-    /// Optional fixed port to use for the local HTTP callback server used during MCP OAuth login.
-    ///
-    /// When unset, DarwinCode will bind to an ephemeral port chosen by the OS.
-    pub mcp_oauth_callback_port: Option<u16>,
-
-    /// Optional redirect URI to use during MCP OAuth login.
-    ///
-    /// When set, this URI is used in the OAuth authorization request instead
-    /// of the local listener address. The local callback listener still binds
-    /// to 127.0.0.1 (using `mcp_oauth_callback_port` when provided).
-    pub mcp_oauth_callback_url: Option<String>,
 
     /// Combined provider map (defaults plus user-defined providers).
     pub model_providers: HashMap<String, ModelProviderInfo>,
@@ -795,9 +760,6 @@ impl Config {
 
         McpConfig {
             codex_home: self.darwin_code_home.to_path_buf(),
-            mcp_oauth_credentials_store_mode: self.mcp_oauth_credentials_store_mode,
-            mcp_oauth_callback_port: self.mcp_oauth_callback_port,
-            mcp_oauth_callback_url: self.mcp_oauth_callback_url.clone(),
             skill_mcp_dependency_install_enabled: self
                 .features
                 .enabled(Feature::SkillMcpDependencyInstall),
@@ -2228,14 +2190,6 @@ impl Config {
                 env!("CARGO_PKG_VERSION"),
             ),
             mcp_servers,
-            // The config.toml omits "_mode" because it's a config file. However, "_mode"
-            // is important in code to differentiate the mode from the store implementation.
-            mcp_oauth_credentials_store_mode: resolve_mcp_oauth_credentials_store_mode(
-                cfg.mcp_oauth_credentials_store.unwrap_or_default(),
-                env!("CARGO_PKG_VERSION"),
-            ),
-            mcp_oauth_callback_port: cfg.mcp_oauth_callback_port,
-            mcp_oauth_callback_url: cfg.mcp_oauth_callback_url.clone(),
             model_providers,
             project_doc_max_bytes: cfg.project_doc_max_bytes.unwrap_or(AGENTS_MD_MAX_BYTES),
             project_doc_fallback_filenames: cfg

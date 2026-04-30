@@ -3,33 +3,18 @@ use crate::ToolDecisionSource;
 use crate::events::shared::log_and_trace_event;
 use crate::events::shared::log_event;
 use crate::events::shared::trace_event;
-use crate::metrics::API_CALL_COUNT_METRIC;
-use crate::metrics::API_CALL_DURATION_METRIC;
 use crate::metrics::MetricsClient;
 use crate::metrics::MetricsConfig;
 use crate::metrics::MetricsError;
 use crate::metrics::PROFILE_USAGE_METRIC;
-use crate::metrics::RESPONSES_API_ENGINE_IAPI_TBT_DURATION_METRIC;
-use crate::metrics::RESPONSES_API_ENGINE_IAPI_TTFT_DURATION_METRIC;
-use crate::metrics::RESPONSES_API_ENGINE_SERVICE_TBT_DURATION_METRIC;
-use crate::metrics::RESPONSES_API_ENGINE_SERVICE_TTFT_DURATION_METRIC;
-use crate::metrics::RESPONSES_API_INFERENCE_TIME_DURATION_METRIC;
-use crate::metrics::RESPONSES_API_OVERHEAD_DURATION_METRIC;
 use crate::metrics::Result as MetricsResult;
-use crate::metrics::SSE_EVENT_COUNT_METRIC;
-use crate::metrics::SSE_EVENT_DURATION_METRIC;
 use crate::metrics::SessionMetricTagValues;
 use crate::metrics::TOOL_CALL_COUNT_METRIC;
 use crate::metrics::TOOL_CALL_DURATION_METRIC;
-use crate::metrics::WEBSOCKET_EVENT_COUNT_METRIC;
-use crate::metrics::WEBSOCKET_EVENT_DURATION_METRIC;
-use crate::metrics::WEBSOCKET_REQUEST_COUNT_METRIC;
-use crate::metrics::WEBSOCKET_REQUEST_DURATION_METRIC;
 use crate::metrics::runtime_metrics::RuntimeMetricsSummary;
 use crate::metrics::timer::Timer;
 use crate::provider::OtelProvider;
 use crate::sanitize_metric_tag_value;
-use codex_api::ApiError;
 use codex_api::ResponseEvent;
 use codex_protocol::ThreadId;
 use codex_protocol::config_types::ReasoningSummary;
@@ -40,28 +25,11 @@ use codex_protocol::protocol::ReviewDecision;
 use codex_protocol::protocol::SandboxPolicy;
 use codex_protocol::protocol::SessionSource;
 use codex_protocol::user_input::UserInput;
-use eventsource_stream::Event as StreamEvent;
-use eventsource_stream::EventStreamError as StreamError;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
-use reqwest::Error;
-use reqwest::Response;
 use std::borrow::Cow;
-use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
-use tokio::time::error::Elapsed;
 use tracing::Span;
-
-const SSE_UNKNOWN_KIND: &str = "unknown";
-const WEBSOCKET_UNKNOWN_KIND: &str = "unknown";
-const RESPONSES_WEBSOCKET_TIMING_KIND: &str = "responsesapi.websocket_timing";
-const RESPONSES_WEBSOCKET_TIMING_METRICS_FIELD: &str = "timing_metrics";
-const RESPONSES_API_OVERHEAD_FIELD: &str = "responses_duration_excl_engine_and_client_tool_time_ms";
-const RESPONSES_API_INFERENCE_FIELD: &str = "engine_service_total_ms";
-const RESPONSES_API_ENGINE_IAPI_TTFT_FIELD: &str = "engine_iapi_ttft_total_ms";
-const RESPONSES_API_ENGINE_SERVICE_TTFT_FIELD: &str = "engine_service_ttft_total_ms";
-const RESPONSES_API_ENGINE_IAPI_TBT_FIELD: &str = "engine_iapi_tbt_across_engine_calls_ms";
-const RESPONSES_API_ENGINE_SERVICE_TBT_FIELD: &str = "engine_service_tbt_across_engine_calls_ms";
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthEnvTelemetryMetadata {
@@ -354,193 +322,6 @@ impl SessionTelemetry {
         );
     }
 
-    pub async fn log_request<F, Fut>(&self, attempt: u64, f: F) -> Result<Response, Error>
-    where
-        F: FnOnce() -> Fut,
-        Fut: Future<Output = Result<Response, Error>>,
-    {
-        let start = Instant::now();
-        let response = f().await;
-        let duration = start.elapsed();
-
-        let (status, error) = match &response {
-            Ok(response) => (Some(response.status().as_u16()), None),
-            Err(error) => (error.status().map(|s| s.as_u16()), Some(error.to_string())),
-        };
-        self.record_api_request(
-            attempt,
-            status,
-            error.as_deref(),
-            duration,
-            /*auth_header_attached*/ false,
-            /*auth_header_name*/ None,
-            /*retry_after_unauthorized*/ false,
-            /*recovery_mode*/ None,
-            /*recovery_phase*/ None,
-            "unknown",
-            /*request_id*/ None,
-            /*cf_ray*/ None,
-            /*auth_error*/ None,
-            /*auth_error_code*/ None,
-        );
-
-        response
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn record_api_request(
-        &self,
-        attempt: u64,
-        status: Option<u16>,
-        error: Option<&str>,
-        duration: Duration,
-        auth_header_attached: bool,
-        auth_header_name: Option<&str>,
-        retry_after_unauthorized: bool,
-        recovery_mode: Option<&str>,
-        recovery_phase: Option<&str>,
-        endpoint: &str,
-        request_id: Option<&str>,
-        cf_ray: Option<&str>,
-        auth_error: Option<&str>,
-        auth_error_code: Option<&str>,
-    ) {
-        let success = status.is_some_and(|code| (200..=299).contains(&code)) && error.is_none();
-        let success_str = if success { "true" } else { "false" };
-        let status_str = status
-            .map(|code| code.to_string())
-            .unwrap_or_else(|| "none".to_string());
-        self.counter(
-            API_CALL_COUNT_METRIC,
-            /*inc*/ 1,
-            &[("status", status_str.as_str()), ("success", success_str)],
-        );
-        self.record_duration(
-            API_CALL_DURATION_METRIC,
-            duration,
-            &[("status", status_str.as_str()), ("success", success_str)],
-        );
-        log_and_trace_event!(
-            self,
-            common: {
-                event.name = "darwin_code.api_request",
-                duration_ms = %duration.as_millis(),
-                http.response.status_code = status,
-                error.message = error,
-                attempt = attempt,
-                auth.header_attached = auth_header_attached,
-                auth.header_name = auth_header_name,
-                auth.retry_after_unauthorized = retry_after_unauthorized,
-                auth.recovery_mode = recovery_mode,
-                auth.recovery_phase = recovery_phase,
-                endpoint = endpoint,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
-                auth.env_codex_api_key_present = self.metadata.auth_env.codex_api_key_env_present,
-                auth.env_codex_api_key_enabled = self.metadata.auth_env.codex_api_key_env_enabled,
-                auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
-                auth.env_provider_key_present = self.metadata.auth_env.provider_env_key_present,
-                auth.env_refresh_token_url_override_present = self.metadata.auth_env.refresh_token_url_override_present,
-                auth.request_id = request_id,
-                auth.cf_ray = cf_ray,
-                auth.error = auth_error,
-                auth.error_code = auth_error_code,
-            },
-            log: {},
-            trace: {},
-        );
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn record_websocket_connect(
-        &self,
-        duration: Duration,
-        status: Option<u16>,
-        error: Option<&str>,
-        auth_header_attached: bool,
-        auth_header_name: Option<&str>,
-        retry_after_unauthorized: bool,
-        recovery_mode: Option<&str>,
-        recovery_phase: Option<&str>,
-        endpoint: &str,
-        connection_reused: bool,
-        request_id: Option<&str>,
-        cf_ray: Option<&str>,
-        auth_error: Option<&str>,
-        auth_error_code: Option<&str>,
-    ) {
-        let success = error.is_none()
-            && status
-                .map(|code| (200..=299).contains(&code))
-                .unwrap_or(true);
-        let success_str = if success { "true" } else { "false" };
-        log_and_trace_event!(
-            self,
-            common: {
-                event.name = "darwin_code.websocket_connect",
-                duration_ms = %duration.as_millis(),
-                http.response.status_code = status,
-                success = success_str,
-                error.message = error,
-                auth.header_attached = auth_header_attached,
-                auth.header_name = auth_header_name,
-                auth.retry_after_unauthorized = retry_after_unauthorized,
-                auth.recovery_mode = recovery_mode,
-                auth.recovery_phase = recovery_phase,
-                endpoint = endpoint,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
-                auth.env_codex_api_key_present = self.metadata.auth_env.codex_api_key_env_present,
-                auth.env_codex_api_key_enabled = self.metadata.auth_env.codex_api_key_env_enabled,
-                auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
-                auth.env_provider_key_present = self.metadata.auth_env.provider_env_key_present,
-                auth.env_refresh_token_url_override_present = self.metadata.auth_env.refresh_token_url_override_present,
-                auth.connection_reused = connection_reused,
-                auth.request_id = request_id,
-                auth.cf_ray = cf_ray,
-                auth.error = auth_error,
-                auth.error_code = auth_error_code,
-            },
-            log: {},
-            trace: {},
-        );
-    }
-
-    pub fn record_websocket_request(
-        &self,
-        duration: Duration,
-        error: Option<&str>,
-        connection_reused: bool,
-    ) {
-        let success_str = if error.is_none() { "true" } else { "false" };
-        self.counter(
-            WEBSOCKET_REQUEST_COUNT_METRIC,
-            /*inc*/ 1,
-            &[("success", success_str)],
-        );
-        self.record_duration(
-            WEBSOCKET_REQUEST_DURATION_METRIC,
-            duration,
-            &[("success", success_str)],
-        );
-        log_and_trace_event!(
-            self,
-            common: {
-                event.name = "darwin_code.websocket_request",
-                duration_ms = %duration.as_millis(),
-                success = success_str,
-                error.message = error,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
-                auth.env_codex_api_key_present = self.metadata.auth_env.codex_api_key_env_present,
-                auth.env_codex_api_key_enabled = self.metadata.auth_env.codex_api_key_env_enabled,
-                auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
-                auth.env_provider_key_present = self.metadata.auth_env.provider_env_key_present,
-                auth.env_refresh_token_url_override_present = self.metadata.auth_env.refresh_token_url_override_present,
-                auth.connection_reused = connection_reused,
-            },
-            log: {},
-            trace: {},
-        );
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn record_auth_recovery(
         &self,
@@ -570,211 +351,6 @@ impl SessionTelemetry {
             },
             log: {},
             trace: {},
-        );
-    }
-
-    pub fn record_websocket_event(
-        &self,
-        result: &Result<
-            Option<
-                Result<
-                    tokio_tungstenite::tungstenite::Message,
-                    tokio_tungstenite::tungstenite::Error,
-                >,
-            >,
-            ApiError,
-        >,
-        duration: Duration,
-    ) {
-        let mut kind = None;
-        let mut error_message = None;
-        let mut success = true;
-
-        match result {
-            Ok(Some(Ok(message))) => match message {
-                tokio_tungstenite::tungstenite::Message::Text(text) => {
-                    match serde_json::from_str::<serde_json::Value>(text) {
-                        Ok(value) => {
-                            kind = value
-                                .get("type")
-                                .and_then(|value| value.as_str())
-                                .map(std::string::ToString::to_string);
-                            if kind.as_deref() == Some(RESPONSES_WEBSOCKET_TIMING_KIND) {
-                                self.record_responses_websocket_timing_metrics(&value);
-                            }
-                            if kind.as_deref() == Some("response.failed") {
-                                success = false;
-                                error_message = value
-                                    .get("response")
-                                    .and_then(|value| value.get("error"))
-                                    .map(serde_json::Value::to_string)
-                                    .or_else(|| Some("response.failed event received".to_string()));
-                            }
-                        }
-                        Err(err) => {
-                            kind = Some("parse_error".to_string());
-                            error_message = Some(err.to_string());
-                            success = false;
-                        }
-                    }
-                }
-                tokio_tungstenite::tungstenite::Message::Binary(_) => {
-                    success = false;
-                    error_message = Some("unexpected binary websocket event".to_string());
-                }
-                tokio_tungstenite::tungstenite::Message::Ping(_)
-                | tokio_tungstenite::tungstenite::Message::Pong(_) => {
-                    return;
-                }
-                tokio_tungstenite::tungstenite::Message::Close(_) => {
-                    success = false;
-                    error_message =
-                        Some("websocket closed by server before response.completed".to_string());
-                }
-                tokio_tungstenite::tungstenite::Message::Frame(_) => {
-                    success = false;
-                    error_message = Some("unexpected websocket frame".to_string());
-                }
-            },
-            Ok(Some(Err(err))) => {
-                success = false;
-                error_message = Some(err.to_string());
-            }
-            Ok(None) => {
-                success = false;
-                error_message = Some("stream closed before response.completed".to_string());
-            }
-            Err(err) => {
-                success = false;
-                error_message = Some(err.to_string());
-            }
-        }
-
-        let kind_str = kind.as_deref().unwrap_or(WEBSOCKET_UNKNOWN_KIND);
-        let success_str = if success { "true" } else { "false" };
-        let tags = [("kind", kind_str), ("success", success_str)];
-        self.counter(WEBSOCKET_EVENT_COUNT_METRIC, /*inc*/ 1, &tags);
-        self.record_duration(WEBSOCKET_EVENT_DURATION_METRIC, duration, &tags);
-        log_and_trace_event!(
-            self,
-            common: {
-                event.name = "darwin_code.websocket_event",
-                event.kind = %kind_str,
-                duration_ms = %duration.as_millis(),
-                success = success_str,
-                error.message = error_message.as_deref(),
-            },
-            log: {},
-            trace: {},
-        );
-    }
-
-    pub fn log_sse_event<E>(
-        &self,
-        response: &Result<Option<Result<StreamEvent, StreamError<E>>>, Elapsed>,
-        duration: Duration,
-    ) where
-        E: std::fmt::Display,
-    {
-        match response {
-            Ok(Some(Ok(sse))) => {
-                if sse.data.trim() == "[DONE]" {
-                    self.sse_event(&sse.event, duration);
-                } else {
-                    match serde_json::from_str::<serde_json::Value>(&sse.data) {
-                        Ok(error) if sse.event == "response.failed" => {
-                            self.sse_event_failed(Some(&sse.event), duration, &error);
-                        }
-                        Ok(content) if sse.event == "response.output_item.done" => {
-                            match serde_json::from_value::<ResponseItem>(content) {
-                                Ok(_) => self.sse_event(&sse.event, duration),
-                                Err(_) => {
-                                    self.sse_event_failed(
-                                        Some(&sse.event),
-                                        duration,
-                                        &"failed to parse response.output_item.done",
-                                    );
-                                }
-                            };
-                        }
-                        Ok(_) => {
-                            self.sse_event(&sse.event, duration);
-                        }
-                        Err(error) => {
-                            self.sse_event_failed(Some(&sse.event), duration, &error);
-                        }
-                    }
-                }
-            }
-            Ok(Some(Err(error))) => {
-                self.sse_event_failed(/*kind*/ None, duration, error);
-            }
-            Ok(None) => {}
-            Err(_) => {
-                self.sse_event_failed(
-                    /*kind*/ None,
-                    duration,
-                    &"idle timeout waiting for SSE",
-                );
-            }
-        }
-    }
-
-    fn sse_event(&self, kind: &str, duration: Duration) {
-        self.counter(
-            SSE_EVENT_COUNT_METRIC,
-            /*inc*/ 1,
-            &[("kind", kind), ("success", "true")],
-        );
-        self.record_duration(
-            SSE_EVENT_DURATION_METRIC,
-            duration,
-            &[("kind", kind), ("success", "true")],
-        );
-        log_event!(
-            self,
-            event.name = "darwin_code.sse_event",
-            event.kind = %kind,
-            duration_ms = %duration.as_millis(),
-        );
-    }
-
-    pub fn sse_event_failed<T>(&self, kind: Option<&String>, duration: Duration, error: &T)
-    where
-        T: std::fmt::Display,
-    {
-        let kind_str = kind.map_or(SSE_UNKNOWN_KIND, String::as_str);
-        self.counter(
-            SSE_EVENT_COUNT_METRIC,
-            /*inc*/ 1,
-            &[("kind", kind_str), ("success", "false")],
-        );
-        self.record_duration(
-            SSE_EVENT_DURATION_METRIC,
-            duration,
-            &[("kind", kind_str), ("success", "false")],
-        );
-        match kind {
-            Some(kind) => log_event!(
-                self,
-                event.name = "darwin_code.sse_event",
-                event.kind = %kind,
-                duration_ms = %duration.as_millis(),
-                error.message = %error,
-            ),
-            None => log_event!(
-                self,
-                event.name = "darwin_code.sse_event",
-                duration_ms = %duration.as_millis(),
-                error.message = %error,
-            ),
-        }
-        trace_event!(
-            self,
-            event.name = "darwin_code.sse_event",
-            event.kind = %kind_str,
-            duration_ms = %duration.as_millis(),
-            error.message = %error,
         );
     }
 
@@ -991,58 +567,6 @@ impl SessionTelemetry {
         );
     }
 
-    fn record_responses_websocket_timing_metrics(&self, value: &serde_json::Value) {
-        let timing_metrics = value.get(RESPONSES_WEBSOCKET_TIMING_METRICS_FIELD);
-
-        let overhead_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_OVERHEAD_FIELD));
-        if let Some(duration) = duration_from_ms_value(overhead_value) {
-            self.record_duration(RESPONSES_API_OVERHEAD_DURATION_METRIC, duration, &[]);
-        }
-
-        let inference_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_INFERENCE_FIELD));
-        if let Some(duration) = duration_from_ms_value(inference_value) {
-            self.record_duration(RESPONSES_API_INFERENCE_TIME_DURATION_METRIC, duration, &[]);
-        }
-
-        let engine_iapi_ttft_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_ENGINE_IAPI_TTFT_FIELD));
-        if let Some(duration) = duration_from_ms_value(engine_iapi_ttft_value) {
-            self.record_duration(
-                RESPONSES_API_ENGINE_IAPI_TTFT_DURATION_METRIC,
-                duration,
-                &[],
-            );
-        }
-
-        let engine_service_ttft_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_ENGINE_SERVICE_TTFT_FIELD));
-        if let Some(duration) = duration_from_ms_value(engine_service_ttft_value) {
-            self.record_duration(
-                RESPONSES_API_ENGINE_SERVICE_TTFT_DURATION_METRIC,
-                duration,
-                &[],
-            );
-        }
-
-        let engine_iapi_tbt_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_ENGINE_IAPI_TBT_FIELD));
-        if let Some(duration) = duration_from_ms_value(engine_iapi_tbt_value) {
-            self.record_duration(RESPONSES_API_ENGINE_IAPI_TBT_DURATION_METRIC, duration, &[]);
-        }
-
-        let engine_service_tbt_value =
-            timing_metrics.and_then(|value| value.get(RESPONSES_API_ENGINE_SERVICE_TBT_FIELD));
-        if let Some(duration) = duration_from_ms_value(engine_service_tbt_value) {
-            self.record_duration(
-                RESPONSES_API_ENGINE_SERVICE_TBT_DURATION_METRIC,
-                duration,
-                &[],
-            );
-        }
-    }
-
     fn responses_type(event: &ResponseEvent) -> String {
         match event {
             ResponseEvent::Created => "created".into(),
@@ -1082,17 +606,4 @@ impl SessionTelemetry {
             ResponseItem::Other => "other".into(),
         }
     }
-}
-
-fn duration_from_ms_value(value: Option<&serde_json::Value>) -> Option<Duration> {
-    let value = value?;
-    let ms = value
-        .as_f64()
-        .or_else(|| value.as_i64().map(|v| v as f64))
-        .or_else(|| value.as_u64().map(|v| v as f64))?;
-    if !ms.is_finite() || ms < 0.0 {
-        return None;
-    }
-    let clamped = ms.min(u64::MAX as f64);
-    Some(Duration::from_millis(clamped.round() as u64))
 }
