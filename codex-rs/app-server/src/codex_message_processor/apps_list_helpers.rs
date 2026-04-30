@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use darwin_code_app_server_protocol::AppInfo;
@@ -13,10 +15,52 @@ pub(super) fn merge_loaded_apps(
     all_connectors: Option<&[AppInfo]>,
     accessible_connectors: Option<&[AppInfo]>,
 ) -> Vec<AppInfo> {
-    let all_connectors_loaded = all_connectors.is_some();
-    let all = all_connectors.map_or_else(Vec::new, <[AppInfo]>::to_vec);
-    let accessible = accessible_connectors.map_or_else(Vec::new, <[AppInfo]>::to_vec);
-    if all_connectors_loaded { all } else { accessible }
+    let Some(all_connectors) = all_connectors else {
+        return accessible_connectors.map_or_else(Vec::new, <[AppInfo]>::to_vec);
+    };
+    let Some(accessible_connectors) = accessible_connectors else {
+        return all_connectors.to_vec();
+    };
+
+    let directory_by_id: HashMap<&str, &AppInfo> = all_connectors
+        .iter()
+        .map(|connector| (connector.id.as_str(), connector))
+        .collect();
+    let mut emitted_accessible_ids = HashSet::new();
+    let mut merged = Vec::with_capacity(all_connectors.len().max(accessible_connectors.len()));
+
+    for accessible in accessible_connectors {
+        let mut connector = match directory_by_id.get(accessible.id.as_str()) {
+            Some(directory) => {
+                let mut connector = (*directory).clone();
+                connector.name = accessible.name.clone();
+                connector.is_accessible = true;
+                connector.plugin_display_names = accessible.plugin_display_names.clone();
+                if connector.description.is_none() {
+                    connector.description = accessible.description.clone();
+                }
+                if connector.logo_url.is_none() {
+                    connector.logo_url = accessible.logo_url.clone();
+                }
+                if connector.logo_url_dark.is_none() {
+                    connector.logo_url_dark = accessible.logo_url_dark.clone();
+                }
+                connector
+            }
+            None => accessible.clone(),
+        };
+        connector.is_accessible = true;
+        emitted_accessible_ids.insert(accessible.id.as_str());
+        merged.push(connector);
+    }
+
+    for connector in all_connectors {
+        if !emitted_accessible_ids.contains(connector.id.as_str()) {
+            merged.push(connector.clone());
+        }
+    }
+
+    merged
 }
 
 pub(super) fn should_send_app_list_updated_notification(

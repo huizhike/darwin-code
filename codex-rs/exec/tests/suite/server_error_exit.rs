@@ -4,7 +4,7 @@
 use core_test_support::responses;
 use core_test_support::test_darwin_code_exec::test_darwin_code_exec;
 
-/// Verify that when the server reports an error, `darwin-code-exec` exits with a
+/// Verify that when the server reports an error, `darwin_code-exec` exits with a
 /// non-zero status code so automation can detect failures.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exits_non_zero_when_server_reports_error() -> anyhow::Result<()> {

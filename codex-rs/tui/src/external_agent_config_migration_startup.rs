@@ -7,11 +7,11 @@ use crate::legacy_core::config::ConfigOverrides;
 use crate::legacy_core::config::edit::ConfigEdit;
 use crate::legacy_core::config::edit::ConfigEditsBuilder;
 use crate::tui;
+use color_eyre::eyre::Result;
+use color_eyre::eyre::WrapErr;
 use darwin_code_app_server_protocol::ExternalAgentConfigDetectParams;
 use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
 use darwin_code_features::Feature;
-use color_eyre::eyre::Result;
-use color_eyre::eyre::WrapErr;
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::time::SystemTime;
@@ -103,7 +103,8 @@ fn external_agent_config_migration_success_message(
     items: &[ExternalAgentConfigMigrationItem],
 ) -> String {
     if items.iter().any(|item| {
-        item.item_type == darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType::Plugins
+        item.item_type
+            == darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType::Plugins
     }) {
         "External config migration completed. Plugin migration is still in progress and may take a few minutes."
             .to_string()
@@ -382,7 +383,9 @@ mod tests {
 
     #[tokio::test]
     async fn visible_external_agent_config_migration_items_omits_hidden_scopes() {
-        let darwin_code_home = tempdir().expect("temp darwin-code home");
+        let darwin_code_home = tempdir().expect("temp darwin_code home");
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         let mut config = ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
@@ -433,7 +436,9 @@ mod tests {
 
     #[tokio::test]
     async fn visible_external_agent_config_migration_items_omits_recently_prompted_scopes() {
-        let darwin_code_home = tempdir().expect("temp darwin-code home");
+        let darwin_code_home = tempdir().expect("temp darwin_code home");
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         let mut config = ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
@@ -488,7 +493,9 @@ mod tests {
 
     #[tokio::test]
     async fn external_config_migration_scope_cooldown_expires_after_five_days() {
-        let darwin_code_home = tempdir().expect("temp darwin-code home");
+        let darwin_code_home = tempdir().expect("temp darwin_code home");
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         let mut config = ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
@@ -549,7 +556,9 @@ mod tests {
 
     #[tokio::test]
     async fn external_agent_config_migration_prompt_requires_trust_nux_entry() {
-        let darwin_code_home = tempdir().expect("temp darwin-code home");
+        let darwin_code_home = tempdir().expect("temp darwin_code home");
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         let mut config = ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()

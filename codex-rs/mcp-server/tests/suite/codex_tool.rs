@@ -3,15 +3,15 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use codex_mcp_server::CodexToolCallParam;
-use codex_mcp_server::ExecApprovalElicitRequestParams;
-use codex_mcp_server::ExecApprovalResponse;
-use codex_mcp_server::PatchApprovalElicitRequestParams;
-use codex_mcp_server::PatchApprovalResponse;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::ReviewDecision;
-use codex_shell_command::parse_command;
+use darwin_code_core::spawn::DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use darwin_code_mcp_server::CodexToolCallParam;
+use darwin_code_mcp_server::ExecApprovalElicitRequestParams;
+use darwin_code_mcp_server::ExecApprovalResponse;
+use darwin_code_mcp_server::PatchApprovalElicitRequestParams;
+use darwin_code_mcp_server::PatchApprovalResponse;
+use darwin_code_protocol::protocol::FileChange;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_shell_command::parse_command;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonRpcResponse;
 use rmcp::model::JsonRpcVersion2_0;
@@ -38,7 +38,7 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 /// command, as expected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_shell_command_approval_triggers_elicitation() {
-    if env::var(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+    if env::var(DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
         println!(
             "Skipping test because it cannot execute when network is disabled in a Codex sandbox."
         );
@@ -191,7 +191,7 @@ fn create_expected_elicitation_request_params(
     workdir: &Path,
     codex_mcp_tool_call_id: String,
     codex_event_id: String,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
 ) -> anyhow::Result<serde_json::Value> {
     let expected_message = format!(
         "Allow Codex to run `{}` in `{}`?",
@@ -218,7 +218,7 @@ fn create_expected_elicitation_request_params(
 /// sending the approval applies the patch, as expected.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_patch_approval_triggers_elicitation() {
-    if env::var(CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+    if env::var(DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
         println!(
             "Skipping test because it cannot execute when network is disabled in a Codex sandbox."
         );
@@ -447,7 +447,7 @@ fn create_expected_patch_approval_elicitation_request_params(
     reason: Option<String>,
     codex_mcp_tool_call_id: String,
     codex_event_id: String,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
 ) -> anyhow::Result<serde_json::Value> {
     let mut message_lines = Vec::new();
     if let Some(r) = &reason {

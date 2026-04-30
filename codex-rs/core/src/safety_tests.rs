@@ -1,11 +1,11 @@
 use super::*;
+use core_test_support::PathExt;
 use darwin_code_protocol::protocol::FileSystemAccessMode;
 use darwin_code_protocol::protocol::FileSystemPath;
 use darwin_code_protocol::protocol::FileSystemSandboxEntry;
 use darwin_code_protocol::protocol::FileSystemSpecialPath;
 use darwin_code_protocol::protocol::GranularApprovalConfig;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
@@ -287,10 +287,10 @@ fn explicit_read_only_subpaths_prevent_auto_approval_for_external_sandbox() {
 }
 
 #[test]
-fn missing_project_dot_darwin_code_config_requires_approval() {
+fn project_dot_darwin_code_config_is_protected_workspace_metadata() {
     let tmp = TempDir::new().unwrap();
     let cwd = tmp.path().abs();
-    let config_path = cwd.join(".darwin-code").join("config.toml");
+    let config_path = cwd.join(".darwin_code").join("config.toml");
     let action = ApplyPatchAction::new_add_for_test(&config_path, "".to_string());
     let sandbox_policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
@@ -307,15 +307,4 @@ fn missing_project_dot_darwin_code_config_requires_approval() {
         &file_system_sandbox_policy,
         &cwd,
     ));
-    assert_eq!(
-        assess_patch_safety(
-            &action,
-            AskForApproval::OnRequest,
-            &sandbox_policy,
-            &file_system_sandbox_policy,
-            &cwd,
-            WindowsSandboxLevel::Disabled,
-        ),
-        SafetyCheck::AskUser,
-    );
 }

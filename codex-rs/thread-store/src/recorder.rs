@@ -1,13 +1,13 @@
 use async_trait::async_trait;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::RolloutItem;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::RolloutItem;
 
 use crate::ThreadStoreResult;
 
 /// Live append handle for a thread.
 ///
 /// This is the storage-neutral version of the existing rollout recorder API. The local
-/// implementation is expected to wrap `codex_rollout::RolloutRecorder` and preserve its lazy
+/// implementation is expected to wrap `darwin_code_rollout::RolloutRecorder` and preserve its lazy
 /// materialization, filtering, flush, and shutdown behavior.
 #[async_trait]
 pub trait ThreadRecorder: Send + Sync {

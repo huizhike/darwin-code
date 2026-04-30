@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_config::shell_environment;
-use codex_config::types::EnvironmentVariablePattern;
-use codex_config::types::ShellEnvironmentPolicy;
-use codex_utils_pty::ExecCommandSession;
-use codex_utils_pty::TerminalSize;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_config::shell_environment;
+use darwin_code_config::types::EnvironmentVariablePattern;
+use darwin_code_config::types::ShellEnvironmentPolicy;
+use darwin_code_utils_pty::ExecCommandSession;
+use darwin_code_utils_pty::TerminalSize;
 use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::sync::mpsc;
@@ -163,7 +163,7 @@ impl LocalProcess {
 
         let env = child_env(&params);
         let spawned_result = if params.tty {
-            codex_utils_pty::spawn_pty_process(
+            darwin_code_utils_pty::spawn_pty_process(
                 program,
                 args,
                 params.cwd.as_path(),
@@ -173,7 +173,7 @@ impl LocalProcess {
             )
             .await
         } else if params.pipe_stdin {
-            codex_utils_pty::spawn_pipe_process(
+            darwin_code_utils_pty::spawn_pipe_process(
                 program,
                 args,
                 params.cwd.as_path(),
@@ -182,7 +182,7 @@ impl LocalProcess {
             )
             .await
         } else {
-            codex_utils_pty::spawn_pipe_process_no_stdin(
+            darwin_code_utils_pty::spawn_pipe_process_no_stdin(
                 program,
                 args,
                 params.cwd.as_path(),
@@ -696,7 +696,7 @@ fn notification_sender(inner: &Inner) -> Option<RpcNotificationSender> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_config::types::ShellEnvironmentPolicyInherit;
+    use darwin_code_config::types::ShellEnvironmentPolicyInherit;
 
     fn test_exec_params(env: HashMap<String, String>) -> ExecParams {
         ExecParams {

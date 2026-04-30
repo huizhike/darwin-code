@@ -17,7 +17,7 @@ Provide authoritative, current guidance from OpenAI developer docs using the dev
 
 ## OpenAI product snapshots
 
-1. Apps SDK: Build ChatGPT apps by providing a web component UI and an MCP server that exposes your app's tools to ChatGPT.
+1. Apps SDK: Build OpenAI app surfaces by providing a web component UI and an MCP server that exposes your app's tools.
 2. Responses API: A unified endpoint designed for stateful, multimodal, tool-using interactions in agentic workflows.
 3. Chat Completions API: Generate a model response from a list of messages comprising a conversation.
 4. Codex: OpenAI's coding agent for software development that can write, understand, review, and debug code.

@@ -24,7 +24,7 @@ prefix_rule(
 "#,
     )?;
 
-    let output = Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?)
+    let output = Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?)
         .env("DARWIN_CODE_HOME", darwin_code_home.path())
         .args([
             "execpolicy",
@@ -81,7 +81,7 @@ prefix_rule(
 "#,
     )?;
 
-    let output = Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?)
+    let output = Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?)
         .env("DARWIN_CODE_HOME", darwin_code_home.path())
         .args([
             "execpolicy",

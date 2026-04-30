@@ -40,11 +40,11 @@ impl SessionTask for UndoTask {
         _input: Vec<UserInput>,
         cancellation_token: CancellationToken,
     ) -> Option<String> {
-        session
-            .session
-            .services
-            .session_telemetry
-            .counter("darwin-code.task.undo", /*inc*/ 1, &[]);
+        session.session.services.session_telemetry.counter(
+            "darwin_code.task.undo",
+            /*inc*/ 1,
+            &[],
+        );
         let sess = session.clone_session();
         sess.send_event(
             ctx.as_ref(),

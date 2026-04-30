@@ -1209,10 +1209,10 @@ function toByteArray(value) {
 
 function encodeByteImage(bytes, mimeType, detail) {
   if (bytes.byteLength === 0) {
-    throw new Error("darwin-code.emitImage expected non-empty bytes");
+    throw new Error("darwin_code.emitImage expected non-empty bytes");
   }
   if (typeof mimeType !== "string" || !mimeType) {
-    throw new Error("darwin-code.emitImage expected a non-empty mimeType");
+    throw new Error("darwin_code.emitImage expected a non-empty mimeType");
   }
   const image_url = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
   return { image_url, detail };
@@ -1223,11 +1223,11 @@ function parseImageDetail(detail) {
     return undefined;
   }
   if (typeof detail !== "string" || !detail) {
-    throw new Error("darwin-code.emitImage expected detail to be a non-empty string");
+    throw new Error("darwin_code.emitImage expected detail to be a non-empty string");
   }
   if (detail !== "original") {
     throw new Error(
-      'darwin-code.emitImage only supports detail "original"; omit detail for default behavior',
+      'darwin_code.emitImage only supports detail "original"; omit detail for default behavior',
     );
   }
   return detail;
@@ -1235,10 +1235,10 @@ function parseImageDetail(detail) {
 
 function normalizeEmitImageUrl(value) {
   if (typeof value !== "string" || !value) {
-    throw new Error("darwin-code.emitImage expected a non-empty image_url");
+    throw new Error("darwin_code.emitImage expected a non-empty image_url");
   }
   if (!/^data:/i.test(value)) {
-    throw new Error("darwin-code.emitImage only accepts data URLs");
+    throw new Error("darwin_code.emitImage only accepts data URLs");
   }
   return value;
 }
@@ -1267,7 +1267,7 @@ function parseContentItems(items) {
   let textCount = 0;
   for (const item of items) {
     if (!isPlainObject(item) || typeof item.type !== "string") {
-      throw new Error("darwin-code.emitImage received malformed content items");
+      throw new Error("darwin_code.emitImage received malformed content items");
     }
     if (item.type === "input_image") {
       images.push({
@@ -1281,7 +1281,7 @@ function parseContentItems(items) {
       continue;
     }
     throw new Error(
-      `darwin-code.emitImage does not support content item type "${item.type}"`,
+      `darwin_code.emitImage does not support content item type "${item.type}"`,
     );
   }
 
@@ -1295,7 +1295,7 @@ function parseByteImageValue(value) {
   const bytes = toByteArray(value.bytes);
   if (!bytes) {
     throw new Error(
-      "darwin-code.emitImage expected bytes to be Buffer, Uint8Array, ArrayBuffer, or ArrayBufferView",
+      "darwin_code.emitImage expected bytes to be Buffer, Uint8Array, ArrayBuffer, or ArrayBufferView",
     );
   }
   const detail = parseImageDetail(value.detail);
@@ -1315,12 +1315,12 @@ function parseToolOutput(output) {
     return parsedItems;
   }
 
-  throw new Error("darwin-code.emitImage received an unsupported tool output shape");
+  throw new Error("darwin_code.emitImage received an unsupported tool output shape");
 }
 
 function normalizeMcpImageData(data, mimeType) {
   if (typeof data !== "string" || !data) {
-    throw new Error("darwin-code.emitImage expected MCP image data");
+    throw new Error("darwin_code.emitImage expected MCP image data");
   }
   if (/^data:/i.test(data)) {
     return data;
@@ -1331,7 +1331,7 @@ function normalizeMcpImageData(data, mimeType) {
 }
 
 function parseMcpImageDetail(meta) {
-  if (!isPlainObject(meta) || meta["darwin-code/imageDetail"] !== "original") {
+  if (!isPlainObject(meta) || meta["darwin_code/imageDetail"] !== "original") {
     return undefined;
   }
   return "original";
@@ -1343,7 +1343,7 @@ function parseMcpToolResult(result) {
   }
 
   if (!isPlainObject(result)) {
-    throw new Error("darwin-code.emitImage received an unsupported MCP result");
+    throw new Error("darwin_code.emitImage received an unsupported MCP result");
   }
 
   if ("Err" in result) {
@@ -1352,19 +1352,19 @@ function parseMcpToolResult(result) {
   }
 
   if (!("Ok" in result)) {
-    throw new Error("darwin-code.emitImage received an unsupported MCP result");
+    throw new Error("darwin_code.emitImage received an unsupported MCP result");
   }
 
   const ok = result.Ok;
   if (!isPlainObject(ok) || !Array.isArray(ok.content)) {
-    throw new Error("darwin-code.emitImage received malformed MCP content");
+    throw new Error("darwin_code.emitImage received malformed MCP content");
   }
 
   const images = [];
   let textCount = 0;
   for (const item of ok.content) {
     if (!isPlainObject(item) || typeof item.type !== "string") {
-      throw new Error("darwin-code.emitImage received malformed MCP content");
+      throw new Error("darwin_code.emitImage received malformed MCP content");
     }
     if (item.type === "image") {
       images.push({
@@ -1378,7 +1378,7 @@ function parseMcpToolResult(result) {
       continue;
     }
     throw new Error(
-      `darwin-code.emitImage does not support MCP content type "${item.type}"`,
+      `darwin_code.emitImage does not support MCP content type "${item.type}"`,
     );
   }
 
@@ -1387,10 +1387,10 @@ function parseMcpToolResult(result) {
 
 function requireSingleImage(parsed) {
   if (parsed.textCount > 0) {
-    throw new Error("darwin-code.emitImage does not accept mixed text and image content");
+    throw new Error("darwin_code.emitImage does not accept mixed text and image content");
   }
   if (parsed.images.length !== 1) {
-    throw new Error("darwin-code.emitImage expected exactly one image");
+    throw new Error("darwin_code.emitImage expected exactly one image");
   }
   return parsed.images[0];
 }
@@ -1416,7 +1416,7 @@ function normalizeEmitImageValue(value) {
   }
 
   if (!isPlainObject(value)) {
-    throw new Error("darwin-code.emitImage received an unsupported value");
+    throw new Error("darwin_code.emitImage received an unsupported value");
   }
 
   if (value.type === "message") {
@@ -1442,10 +1442,10 @@ function normalizeEmitImageValue(value) {
     return requireSingleImage(parseContentItems(value.content));
   }
 
-  throw new Error("darwin-code.emitImage received an unsupported value");
+  throw new Error("darwin_code.emitImage received an unsupported value");
 }
 
-const darwin-code = {
+const darwin_code = {
   cwd,
   homeDir,
   tmpDir,
@@ -1457,7 +1457,7 @@ const darwin-code = {
       return Promise.reject(error);
     }
     if (typeof toolName !== "string" || !toolName) {
-      return Promise.reject(new Error("darwin-code.tool expects a tool name string"));
+      return Promise.reject(new Error("darwin_code.tool expects a tool name string"));
     }
     const id = `${execState.id}-tool-${toolCounter++}`;
     let argumentsJson = "{}";
@@ -1583,7 +1583,7 @@ async function handleExec(message) {
     priorBindings = builtSource.priorBindings;
     let output = "";
 
-    context.darwin-code = darwin-code;
+    context.darwin_code = darwin_code;
     context.tmpDir = tmpDir;
 
     await execContextStorage.run(execState, async () => {

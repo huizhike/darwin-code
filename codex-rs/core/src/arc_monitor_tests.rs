@@ -63,9 +63,10 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
                 content: vec![ContentItem::InputText {
                     text: "first request".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            }],
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    }],
             &turn_context,
         )
         .await;
@@ -89,6 +90,7 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
                 }],
                 end_turn: None,
                 phase: Some(MessagePhase::Commentary),
+                reasoning_content: None,
             }],
             &turn_context,
         )
@@ -103,6 +105,7 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
                 }],
                 end_turn: None,
                 phase: Some(MessagePhase::FinalAnswer),
+                reasoning_content: None,
             }],
             &turn_context,
         )
@@ -115,9 +118,10 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
                 content: vec![ContentItem::InputText {
                     text: "latest request".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            }],
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    }],
             &turn_context,
         )
         .await;
@@ -251,15 +255,16 @@ async fn build_arc_monitor_request_includes_relevant_history_and_null_policies()
 #[serial(arc_monitor_env)]
 async fn monitor_action_posts_expected_arc_request() {
     let server = MockServer::start().await;
+    let _token_guard = EnvVarGuard::set(DARWIN_CODE_ARC_MONITOR_TOKEN, OsStr::new("Access Token"));
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     turn_context.developer_instructions = Some("Developer policy".to_string());
     turn_context.user_instructions = Some("User policy".to_string());
 
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE,
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     session
@@ -270,17 +275,17 @@ async fn monitor_action_posts_expected_arc_request() {
                 content: vec![ContentItem::InputText {
                     text: "please run the tool".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            }],
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    }],
             &turn_context,
         )
         .await;
 
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .and(header("authorization", "Bearer Access Token"))
-        .and(header("chatgpt-account-id", "account_id"))
         .and(body_json(serde_json::json!({
             "metadata": {
                 "darwin_code_thread_id": session.conversation_id.to_string(),
@@ -340,7 +345,8 @@ async fn monitor_action_uses_env_url_and_token_overrides() {
         DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE,
         OsStr::new(&format!("{}/override/arc", server.uri())),
     );
-    let _token_guard = EnvVarGuard::set(DARWIN_CODE_ARC_MONITOR_TOKEN, OsStr::new("override-token"));
+    let _token_guard =
+        EnvVarGuard::set(DARWIN_CODE_ARC_MONITOR_TOKEN, OsStr::new("override-token"));
 
     let (session, turn_context) = make_session_and_context().await;
     session
@@ -351,9 +357,10 @@ async fn monitor_action_uses_env_url_and_token_overrides() {
                 content: vec![ContentItem::InputText {
                     text: "please run the tool".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            }],
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    }],
             &turn_context,
         )
         .await;
@@ -394,8 +401,9 @@ async fn monitor_action_uses_env_url_and_token_overrides() {
 #[serial(arc_monitor_env)]
 async fn monitor_action_rejects_legacy_response_fields() {
     let server = MockServer::start().await;
+    let _token_guard = EnvVarGuard::set(DARWIN_CODE_ARC_MONITOR_TOKEN, OsStr::new("Access Token"));
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "reason": "legacy high-risk action",
@@ -406,11 +414,11 @@ async fn monitor_action_rejects_legacy_response_fields() {
         .await;
 
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE,
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     session
@@ -421,9 +429,10 @@ async fn monitor_action_rejects_legacy_response_fields() {
                 content: vec![ContentItem::InputText {
                     text: "please run the tool".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            }],
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    }],
             &turn_context,
         )
         .await;

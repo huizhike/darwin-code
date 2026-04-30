@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use socket2::Socket;
 use tokio::process::Command;
 use tokio::task::JoinHandle;
@@ -377,10 +377,10 @@ async fn handle_escalate_session_with_policy(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::approvals::EscalationPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::approvals::EscalationPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::models::PermissionProfile;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::io::Write;

@@ -331,7 +331,7 @@ fn shell_request_escalation_execution_is_explicit() {
 async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Result<()> {
     let (mut session, mut turn_context) = make_session_and_context().await;
     std::fs::create_dir_all(&turn_context.config.darwin_code_home)
-        .context("recreate darwin-code home for hook fixtures")?;
+        .context("recreate darwin_code home for hook fixtures")?;
     let script_path = turn_context
         .config
         .darwin_code_home
@@ -399,8 +399,10 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
     let target = std::env::temp_dir().join("execve-hook-short-circuit.txt");
     let target_str = target.display().to_string();
     let command = vec!["touch".to_string(), target_str.clone()];
-    let expected_hook_command =
-        darwin_code_shell_command::parse_command::shlex_join(&["/usr/bin/touch".to_string(), target_str]);
+    let expected_hook_command = darwin_code_shell_command::parse_command::shlex_join(&[
+        "/usr/bin/touch".to_string(),
+        target_str,
+    ]);
     let provider = CoreShellActionProvider {
         policy: std::sync::Arc::new(RwLock::new(darwin_code_execpolicy::Policy::empty())),
         session: std::sync::Arc::new(session),

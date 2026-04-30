@@ -24,9 +24,6 @@ use tracing::warn;
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::server_request_error::TURN_TRANSITION_PENDING_REQUEST_ERROR_REASON;
 
-#[cfg(test)]
-use darwin_code_protocol::account::PlanType;
-
 pub(crate) type ClientRequestResult = std::result::Result<Result, JSONRPCErrorError>;
 
 /// Stable identifier for a transport connection.
@@ -261,6 +258,7 @@ impl OutgoingMessageSender {
         self.request_contexts.lock().await.len()
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn send_request(
         &self,
         request: ServerRequestPayload,
@@ -390,6 +388,7 @@ impl OutgoingMessageSender {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn cancel_request(&self, id: &RequestId) -> bool {
         self.take_request_callback(id).await.is_some()
     }
@@ -649,145 +648,20 @@ pub(crate) struct OutgoingError {
 mod tests {
     use std::time::Duration;
 
-    use darwin_code_app_server_protocol::AccountLoginCompletedNotification;
-    use darwin_code_app_server_protocol::AccountRateLimitsUpdatedNotification;
-    use darwin_code_app_server_protocol::AccountUpdatedNotification;
     use darwin_code_app_server_protocol::ApplyPatchApprovalParams;
-    use darwin_code_app_server_protocol::AuthMode;
     use darwin_code_app_server_protocol::ConfigWarningNotification;
     use darwin_code_app_server_protocol::DynamicToolCallParams;
     use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
     use darwin_code_app_server_protocol::ModelRerouteReason;
     use darwin_code_app_server_protocol::ModelReroutedNotification;
-    use darwin_code_app_server_protocol::RateLimitSnapshot;
-    use darwin_code_app_server_protocol::RateLimitWindow;
     use darwin_code_app_server_protocol::ToolRequestUserInputParams;
     use darwin_code_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
     use tokio::time::timeout;
-    use uuid::Uuid;
 
     use super::*;
-
-    #[test]
-    fn verify_server_notification_serialization() {
-        let notification =
-            ServerNotification::AccountLoginCompleted(AccountLoginCompletedNotification {
-                login_id: Some(Uuid::nil().to_string()),
-                success: true,
-                error: None,
-            });
-
-        let jsonrpc_notification = OutgoingMessage::AppServerNotification(notification);
-        assert_eq!(
-            json!({
-                "method": "account/login/completed",
-                "params": {
-                    "loginId": Uuid::nil().to_string(),
-                    "success": true,
-                    "error": null,
-                },
-            }),
-            serde_json::to_value(jsonrpc_notification)
-                .expect("ensure the strum macros serialize the method field correctly"),
-            "ensure the strum macros serialize the method field correctly"
-        );
-    }
-
-    #[test]
-    fn verify_account_login_completed_notification_serialization() {
-        let notification =
-            ServerNotification::AccountLoginCompleted(AccountLoginCompletedNotification {
-                login_id: Some(Uuid::nil().to_string()),
-                success: true,
-                error: None,
-            });
-
-        let jsonrpc_notification = OutgoingMessage::AppServerNotification(notification);
-        assert_eq!(
-            json!({
-                "method": "account/login/completed",
-                "params": {
-                    "loginId": Uuid::nil().to_string(),
-                    "success": true,
-                    "error": null,
-                },
-            }),
-            serde_json::to_value(jsonrpc_notification)
-                .expect("ensure the notification serializes correctly"),
-            "ensure the notification serializes correctly"
-        );
-    }
-
-    #[test]
-    fn verify_account_rate_limits_notification_serialization() {
-        let notification =
-            ServerNotification::AccountRateLimitsUpdated(AccountRateLimitsUpdatedNotification {
-                rate_limits: RateLimitSnapshot {
-                    limit_id: Some("darwin-code".to_string()),
-                    limit_name: None,
-                    primary: Some(RateLimitWindow {
-                        used_percent: 25,
-                        window_duration_mins: Some(15),
-                        resets_at: Some(123),
-                    }),
-                    secondary: None,
-                    credits: None,
-                    plan_type: Some(PlanType::Plus),
-                    rate_limit_reached_type: None,
-                },
-            });
-
-        let jsonrpc_notification = OutgoingMessage::AppServerNotification(notification);
-        assert_eq!(
-            json!({
-                "method": "account/rateLimits/updated",
-                "params": {
-                        "rateLimits": {
-                        "limitId": "darwin-code",
-                        "limitName": null,
-                        "primary": {
-                            "usedPercent": 25,
-                            "windowDurationMins": 15,
-                            "resetsAt": 123
-                        },
-                        "secondary": null,
-                        "credits": null,
-                        "planType": "plus",
-                        "rateLimitReachedType": null
-                    }
-                },
-            }),
-            serde_json::to_value(jsonrpc_notification)
-                .expect("ensure the notification serializes correctly"),
-            "ensure the notification serializes correctly"
-        );
-    }
-
-    #[test]
-    fn verify_account_updated_notification_serialization() {
-        let notification = ServerNotification::AccountUpdated(AccountUpdatedNotification {
-            auth_mode: Some(AuthMode::ApiKey),
-            plan_type: None,
-        });
-
-        let jsonrpc_notification = OutgoingMessage::AppServerNotification(notification);
-        assert_eq!(
-            json!({
-                "method": "account/updated",
-                "params": {
-                    "authMode": "apikey",
-                    "planType": null
-                },
-            }),
-            serde_json::to_value(jsonrpc_notification)
-                .expect("ensure the notification serializes correctly"),
-            "ensure the notification serializes correctly"
-        );
-    }
-
     #[test]
     fn verify_config_warning_notification_serialization() {
         let notification = ServerNotification::ConfigWarning(ConfigWarningNotification {
@@ -817,7 +691,7 @@ mod tests {
         let notification = ServerNotification::ModelRerouted(ModelReroutedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
-            from_model: "gpt-5.3-darwin-code".to_string(),
+            from_model: "gpt-5.3-darwin_code".to_string(),
             to_model: "gpt-5.2".to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
         });
@@ -829,7 +703,7 @@ mod tests {
                 "params": {
                     "threadId": "thread-1",
                     "turnId": "turn-1",
-                    "fromModel": "gpt-5.3-darwin-code",
+                    "fromModel": "gpt-5.3-darwin_code",
                     "toModel": "gpt-5.2",
                     "reason": "highRiskCyberActivity",
                 },
@@ -949,7 +823,7 @@ mod tests {
                     ServerNotification::ModelRerouted(ModelReroutedNotification {
                         thread_id: "thread-1".to_string(),
                         turn_id: "turn-1".to_string(),
-                        from_model: "gpt-5.3-darwin-code".to_string(),
+                        from_model: "gpt-5.3-darwin_code".to_string(),
                         to_model: "gpt-5.2".to_string(),
                         reason: ModelRerouteReason::HighRiskCyberActivity,
                     }),

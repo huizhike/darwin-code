@@ -1,11 +1,20 @@
 #![allow(clippy::expect_used)]
+use core_test_support::ByokTestAuth;
+use core_test_support::context_snapshot;
+use core_test_support::context_snapshot::ContextSnapshotOptions;
+use core_test_support::context_snapshot::ContextSnapshotRenderMode;
+use core_test_support::responses::ev_local_shell_call;
+use core_test_support::responses::ev_reasoning_item;
+use core_test_support::responses::mount_models_once;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
+use core_test_support::wait_for_event_match;
 use darwin_code_core::compact::SUMMARIZATION_PROMPT;
 use darwin_code_core::compact::SUMMARY_PREFIX;
 use darwin_code_core::config::Config;
 use darwin_code_features::Feature;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
-use darwin_code_model_provider_info::built_in_model_providers;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_protocol::items::TurnItem;
 use darwin_code_protocol::openai_models::ModelInfo;
@@ -20,16 +29,6 @@ use darwin_code_protocol::protocol::RolloutLine;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::protocol::WarningEvent;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::context_snapshot;
-use core_test_support::context_snapshot::ContextSnapshotOptions;
-use core_test_support::context_snapshot::ContextSnapshotRenderMode;
-use core_test_support::responses::ev_local_shell_call;
-use core_test_support::responses::ev_reasoning_item;
-use core_test_support::responses::mount_models_once;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_match;
 use std::path::PathBuf;
 
 use core_test_support::responses::ev_assistant_message;
@@ -95,8 +94,7 @@ fn json_fragment(text: &str) -> String {
 }
 
 fn non_openai_model_provider(server: &MockServer) -> ModelProviderInfo {
-    let mut provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
+    let mut provider = ModelProviderInfo::create_openai_provider(None, None);
     provider.name = "OpenAI (test)".into();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
@@ -142,14 +140,16 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(darwin-code: &std::sync::Arc<darwin_code_core::DarwinCodeThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(
+    darwin_code: &std::sync::Arc<darwin_code_core::DarwinCodeThread>,
+) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
     let mut compact_completed_id = None;
 
     while turn_completed_id.is_none() {
-        let event = darwin-code.next_event().await.expect("next event");
+        let event = darwin_code.next_event().await.expect("next event");
         match event.msg {
             EventMsg::TurnStarted(_) => turn_started_id = Some(event.id.clone()),
             EventMsg::ItemStarted(ItemStartedEvent {
@@ -226,7 +226,7 @@ async fn summarize_context_three_requests_and_instructions() {
     // inspect them without relying on specific prompt markers.
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3]).await;
 
-    // Build config pointing to the mock server and spawn Darwin-Code.
+    // Build config pointing to the mock server and spawn DarwinCode.
     let model_provider = non_openai_model_provider(&server);
     let mut builder = test_darwin_code().with_config(move |config| {
         config.model_provider = model_provider;
@@ -234,11 +234,11 @@ async fn summarize_context_three_requests_and_instructions() {
         config.model_auto_compact_token_limit = Some(200_000);
     });
     let test = builder.build(&server).await.unwrap();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let rollout_path = test.session_configured.rollout_path.expect("rollout path");
 
     // 1) Normal user input – should hit server once.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello world".into(),
@@ -249,19 +249,19 @@ async fn summarize_context_three_requests_and_instructions() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // 2) Summarize – second hit should include the summarization prompt.
-    darwin-code.submit(Op::Compact).await.unwrap();
-    let warning_event = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Warning(_))).await;
+    darwin_code.submit(Op::Compact).await.unwrap();
+    let warning_event = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // 3) Next user input – third hit; history should include only the summary.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: THIRD_USER_MSG.into(),
@@ -272,7 +272,7 @@ async fn summarize_context_three_requests_and_instructions() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Inspect the three captured requests.
     let requests = request_log.requests();
@@ -365,9 +365,9 @@ async fn summarize_context_three_requests_and_instructions() {
         "third request should not include the summarize trigger"
     );
 
-    // Shut down Darwin-Code to flush rollout entries before inspecting the file.
-    darwin-code.submit(Op::Shutdown).await.unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    // Shut down DarwinCode to flush rollout entries before inspecting the file.
+    darwin_code.submit(Op::Shutdown).await.unwrap();
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
     // Verify rollout contains user-turn TurnContext entries and a Compacted entry.
     println!("rollout path: {}", rollout_path.display());
@@ -432,13 +432,13 @@ async fn manual_compact_uses_custom_prompt() {
         config.model_provider = model_provider;
         config.compact_prompt = Some(custom_prompt.to_string());
     });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -449,15 +449,18 @@ async fn manual_compact_uses_custom_prompt() {
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Compact).await.expect("trigger compact");
-    let warning_event = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Warning(_))).await;
+    darwin_code
+        .submit(Op::Compact)
+        .await
+        .expect("trigger compact");
+    let warning_event = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -522,13 +525,13 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
     // Trigger manual compact and collect TokenCount events for the compact turn.
-    darwin-code.submit(Op::Compact).await.unwrap();
+    darwin_code.submit(Op::Compact).await.unwrap();
 
     // First TokenCount: from the compact API call (usage.total_tokens = 0).
-    let first = wait_for_event_match(&darwin-code, |ev| match ev {
+    let first = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::TokenCount(tc) => tc
             .info
             .as_ref()
@@ -538,7 +541,7 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
     .await;
 
     // Second TokenCount: from the local post-compaction estimate.
-    let last = wait_for_event_match(&darwin-code, |ev| match ev {
+    let last = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::TokenCount(tc) => tc
             .info
             .as_ref()
@@ -548,7 +551,7 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
     .await;
 
     // Ensure the compact task itself completes.
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     assert_eq!(
         first, 0,
@@ -581,9 +584,9 @@ async fn manual_compact_emits_context_compaction_items() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "manual compact".into(),
@@ -594,9 +597,12 @@ async fn manual_compact_emits_context_compaction_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    darwin-code.submit(Op::Compact).await.unwrap();
+    darwin_code.submit(Op::Compact).await.unwrap();
 
     let mut started_item = None;
     let mut completed_item = None;
@@ -605,7 +611,7 @@ async fn manual_compact_emits_context_compaction_items() {
 
     while !saw_turn_complete || started_item.is_none() || completed_item.is_none() || !legacy_event
     {
-        let event = darwin-code.next_event().await.unwrap();
+        let event = darwin_code.next_event().await.unwrap();
         match event.msg {
             EventMsg::ItemStarted(ItemStartedEvent {
                 item: TurnItem::ContextCompaction(item),
@@ -642,14 +648,14 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
     let server = start_mock_server().await;
 
     let non_openai_provider_name = non_openai_model_provider(&server).name;
-    let darwin-code = test_darwin_code()
+    let darwin_code = test_darwin_code()
         .with_config(move |config| {
             config.model_provider.name = non_openai_provider_name;
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
     // user message
     let user_message = "create an app";
@@ -747,7 +753,7 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
     let request_log = mount_sse_sequence(&server, bodies).await;
 
     // Start the conversation with the user message
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: user_message.into(),
@@ -758,7 +764,7 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
         })
         .await
         .expect("submit user input");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // collect the requests payloads from the model
     let requests_payloads = request_log.requests();
@@ -1245,9 +1251,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
@@ -1259,9 +1265,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: SECOND_AUTO_MSG.into(),
@@ -1273,9 +1279,9 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: POST_AUTO_USER_MSG.into(),
@@ -1287,7 +1293,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     let request_bodies: Vec<String> = requests
@@ -1437,14 +1443,14 @@ async fn auto_compact_emits_context_compaction_items() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
     let mut started_item = None;
     let mut completed_item = None;
     let mut legacy_event = false;
 
     for user in [FIRST_AUTO_MSG, SECOND_AUTO_MSG, POST_AUTO_USER_MSG] {
-        darwin-code
+        darwin_code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: user.into(),
@@ -1457,7 +1463,7 @@ async fn auto_compact_emits_context_compaction_items() {
             .unwrap();
 
         loop {
-            let event = darwin-code.next_event().await.unwrap();
+            let event = darwin_code.next_event().await.unwrap();
             match event.msg {
                 EventMsg::ItemStarted(ItemStartedEvent {
                     item: TurnItem::ContextCompaction(item),
@@ -1521,9 +1527,9 @@ async fn auto_compact_starts_after_turn_started() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
@@ -1534,9 +1540,9 @@ async fn auto_compact_starts_after_turn_started() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: SECOND_AUTO_MSG.into(),
@@ -1547,9 +1553,9 @@ async fn auto_compact_starts_after_turn_started() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: POST_AUTO_USER_MSG.into(),
@@ -1561,7 +1567,7 @@ async fn auto_compact_starts_after_turn_started() {
         .await
         .unwrap();
 
-    let first = wait_for_event_match(&darwin-code, |ev| match ev {
+    let first = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::TurnStarted(_) => Some("turn"),
         EventMsg::ItemStarted(ItemStartedEvent {
             item: TurnItem::ContextCompaction(_),
@@ -1572,7 +1578,7 @@ async fn auto_compact_starts_after_turn_started() {
     .await;
     assert_eq!(first, "turn", "compaction started before turn started");
 
-    wait_for_event(&darwin-code, |ev| {
+    wait_for_event(&darwin_code, |ev| {
         matches!(
             ev,
             EventMsg::ItemStarted(ItemStartedEvent {
@@ -1583,7 +1589,7 @@ async fn auto_compact_starts_after_turn_started() {
     })
     .await;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1603,9 +1609,10 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: remote_summary.to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         darwin_code_protocol::models::ResponseItem::Compaction {
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
         },
@@ -1663,7 +1670,7 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
     mount_sse_once_match(&server, follow_up_matcher, sse_follow_up).await;
 
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: follow_up_user.into(),
@@ -1684,11 +1691,11 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
         .await
         .unwrap();
 
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::ContextCompacted(_))
     })
     .await;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1746,15 +1753,18 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
 
     let model_provider = non_openai_model_provider(&server);
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_model(previous_model)
         .with_config(move |config| {
             config.model_provider = model_provider;
             set_test_compact_prompt(config);
         });
-    let test = builder.build(&server).await.expect("build test darwin-code");
+    let test = builder
+        .build(&server)
+        .await
+        .expect("build test darwin_code");
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "before switch".into(),
@@ -1774,12 +1784,12 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "after switch".into(),
@@ -1799,7 +1809,7 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
         })
         .await
         .expect("submit second user turn");
-    assert_compaction_uses_turn_lifecycle_id(&test.darwin-code).await;
+    assert_compaction_uses_turn_lifecycle_id(&test.darwin_code).await;
 
     let requests = request_log.requests();
     assert_eq!(models_mock.requests().len(), 1);
@@ -1872,7 +1882,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
 
     let model_provider = non_openai_model_provider(&server);
     let mut initial_builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_model(previous_model)
         .with_config(move |config| {
             config.model_provider = model_provider;
@@ -1881,7 +1891,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
     let initial = initial_builder
         .build(&server)
         .await
-        .expect("build initial test darwin-code");
+        .expect("build initial test darwin_code");
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -1890,7 +1900,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         .expect("rollout path");
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "before resume".into(),
@@ -1910,24 +1920,24 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         })
         .await
         .expect("submit pre-resume turn");
-    wait_for_event(&initial.darwin-code, |event| {
+    wait_for_event(&initial.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::Shutdown)
         .await
         .expect("shutdown initial session");
-    wait_for_event(&initial.darwin-code, |event| {
+    wait_for_event(&initial.darwin_code, |event| {
         matches!(event, EventMsg::ShutdownComplete)
     })
     .await;
 
     let model_provider = non_openai_model_provider(&server);
     let mut resumed_builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_model(previous_model)
         .with_config(move |config| {
             config.model_provider = model_provider;
@@ -1936,10 +1946,10 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
     let resumed = resumed_builder
         .resume(&server, home, rollout_path)
         .await
-        .expect("resume darwin-code");
+        .expect("resume darwin_code");
 
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -1959,7 +1969,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         })
         .await
         .expect("submit resumed user turn");
-    assert_compaction_uses_turn_lifecycle_id(&resumed.darwin-code).await;
+    assert_compaction_uses_turn_lifecycle_id(&resumed.darwin_code).await;
 
     let requests = request_log.requests();
     assert_eq!(models_mock.requests().len(), 1);
@@ -2039,10 +2049,10 @@ async fn auto_compact_persists_rollout_entries() {
         config.model_auto_compact_token_limit = Some(200_000);
     });
     let test = builder.build(&server).await.unwrap();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let session_configured = test.session_configured;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: FIRST_AUTO_MSG.into(),
@@ -2053,9 +2063,9 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: SECOND_AUTO_MSG.into(),
@@ -2066,9 +2076,9 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: POST_AUTO_USER_MSG.into(),
@@ -2079,10 +2089,10 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Shutdown).await.unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    darwin_code.submit(Op::Shutdown).await.unwrap();
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
     let rollout_path = session_configured.rollout_path.expect("rollout path");
     let text = std::fs::read_to_string(&rollout_path).unwrap_or_else(|e| {
@@ -2153,9 +2163,9 @@ async fn manual_compact_retries_after_context_window_error() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first turn".into(),
@@ -2166,11 +2176,13 @@ async fn manual_compact_retries_after_context_window_error() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Compact).await.unwrap();
-    let EventMsg::BackgroundEvent(event) =
-        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::BackgroundEvent(_))).await
+    darwin_code.submit(Op::Compact).await.unwrap();
+    let EventMsg::BackgroundEvent(event) = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::BackgroundEvent(_))
+    })
+    .await
     else {
         panic!("expected background event after compact retry");
     };
@@ -2179,12 +2191,12 @@ async fn manual_compact_retries_after_context_window_error() {
         "background event should mention trimmed item count: {}",
         event.message
     );
-    let warning_event = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Warning(_))).await;
+    let warning_event = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact retry");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -2256,7 +2268,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
     let mut model_provider = non_openai_model_provider(&server);
     model_provider.stream_max_retries = Some(1);
 
-    let darwin-code = test_darwin_code()
+    let darwin_code = test_darwin_code()
         .with_config(move |config| {
             config.model_provider = model_provider;
             set_test_compact_prompt(config);
@@ -2264,10 +2276,10 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first turn".into(),
@@ -2278,11 +2290,14 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         })
         .await
         .expect("submit user input");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Compact).await.expect("trigger compact");
+    darwin_code
+        .submit(Op::Compact)
+        .await
+        .expect("trigger compact");
 
-    let reconnect_message = wait_for_event_match(&darwin-code, |event| match event {
+    let reconnect_message = wait_for_event_match(&darwin_code, |event| match event {
         EventMsg::StreamError(stream_error) => Some(stream_error.message.clone()),
         _ => None,
     })
@@ -2292,7 +2307,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         "expected reconnect stream error message, got {reconnect_message}"
     );
 
-    let task_error_message = wait_for_event_match(&darwin-code, |event| match event {
+    let task_error_message = wait_for_event_match(&darwin_code, |event| match event {
         EventMsg::Error(err) => Some(err.message.clone()),
         _ => None,
     })
@@ -2301,7 +2316,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         task_error_message.contains("Error running local compact task"),
         "expected local compact task error prefix, got {task_error_message}"
     );
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2358,9 +2373,9 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: first_user_message.into(),
@@ -2371,12 +2386,12 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Compact).await.unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin_code.submit(Op::Compact).await.unwrap();
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: second_user_message.into(),
@@ -2387,12 +2402,12 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code.submit(Op::Compact).await.unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin_code.submit(Op::Compact).await.unwrap();
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: final_user_message.into(),
@@ -2403,7 +2418,7 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = responses_mock.requests();
     assert_eq!(
@@ -2550,11 +2565,11 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
     let mut auto_compact_lifecycle_events = Vec::new();
     for user in [MULTI_AUTO_MSG, follow_up_user, final_user] {
-        darwin-code
+        darwin_code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: user.into(),
@@ -2567,7 +2582,7 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
             .unwrap();
 
         loop {
-            let event = darwin-code.next_event().await.unwrap();
+            let event = darwin_code.next_event().await.unwrap();
             if event.id.starts_with("auto-compact-")
                 && matches!(
                     event.msg,
@@ -2655,9 +2670,9 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
         config.model_context_window = Some(context_window);
         config.model_auto_compact_token_limit = Some(limit);
     });
-    let darwin-code = builder.build(&server).await.unwrap().darwin-code;
+    let darwin_code = builder.build(&server).await.unwrap().darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: FUNCTION_CALL_LIMIT_MSG.into(),
@@ -2669,7 +2684,7 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
 
     // Assert first request captured expected user message that triggers function call.
     let first_request = first_turn_mock.single_request().input();
@@ -2757,10 +2772,13 @@ async fn auto_compact_clamps_config_limit_to_context_window() {
         config.model_context_window = Some(context_window);
         config.model_auto_compact_token_limit = Some(config_limit);
     });
-    let darwin-code = builder.build(&server).await.unwrap();
+    let darwin_code = builder.build(&server).await.unwrap();
 
-    darwin-code.submit_turn("OVER_LIMIT_TURN").await.unwrap();
-    darwin-code.submit_turn("FOLLOW_UP_AFTER_CLAMP").await.unwrap();
+    darwin_code.submit_turn("OVER_LIMIT_TURN").await.unwrap();
+    darwin_code
+        .submit_turn("FOLLOW_UP_AFTER_CLAMP")
+        .await
+        .unwrap();
 
     assert!(
         first_turn_mock.single_request().input().iter().any(|item| {
@@ -2782,136 +2800,6 @@ async fn auto_compact_clamps_config_limit_to_context_window() {
         "auto compact should run with the summarization prompt when config limit exceeds context"
     );
 }
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn auto_compact_counts_encrypted_reasoning_before_last_user() {
-    skip_if_no_network!();
-
-    let server = start_mock_server().await;
-
-    let first_user = "COUNT_PRE_LAST_REASONING";
-    let second_user = "TRIGGER_COMPACT_AT_LIMIT";
-    let third_user = "AFTER_REMOTE_COMPACT";
-
-    let pre_last_reasoning_content = "a".repeat(2_400);
-    let post_last_reasoning_content = "b".repeat(4_000);
-
-    let first_turn = sse(vec![
-        ev_reasoning_item("pre-reasoning", &["pre"], &[&pre_last_reasoning_content]),
-        ev_completed_with_tokens("r1", /*total_tokens*/ 10),
-    ]);
-    let second_turn = sse(vec![
-        ev_reasoning_item("post-reasoning", &["post"], &[&post_last_reasoning_content]),
-        ev_completed_with_tokens("r2", /*total_tokens*/ 80),
-    ]);
-    let third_turn = sse(vec![
-        ev_assistant_message("m4", FINAL_REPLY),
-        ev_completed_with_tokens("r4", /*total_tokens*/ 1),
-    ]);
-
-    let request_log = mount_sse_sequence(
-        &server,
-        vec![
-            // Turn 1: reasoning before last user (should count).
-            first_turn,
-            // Turn 2: reasoning after last user (should be ignored for compaction).
-            second_turn,
-            // Turn 3: next user turn after remote compaction.
-            third_turn,
-        ],
-    )
-    .await;
-
-    let compacted_history = vec![
-        darwin_code_protocol::models::ResponseItem::Message {
-            id: None,
-            role: "assistant".to_string(),
-            content: vec![darwin_code_protocol::models::ContentItem::OutputText {
-                text: "REMOTE_COMPACT_SUMMARY".to_string(),
-            }],
-            end_turn: None,
-            phase: None,
-        },
-        darwin_code_protocol::models::ResponseItem::Compaction {
-            encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
-        },
-    ];
-    let compact_mock =
-        mount_compact_json_once(&server, serde_json::json!({ "output": compacted_history })).await;
-    let chatgpt_base_url = format!("{}/backend-api", server.uri());
-
-    let darwin-code = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
-        .with_config(move |config| {
-            config.chatgpt_base_url = chatgpt_base_url;
-            set_test_compact_prompt(config);
-            config.model_auto_compact_token_limit = Some(300);
-        })
-        .build(&server)
-        .await
-        .expect("build darwin-code")
-        .darwin-code;
-
-    for (idx, user) in [first_user, second_user, third_user]
-        .into_iter()
-        .enumerate()
-    {
-        darwin-code
-            .submit(Op::UserInput {
-                items: vec![UserInput::Text {
-                    text: user.into(),
-                    text_elements: Vec::new(),
-                }],
-                final_output_json_schema: None,
-                responsesapi_client_metadata: None,
-            })
-            .await
-            .unwrap();
-        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-        if idx < 2 {
-            assert!(
-                compact_mock.requests().is_empty(),
-                "remote compaction should not run before the next user turn"
-            );
-        }
-    }
-
-    let compact_requests = compact_mock.requests();
-    assert_eq!(
-        compact_requests.len(),
-        1,
-        "remote compaction should run once after the second turn"
-    );
-    assert_eq!(
-        compact_requests[0].path(),
-        "/v1/responses/compact",
-        "remote compaction should hit the compact endpoint"
-    );
-
-    let requests = request_log.requests();
-    assert_eq!(
-        requests.len(),
-        3,
-        "conversation should include three user turns"
-    );
-    let second_request_body = requests[1].body_json().to_string();
-    assert!(
-        !second_request_body.contains("REMOTE_COMPACT_SUMMARY"),
-        "second turn should not include compacted history"
-    );
-    let third_request_body = requests[2].body_json().to_string();
-    assert!(
-        third_request_body.contains("REMOTE_COMPACT_SUMMARY")
-            || third_request_body.contains(FINAL_REPLY),
-        "third turn should include compacted history"
-    );
-    assert!(
-        third_request_body.contains("ENCRYPTED_COMPACTION_SUMMARY"),
-        "third turn should include compaction summary item"
-    );
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
     skip_if_no_network!();
@@ -2952,9 +2840,10 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         darwin_code_protocol::models::ResponseItem::Compaction {
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
         },
@@ -2962,19 +2851,19 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
     let compact_mock =
         mount_compact_json_once(&server, serde_json::json!({ "output": compacted_history })).await;
 
-    let darwin-code = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+    let darwin_code = test_darwin_code()
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_config(|config| {
             set_test_compact_prompt(config);
             config.model_auto_compact_token_limit = Some(300);
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
     for user in [first_user, second_user, third_user] {
-        darwin-code
+        darwin_code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: user.into(),
@@ -2985,7 +2874,7 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
             })
             .await
             .unwrap();
-        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     }
 
     let compact_requests = compact_mock.requests();
@@ -3022,7 +2911,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
     let model_provider = non_openai_model_provider(&server);
-    let darwin-code = test_darwin_code()
+    let darwin_code = test_darwin_code()
         .with_config(move |config| {
             config.model_provider = model_provider;
             set_test_compact_prompt(config);
@@ -3030,11 +2919,11 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
     for user in ["USER_ONE", "USER_TWO"] {
-        darwin-code
+        darwin_code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: user.to_string(),
@@ -3045,9 +2934,9 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
             })
             .await
             .expect("submit user input");
-        wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     }
-    darwin-code
+    darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: Some(PathBuf::from(PRETURN_CONTEXT_DIFF_CWD)),
             approval_policy: None,
@@ -3065,7 +2954,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
         .expect("override turn context");
     let image_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
         .to_string();
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![
                 UserInput::Image {
@@ -3081,7 +2970,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
         })
         .await
         .expect("submit user input");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 4, "expected user, user, compact, follow-up");
@@ -3148,7 +3037,7 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
 
     let model_provider = non_openai_model_provider(&server);
     let test = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_model(previous_model)
         .with_config(move |config| {
             config.model_provider = model_provider;
@@ -3158,9 +3047,9 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
         })
         .build(&server)
         .await
-        .expect("build darwin-code");
+        .expect("build darwin_code");
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "BEFORE_SWITCH_USER".into(),
@@ -3180,12 +3069,12 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "AFTER_SWITCH_USER".into(),
@@ -3205,7 +3094,7 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
         })
         .await
         .expect("submit second user turn");
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -3270,7 +3159,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
 
     let mut model_provider = non_openai_model_provider(&server);
     model_provider.stream_max_retries = Some(0);
-    let darwin-code = test_darwin_code()
+    let darwin_code = test_darwin_code()
         .with_config(move |config| {
             config.model_provider = model_provider;
             set_test_compact_prompt(config);
@@ -3278,10 +3167,10 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -3292,9 +3181,9 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         })
         .await
         .expect("submit first user");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -3305,12 +3194,12 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         })
         .await
         .expect("submit second user");
-    let error_message = wait_for_event_match(&darwin-code, |event| match event {
+    let error_message = wait_for_event_match(&darwin_code, |event| match event {
         EventMsg::Error(err) => Some(err.message.clone()),
         _ => None,
     })
     .await;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(
@@ -3352,20 +3241,20 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
     let request_log = mount_sse_sequence(&server, vec![compact_turn, follow_up_turn]).await;
 
     let model_provider = non_openai_model_provider(&server);
-    let darwin-code = test_darwin_code()
+    let darwin_code = test_darwin_code()
         .with_config(move |config| {
             config.model_provider = model_provider;
             set_test_compact_prompt(config);
         })
         .build(&server)
         .await
-        .expect("build darwin-code")
-        .darwin-code;
+        .expect("build darwin_code")
+        .darwin_code;
 
-    darwin-code.submit(Op::Compact).await.expect("run /compact");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin_code.submit(Op::Compact).await.expect("run /compact");
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "AFTER_MANUAL_EMPTY_COMPACT".to_string(),
@@ -3376,7 +3265,7 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
         })
         .await
         .expect("submit follow-up user input");
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(

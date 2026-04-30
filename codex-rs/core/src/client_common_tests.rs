@@ -80,7 +80,9 @@ fn serializes_text_schema_with_strict_format() {
 
     assert_eq!(
         format.get("name"),
-        Some(&serde_json::Value::String("darwin_code_output_schema".into()))
+        Some(&serde_json::Value::String(
+            "darwin_code_output_schema".into()
+        ))
     );
     assert_eq!(
         format.get("type"),

@@ -64,10 +64,12 @@ mod tests {
     #[test]
     fn converts_app_server_network_approval_context_to_core() {
         assert_eq!(
-            network_approval_context_to_core(darwin_code_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
-            }),
+            network_approval_context_to_core(
+                darwin_code_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                }
+            ),
             NetworkApprovalContext {
                 host: "example.com".to_string(),
                 protocol: NetworkApprovalProtocol::Socks5Tcp,
@@ -88,13 +90,17 @@ mod tests {
                 }),
             }),
             darwin_code_app_server_protocol::GrantedPermissionProfile {
-                network: Some(darwin_code_app_server_protocol::AdditionalNetworkPermissions {
-                    enabled: Some(true),
-                }),
-                file_system: Some(darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
-                    read: Some(vec![absolute_path("/tmp/read-only")]),
-                    write: Some(vec![absolute_path("/tmp/write")]),
-                }),
+                network: Some(
+                    darwin_code_app_server_protocol::AdditionalNetworkPermissions {
+                        enabled: Some(true),
+                    }
+                ),
+                file_system: Some(
+                    darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
+                        read: Some(vec![absolute_path("/tmp/read-only")]),
+                        write: Some(vec![absolute_path("/tmp/write")]),
+                    }
+                ),
             }
         );
     }

@@ -5,12 +5,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::error::CodexErr;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::error::SandboxErr;
+use darwin_code_protocol::protocol::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 use landlock::ABI;
 #[allow(unused_imports)]
@@ -268,7 +268,7 @@ mod tests {
     use super::NetworkSeccompMode;
     use super::network_seccomp_mode;
     use super::should_install_network_seccomp;
-    use codex_protocol::protocol::NetworkSandboxPolicy;
+    use darwin_code_protocol::protocol::NetworkSandboxPolicy;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -306,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    fn managed_proxy_routes_use_proxy_routed_seccomp_mode() {
+    fn network_policy_runtime_routes_use_proxy_routed_seccomp_mode() {
         assert_eq!(
             network_seccomp_mode(
                 NetworkSandboxPolicy::Enabled,
@@ -330,7 +330,7 @@ mod tests {
     }
 
     #[test]
-    fn full_network_without_managed_proxy_skips_network_seccomp_mode() {
+    fn full_network_without_network_policy_runtime_skips_network_seccomp_mode() {
         assert_eq!(
             network_seccomp_mode(
                 NetworkSandboxPolicy::Enabled,

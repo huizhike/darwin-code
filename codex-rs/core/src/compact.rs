@@ -10,6 +10,14 @@ use crate::session::session::Session;
 use crate::session::turn::get_last_assistant_message_from_turn;
 use crate::session::turn_context::TurnContext;
 use crate::util::backoff;
+use codex_analytics::CodexCompactionEvent;
+use codex_analytics::CompactionImplementation;
+use codex_analytics::CompactionPhase;
+use codex_analytics::CompactionReason;
+use codex_analytics::CompactionStatus;
+use codex_analytics::CompactionStrategy;
+use codex_analytics::CompactionTrigger;
+use codex_analytics::now_unix_seconds;
 use darwin_code_features::Feature;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::error::Result as DarwinCodeResult;
@@ -335,7 +343,7 @@ impl CompactionAnalyticsAttempt {
         let active_context_tokens_after = sess.get_total_token_usage().await;
         sess.services
             .analytics_events_client
-            .track_compaction(DarwinCodeCompactionEvent {
+            .track_compaction(CodexCompactionEvent {
                 thread_id: self.thread_id,
                 turn_id: self.turn_id,
                 trigger: self.trigger,
@@ -359,7 +367,9 @@ impl CompactionAnalyticsAttempt {
 pub(crate) fn compaction_status_from_result<T>(result: &DarwinCodeResult<T>) -> CompactionStatus {
     match result {
         Ok(_) => CompactionStatus::Completed,
-        Err(DarwinCodeErr::Interrupted | DarwinCodeErr::TurnAborted) => CompactionStatus::Interrupted,
+        Err(DarwinCodeErr::Interrupted | DarwinCodeErr::TurnAborted) => {
+            CompactionStatus::Interrupted
+        }
         Err(_) => CompactionStatus::Failed,
     }
 }
@@ -502,6 +512,7 @@ fn build_compacted_history_with_limit(
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         });
     }
 
@@ -517,6 +528,7 @@ fn build_compacted_history_with_limit(
         content: vec![ContentItem::InputText { text: summary_text }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     });
 
     history

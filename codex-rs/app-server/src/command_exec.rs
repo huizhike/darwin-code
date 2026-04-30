@@ -18,7 +18,6 @@ use darwin_code_app_server_protocol::CommandExecWriteParams;
 use darwin_code_app_server_protocol::CommandExecWriteResponse;
 use darwin_code_app_server_protocol::JSONRPCErrorError;
 use darwin_code_app_server_protocol::ServerNotification;
-use darwin_code_core::config::StartedNetworkProxy;
 use darwin_code_core::exec::DEFAULT_EXEC_COMMAND_TIMEOUT_MS;
 use darwin_code_core::exec::ExecExpiration;
 use darwin_code_core::exec::IO_DRAIN_TIMEOUT_MS;
@@ -89,7 +88,6 @@ pub(crate) struct StartCommandExecParams {
     pub(crate) request_id: ConnectionRequestId,
     pub(crate) process_id: Option<String>,
     pub(crate) exec_request: ExecRequest,
-    pub(crate) started_network_proxy: Option<StartedNetworkProxy>,
     pub(crate) tty: bool,
     pub(crate) stream_stdin: bool,
     pub(crate) stream_stdout_stderr: bool,
@@ -149,7 +147,6 @@ impl CommandExecManager {
             request_id,
             process_id,
             exec_request,
-            started_network_proxy,
             tty,
             stream_stdin,
             stream_stdout_stderr,
@@ -201,9 +198,11 @@ impl CommandExecManager {
             }
             let sessions = Arc::clone(&self.sessions);
             tokio::spawn(async move {
-                let _started_network_proxy = started_network_proxy;
-                match darwin_code_core::sandboxing::execute_env(exec_request, /*stdout_stream*/ None)
-                    .await
+                match darwin_code_core::sandboxing::execute_env(
+                    exec_request,
+                    /*stdout_stream*/ None,
+                )
+                .await
                 {
                     Ok(output) => {
                         outgoing
@@ -274,10 +273,17 @@ impl CommandExecManager {
             )
             .await
         } else if stream_stdin {
-            darwin_code_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0).await
-        } else {
-            darwin_code_utils_pty::spawn_pipe_process_no_stdin(program, args, cwd.as_path(), &env, &arg0)
+            darwin_code_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0)
                 .await
+        } else {
+            darwin_code_utils_pty::spawn_pipe_process_no_stdin(
+                program,
+                args,
+                cwd.as_path(),
+                &env,
+                &arg0,
+            )
+            .await
         };
         let spawned = match spawned {
             Ok(spawned) => spawned,
@@ -287,7 +293,6 @@ impl CommandExecManager {
             }
         };
         tokio::spawn(async move {
-            let _started_network_proxy = started_network_proxy;
             run_command(RunCommandParams {
                 outgoing,
                 request_id: request_id.clone(),
@@ -764,7 +769,6 @@ mod tests {
                 },
                 process_id: Some("proc-42".to_string()),
                 exec_request: windows_sandbox_exec_request(),
-                started_network_proxy: None,
                 tty: false,
                 stream_stdin: false,
                 stream_stdout_stderr: true,
@@ -797,7 +801,6 @@ mod tests {
                 request_id: request_id.clone(),
                 process_id: Some("proc-99".to_string()),
                 exec_request: windows_sandbox_exec_request(),
-                started_network_proxy: None,
                 tty: false,
                 stream_stdin: false,
                 stream_stdout_stderr: false,
@@ -861,7 +864,6 @@ mod tests {
                     NetworkSandboxPolicy::from(&sandbox_policy),
                     /*arg0*/ None,
                 ),
-                started_network_proxy: None,
                 tty: false,
                 stream_stdin: false,
                 stream_stdout_stderr: false,

@@ -2,7 +2,6 @@
 #![allow(clippy::expect_used)]
 
 use anyhow::Result;
-use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -17,6 +16,7 @@ use core_test_support::test_darwin_code::ApplyPatchModelOutput;
 use core_test_support::test_darwin_code::ShellModelOutput;
 use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -107,7 +107,7 @@ fn configure_shell_model(
         (ShellModelOutput::ShellCommand, _) => builder.with_model("test-gpt-5-darwin-code"),
         (ShellModelOutput::LocalShell, true) => builder.with_model("gpt-5.1-darwin-code"),
         (ShellModelOutput::Shell, true) => builder.with_model("gpt-5.1-darwin-code"),
-        (ShellModelOutput::LocalShell, false) => builder.with_model("darwin-code-mini-latest"),
+        (ShellModelOutput::LocalShell, false) => builder.with_model("darwin_code-mini-latest"),
         (ShellModelOutput::Shell, false) => builder.with_model("gpt-5"),
     };
 

@@ -9,7 +9,6 @@ use std::process::Stdio;
 use darwin_code_core::config::Config;
 use darwin_code_core::config::ConfigBuilder;
 use darwin_code_core::config::ConfigOverrides;
-use darwin_code_core::config::NetworkProxyAuditMetadata;
 use darwin_code_core::exec_env::create_env;
 #[cfg(target_os = "macos")]
 use darwin_code_core::spawn::DARWIN_CODE_SANDBOX_ENV_VAR;
@@ -38,7 +37,7 @@ use seatbelt::DenialLogger;
 #[cfg(target_os = "macos")]
 pub async fn run_command_under_seatbelt(
     command: SeatbeltCommand,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     let SeatbeltCommand {
         full_auto,
@@ -51,7 +50,7 @@ pub async fn run_command_under_seatbelt(
         full_auto,
         command,
         config_overrides,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         SandboxType::Seatbelt,
         log_denials,
         &allow_unix_sockets,
@@ -62,14 +61,14 @@ pub async fn run_command_under_seatbelt(
 #[cfg(not(target_os = "macos"))]
 pub async fn run_command_under_seatbelt(
     _command: SeatbeltCommand,
-    _darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    _codex_linux_sandbox_exe: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     anyhow::bail!("Seatbelt sandbox is only available on macOS");
 }
 
 pub async fn run_command_under_landlock(
     command: LandlockCommand,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     let LandlockCommand {
         full_auto,
@@ -80,7 +79,7 @@ pub async fn run_command_under_landlock(
         full_auto,
         command,
         config_overrides,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         SandboxType::Landlock,
         /*log_denials*/ false,
         &[],
@@ -90,7 +89,7 @@ pub async fn run_command_under_landlock(
 
 pub async fn run_command_under_windows(
     command: WindowsCommand,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     let WindowsCommand {
         full_auto,
@@ -101,7 +100,7 @@ pub async fn run_command_under_windows(
         full_auto,
         command,
         config_overrides,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         SandboxType::Windows,
         /*log_denials*/ false,
         &[],
@@ -120,7 +119,7 @@ async fn run_command_under_sandbox(
     full_auto: bool,
     command: Vec<String>,
     config_overrides: CliConfigOverrides,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
     sandbox_type: SandboxType,
     log_denials: bool,
     #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
@@ -130,7 +129,7 @@ async fn run_command_under_sandbox(
         config_overrides
             .parse_overrides()
             .map_err(anyhow::Error::msg)?,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         full_auto,
     )
     .await?;
@@ -237,26 +236,7 @@ async fn run_command_under_sandbox(
     #[cfg(not(target_os = "macos"))]
     let _ = log_denials;
 
-    let managed_network_requirements_enabled = config.managed_network_requirements_enabled();
-
-    // This proxy should only live for the lifetime of the child process.
-    let network_proxy = match config.permissions.network.as_ref() {
-        Some(spec) => Some(
-            spec.start_proxy(
-                config.permissions.sandbox_policy.get(),
-                /*policy_decider*/ None,
-                /*blocked_request_observer*/ None,
-                managed_network_requirements_enabled,
-                NetworkProxyAuditMetadata::default(),
-            )
-            .await
-            .map_err(|err| anyhow::anyhow!("failed to start managed network proxy: {err}"))?,
-        ),
-        None => None,
-    };
-    let network = network_proxy
-        .as_ref()
-        .map(darwin_code_core::config::StartedNetworkProxy::proxy);
+    let network: Option<darwin_code_sandboxing::NetworkAccessRuntime> = None;
 
     let mut child = match sandbox_type {
         #[cfg(target_os = "macos")]
@@ -266,7 +246,7 @@ async fn run_command_under_sandbox(
                 file_system_sandbox_policy: &config.permissions.file_system_sandbox_policy,
                 network_sandbox_policy: config.permissions.network_sandbox_policy,
                 sandbox_policy_cwd: sandbox_policy_cwd.as_path(),
-                enforce_managed_network: false,
+                enforce_network_policy: false,
                 network: network.as_ref(),
                 extra_allow_unix_sockets: allow_unix_sockets,
             });
@@ -279,7 +259,10 @@ async fn run_command_under_sandbox(
                 network_policy,
                 env,
                 |env_map| {
-                    env_map.insert(DARWIN_CODE_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+                    env_map.insert(
+                        DARWIN_CODE_SANDBOX_ENV_VAR.to_string(),
+                        "seatbelt".to_string(),
+                    );
                     if let Some(network) = network.as_ref() {
                         network.apply_to_env(env_map);
                     }
@@ -289,9 +272,9 @@ async fn run_command_under_sandbox(
         }
         SandboxType::Landlock => {
             #[expect(clippy::expect_used)]
-            let darwin_code_linux_sandbox_exe = config
-                .darwin_code_linux_sandbox_exe
-                .expect("darwin-code-linux-sandbox executable not found");
+            let codex_linux_sandbox_exe = config
+                .codex_linux_sandbox_exe
+                .expect("darwin_code-linux-sandbox executable not found");
             let use_legacy_landlock = config.features.use_legacy_landlock();
             let args = create_linux_sandbox_command_args_for_policies(
                 command,
@@ -301,13 +284,13 @@ async fn run_command_under_sandbox(
                 config.permissions.network_sandbox_policy,
                 sandbox_policy_cwd.as_path(),
                 use_legacy_landlock,
-                /*allow_network_for_proxy*/ false,
+                /*allow_network_for_network_policy*/ false,
             );
             let network_policy = config.permissions.network_sandbox_policy;
             spawn_debug_sandbox_child(
-                darwin_code_linux_sandbox_exe,
+                codex_linux_sandbox_exe,
                 args,
-                Some("darwin-code-linux-sandbox"),
+                Some("darwin_code-linux-sandbox"),
                 cwd.to_path_buf(),
                 network_policy,
                 env,
@@ -388,12 +371,12 @@ async fn spawn_debug_sandbox_child(
 
 async fn load_debug_sandbox_config(
     cli_overrides: Vec<(String, TomlValue)>,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
     full_auto: bool,
 ) -> anyhow::Result<Config> {
     load_debug_sandbox_config_with_darwin_code_home(
         cli_overrides,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         full_auto,
         /*darwin_code_home*/ None,
     )
@@ -402,14 +385,14 @@ async fn load_debug_sandbox_config(
 
 async fn load_debug_sandbox_config_with_darwin_code_home(
     cli_overrides: Vec<(String, TomlValue)>,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
     full_auto: bool,
     darwin_code_home: Option<PathBuf>,
 ) -> anyhow::Result<Config> {
     let config = build_debug_sandbox_config(
         cli_overrides.clone(),
         ConfigOverrides {
-            darwin_code_linux_sandbox_exe: darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: codex_linux_sandbox_exe.clone(),
             ..Default::default()
         },
         darwin_code_home.clone(),
@@ -419,7 +402,7 @@ async fn load_debug_sandbox_config_with_darwin_code_home(
     if config_uses_permission_profiles(&config) {
         if full_auto {
             anyhow::bail!(
-                "`darwin-code sandbox --full-auto` is only supported for legacy `sandbox_mode` configs; choose a writable `[permissions]` profile instead"
+                "`darwin_code sandbox --full-auto` is only supported for legacy `sandbox_mode` configs; choose a writable `[permissions]` profile instead"
             );
         }
         return Ok(config);
@@ -429,7 +412,7 @@ async fn load_debug_sandbox_config_with_darwin_code_home(
         cli_overrides,
         ConfigOverrides {
             sandbox_mode: Some(create_sandbox_mode(full_auto)),
-            darwin_code_linux_sandbox_exe,
+            codex_linux_sandbox_exe,
             ..Default::default()
         },
         darwin_code_home,
@@ -485,7 +468,13 @@ mod tests {
              \"{}\" = \"none\"\n\
              \n\
              [permissions.limited-read-test.network]\n\
-             enabled = true\n",
+             enabled = true\n\
+             \n\
+             [providers.openai]\n\
+             family = \"openai-compatible\"\n\
+             name = \"OpenAI\"\n\
+             base_url = \"https://api.openai.com/v1\"\n\
+             api_key = \"test-direct-api-key\"\n",
             escape_toml_path(docs),
             escape_toml_path(private),
         );
@@ -520,7 +509,7 @@ mod tests {
 
         let config = load_debug_sandbox_config_with_darwin_code_home(
             Vec::new(),
-            /*darwin_code_linux_sandbox_exe*/ None,
+            /*codex_linux_sandbox_exe*/ None,
             /*full_auto*/ false,
             Some(darwin_code_home_path),
         )
@@ -554,7 +543,7 @@ mod tests {
 
         let err = load_debug_sandbox_config_with_darwin_code_home(
             Vec::new(),
-            /*darwin_code_linux_sandbox_exe*/ None,
+            /*codex_linux_sandbox_exe*/ None,
             /*full_auto*/ true,
             Some(darwin_code_home.path().to_path_buf()),
         )

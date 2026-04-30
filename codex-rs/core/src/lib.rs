@@ -1,13 +1,13 @@
-//! Root of the `darwin-code-core` library.
+//! Root of the `darwin_code-core` library.
 
 // Prevent accidental direct writes to stdout/stderr in library code. All
 // user-visible output must go through the appropriate abstraction (e.g.,
 // the TUI or the tracing stack).
 #![deny(clippy::print_stdout, clippy::print_stderr)]
+#![recursion_limit = "256"]
 
 mod agent_identity;
 mod apply_patch;
-mod apps;
 mod arc_monitor;
 mod client;
 mod client_common;
@@ -16,12 +16,12 @@ mod realtime_conversation;
 mod realtime_prompt;
 pub(crate) mod session;
 pub use session::SteerInputError;
-mod darwin_code_thread;
 mod compact_remote;
+#[path = "codex_thread.rs"]
+mod darwin_code_thread;
 pub use darwin_code_thread::DarwinCodeThread;
 pub use darwin_code_thread::ThreadConfigSnapshot;
 mod agent;
-mod darwin_code_delegate;
 mod command_canonicalization;
 mod commit_attribution;
 pub mod config;
@@ -29,6 +29,8 @@ pub mod config_loader;
 pub mod connectors;
 mod context_manager;
 mod contextual_user_message;
+#[path = "codex_delegate.rs"]
+mod darwin_code_delegate;
 mod environment_context;
 pub mod exec;
 pub mod exec_env;
@@ -48,12 +50,12 @@ pub(crate) mod mcp;
 mod mcp_skill_dependencies;
 mod mcp_tool_approval_templates;
 mod mcp_tool_exposure;
+pub(crate) mod network_access_loader;
 mod network_policy_decision;
-pub(crate) mod network_proxy_loader;
 pub use mcp::McpManager;
-pub use network_proxy_loader::MtimeConfigReloader;
-pub use network_proxy_loader::build_network_proxy_state;
-pub use network_proxy_loader::build_network_proxy_state_and_reloader;
+pub use network_access_loader::MtimeConfigReloader;
+pub use network_access_loader::build_network_access_state;
+pub use network_access_loader::build_network_access_state_and_reloader;
 mod original_image_detail;
 pub use darwin_code_mcp::SandboxState;
 mod mcp_openai_file;
@@ -131,6 +133,8 @@ pub type ConversationManager = ThreadManager;
 pub type NewConversation = NewThread;
 #[deprecated(note = "use DarwinCodeThread")]
 pub type DarwinCodeConversation = DarwinCodeThread;
+#[deprecated(note = "use DarwinCodeThread")]
+pub type CodexThread = DarwinCodeThread;
 pub(crate) mod agents_md;
 pub use agents_md::AgentsMdManager;
 pub use agents_md::DEFAULT_AGENTS_MD_FILENAME;

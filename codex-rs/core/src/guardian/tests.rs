@@ -3,7 +3,8 @@ use crate::config::Config;
 use crate::config::ConfigOverrides;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
-use crate::config::NetworkProxySpec;
+use crate::config::NetworkAccessSpec;
+use crate::config::ensure_default_byok_provider_config_toml_for_tests;
 use crate::config::test_config;
 use crate::config_loader::ConfigLayerStack;
 use crate::config_loader::FeatureRequirementsToml;
@@ -15,23 +16,6 @@ use crate::config_loader::Sourced;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::test_support;
-use darwin_code_config::config_toml::ConfigToml;
-use darwin_code_exec_server::LOCAL_FS;
-use darwin_code_model_provider::create_model_provider;
-use darwin_code_network_proxy::NetworkProxyConfig;
-use darwin_code_protocol::ThreadId;
-use darwin_code_protocol::approvals::NetworkApprovalProtocol;
-use darwin_code_protocol::config_types::ApprovalsReviewer;
-use darwin_code_protocol::models::ContentItem;
-use darwin_code_protocol::models::ResponseItem;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::GuardianAssessmentStatus;
-use darwin_code_protocol::protocol::GuardianRiskLevel;
-use darwin_code_protocol::protocol::GuardianUserAuthorization;
-use darwin_code_protocol::protocol::ReviewDecision;
-use darwin_code_protocol::protocol::RolloutItem;
-use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
 use core_test_support::context_snapshot;
@@ -48,6 +32,23 @@ use core_test_support::skip_if_no_network;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_path_buf;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::permissions_toml::NetworkAccessConfig;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+use darwin_code_protocol::protocol::GuardianRiskLevel;
+use darwin_code_protocol::protocol::GuardianUserAuthorization;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use insta::Settings;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
@@ -71,6 +72,9 @@ async fn guardian_test_session_and_turn(
 async fn guardian_test_session_and_turn_with_base_url(
     base_url: &str,
 ) -> (Arc<Session>, Arc<TurnContext>) {
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "dummy-test-key");
+    }
     let (mut session, mut turn) = crate::session::tests::make_session_and_context().await;
     session.conversation_id = fixed_guardian_parent_session_id();
     let mut config = (*turn.config).clone();
@@ -79,12 +83,11 @@ async fn guardian_test_session_and_turn_with_base_url(
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn.config = Arc::clone(&config);
-    turn.provider = create_model_provider(config.model_provider.clone(), turn.auth_manager.clone());
+    turn.provider = create_model_provider(config.model_provider.clone());
     turn.user_instructions = None;
 
     (Arc::new(session), Arc::new(turn))
@@ -101,14 +104,15 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                         text: "Please check the repo visibility and push the docs fix if needed."
                             .to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::FunctionCall {
                     id: None,
                     name: "gh_repo_view".to_string(),
                     namespace: None,
-                    arguments: "{\"repo\":\"openai/darwin-code\"}".to_string(),
+                    arguments: "{\"repo\":\"openai/darwin_code\"}".to_string(),
                     call_id: "call-1".to_string(),
                 },
                 ResponseItem::FunctionCallOutput {
@@ -124,9 +128,10 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                         text: "The repo is public; I now need approval to push the docs fix."
                             .to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             turn.as_ref(),
         )
@@ -157,8 +162,10 @@ fn guardian_snapshot_options() -> ContextSnapshotOptions {
 }
 
 fn normalize_guardian_snapshot_paths(text: String) -> String {
-    let platform_path = test_path_buf("/repo/darwin-code-rs/core").display().to_string();
-    if platform_path == "/repo/darwin-code-rs/core" {
+    let platform_path = test_path_buf("/repo/darwin_code-rs/core")
+        .display()
+        .to_string();
+    if platform_path == "/repo/darwin_code-rs/core" {
         return text;
     }
 
@@ -166,8 +173,8 @@ fn normalize_guardian_snapshot_paths(text: String) -> String {
         .expect("test path should serialize")
         .trim_matches('"')
         .to_string();
-    text.replace(&escaped_platform_path, "/repo/darwin-code-rs/core")
-        .replace(&platform_path, "/repo/darwin-code-rs/core")
+    text.replace(&escaped_platform_path, "/repo/darwin_code-rs/core")
+        .replace(&platform_path, "/repo/darwin_code-rs/core")
 }
 
 fn guardian_prompt_text(items: &[darwin_code_protocol::user_input::UserInput]) -> String {
@@ -235,7 +242,7 @@ async fn build_guardian_prompt_full_mode_preserves_initial_review_format() -> an
         GuardianApprovalRequest::Shell {
             id: "shell-1".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the reviewed docs fix.".to_string()),
@@ -248,7 +255,7 @@ async fn build_guardian_prompt_full_mode_preserves_initial_review_format() -> an
     assert!(text.contains("whose request action you are assessing"));
     assert!(text.contains(">>> TRANSCRIPT START\n"));
     assert!(text.contains(">>> TRANSCRIPT END\n"));
-    assert!(text.contains("The Darwin-Code agent has requested the following action:\n"));
+    assert!(text.contains("The DarwinCode agent has requested the following action:\n"));
     assert!(!text.contains("TRANSCRIPT DELTA"));
     assert_eq!(prompt.transcript_cursor.transcript_entry_count, 4);
 
@@ -268,18 +275,20 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
                     content: vec![ContentItem::InputText {
                         text: "Please also push the second docs fix.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the second push.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             turn.as_ref(),
         )
@@ -291,7 +300,7 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
         GuardianApprovalRequest::Shell {
             id: "shell-2".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the second docs fix.".to_string()),
@@ -311,7 +320,7 @@ async fn build_guardian_prompt_delta_mode_preserves_original_numbering() -> anyh
     assert!(text.contains("[5] user: Please also push the second docs fix."));
     assert!(text.contains("[6] assistant: I need approval for the second push."));
     assert!(text.contains(">>> TRANSCRIPT DELTA END\n"));
-    assert!(text.contains("The Darwin-Code agent has requested the following next action:\n"));
+    assert!(text.contains("The DarwinCode agent has requested the following next action:\n"));
     assert!(!text.contains("[1] user: Please check the repo visibility"));
     assert_eq!(prompt.transcript_cursor.transcript_entry_count, 6);
 
@@ -329,7 +338,7 @@ async fn build_guardian_prompt_delta_mode_handles_empty_delta() -> anyhow::Resul
         GuardianApprovalRequest::Shell {
             id: "shell-2".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the second docs fix.".to_string()),
@@ -364,7 +373,7 @@ async fn build_guardian_prompt_stale_delta_cursor_falls_back_to_full_prompt() ->
         GuardianApprovalRequest::Shell {
             id: "shell-3".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the docs fix.".to_string()),
@@ -401,18 +410,20 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
                     content: vec![ContentItem::InputText {
                         text: "Compacted retained user request.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "Compacted summary of earlier guardian context.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             /*reference_context_item*/ None,
         )
@@ -426,18 +437,20 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
                     content: vec![ContentItem::InputText {
                         text: "Please push after the compaction.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the post-compaction push.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             turn.as_ref(),
         )
@@ -449,7 +462,7 @@ async fn build_guardian_prompt_stale_delta_version_falls_back_to_full_prompt() -
         GuardianApprovalRequest::Shell {
             id: "shell-4".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push after the compaction.".to_string()),
@@ -484,18 +497,20 @@ fn collect_guardian_transcript_entries_skips_contextual_user_messages() {
             content: vec![ContentItem::InputText {
                 text: "<environment_context>\n<cwd>/tmp</cwd>\n</environment_context>".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
             content: vec![ContentItem::OutputText {
                 text: "hello".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
     ];
 
     let entries = collect_guardian_transcript_entries(&items);
@@ -519,9 +534,10 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
             content: vec![ContentItem::InputText {
                 text: "check the repo".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         ResponseItem::FunctionCall {
             id: None,
             name: "read_file".to_string(),
@@ -541,9 +557,10 @@ fn collect_guardian_transcript_entries_includes_recent_tool_calls_and_output() {
             content: vec![ContentItem::OutputText {
                 text: "I need to push a fix".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
     ];
 
     let entries = collect_guardian_transcript_entries(&items);
@@ -656,35 +673,6 @@ fn guardian_assessment_action_redacts_apply_patch_patch_text() {
         }),
     );
 }
-
-#[test]
-fn guardian_request_turn_id_prefers_network_access_owner_turn() {
-    let network_access = GuardianApprovalRequest::NetworkAccess {
-        id: "network-1".to_string(),
-        turn_id: "owner-turn".to_string(),
-        target: "https://example.com:443".to_string(),
-        host: "example.com".to_string(),
-        protocol: NetworkApprovalProtocol::Https,
-        port: 443,
-    };
-    let apply_patch = GuardianApprovalRequest::ApplyPatch {
-        id: "patch-1".to_string(),
-        cwd: test_path_buf("/tmp").abs(),
-        files: vec![test_path_buf("/tmp/guardian.txt").abs()],
-        patch: "*** Begin Patch\n*** Update File: guardian.txt\n@@\n+hello\n*** End Patch"
-            .to_string(),
-    };
-
-    assert_eq!(
-        guardian_request_turn_id(&network_access, "fallback-turn"),
-        "owner-turn"
-    );
-    assert_eq!(
-        guardian_request_turn_id(&apply_patch, "fallback-turn"),
-        "fallback-turn"
-    );
-}
-
 #[tokio::test]
 async fn cancelled_guardian_review_emits_terminal_abort_without_warning() {
     let (session, turn, rx) = crate::session::tests::make_session_and_context_with_rx().await;
@@ -885,12 +873,11 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn.config = Arc::clone(&config);
-    turn.provider = create_model_provider(config.model_provider.clone(), turn.auth_manager.clone());
+    turn.provider = create_model_provider(config.model_provider.clone());
     let session = Arc::new(session);
     let turn = Arc::new(turn);
     seed_guardian_parent_history(&session, &turn).await;
@@ -903,7 +890,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
             "origin".to_string(),
             "guardian-approval-mvp".to_string(),
         ],
-        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the reviewed docs fix to the repo remote.".to_string()),
@@ -970,7 +957,7 @@ async fn build_guardian_prompt_items_includes_parent_session_id() -> anyhow::Res
 
     assert!(
         prompt_text.contains(&format!(
-            ">>> TRANSCRIPT END\nReviewed Darwin-Code session id: {}\n",
+            ">>> TRANSCRIPT END\nReviewed DarwinCode session id: {}\n",
             session.conversation_id
         )),
         "guardian prompt should expose the parent session id immediately after the transcript end"
@@ -1024,7 +1011,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     let first_request = GuardianApprovalRequest::Shell {
         id: "shell-1".to_string(),
         command: vec!["git".to_string(), "push".to_string()],
-        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the first docs fix.".to_string()),
@@ -1047,18 +1034,20 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
                     content: vec![ContentItem::InputText {
                         text: "Please push the second docs fix too.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the second docs fix.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             turn.as_ref(),
         )
@@ -1070,7 +1059,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
             "push".to_string(),
             "--force-with-lease".to_string(),
         ],
-        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the second docs fix.".to_string()),
@@ -1093,18 +1082,20 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
                     content: vec![ContentItem::InputText {
                         text: "Please push the third docs fix too.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {
                         text: "I need approval for the third docs fix.".to_string(),
                     }],
-                    end_turn: None,
-                    phase: None,
-                },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ],
             turn.as_ref(),
         )
@@ -1112,7 +1103,7 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     let third_request = GuardianApprovalRequest::Shell {
         id: "shell-3".to_string(),
         command: vec!["git".to_string(), "push".to_string()],
-        cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+        cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
         additional_permissions: None,
         justification: Some("Need to push the third docs fix.".to_string()),
@@ -1254,7 +1245,6 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
     let config = Arc::new(config);
     let models_manager = Arc::new(test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     Arc::get_mut(&mut session)
@@ -1263,8 +1253,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
         .models_manager = models_manager;
     let turn_mut = Arc::get_mut(&mut turn).expect("turn should be uniquely owned");
     turn_mut.config = Arc::clone(&config);
-    turn_mut.provider =
-        create_model_provider(config.model_provider.clone(), turn_mut.auth_manager.clone());
+    turn_mut.provider = create_model_provider(config.model_provider.clone());
     turn_mut.user_instructions = None;
 
     seed_guardian_parent_history(&session, &turn).await;
@@ -1276,7 +1265,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
         GuardianApprovalRequest::Shell {
             id: "shell-guardian-error".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Need to push the reviewed docs fix.".to_string()),
@@ -1410,7 +1399,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let initial_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-1".to_string(),
             command: vec!["git".to_string(), "status".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect repo state before proceeding.".to_string()),
@@ -1435,18 +1424,20 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
                         content: vec![ContentItem::InputText {
                             text: "Please inspect pending changes before pushing.".to_string(),
                         }],
-                        end_turn: None,
-                        phase: None,
-                    },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                     ResponseItem::Message {
                         id: None,
                         role: "assistant".to_string(),
                         content: vec![ContentItem::OutputText {
                             text: "I need approval to run git diff.".to_string(),
                         }],
-                        end_turn: None,
-                        phase: None,
-                    },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ],
                 turn.as_ref(),
             )
@@ -1455,7 +1446,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let second_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-2".to_string(),
             command: vec!["git".to_string(), "diff".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect pending changes before proceeding.".to_string()),
@@ -1463,7 +1454,7 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
         let third_request = GuardianApprovalRequest::Shell {
             id: "shell-guardian-3".to_string(),
             command: vec!["git".to_string(), "push".to_string()],
-            cwd: test_path_buf("/repo/darwin-code-rs/core").abs(),
+            cwd: test_path_buf("/repo/darwin_code-rs/core").abs(),
             sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
             additional_permissions: None,
             justification: Some("Inspect whether pushing is safe before proceeding.".to_string()),
@@ -1504,18 +1495,20 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
                         content: vec![ContentItem::InputText {
                             text: "Now inspect whether pushing is safe.".to_string(),
                         }],
-                        end_turn: None,
-                        phase: None,
-                    },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                     ResponseItem::Message {
                         id: None,
                         role: "assistant".to_string(),
                         content: vec![ContentItem::OutputText {
                             text: "I need approval to push after the diff check.".to_string(),
                         }],
-                        end_turn: None,
-                        phase: None,
-                    },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
                 ],
                 turn.as_ref(),
             )
@@ -1574,10 +1567,10 @@ async fn guardian_parallel_reviews_fork_from_last_committed_trunk_history() -> a
     }
 }
 #[tokio::test]
-async fn guardian_review_session_config_preserves_parent_network_proxy() {
+async fn guardian_review_session_config_preserves_parent_network_access() {
     let mut parent_config = test_config().await;
-    let network = NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
+    let network = NetworkAccessSpec::from_config_and_constraints(
+        NetworkAccessConfig::default(),
         Some(NetworkConstraints {
             enabled: Some(true),
             domains: Some(NetworkDomainPermissionsToml {
@@ -1590,7 +1583,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
         }),
         parent_config.permissions.sandbox_policy.get(),
     )
-    .expect("network proxy spec");
+    .expect("network allowlist spec");
     parent_config.permissions.network = Some(network.clone());
 
     let guardian_config = build_guardian_review_session_config_for_test(
@@ -1641,23 +1634,23 @@ async fn guardian_review_session_config_overrides_parent_developer_instructions(
 }
 
 #[tokio::test]
-async fn guardian_review_session_config_uses_live_network_proxy_state() {
+async fn guardian_review_session_config_keeps_parent_network_access_state() {
     let mut parent_config = test_config().await;
-    let mut parent_network = NetworkProxyConfig::default();
+    let mut parent_network = NetworkAccessConfig::default();
     parent_network.network.enabled = true;
     parent_network
         .network
         .set_allowed_domains(vec!["parent.example".to_string()]);
     parent_config.permissions.network = Some(
-        NetworkProxySpec::from_config_and_constraints(
+        NetworkAccessSpec::from_config_and_constraints(
             parent_network,
             /*requirements*/ None,
             parent_config.permissions.sandbox_policy.get(),
         )
-        .expect("parent network proxy spec"),
+        .expect("parent network allowlist spec"),
     );
 
-    let mut live_network = NetworkProxyConfig::default();
+    let mut live_network = NetworkAccessConfig::default();
     live_network.network.enabled = true;
     live_network
         .network
@@ -1672,15 +1665,8 @@ async fn guardian_review_session_config_uses_live_network_proxy_state() {
     .expect("guardian config");
 
     assert_eq!(
-        guardian_config.permissions.network,
-        Some(
-            NetworkProxySpec::from_config_and_constraints(
-                live_network,
-                /*requirements*/ None,
-                &SandboxPolicy::new_read_only_policy(),
-            )
-            .expect("live network proxy spec")
-        )
+        &guardian_config.permissions.network,
+        &parent_config.permissions.network
     );
 }
 
@@ -1743,9 +1729,11 @@ async fn guardian_review_session_config_uses_requirements_guardian_policy_config
         },
     )
     .expect("config layer stack");
+    let mut cfg = ConfigToml::default();
+    ensure_default_byok_provider_config_toml_for_tests(&mut cfg);
     let parent_config = Config::load_config_with_layer_stack(
         LOCAL_FS.as_ref(),
-        ConfigToml::default(),
+        cfg,
         ConfigOverrides {
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
@@ -1780,9 +1768,11 @@ async fn guardian_review_session_config_uses_default_guardian_policy_without_req
     let config_layer_stack =
         ConfigLayerStack::new(Vec::new(), Default::default(), Default::default())
             .expect("config layer stack");
+    let mut cfg = ConfigToml::default();
+    ensure_default_byok_provider_config_toml_for_tests(&mut cfg);
     let parent_config = Config::load_config_with_layer_stack(
         LOCAL_FS.as_ref(),
-        ConfigToml::default(),
+        cfg,
         ConfigOverrides {
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()

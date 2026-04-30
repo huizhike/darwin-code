@@ -14,10 +14,6 @@ use darwin_code_config::config_toml::ConfigToml;
 use darwin_code_config::config_toml::ProjectConfig;
 use darwin_code_config::config_toml::RealtimeAudioConfig;
 use darwin_code_config::config_toml::RealtimeConfig;
-use darwin_code_config::config_toml::RealtimeToml;
-use darwin_code_config::config_toml::RealtimeTransport;
-use darwin_code_config::config_toml::RealtimeWsMode;
-use darwin_code_config::config_toml::RealtimeWsVersion;
 use darwin_code_config::config_toml::ToolsToml;
 use darwin_code_config::permissions_toml::FilesystemPermissionToml;
 use darwin_code_config::permissions_toml::FilesystemPermissionsToml;
@@ -30,7 +26,6 @@ use darwin_code_config::profile_toml::ConfigProfile;
 use darwin_code_config::types::AppToolApproval;
 use darwin_code_config::types::ApprovalsReviewer;
 use darwin_code_config::types::BundledSkillsConfig;
-use darwin_code_config::types::FeedbackConfigToml;
 use darwin_code_config::types::HistoryPersistence;
 use darwin_code_config::types::McpServerToolConfig;
 use darwin_code_config::types::McpServerTransportConfig;
@@ -40,6 +35,7 @@ use darwin_code_config::types::ModelAvailabilityNuxConfig;
 use darwin_code_config::types::NotificationCondition;
 use darwin_code_config::types::NotificationMethod;
 use darwin_code_config::types::Notifications;
+use darwin_code_config::types::OtelExporterKind;
 use darwin_code_config::types::SandboxWorkspaceWrite;
 use darwin_code_config::types::SkillsConfig;
 use darwin_code_config::types::ToolSuggestDiscoverableType;
@@ -48,8 +44,7 @@ use darwin_code_config::types::TuiNotificationSettings;
 use darwin_code_exec_server::LOCAL_FS;
 use darwin_code_features::Feature;
 use darwin_code_features::FeaturesToml;
-use darwin_code_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use darwin_code_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use darwin_code_model_provider_info::OPENAI_PROVIDER_ID;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_protocol::permissions::FileSystemAccessMode;
@@ -59,7 +54,6 @@ use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
 use darwin_code_protocol::permissions::FileSystemSpecialPath;
 use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_protocol::protocol::ReadOnlyAccess;
-use darwin_code_protocol::protocol::RealtimeVoice;
 use serde::Deserialize;
 use tempfile::tempdir;
 
@@ -345,12 +339,12 @@ web_search = false
 }
 
 #[test]
-fn rejects_provider_auth_with_env_key() {
+fn rejects_provider_command_auth() {
     let err = toml::from_str::<ConfigToml>(
         r#"
 [model_providers.corp]
 name = "Corp"
-env_key = "CORP_TOKEN"
+api_key = "test-direct-key"
 
 [model_providers.corp.auth]
 command = "print-token"
@@ -360,7 +354,7 @@ command = "print-token"
 
     assert!(
         err.to_string()
-            .contains("model_providers.corp: provider auth cannot be combined with env_key")
+            .contains("BYOK-only provider auth rejects command-backed auth")
     );
 }
 
@@ -483,7 +477,7 @@ allow_upstream_proxy = false
 }
 
 #[tokio::test]
-async fn permissions_profiles_network_populates_runtime_network_proxy_spec() -> std::io::Result<()>
+async fn permissions_profiles_network_config_does_not_start_in_process_proxy() -> std::io::Result<()>
 {
     let darwin_code_home = TempDir::new()?;
     let cwd = TempDir::new()?;
@@ -521,14 +515,10 @@ async fn permissions_profiles_network_populates_runtime_network_proxy_spec() -> 
         darwin_code_home.abs(),
     )
     .await?;
-    let network = config
-        .permissions
-        .network
-        .as_ref()
-        .expect("enabled profile network should produce a NetworkProxySpec");
-
-    assert_eq!(network.proxy_host_and_port(), "127.0.0.1:43128");
-    assert!(!network.socks_enabled());
+    assert!(
+        config.permissions.network.is_none(),
+        "network proxy config is parsed for compatibility but does not start an in-process proxy"
+    );
     Ok(())
 }
 
@@ -946,7 +936,7 @@ async fn permissions_profiles_allow_unknown_special_paths() -> std::io::Result<(
     );
     assert!(
         config.startup_warnings.iter().any(|warning| warning.contains(
-            "Configured filesystem path `:future_special_path` is not recognized by this version of Darwin-Code and will be ignored."
+            "Configured filesystem path `:future_special_path` is not recognized by this version of DarwinCode and will be ignored."
         )),
         "{:?}",
         config.startup_warnings
@@ -983,7 +973,7 @@ async fn permissions_profiles_allow_unknown_special_paths_with_nested_entries()
     );
     assert!(
         config.startup_warnings.iter().any(|warning| warning.contains(
-            "Configured filesystem path `:future_special_path` with nested entry `docs` is not recognized by this version of Darwin-Code and will be ignored."
+            "Configured filesystem path `:future_special_path` with nested entry `docs` is not recognized by this version of DarwinCode and will be ignored."
         )),
         "{:?}",
         config.startup_warnings
@@ -1015,7 +1005,7 @@ async fn permissions_profiles_allow_missing_filesystem_with_warning() -> std::io
     );
     assert!(
         config.startup_warnings.iter().any(|warning| warning.contains(
-            "Permissions profile `workspace` does not define any recognized filesystem entries for this version of Darwin-Code."
+            "Permissions profile `workspace` does not define any recognized filesystem entries for this version of DarwinCode."
         )),
         "{:?}",
         config.startup_warnings
@@ -1040,7 +1030,7 @@ async fn permissions_profiles_allow_empty_filesystem_with_warning() -> std::io::
     );
     assert!(
         config.startup_warnings.iter().any(|warning| warning.contains(
-            "Permissions profile `workspace` does not define any recognized filesystem entries for this version of Darwin-Code."
+            "Permissions profile `workspace` does not define any recognized filesystem entries for this version of DarwinCode."
         )),
         "{:?}",
         config.startup_warnings
@@ -1765,21 +1755,17 @@ fn local_dev_builds_force_file_mcp_oauth_store_modes() {
 }
 
 #[tokio::test]
-async fn feedback_enabled_defaults_to_true() -> std::io::Result<()> {
+async fn feedback_is_disabled_by_default_after_product_surface_removal() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let cfg = ConfigToml {
-        feedback: Some(FeedbackConfigToml::default()),
-        ..Default::default()
-    };
 
     let config = Config::load_from_base_config_with_overrides(
-        cfg,
+        ConfigToml::default(),
         ConfigOverrides::default(),
         darwin_code_home.abs(),
     )
     .await?;
 
-    assert_eq!(config.feedback_enabled, true);
+    assert!(!config.feedback_enabled);
 
     Ok(())
 }
@@ -1893,7 +1879,7 @@ trust_level = "trusted"
 "#,
         ),
     )?;
-    let project_config_dir = workspace.path().join(".darwin-code");
+    let project_config_dir = workspace.path().join(".darwin_code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join(CONFIG_TOML_FILE),
@@ -1973,7 +1959,8 @@ async fn cli_override_takes_precedence_over_profile_sandbox_mode() -> std::io::R
     };
 
     let config =
-        Config::load_from_base_config_with_overrides(cfg, overrides, darwin_code_home.abs()).await?;
+        Config::load_from_base_config_with_overrides(cfg, overrides, darwin_code_home.abs())
+            .await?;
 
     if cfg!(target_os = "windows") {
         assert!(matches!(
@@ -2014,11 +2001,13 @@ async fn feature_table_overrides_legacy_flags() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn legacy_toggles_map_to_features() -> std::io::Result<()> {
+async fn stable_feature_table_enables_exec_tool_features() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
+    let mut entries = BTreeMap::new();
+    entries.insert("unified_exec".to_string(), true);
+    entries.insert("apply_patch_freeform".to_string(), true);
     let cfg = ConfigToml {
-        experimental_use_unified_exec_tool: Some(true),
-        experimental_use_freeform_apply_patch: Some(true),
+        features: Some(FeaturesToml::from(entries)),
         ..Default::default()
     };
 
@@ -2031,9 +2020,7 @@ async fn legacy_toggles_map_to_features() -> std::io::Result<()> {
 
     assert!(config.features.enabled(Feature::ApplyPatchFreeform));
     assert!(config.features.enabled(Feature::UnifiedExec));
-
     assert!(config.include_apply_patch_tool);
-
     assert!(config.use_experimental_unified_exec_tool);
 
     Ok(())
@@ -2104,15 +2091,17 @@ async fn managed_config_overrides_oauth_store_mode() -> anyhow::Result<()> {
         Some(cwd),
         &Vec::new(),
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
-    let cfg =
-        deserialize_config_toml_with_base(config_layer_stack.effective_config(), darwin_code_home.path())
-            .map_err(|e| {
-                tracing::error!("Failed to deserialize overridden config: {e}");
-                e
-            })?;
+    let cfg = deserialize_config_toml_with_base(
+        config_layer_stack.effective_config(),
+        darwin_code_home.path(),
+    )
+    .map_err(|e| {
+        tracing::error!("Failed to deserialize overridden config: {e}");
+        e
+    })?;
     assert_eq!(
         cfg.mcp_oauth_credentials_store,
         Some(OAuthCredentialsStoreMode::Keyring),
@@ -2238,16 +2227,18 @@ async fn managed_config_wins_over_cli_overrides() -> anyhow::Result<()> {
         Some(cwd),
         &[("model".to_string(), TomlValue::String("cli".to_string()))],
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
-    let cfg =
-        deserialize_config_toml_with_base(config_layer_stack.effective_config(), darwin_code_home.path())
-            .map_err(|e| {
-                tracing::error!("Failed to deserialize overridden config: {e}");
-                e
-            })?;
+    let cfg = deserialize_config_toml_with_base(
+        config_layer_stack.effective_config(),
+        darwin_code_home.path(),
+    )
+    .map_err(|e| {
+        tracing::error!("Failed to deserialize overridden config: {e}");
+        e
+    })?;
 
     assert_eq!(cfg.model.as_deref(), Some("managed_config"));
     Ok(())
@@ -2351,7 +2342,7 @@ approval_mode = "approve"
 }
 
 #[tokio::test]
-async fn to_mcp_config_preserves_apps_feature_from_config() -> std::io::Result<()> {
+async fn to_mcp_config_keeps_apps_disabled_by_default() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
     let mut config = Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
@@ -2362,15 +2353,15 @@ async fn to_mcp_config_preserves_apps_feature_from_config() -> std::io::Result<(
     let plugins_manager = PluginsManager::new(darwin_code_home.path().to_path_buf());
 
     let mcp_config = config.to_mcp_config(&plugins_manager).await;
-    assert!(mcp_config.apps_enabled);
-
-    let _ = config.features.disable(Feature::Apps);
-    let mcp_config = config.to_mcp_config(&plugins_manager).await;
     assert!(!mcp_config.apps_enabled);
 
     let _ = config.features.enable(Feature::Apps);
     let mcp_config = config.to_mcp_config(&plugins_manager).await;
     assert!(mcp_config.apps_enabled);
+
+    let _ = config.features.disable(Feature::Apps);
+    let mcp_config = config.to_mcp_config(&plugins_manager).await;
+    assert!(!mcp_config.apps_enabled);
 
     Ok(())
 }
@@ -2538,7 +2529,7 @@ async fn replace_mcp_servers_serializes_env_vars() -> anyhow::Result<()> {
 async fn replace_mcp_servers_serializes_cwd() -> anyhow::Result<()> {
     let darwin_code_home = TempDir::new()?;
 
-    let cwd_path = PathBuf::from("/tmp/darwin-code-mcp");
+    let cwd_path = PathBuf::from("/tmp/darwin_code-mcp");
     let servers = BTreeMap::from([(
         "docs".to_string(),
         McpServerConfig {
@@ -2574,7 +2565,7 @@ async fn replace_mcp_servers_serializes_cwd() -> anyhow::Result<()> {
     let config_path = darwin_code_home.path().join(CONFIG_TOML_FILE);
     let serialized = std::fs::read_to_string(&config_path)?;
     assert!(
-        serialized.contains(r#"cwd = "/tmp/darwin-code-mcp""#),
+        serialized.contains(r#"cwd = "/tmp/darwin_code-mcp""#),
         "serialized config missing cwd field:\n{serialized}"
     );
 
@@ -2582,7 +2573,7 @@ async fn replace_mcp_servers_serializes_cwd() -> anyhow::Result<()> {
     let docs = loaded.get("docs").expect("docs entry");
     match &docs.transport {
         McpServerTransportConfig::Stdio { cwd, .. } => {
-            assert_eq!(cwd.as_deref(), Some(Path::new("/tmp/darwin-code-mcp")));
+            assert_eq!(cwd.as_deref(), Some(Path::new("/tmp/darwin_code-mcp")));
         }
         other => panic!("unexpected transport {other:?}"),
     }
@@ -3172,7 +3163,8 @@ async fn set_model_updates_defaults() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
 
     assert_eq!(parsed.model.as_deref(), Some("gpt-5.1-darwin-code"));
@@ -3229,7 +3221,8 @@ async fn set_model_updates_profile() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -3303,7 +3296,8 @@ async fn set_feature_enabled_updates_profile() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -3345,7 +3339,8 @@ async fn set_feature_enabled_persists_default_false_feature_disable_in_profile()
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -3385,7 +3380,8 @@ async fn set_feature_enabled_profile_disable_overrides_root_enable() -> anyhow::
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -3456,34 +3452,123 @@ async fn cli_override_sets_compact_prompt() -> std::io::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn loads_compact_prompt_from_file() -> std::io::Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    let workspace = darwin_code_home.path().join("workspace");
-    std::fs::create_dir_all(&workspace)?;
+#[test]
+fn external_and_removed_config_surfaces_do_not_block_config_toml_load() {
+    fn key(parts: &[&str]) -> String {
+        parts.concat()
+    }
 
-    let prompt_path = workspace.join("compact_prompt.txt");
-    std::fs::write(&prompt_path, "  summarize differently  ")?;
+    fn table(parts: &[&str], body: &str) -> String {
+        format!("[{}]\n{body}\n", key(parts))
+    }
 
-    let cfg = ConfigToml {
-        experimental_compact_prompt_file: Some(prompt_path.abs()),
-        ..Default::default()
-    };
+    fn scalar(parts: &[&str], value: &str) -> String {
+        format!("{} = {value}\n", key(parts))
+    }
 
-    let overrides = ConfigOverrides {
-        cwd: Some(workspace),
-        ..Default::default()
-    };
+    // Darwin Code shares ~/.codex/config.toml with upstream Codex/OMX installs.
+    // Runtime config parsing must therefore tolerate foreign or legacy sections
+    // such as [env] and [notice] instead of failing before BYOK provider config
+    // can be loaded. Unsupported Darwin product surfaces remain removed from the
+    // typed ConfigToml model; serde ignores them while the generated schema stays
+    // strict via schemars(deny_unknown_fields).
+    let cases = vec![
+        (
+            key(&["en", "v"]),
+            table(&["en", "v"], "USE_OMX_EXPLORE_CMD = \"1\""),
+        ),
+        (
+            key(&["not", "ice"]),
+            table(&["not", "ice"], "hide_full_access_warning = true"),
+        ),
+        (
+            key(&["ana", "lytics"]),
+            table(&["ana", "lytics"], "enabled = true"),
+        ),
+        (
+            key(&["feed", "back"]),
+            table(&["feed", "back"], "enabled = true"),
+        ),
+        (
+            key(&["app", "_launcher"]),
+            table(&["app", "_launcher"], "enabled = true"),
+        ),
+        (key(&["ot", "el"]), table(&["ot", "el"], "enabled = true")),
+        (
+            key(&["au", "dio"]),
+            table(&["au", "dio"], "microphone = \"USB Mic\""),
+        ),
+        (
+            key(&["real", "time"]),
+            table(&["real", "time"], "voice = \"marin\""),
+        ),
+        (
+            key(&["file", "_opener"]),
+            scalar(&["file", "_opener"], "\"vscode\""),
+        ),
+        (
+            key(&["experimental_", "real", "time_start_instructions"]),
+            scalar(
+                &["experimental_", "real", "time_start_instructions"],
+                "\"start\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "real", "time_ws_base_url"]),
+            scalar(
+                &["experimental_", "real", "time_ws_base_url"],
+                "\"http://127.0.0.1:8011\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "real", "time_ws_backend_prompt"]),
+            scalar(
+                &["experimental_", "real", "time_ws_backend_prompt"],
+                "\"prompt\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "real", "time_ws_startup_context"]),
+            scalar(
+                &["experimental_", "real", "time_ws_startup_context"],
+                "\"ctx\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "real", "time_ws_model"]),
+            scalar(
+                &["experimental_", "real", "time_ws_model"],
+                "\"realtime-test-model\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "instructions_file"]),
+            scalar(
+                &["experimental_", "instructions_file"],
+                "\"/tmp/instructions.md\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "compact_prompt_file"]),
+            scalar(
+                &["experimental_", "compact_prompt_file"],
+                "\"/tmp/compact.md\"",
+            ),
+        ),
+        (
+            key(&["experimental_", "use_unified_exec_tool"]),
+            scalar(&["experimental_", "use_unified_exec_tool"], "true"),
+        ),
+        (
+            key(&["experimental_", "use_freeform_apply_patch"]),
+            scalar(&["experimental_", "use_freeform_apply_patch"], "true"),
+        ),
+    ];
 
-    let config =
-        Config::load_from_base_config_with_overrides(cfg, overrides, darwin_code_home.abs()).await?;
-
-    assert_eq!(
-        config.compact_prompt.as_deref(),
-        Some("summarize differently")
-    );
-
-    Ok(())
+    for (name, snippet) in cases {
+        toml::from_str::<ConfigToml>(&snippet)
+            .unwrap_or_else(|err| panic!("{name} should not block runtime config load: {err}"));
+    }
 }
 
 #[tokio::test]
@@ -3501,9 +3586,11 @@ async fn load_config_uses_requirements_guardian_policy_config() -> std::io::Resu
     )
     .map_err(std::io::Error::other)?;
 
+    let mut cfg = ConfigToml::default();
+    ensure_default_byok_provider_config_toml_for_tests(&mut cfg);
     let config = Config::load_config_with_layer_stack(
         LOCAL_FS.as_ref(),
-        ConfigToml::default(),
+        cfg,
         ConfigOverrides {
             cwd: Some(darwin_code_home.path().to_path_buf()),
             ..Default::default()
@@ -3534,9 +3621,11 @@ async fn load_config_ignores_empty_requirements_guardian_policy_config() -> std:
     )
     .map_err(std::io::Error::other)?;
 
+    let mut cfg = ConfigToml::default();
+    ensure_default_byok_provider_config_toml_for_tests(&mut cfg);
     let config = Config::load_config_with_layer_stack(
         LOCAL_FS.as_ref(),
-        ConfigToml::default(),
+        cfg,
         ConfigOverrides {
             cwd: Some(darwin_code_home.path().to_path_buf()),
             ..Default::default()
@@ -3554,7 +3643,10 @@ async fn load_config_ignores_empty_requirements_guardian_policy_config() -> std:
 #[tokio::test]
 async fn load_config_rejects_missing_agent_role_config_file() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let missing_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let missing_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     let cfg = ConfigToml {
         agents: Some(AgentsToml {
             max_threads: None,
@@ -3590,7 +3682,10 @@ async fn load_config_rejects_missing_agent_role_config_file() -> std::io::Result
 #[tokio::test]
 async fn agent_role_relative_config_file_resolves_against_config_toml() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let role_config_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let role_config_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     tokio::fs::create_dir_all(
         role_config_path
             .parent()
@@ -3639,7 +3734,10 @@ nickname_candidates = ["Hypatia", "Noether"]
 #[tokio::test]
 async fn agent_role_file_metadata_overrides_config_toml_metadata() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let role_config_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let role_config_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     tokio::fs::create_dir_all(
         role_config_path
             .parent()
@@ -3707,7 +3805,7 @@ trust_level = "trusted"
     )
     .await?;
 
-    let standalone_agents_dir = repo_root.path().join(".darwin-code").join("agents");
+    let standalone_agents_dir = repo_root.path().join(".darwin_code").join("agents");
     tokio::fs::create_dir_all(&standalone_agents_dir).await?;
     tokio::fs::write(
         standalone_agents_dir.join("researcher.toml"),
@@ -3759,7 +3857,10 @@ model = "gpt-5"
 async fn legacy_agent_role_config_file_allows_missing_developer_instructions() -> std::io::Result<()>
 {
     let darwin_code_home = TempDir::new()?;
-    let role_config_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let role_config_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     tokio::fs::create_dir_all(
         role_config_path
             .parent()
@@ -3810,7 +3911,10 @@ config_file = "./agents/researcher.toml"
 async fn agent_role_without_description_after_merge_is_dropped_with_warning() -> std::io::Result<()>
 {
     let darwin_code_home = TempDir::new()?;
-    let role_config_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let role_config_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     tokio::fs::create_dir_all(
         role_config_path
             .parent()
@@ -3878,7 +3982,7 @@ trust_level = "trusted"
     )
     .await?;
 
-    let standalone_agents_dir = repo_root.path().join(".darwin-code").join("agents");
+    let standalone_agents_dir = repo_root.path().join(".darwin_code").join("agents");
     tokio::fs::create_dir_all(&standalone_agents_dir).await?;
     tokio::fs::write(
         standalone_agents_dir.join("researcher.toml"),
@@ -3927,7 +4031,10 @@ developer_instructions = "Review carefully"
 #[tokio::test]
 async fn agent_role_file_name_takes_precedence_over_config_key() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let role_config_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let role_config_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     tokio::fs::create_dir_all(
         role_config_path
             .parent()
@@ -3972,7 +4079,10 @@ config_file = "./agents/researcher.toml"
 #[tokio::test]
 async fn loads_legacy_split_agent_roles_from_config_toml() -> std::io::Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let researcher_path = darwin_code_home.path().join("agents").join("researcher.toml");
+    let researcher_path = darwin_code_home
+        .path()
+        .join("agents")
+        .join("researcher.toml");
     let reviewer_path = darwin_code_home.path().join("agents").join("reviewer.toml");
     tokio::fs::create_dir_all(
         researcher_path
@@ -4079,7 +4189,7 @@ trust_level = "trusted"
 
     let root_agent = repo_root
         .path()
-        .join(".darwin-code")
+        .join(".darwin_code")
         .join("agents")
         .join("root.toml");
     std::fs::create_dir_all(
@@ -4099,7 +4209,7 @@ developer_instructions = "Research carefully"
     let nested_agent = repo_root
         .path()
         .join("packages")
-        .join(".darwin-code")
+        .join(".darwin_code")
         .join("agents")
         .join("review")
         .join("nested.toml");
@@ -4121,7 +4231,7 @@ developer_instructions = "Review carefully"
     let sibling_agent = repo_root
         .path()
         .join("packages")
-        .join(".darwin-code")
+        .join(".darwin_code")
         .join("agents")
         .join("writer.toml");
     std::fs::create_dir_all(
@@ -4238,7 +4348,7 @@ model = "gpt-4.1"
     )
     .await?;
 
-    let standalone_agents_dir = repo_root.path().join(".darwin-code").join("agents");
+    let standalone_agents_dir = repo_root.path().join(".darwin_code").join("agents");
     tokio::fs::create_dir_all(&standalone_agents_dir).await?;
     tokio::fs::write(
         standalone_agents_dir.join("researcher.toml"),
@@ -4370,7 +4480,7 @@ model = "gpt-5"
     )
     .await?;
 
-    let standalone_agents_dir = repo_root.path().join(".darwin-code").join("agents");
+    let standalone_agents_dir = repo_root.path().join(".darwin_code").join("agents");
     tokio::fs::create_dir_all(&standalone_agents_dir).await?;
     tokio::fs::write(
         standalone_agents_dir.join("researcher.toml"),
@@ -4622,6 +4732,669 @@ async fn model_catalog_json_rejects_empty_catalog() -> std::io::Result<()> {
     Ok(())
 }
 
+fn test_cwd() -> std::io::Result<TempDir> {
+    let cwd = TempDir::new()?;
+    std::fs::write(cwd.path().join(".git"), "gitdir: nowhere")?;
+    Ok(cwd)
+}
+
+fn write_darwin_code_source_home(root: &Path) -> std::io::Result<()> {
+    std::fs::write(root.join("config.toml"), "model = \"test-model\"\n")?;
+    std::fs::write(root.join("README.md"), "# Darwin Code Engine\n")?;
+    std::fs::create_dir_all(root.join("codex-rs"))?;
+    std::fs::write(
+        root.join("codex-rs").join("Cargo.toml"),
+        "[workspace]\nmembers = [\"cli\"]\n",
+    )?;
+    Ok(())
+}
+
+#[test]
+fn find_darwin_code_home_prefers_darwin_code_home_over_codex_home() -> std::io::Result<()> {
+    let darwin_code_home = TempDir::new()?;
+    let codex_home = TempDir::new()?;
+
+    let resolved = find_darwin_code_home_from_env_and_cwd(
+        Some(darwin_code_home.path().to_str().expect("utf-8 path")),
+        Some(codex_home.path().to_str().expect("utf-8 path")),
+        None,
+    )?;
+
+    assert_eq!(
+        resolved.as_path(),
+        darwin_code_home.path().canonicalize()?.as_path()
+    );
+    Ok(())
+}
+
+#[test]
+fn find_darwin_code_home_uses_codex_home_when_darwin_code_home_absent() -> std::io::Result<()> {
+    let codex_home = TempDir::new()?;
+
+    let resolved = find_darwin_code_home_from_env_and_cwd(
+        None,
+        Some(codex_home.path().to_str().expect("utf-8 path")),
+        None,
+    )?;
+
+    assert_eq!(
+        resolved.as_path(),
+        codex_home.path().canonicalize()?.as_path()
+    );
+    Ok(())
+}
+
+#[test]
+fn find_darwin_code_home_detects_source_checkout_from_codex_rs_child() -> std::io::Result<()> {
+    let source_home = TempDir::new()?;
+    write_darwin_code_source_home(source_home.path())?;
+    let child = source_home.path().join("codex-rs").join("core").join("src");
+    std::fs::create_dir_all(&child)?;
+
+    let resolved = find_darwin_code_home_from_env_and_cwd(None, None, Some(&child))?;
+
+    assert_eq!(
+        resolved.as_path(),
+        source_home.path().canonicalize()?.as_path()
+    );
+    Ok(())
+}
+
+#[test]
+fn source_checkout_detection_does_not_match_plain_project_config() -> std::io::Result<()> {
+    let project = TempDir::new()?;
+    std::fs::write(
+        project.path().join("config.toml"),
+        "model = \"test-model\"\n",
+    )?;
+    let child = project.path().join("src");
+    std::fs::create_dir_all(&child)?;
+
+    assert!(find_darwin_code_source_home_from_cwd(&child).is_none());
+    Ok(())
+}
+
+#[tokio::test]
+async fn default_config_requires_byok_provider() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "gpt-5"
+"#,
+    )
+    .expect("cross-field BYOK validation happens during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides_raw_for_tests(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("missing BYOK provider should fail before any OpenAI fallback");
+
+    assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    assert!(
+        err.to_string().contains("BYOK provider is required"),
+        "unexpected error: {err}"
+    );
+    assert!(
+        err.to_string().contains("[providers.cli2api]"),
+        "error should include an actionable cli2api BYOK example: {err}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_reads_direct_api_key() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+wire_api = "chat-completions"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid direct api_key config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "deepseek");
+    assert_eq!(
+        config
+            .model_provider
+            .api_key()
+            .expect("direct key resolves"),
+        Some("test-direct-key".to_string())
+    );
+    assert_eq!(
+        config
+            .model_providers
+            .get("deepseek")
+            .expect("provider should be registered")
+            .api_key()
+            .expect("direct key resolves"),
+        Some("test-direct-key".to_string())
+    );
+    assert_eq!(
+        config.model_provider.base_url.as_deref(),
+        Some("https://api.deepseek.com")
+    );
+    assert_eq!(config.model_provider.wire_api, WireApi::ChatCompletions);
+    assert!(!config.model_provider.requires_openai_auth);
+    assert!(!config.model_provider.supports_websockets);
+    Ok(())
+}
+
+#[tokio::test]
+async fn deepseek_chat_completions_openai_compatible_provider_defaults_to_chat_completions()
+-> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid direct api_key config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider.wire_api, WireApi::ChatCompletions);
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_can_select_responses_wire_api() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "gateway-model"
+model_provider = "gateway"
+
+[openai_compatible.gateway]
+base_url = "http://127.0.0.1:8317/v1"
+wire_api = "responses"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid responses-compatible config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider.wire_api, WireApi::Responses);
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_rejects_missing_direct_api_key() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+"#,
+    )
+    .expect("cross-field direct api_key validation happens during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("missing direct api_key should be rejected");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(
+        err.to_string().contains("api_key"),
+        "unexpected error: {err}"
+    );
+    assert!(
+        !err.to_string().contains("DEEPSEEK"),
+        "error should not mention derived env vars: {err}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_rejects_blank_direct_api_key() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "   "
+"#,
+    )
+    .expect("blank direct api_key is rejected during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("blank direct api_key should be rejected");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(
+        err.to_string()
+            .contains("openai_compatible.deepseek.api_key"),
+        "error should include provider id and field: {err}"
+    );
+    assert!(
+        err.to_string().contains("must not be empty"),
+        "error should explain the empty field: {err}"
+    );
+    Ok(())
+}
+
+#[test]
+fn openai_compatible_provider_rejects_removed_env_field() {
+    let removed_field = format!("api_key_{}", "env");
+    let toml = format!(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+{removed_field} = "OLD_API_KEY"
+"#
+    );
+    let err = toml::from_str::<ConfigToml>(&toml)
+        .expect_err("removed env-backed key field should be rejected by TOML parser");
+
+    assert!(err.to_string().contains(&removed_field));
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_debug_redacts_direct_api_key() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid direct api_key config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert!(
+        !format!("{:?}", config.model_provider).contains("test-direct-key"),
+        "direct api_key should be redacted from debug output"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_direct_api_key_allows_non_derivable_id() -> std::io::Result<()>
+{
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "custom-model"
+model_provider = "---"
+
+[openai_compatible."---"]
+base_url = "https://example.test/v1"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid direct api_key config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "---");
+    assert_eq!(
+        config
+            .model_provider
+            .api_key()
+            .expect("direct key resolves"),
+        Some("test-direct-key".to_string())
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn byok_provider_openai_compatible_config_selects_named_provider() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[providers.deepseek]
+family = "openai-compatible"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("valid BYOK provider config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "deepseek");
+    assert_eq!(config.model_provider.name, "DeepSeek");
+    assert_eq!(
+        config.model_provider.base_url.as_deref(),
+        Some("https://api.deepseek.com")
+    );
+    assert_eq!(
+        config
+            .model_provider
+            .api_key()
+            .expect("direct key resolves"),
+        Some("test-direct-key".to_string())
+    );
+    assert_eq!(config.model_provider.wire_api, WireApi::ChatCompletions);
+    assert!(!config.model_provider.requires_openai_auth);
+    assert!(!config.model_provider.supports_websockets);
+    assert_eq!(
+        config
+            .model_providers
+            .get("deepseek")
+            .expect("BYOK provider should be registered"),
+        &config.model_provider
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn byok_provider_rejects_missing_direct_api_key() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[providers.deepseek]
+family = "openai-compatible"
+base_url = "https://api.deepseek.com"
+"#,
+    )
+    .expect("cross-field validation happens during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("missing direct api_key should be rejected");
+
+    assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("providers.deepseek"));
+    assert!(err.to_string().contains("api_key"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn byok_provider_conflict_with_advanced_provider_is_rejected() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "custom-model"
+model_provider = "deepseek"
+
+[providers.deepseek]
+family = "openai-compatible"
+base_url = "https://api.deepseek.com"
+api_key = "test-direct-key"
+
+[model_providers.deepseek]
+name = "Advanced DeepSeek"
+base_url = "https://api.deepseek.com"
+"#,
+    )
+    .expect("same-id cross-field conflict is detected during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("providers/model_providers conflict should fail");
+
+    assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("conflicts with model_providers"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn byok_native_provider_family_reports_runtime_gap_when_selected() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "gemini-2.5-pro"
+model_provider = "gemini"
+
+[providers.gemini]
+family = "gemini-native"
+name = "Google Gemini"
+base_url = "https://generativelanguage.googleapis.com/v1beta"
+api_key = "test-direct-key"
+"#,
+    )
+    .expect("native-family config target should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("native runtime adapter gap should be explicit");
+
+    assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    assert!(
+        err.to_string()
+            .contains("native provider runtime adapter is not implemented yet"),
+        "unexpected error: {err}"
+    );
+    Ok(())
+}
+
+#[test]
+fn advanced_model_provider_rejects_non_byok_auth_surfaces() {
+    for (toml, expected) in [
+        (
+            r#"
+[model_providers.custom]
+name = "Custom"
+base_url = "https://example.test/v1"
+experimental_bearer_token = "token"
+"#,
+            "experimental_bearer_token",
+        ),
+        (
+            r#"
+[model_providers.custom]
+name = "Custom"
+base_url = "https://example.test/v1"
+requires_openai_auth = true
+"#,
+            "requires_openai_auth",
+        ),
+        (
+            r#"
+[model_providers.custom]
+name = "Custom"
+base_url = "https://example.test/v1"
+supports_websockets = true
+"#,
+            "supports_websockets",
+        ),
+        (
+            r#"
+[model_providers.custom]
+name = "Custom"
+base_url = "https://example.test/v1"
+
+[model_providers.custom.auth]
+command = "./print-token"
+"#,
+            "command-backed auth",
+        ),
+    ] {
+        let err = toml::from_str::<ConfigToml>(toml)
+            .expect_err("advanced provider auth surface should be rejected");
+        assert!(
+            err.to_string().contains(expected),
+            "expected `{expected}` in error, got: {err}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_selection_precedence_is_explicit() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model = "custom-model"
+model_provider = "openai-custom"
+
+[openai_compatible.deepseek]
+preset = "deepseek"
+api_key = "test-direct-key"
+
+[model_providers.openai-custom]
+name = "OpenAI custom"
+base_url = "https://custom.example/v1"
+api_key = "test-direct-key"
+
+[profiles.openai_profile]
+model_provider = "openai"
+"#,
+    )
+    .expect("valid config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let root_selected = Config::load_from_base_config_with_overrides(
+        cfg.clone(),
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+    assert_eq!(root_selected.model_provider_id, "openai-custom");
+
+    let profile_selected = Config::load_from_base_config_with_overrides(
+        cfg.clone(),
+        ConfigOverrides {
+            config_profile: Some("openai_profile".to_string()),
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+    assert_eq!(profile_selected.model_provider_id, OPENAI_PROVIDER_ID);
+
+    Ok(())
+}
+
 fn create_test_fixture() -> std::io::Result<PrecedenceTestFixture> {
     let toml = r#"
 model = "o3"
@@ -4631,13 +5404,11 @@ approval_policy = "untrusted"
 # `ConfigOverrides`.
 profile = "gpt3"
 
-[analytics]
-enabled = true
 
 [model_providers.openai-custom]
 name = "OpenAI custom"
 base_url = "https://api.openai.com/v1"
-env_key = "OPENAI_API_KEY"
+api_key = "test-direct-key"
 wire_api = "responses"
 request_max_retries = 4            # retry failed HTTP requests
 stream_max_retries = 10            # retry dropped SSE streams
@@ -4660,8 +5431,6 @@ model = "o3"
 model_provider = "openai"
 approval_policy = "on-failure"
 
-[profiles.zdr.analytics]
-enabled = false
 
 [profiles.gpt5]
 model = "gpt-5.1"
@@ -4687,9 +5456,10 @@ model_verbosity = "high"
     let openai_custom_provider = ModelProviderInfo {
         name: "OpenAI custom".to_string(),
         base_url: Some("https://api.openai.com/v1".to_string()),
-        env_key: Some("OPENAI_API_KEY".to_string()),
+        api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
+            "test-direct-key".to_string(),
+        )),
         wire_api: WireApi::Responses,
-        env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
         query_params: None,
@@ -4702,17 +5472,29 @@ model_verbosity = "high"
         requires_openai_auth: false,
         supports_websockets: false,
     };
+    let openai_provider = ModelProviderInfo {
+        name: "OpenAI".to_string(),
+        base_url: Some("https://api.openai.com/v1".to_string()),
+        api_key: None,
+        wire_api: WireApi::Responses,
+        experimental_bearer_token: None,
+        auth: None,
+        query_params: None,
+        http_headers: None,
+        env_http_headers: None,
+        request_max_retries: None,
+        stream_max_retries: None,
+        stream_idle_timeout_ms: None,
+        websocket_connect_timeout_ms: None,
+        requires_openai_auth: false,
+        supports_websockets: false,
+    };
     let model_provider_map = {
-        let mut model_provider_map =
-            built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None);
+        let mut model_provider_map = std::collections::HashMap::new();
+        model_provider_map.insert("openai".to_string(), openai_provider.clone());
         model_provider_map.insert("openai-custom".to_string(), openai_custom_provider.clone());
         model_provider_map
     };
-
-    let openai_provider = model_provider_map
-        .get("openai")
-        .expect("openai provider should exist")
-        .clone();
 
     Ok(PrecedenceTestFixture {
         cwd: cwd_temp_dir,
@@ -4802,9 +5584,8 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             startup_warnings: Vec::new(),
             history: History::default(),
             ephemeral: false,
-            file_opener: UriBasedFileOpener::VsCode,
             darwin_code_self_exe: None,
-            darwin_code_linux_sandbox_exe: None,
+            codex_linux_sandbox_exe: None,
             main_execve_wrapper_exe: None,
             js_repl_node_path: None,
             js_repl_node_module_dirs: Vec::new(),
@@ -4818,23 +5599,18 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             model_catalog: None,
             model_verbosity: None,
             personality: Some(Personality::Pragmatic),
-            chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
             realtime_audio: RealtimeAudioConfig::default(),
-            experimental_realtime_start_instructions: None,
-            experimental_realtime_ws_base_url: None,
-            experimental_realtime_ws_model: None,
             realtime: RealtimeConfig::default(),
+            experimental_realtime_ws_base_url: None,
             experimental_realtime_ws_backend_prompt: None,
             experimental_realtime_ws_startup_context: None,
             base_instructions: None,
             developer_instructions: None,
             guardian_policy_config: None,
             include_permissions_instructions: true,
-            include_apps_instructions: true,
             include_environment_context: true,
             compact_prompt: None,
             commit_attribution: None,
-            forced_chatgpt_workspace_id: None,
             forced_login_method: None,
             include_apply_patch_tool: false,
             web_search_mode: Constrained::allow_any(WebSearchMode::Cached),
@@ -4855,8 +5631,8 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             animations: true,
             show_tooltips: true,
             model_availability_nux: ModelAvailabilityNuxConfig::default(),
-            analytics_enabled: Some(true),
-            feedback_enabled: true,
+            analytics_enabled: Some(false),
+            feedback_enabled: false,
             tool_suggest: ToolSuggestConfig::default(),
             tui_alternate_screen: AltScreenMode::Auto,
             tui_status_line: None,
@@ -4870,7 +5646,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn metrics_exporter_defaults_to_statsig_when_missing() -> std::io::Result<()> {
+async fn metrics_exporter_defaults_to_none_when_missing() -> std::io::Result<()> {
     let fixture = create_test_fixture()?;
 
     let config = Config::load_from_base_config_with_overrides(
@@ -4883,7 +5659,7 @@ async fn metrics_exporter_defaults_to_statsig_when_missing() -> std::io::Result<
     )
     .await?;
 
-    assert_eq!(config.otel.metrics_exporter, OtelExporterKind::Statsig);
+    assert_eq!(config.otel.metrics_exporter, OtelExporterKind::None);
     Ok(())
 }
 
@@ -4952,9 +5728,8 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         startup_warnings: Vec::new(),
         history: History::default(),
         ephemeral: false,
-        file_opener: UriBasedFileOpener::VsCode,
         darwin_code_self_exe: None,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         main_execve_wrapper_exe: None,
         js_repl_node_path: None,
         js_repl_node_module_dirs: Vec::new(),
@@ -4968,23 +5743,18 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: None,
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
-        experimental_realtime_start_instructions: None,
-        experimental_realtime_ws_base_url: None,
-        experimental_realtime_ws_model: None,
         realtime: RealtimeConfig::default(),
+        experimental_realtime_ws_base_url: None,
         experimental_realtime_ws_backend_prompt: None,
         experimental_realtime_ws_startup_context: None,
         base_instructions: None,
         developer_instructions: None,
         guardian_policy_config: None,
         include_permissions_instructions: true,
-        include_apps_instructions: true,
         include_environment_context: true,
         compact_prompt: None,
         commit_attribution: None,
-        forced_chatgpt_workspace_id: None,
         forced_login_method: None,
         include_apply_patch_tool: false,
         web_search_mode: Constrained::allow_any(WebSearchMode::Cached),
@@ -5005,8 +5775,8 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         animations: true,
         show_tooltips: true,
         model_availability_nux: ModelAvailabilityNuxConfig::default(),
-        analytics_enabled: Some(true),
-        feedback_enabled: true,
+        analytics_enabled: Some(false),
+        feedback_enabled: false,
         tool_suggest: ToolSuggestConfig::default(),
         tui_alternate_screen: AltScreenMode::Auto,
         tui_status_line: None,
@@ -5100,9 +5870,8 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         startup_warnings: Vec::new(),
         history: History::default(),
         ephemeral: false,
-        file_opener: UriBasedFileOpener::VsCode,
         darwin_code_self_exe: None,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         main_execve_wrapper_exe: None,
         js_repl_node_path: None,
         js_repl_node_module_dirs: Vec::new(),
@@ -5116,23 +5885,18 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: None,
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
-        experimental_realtime_start_instructions: None,
-        experimental_realtime_ws_base_url: None,
-        experimental_realtime_ws_model: None,
         realtime: RealtimeConfig::default(),
+        experimental_realtime_ws_base_url: None,
         experimental_realtime_ws_backend_prompt: None,
         experimental_realtime_ws_startup_context: None,
         base_instructions: None,
         developer_instructions: None,
         guardian_policy_config: None,
         include_permissions_instructions: true,
-        include_apps_instructions: true,
         include_environment_context: true,
         compact_prompt: None,
         commit_attribution: None,
-        forced_chatgpt_workspace_id: None,
         forced_login_method: None,
         include_apply_patch_tool: false,
         web_search_mode: Constrained::allow_any(WebSearchMode::Cached),
@@ -5154,7 +5918,7 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         show_tooltips: true,
         model_availability_nux: ModelAvailabilityNuxConfig::default(),
         analytics_enabled: Some(false),
-        feedback_enabled: true,
+        feedback_enabled: false,
         tool_suggest: ToolSuggestConfig::default(),
         tui_alternate_screen: AltScreenMode::Auto,
         tui_status_line: None,
@@ -5233,9 +5997,8 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         startup_warnings: Vec::new(),
         history: History::default(),
         ephemeral: false,
-        file_opener: UriBasedFileOpener::VsCode,
         darwin_code_self_exe: None,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         main_execve_wrapper_exe: None,
         js_repl_node_path: None,
         js_repl_node_module_dirs: Vec::new(),
@@ -5249,23 +6012,18 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: Some(Verbosity::High),
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
-        experimental_realtime_start_instructions: None,
-        experimental_realtime_ws_base_url: None,
-        experimental_realtime_ws_model: None,
         realtime: RealtimeConfig::default(),
+        experimental_realtime_ws_base_url: None,
         experimental_realtime_ws_backend_prompt: None,
         experimental_realtime_ws_startup_context: None,
         base_instructions: None,
         developer_instructions: None,
         guardian_policy_config: None,
         include_permissions_instructions: true,
-        include_apps_instructions: true,
         include_environment_context: true,
         compact_prompt: None,
         commit_attribution: None,
-        forced_chatgpt_workspace_id: None,
         forced_login_method: None,
         include_apply_patch_tool: false,
         web_search_mode: Constrained::allow_any(WebSearchMode::Cached),
@@ -5286,8 +6044,8 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         animations: true,
         show_tooltips: true,
         model_availability_nux: ModelAvailabilityNuxConfig::default(),
-        analytics_enabled: Some(true),
-        feedback_enabled: true,
+        analytics_enabled: Some(false),
+        feedback_enabled: false,
         tool_suggest: ToolSuggestConfig::default(),
         tui_alternate_screen: AltScreenMode::Auto,
         tui_status_line: None,
@@ -5438,12 +6196,12 @@ trust_level = "trusted"
 fn test_set_project_trusted_migrates_top_level_inline_projects_preserving_entries()
 -> anyhow::Result<()> {
     let initial = r#"toplevel = "baz"
-projects = { "/Users/mbolin/code/darwin-code4" = { trust_level = "trusted", foo = "bar" } , "/Users/mbolin/code/darwin-code3" = { trust_level = "trusted" } }
+projects = { "/Users/mbolin/code/darwin_code4" = { trust_level = "trusted", foo = "bar" } , "/Users/mbolin/code/darwin_code3" = { trust_level = "trusted" } }
 model = "foo""#;
     let mut doc = initial.parse::<DocumentMut>()?;
 
     // Approve a new directory
-    let new_project = Path::new("/Users/mbolin/code/darwin-code2");
+    let new_project = Path::new("/Users/mbolin/code/darwin_code2");
     set_project_trust_level_inner(&mut doc, new_project, TrustLevel::Trusted)?;
 
     let contents = doc.to_string();
@@ -5455,11 +6213,11 @@ model = "foo""#;
         r#"toplevel = "baz"
 model = "foo"
 
-[projects."/Users/mbolin/code/darwin-code4"]
+[projects."/Users/mbolin/code/darwin_code4"]
 trust_level = "trusted"
 foo = "bar"
 
-[projects."/Users/mbolin/code/darwin-code3"]
+[projects."/Users/mbolin/code/darwin_code3"]
 trust_level = "trusted"
 
 [projects."{new_project_key}"]
@@ -5493,86 +6251,6 @@ async fn active_project_does_not_match_configured_alias_for_canonical_cwd() -> a
     assert_eq!(
         config.get_active_project(&project_root, /*repo_root*/ None),
         None
-    );
-
-    Ok(())
-}
-
-#[test]
-fn test_set_default_oss_provider() -> std::io::Result<()> {
-    let temp_dir = TempDir::new()?;
-    let darwin_code_home = temp_dir.path();
-    let config_path = darwin_code_home.join(CONFIG_TOML_FILE);
-
-    // Test setting valid provider on empty config
-    set_default_oss_provider(darwin_code_home, OLLAMA_OSS_PROVIDER_ID)?;
-    let content = std::fs::read_to_string(&config_path)?;
-    assert!(content.contains("oss_provider = \"ollama\""));
-
-    // Test updating existing config
-    std::fs::write(&config_path, "model = \"gpt-4\"\n")?;
-    set_default_oss_provider(darwin_code_home, LMSTUDIO_OSS_PROVIDER_ID)?;
-    let content = std::fs::read_to_string(&config_path)?;
-    assert!(content.contains("oss_provider = \"lmstudio\""));
-    assert!(content.contains("model = \"gpt-4\""));
-
-    // Test overwriting existing oss_provider
-    set_default_oss_provider(darwin_code_home, OLLAMA_OSS_PROVIDER_ID)?;
-    let content = std::fs::read_to_string(&config_path)?;
-    assert!(content.contains("oss_provider = \"ollama\""));
-    assert!(!content.contains("oss_provider = \"lmstudio\""));
-
-    // Test invalid provider
-    let result = set_default_oss_provider(darwin_code_home, "invalid_provider");
-    assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-    assert!(error.to_string().contains("Invalid OSS provider"));
-    assert!(error.to_string().contains("invalid_provider"));
-
-    Ok(())
-}
-
-#[test]
-fn test_set_default_oss_provider_rejects_legacy_ollama_chat_provider() -> std::io::Result<()> {
-    let temp_dir = TempDir::new()?;
-    let darwin_code_home = temp_dir.path();
-
-    let result = set_default_oss_provider(darwin_code_home, LEGACY_OLLAMA_CHAT_PROVIDER_ID);
-    assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-    assert!(
-        error
-            .to_string()
-            .contains(OLLAMA_CHAT_PROVIDER_REMOVED_ERROR)
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn test_load_config_rejects_legacy_ollama_chat_provider_with_helpful_error()
--> std::io::Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    let cfg = ConfigToml {
-        model_provider: Some(LEGACY_OLLAMA_CHAT_PROVIDER_ID.to_string()),
-        ..Default::default()
-    };
-
-    let result = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await;
-    assert!(result.is_err());
-    let error = result.unwrap_err();
-    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
-    assert!(
-        error
-            .to_string()
-            .contains(OLLAMA_CHAT_PROVIDER_REMOVED_ERROR)
     );
 
     Ok(())
@@ -5709,105 +6387,6 @@ async fn derive_sandbox_policy_preserves_windows_downgrade_for_unsupported_fallb
         assert_eq!(resolution, SandboxPolicy::new_workspace_write_policy());
     }
     Ok(())
-}
-
-#[test]
-fn test_resolve_oss_provider_explicit_override() {
-    let config_toml = ConfigToml::default();
-    let result = resolve_oss_provider(
-        Some("custom-provider"),
-        &config_toml,
-        /*config_profile*/ None,
-    );
-    assert_eq!(result, Some("custom-provider".to_string()));
-}
-
-#[test]
-fn test_resolve_oss_provider_from_profile() {
-    let mut profiles = std::collections::HashMap::new();
-    let profile = ConfigProfile {
-        oss_provider: Some("profile-provider".to_string()),
-        ..Default::default()
-    };
-    profiles.insert("test-profile".to_string(), profile);
-    let config_toml = ConfigToml {
-        profiles,
-        ..Default::default()
-    };
-
-    let result = resolve_oss_provider(
-        /*explicit_provider*/ None,
-        &config_toml,
-        Some("test-profile".to_string()),
-    );
-    assert_eq!(result, Some("profile-provider".to_string()));
-}
-
-#[test]
-fn test_resolve_oss_provider_from_global_config() {
-    let config_toml = ConfigToml {
-        oss_provider: Some("global-provider".to_string()),
-        ..Default::default()
-    };
-
-    let result = resolve_oss_provider(
-        /*explicit_provider*/ None,
-        &config_toml,
-        /*config_profile*/ None,
-    );
-    assert_eq!(result, Some("global-provider".to_string()));
-}
-
-#[test]
-fn test_resolve_oss_provider_profile_fallback_to_global() {
-    let mut profiles = std::collections::HashMap::new();
-    let profile = ConfigProfile::default(); // No oss_provider set
-    profiles.insert("test-profile".to_string(), profile);
-    let config_toml = ConfigToml {
-        oss_provider: Some("global-provider".to_string()),
-        profiles,
-        ..Default::default()
-    };
-
-    let result = resolve_oss_provider(
-        /*explicit_provider*/ None,
-        &config_toml,
-        Some("test-profile".to_string()),
-    );
-    assert_eq!(result, Some("global-provider".to_string()));
-}
-
-#[test]
-fn test_resolve_oss_provider_none_when_not_configured() {
-    let config_toml = ConfigToml::default();
-    let result = resolve_oss_provider(
-        /*explicit_provider*/ None,
-        &config_toml,
-        /*config_profile*/ None,
-    );
-    assert_eq!(result, None);
-}
-
-#[test]
-fn test_resolve_oss_provider_explicit_overrides_all() {
-    let mut profiles = std::collections::HashMap::new();
-    let profile = ConfigProfile {
-        oss_provider: Some("profile-provider".to_string()),
-        ..Default::default()
-    };
-    profiles.insert("test-profile".to_string(), profile);
-    let config_toml = ConfigToml {
-        oss_provider: Some("global-provider".to_string()),
-        profiles,
-        ..Default::default()
-    };
-
-    let result = resolve_oss_provider(
-        Some("explicit-provider"),
-        &config_toml,
-        Some("test-profile".to_string()),
-    );
-    assert_eq!(result, Some("explicit-provider".to_string()));
 }
 
 #[test]
@@ -5956,7 +6535,7 @@ async fn requirements_disallowing_default_sandbox_falls_back_to_required_default
 
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_sandbox_modes: Some(vec![
                     crate::config_loader::SandboxModeRequirement::ReadOnly,
@@ -6000,7 +6579,7 @@ async fn explicit_sandbox_mode_falls_back_when_disallowed_by_requirements() -> s
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async move {
+        .external_requirements(ExternalRequirementsLoader::new(async move {
             Ok(Some(requirements))
         }))
         .build()
@@ -6025,7 +6604,7 @@ async fn requirements_web_search_mode_overrides_danger_full_access_default() -> 
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_web_search_modes: Some(vec![
                     crate::config_loader::WebSearchModeRequirement::Cached,
@@ -6066,7 +6645,7 @@ trust_level = "untrusted"
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(workspace.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approval_policies: Some(vec![AskForApproval::OnRequest]),
                 ..Default::default()
@@ -6095,7 +6674,7 @@ async fn explicit_approval_policy_falls_back_when_disallowed_by_requirements() -
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approval_policies: Some(vec![AskForApproval::OnRequest]),
                 ..Default::default()
@@ -6116,7 +6695,7 @@ async fn feature_requirements_normalize_effective_feature_values() -> std::io::R
 
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([
@@ -6159,7 +6738,7 @@ shell_tool = true
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([
@@ -6209,7 +6788,6 @@ async fn prompt_instruction_blocks_can_be_disabled_from_config_and_profiles() ->
     std::fs::write(
         darwin_code_home.path().join(CONFIG_TOML_FILE),
         r#"include_permissions_instructions = false
-include_apps_instructions = false
 include_environment_context = false
 profile = "chatty"
 
@@ -6226,7 +6804,6 @@ include_environment_context = true
         .await?;
 
     assert!(config.include_permissions_instructions);
-    assert!(!config.include_apps_instructions);
     assert!(config.include_environment_context);
     Ok(())
 }
@@ -6305,7 +6882,7 @@ async fn requirements_disallowing_default_approvals_reviewer_falls_back_to_requi
 
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approvals_reviewers: Some(vec![ApprovalsReviewer::GuardianSubagent]),
                 ..Default::default()
@@ -6334,7 +6911,7 @@ async fn root_approvals_reviewer_falls_back_when_disallowed_by_requirements() ->
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approvals_reviewers: Some(vec![ApprovalsReviewer::GuardianSubagent]),
                 ..Default::default()
@@ -6374,7 +6951,7 @@ approvals_reviewer = "user"
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approvals_reviewers: Some(vec![ApprovalsReviewer::GuardianSubagent]),
                 ..Default::default()
@@ -6403,7 +6980,7 @@ async fn approvals_reviewer_preserves_valid_user_choice_when_allowed_by_requirem
     let config = ConfigBuilder::without_managed_config_for_tests()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 allowed_approvals_reviewers: Some(vec![
                     ApprovalsReviewer::User,
@@ -6449,7 +7026,8 @@ smart_approvals = true
     assert!(!config.features.enabled(Feature::GuardianApproval));
     assert_eq!(config.approvals_reviewer, ApprovalsReviewer::User);
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     assert!(serialized.contains("smart_approvals = true"));
     assert!(!serialized.contains("guardian_approval"));
     assert!(!serialized.contains("approvals_reviewer"));
@@ -6478,7 +7056,8 @@ smart_approvals = true
     assert!(!config.features.enabled(Feature::GuardianApproval));
     assert_eq!(config.approvals_reviewer, ApprovalsReviewer::User);
 
-    let serialized = tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(darwin_code_home.path().join(CONFIG_TOML_FILE)).await?;
     assert!(serialized.contains("[profiles.guardian.features]"));
     assert!(serialized.contains("smart_approvals = true"));
     assert!(!serialized.contains("guardian_approval"));
@@ -6558,7 +7137,7 @@ async fn feature_requirements_normalize_runtime_feature_mutations() -> std::io::
 
     let mut config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([
@@ -6594,7 +7173,7 @@ async fn feature_requirements_reject_collab_legacy_alias() {
 
     let err = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
-        .cloud_requirements(CloudRequirementsLoader::new(async {
+        .external_requirements(ExternalRequirementsLoader::new(async {
             Ok(Some(crate::config_loader::ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([("collab".to_string(), true)]),
@@ -6670,256 +7249,6 @@ discoverables = [
                 },
             ],
         }
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn experimental_realtime_start_instructions_load_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-experimental_realtime_start_instructions = "start instructions from config"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.experimental_realtime_start_instructions.as_deref(),
-        Some("start instructions from config")
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.experimental_realtime_start_instructions.as_deref(),
-        Some("start instructions from config")
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn experimental_realtime_ws_base_url_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-experimental_realtime_ws_base_url = "http://127.0.0.1:8011"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.experimental_realtime_ws_base_url.as_deref(),
-        Some("http://127.0.0.1:8011")
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.experimental_realtime_ws_base_url.as_deref(),
-        Some("http://127.0.0.1:8011")
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn experimental_realtime_ws_backend_prompt_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-experimental_realtime_ws_backend_prompt = "prompt from config"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.experimental_realtime_ws_backend_prompt.as_deref(),
-        Some("prompt from config")
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.experimental_realtime_ws_backend_prompt.as_deref(),
-        Some("prompt from config")
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn experimental_realtime_ws_startup_context_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-experimental_realtime_ws_startup_context = "startup context from config"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.experimental_realtime_ws_startup_context.as_deref(),
-        Some("startup context from config")
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.experimental_realtime_ws_startup_context.as_deref(),
-        Some("startup context from config")
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn experimental_realtime_ws_model_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-experimental_realtime_ws_model = "realtime-test-model"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.experimental_realtime_ws_model.as_deref(),
-        Some("realtime-test-model")
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.experimental_realtime_ws_model.as_deref(),
-        Some("realtime-test-model")
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn realtime_config_partial_table_uses_realtime_defaults() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-[realtime]
-voice = "marin"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.realtime,
-        RealtimeConfig {
-            voice: Some(RealtimeVoice::Marin),
-            ..RealtimeConfig::default()
-        }
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn realtime_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-[realtime]
-version = "v2"
-type = "transcription"
-transport = "webrtc"
-voice = "cedar"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    assert_eq!(
-        cfg.realtime,
-        Some(RealtimeToml {
-            version: Some(RealtimeWsVersion::V2),
-            session_type: Some(RealtimeWsMode::Transcription),
-            transport: Some(RealtimeTransport::WebRtc),
-            voice: Some(RealtimeVoice::Cedar),
-        })
-    );
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(
-        config.realtime,
-        RealtimeConfig {
-            version: RealtimeWsVersion::V2,
-            session_type: RealtimeWsMode::Transcription,
-            transport: RealtimeTransport::WebRtc,
-            voice: Some(RealtimeVoice::Cedar),
-        }
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn realtime_audio_loads_from_config_toml() -> std::io::Result<()> {
-    let cfg: ConfigToml = toml::from_str(
-        r#"
-[audio]
-microphone = "USB Mic"
-speaker = "Desk Speakers"
-"#,
-    )
-    .expect("TOML deserialization should succeed");
-
-    let realtime_audio = cfg
-        .audio
-        .as_ref()
-        .expect("realtime audio config should be present");
-    assert_eq!(realtime_audio.microphone.as_deref(), Some("USB Mic"));
-    assert_eq!(realtime_audio.speaker.as_deref(), Some("Desk Speakers"));
-
-    let darwin_code_home = TempDir::new()?;
-    let config = Config::load_from_base_config_with_overrides(
-        cfg,
-        ConfigOverrides::default(),
-        darwin_code_home.abs(),
-    )
-    .await?;
-
-    assert_eq!(config.realtime_audio.microphone.as_deref(), Some("USB Mic"));
-    assert_eq!(
-        config.realtime_audio.speaker.as_deref(),
-        Some("Desk Speakers")
     );
     Ok(())
 }

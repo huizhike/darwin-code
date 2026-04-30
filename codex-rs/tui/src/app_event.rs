@@ -10,6 +10,8 @@
 
 use std::path::PathBuf;
 
+use codex_realtime_webrtc::RealtimeWebrtcEvent;
+use codex_realtime_webrtc::RealtimeWebrtcSessionHandle;
 use darwin_code_app_server_protocol::AppInfo;
 use darwin_code_app_server_protocol::McpServerStatus;
 use darwin_code_app_server_protocol::PluginInstallResponse;
@@ -23,7 +25,6 @@ use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::openai_models::ModelPreset;
 use darwin_code_protocol::protocol::GetHistoryEntryResponseEvent;
 use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::RateLimitSnapshot;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_approval_presets::ApprovalPreset;
 
@@ -75,23 +76,6 @@ pub(crate) enum WindowsSandboxEnableMode {
 #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
 pub(crate) struct ConnectorsSnapshot {
     pub(crate) connectors: Vec<AppInfo>,
-}
-
-/// Distinguishes why a rate-limit refresh was requested so the completion
-/// handler can route the result correctly.
-///
-/// A `StartupPrefetch` fires once, concurrently with the rest of TUI init, and
-/// only updates the cached snapshots (no status card to finalize). A
-/// `StatusCommand` is tied to a specific `/status` invocation and must call
-/// `finish_status_rate_limit_refresh` when done so the card stops showing a
-/// "refreshing" state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum RateLimitRefreshOrigin {
-    /// Eagerly fetched after bootstrap so the first `/status` already has data.
-    StartupPrefetch,
-    /// User-initiated via `/status`; the `request_id` correlates with the
-    /// status card that should be updated when the fetch completes.
-    StatusCommand { request_id: u64 },
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -146,9 +130,6 @@ pub(crate) enum AppEvent {
     /// background tasks, rollout flush, or child process cleanup).
     Exit(ExitMode),
 
-    /// Request app-server account logout, then exit after it succeeds.
-    Logout,
-
     /// Request to exit the application due to a fatal error.
     #[allow(dead_code)]
     FatalExitRequest(String),
@@ -168,17 +149,6 @@ pub(crate) enum AppEvent {
     FileSearchResult {
         query: String,
         matches: Vec<FileMatch>,
-    },
-
-    /// Refresh account rate limits in the background.
-    RefreshRateLimits {
-        origin: RateLimitRefreshOrigin,
-    },
-
-    /// Result of refreshing rate limits.
-    RateLimitsLoaded {
-        origin: RateLimitRefreshOrigin,
-        result: Result<Vec<RateLimitSnapshot>, String>,
     },
 
     /// Result of prefetching connectors.

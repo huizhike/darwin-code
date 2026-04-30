@@ -1,6 +1,23 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
+use core_test_support::responses::ev_apply_patch_function_call;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_once_match;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
+use core_test_support::wait_for_event_with_timeout;
+use core_test_support::zsh_fork::build_zsh_fork_test;
+use core_test_support::zsh_fork::restrictive_workspace_write_policy;
+use core_test_support::zsh_fork::zsh_fork_runtime;
 use darwin_code_core::DarwinCodeThread;
 use darwin_code_core::config::Constrained;
 use darwin_code_core::config_loader::ConfigLayerStack;
@@ -23,23 +40,6 @@ use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::ReviewDecision;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::responses::ev_apply_patch_function_call;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_function_call;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_once_match;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_with_timeout;
-use core_test_support::zsh_fork::build_zsh_fork_test;
-use core_test_support::zsh_fork::restrictive_workspace_write_policy;
-use core_test_support::zsh_fork::zsh_fork_runtime;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -226,7 +226,7 @@ impl ActionKind {
                 let _ = fs::remove_file(&path);
                 let patch = build_add_file_patch(&patch_path, content);
                 let command = shell_apply_patch_command(&patch);
-                // Bazel may need to launch the configured Darwin-Code helper binary
+                // Bazel may need to launch the configured DarwinCode helper binary
                 // to apply the verified patch, which can exceed the normal
                 // short command timeout on slower CI runners.
                 let timeout_ms = 30_000;
@@ -579,7 +579,7 @@ async fn submit_turn(
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -646,7 +646,7 @@ async fn expect_exec_approval(
     test: &TestDarwinCode,
     expected_command: &str,
 ) -> ExecApprovalRequestEvent {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -673,7 +673,7 @@ async fn expect_patch_approval(
     test: &TestDarwinCode,
     expected_call_id: &str,
 ) -> ApplyPatchApprovalRequestEvent {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -692,7 +692,7 @@ async fn expect_patch_approval(
 }
 
 async fn wait_for_completion_without_approval(test: &TestDarwinCode) {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -710,7 +710,7 @@ async fn wait_for_completion_without_approval(test: &TestDarwinCode) {
 }
 
 async fn wait_for_completion(test: &TestDarwinCode) {
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -1674,16 +1674,18 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
     let model_override = scenario.model_override;
     let model = model_override.unwrap_or("gpt-5.1");
 
-    let mut builder = test_darwin_code().with_model(model).with_config(move |config| {
-        config.permissions.approval_policy = Constrained::allow_any(approval_policy);
-        config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy.clone());
-        for feature in features {
-            config
-                .features
-                .enable(feature)
-                .expect("test config should allow feature update");
-        }
-    });
+    let mut builder = test_darwin_code()
+        .with_model(model)
+        .with_config(move |config| {
+            config.permissions.approval_policy = Constrained::allow_any(approval_policy);
+            config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy.clone());
+            for feature in features {
+                config
+                    .features
+                    .enable(feature)
+                    .expect("test config should allow feature update");
+            }
+        });
     let test = builder.build(&server).await?;
 
     let call_id = scenario.name;
@@ -1741,7 +1743,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                     scenario.name
                 );
             }
-            test.darwin-code
+            test.darwin_code
                 .submit(Op::ExecApproval {
                     id: approval.effective_approval_id(),
                     turn_id: None,
@@ -1763,7 +1765,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
                     scenario.name
                 );
             }
-            test.darwin-code
+            test.darwin_code
                 .submit(Op::PatchApproval {
                     id: approval.call_id,
                     decision: decision.clone(),
@@ -1846,7 +1848,7 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     )
     .await?;
     let approval = expect_patch_approval(&test, call_id_1).await;
-    test.darwin-code
+    test.darwin_code
         .submit(Op::PatchApproval {
             id: approval.call_id,
             decision: ReviewDecision::ApprovedForSession,
@@ -1881,7 +1883,7 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     )
     .await?;
 
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -1965,7 +1967,7 @@ async fn approving_execpolicy_amendment_persists_policy_and_skips_future_prompts
         Some(expected_execpolicy_amendment.clone())
     );
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -2348,8 +2350,7 @@ async fn invalid_requested_prefix_rule_falls_back_for_compound_command() -> Resu
     let test = builder.build(&server).await?;
 
     let call_id = "invalid-prefix-rule";
-    let command =
-        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
+    let command = "touch /tmp/darwin_code-fallback-rule-test.txt && echo hello > /tmp/darwin_code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2399,8 +2400,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     let test = builder.build(&server).await?;
 
     let call_id = "invalid-prefix-rule";
-    let command =
-        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
+    let command = "touch /tmp/darwin_code-fallback-rule-test.txt && echo hello > /tmp/darwin_code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2434,7 +2434,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
         .expect("should have a proposed execpolicy amendment");
     assert!(amendment.command.contains(&command.to_string()));
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval_id,
             turn_id: None,
@@ -2446,8 +2446,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     wait_for_completion(&test).await;
 
     let call_id = "invalid-prefix-rule-again";
-    let command =
-        "touch /tmp/darwin-code-fallback-rule-test.txt && echo hello > /tmp/darwin-code-fallback-rule-test.txt";
+    let command = "touch /tmp/darwin_code-fallback-rule-test.txt && echo hello > /tmp/darwin_code-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2499,473 +2498,6 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "current_thread")]
-async fn denying_network_policy_amendment_persists_policy_and_skips_future_network_prompt()
--> Result<()> {
-    skip_if_no_network!(Ok(()));
-
-    let server = start_mock_server().await;
-    let home = Arc::new(TempDir::new()?);
-    fs::write(
-        home.path().join("config.toml"),
-        r#"default_permissions = "workspace"
-
-[permissions.workspace.filesystem]
-":minimal" = "read"
-
-[permissions.workspace.network]
-enabled = true
-mode = "limited"
-allow_local_binding = true
-"#,
-    )?;
-    let approval_policy = AskForApproval::OnFailure;
-    let sandbox_policy = SandboxPolicy::WorkspaceWrite {
-        writable_roots: vec![],
-        read_only_access: Default::default(),
-        network_access: true,
-        exclude_tmpdir_env_var: false,
-        exclude_slash_tmp: false,
-    };
-    let sandbox_policy_for_config = sandbox_policy.clone();
-    let mut builder = test_darwin_code().with_home(home).with_config(move |config| {
-        config.permissions.approval_policy = Constrained::allow_any(approval_policy);
-        config.permissions.sandbox_policy = Constrained::allow_any(sandbox_policy_for_config);
-        let layers = config
-            .config_layer_stack
-            .get_layers(
-                ConfigLayerStackOrdering::LowestPrecedenceFirst,
-                /*include_disabled*/ true,
-            )
-            .into_iter()
-            .cloned()
-            .collect();
-        let mut requirements = config.config_layer_stack.requirements().clone();
-        requirements.network = Some(Sourced::new(
-            NetworkConstraints {
-                enabled: Some(true),
-                allow_local_binding: Some(true),
-                ..Default::default()
-            },
-            RequirementSource::CloudRequirements,
-        ));
-        let mut requirements_toml = config.config_layer_stack.requirements_toml().clone();
-        requirements_toml.network = Some(NetworkRequirementsToml {
-            enabled: Some(true),
-            allow_local_binding: Some(true),
-            ..Default::default()
-        });
-        config.config_layer_stack = ConfigLayerStack::new(layers, requirements, requirements_toml)
-            .expect("rebuild config layer stack with network requirements");
-    });
-    let test = builder.build(&server).await?;
-    assert!(
-        test.config.managed_network_requirements_enabled(),
-        "expected managed network requirements to be enabled"
-    );
-    assert!(
-        test.config.permissions.network.is_some(),
-        "expected managed network proxy config to be present"
-    );
-    test.session_configured
-        .network_proxy
-        .as_ref()
-        .expect("expected runtime managed network proxy addresses");
-
-    let call_id_first = "allow-network-first";
-    // Use urllib without overriding proxy settings so managed-network sessions
-    // continue to exercise the env-based proxy routing path under bubblewrap.
-    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://darwin-code-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
-        .to_string();
-    let first_event = shell_event(
-        call_id_first,
-        &fetch_command,
-        /*timeout_ms*/ 30_000,
-        SandboxPermissions::UseDefault,
-    )?;
-
-    let _ = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_response_created("resp-allow-network-1"),
-            first_event,
-            ev_completed("resp-allow-network-1"),
-        ]),
-    )
-    .await;
-    let first_results = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_assistant_message("msg-allow-network-1", "done"),
-            ev_completed("resp-allow-network-2"),
-        ]),
-    )
-    .await;
-
-    submit_turn(
-        &test,
-        "allow-network-first",
-        approval_policy,
-        sandbox_policy.clone(),
-    )
-    .await?;
-
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    let approval = loop {
-        let remaining = deadline
-            .checked_duration_since(std::time::Instant::now())
-            .expect("timed out waiting for network approval request");
-        let event = wait_for_event_with_timeout(
-            &test.darwin-code,
-            |event| {
-                matches!(
-                    event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
-                )
-            },
-            remaining,
-        )
-        .await;
-        match event {
-            EventMsg::ExecApprovalRequest(approval) => {
-                if approval.command.first().map(std::string::String::as_str)
-                    == Some("network-access")
-                {
-                    break approval;
-                }
-                test.darwin-code
-                    .submit(Op::ExecApproval {
-                        id: approval.effective_approval_id(),
-                        turn_id: None,
-                        decision: ReviewDecision::Approved,
-                    })
-                    .await?;
-            }
-            EventMsg::TurnComplete(_) => {
-                panic!("expected network approval request before completion");
-            }
-            other => panic!("unexpected event: {other:?}"),
-        }
-    };
-    let network_context = approval
-        .network_approval_context
-        .clone()
-        .expect("expected network approval context");
-    assert_eq!(network_context.protocol, NetworkApprovalProtocol::Http);
-    let expected_network_amendments = vec![
-        NetworkPolicyAmendment {
-            host: network_context.host.clone(),
-            action: NetworkPolicyRuleAction::Allow,
-        },
-        NetworkPolicyAmendment {
-            host: network_context.host.clone(),
-            action: NetworkPolicyRuleAction::Deny,
-        },
-    ];
-    assert_eq!(
-        approval.proposed_network_policy_amendments,
-        Some(expected_network_amendments.clone())
-    );
-    let deny_network_amendment = expected_network_amendments
-        .into_iter()
-        .find(|amendment| amendment.action == NetworkPolicyRuleAction::Deny)
-        .expect("expected deny network policy amendment");
-
-    test.darwin-code
-        .submit(Op::ExecApproval {
-            id: approval.effective_approval_id(),
-            turn_id: None,
-            decision: ReviewDecision::NetworkPolicyAmendment {
-                network_policy_amendment: deny_network_amendment.clone(),
-            },
-        })
-        .await?;
-    wait_for_completion(&test).await;
-
-    let policy_path = test.home.path().join("rules").join("default.rules");
-    let policy_contents = fs::read_to_string(&policy_path)?;
-    let expected_rule = format!(
-        r#"network_rule(host="{}", protocol="{}", decision="deny", justification="Deny {} access to {}")"#,
-        deny_network_amendment.host,
-        match network_context.protocol {
-            NetworkApprovalProtocol::Http => "http",
-            NetworkApprovalProtocol::Https => "https_connect",
-            NetworkApprovalProtocol::Socks5Tcp => "socks5_tcp",
-            NetworkApprovalProtocol::Socks5Udp => "socks5_udp",
-        },
-        match network_context.protocol {
-            NetworkApprovalProtocol::Http => "http",
-            NetworkApprovalProtocol::Https => "https_connect",
-            NetworkApprovalProtocol::Socks5Tcp => "socks5_tcp",
-            NetworkApprovalProtocol::Socks5Udp => "socks5_udp",
-        },
-        deny_network_amendment.host
-    );
-    assert!(
-        policy_contents.contains(&expected_rule),
-        "unexpected policy contents: {policy_contents}"
-    );
-
-    let first_output = parse_result(
-        &first_results
-            .single_request()
-            .function_call_output(call_id_first),
-    );
-    Expectation::CommandFailure {
-        output_contains: "",
-    }
-    .verify(&test, &first_output)?;
-
-    let call_id_second = "allow-network-second";
-    let second_event = shell_event(
-        call_id_second,
-        &fetch_command,
-        /*timeout_ms*/ 30_000,
-        SandboxPermissions::UseDefault,
-    )?;
-
-    let _ = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_response_created("resp-allow-network-3"),
-            second_event,
-            ev_completed("resp-allow-network-3"),
-        ]),
-    )
-    .await;
-    let second_results = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_assistant_message("msg-allow-network-2", "done"),
-            ev_completed("resp-allow-network-4"),
-        ]),
-    )
-    .await;
-
-    submit_turn(
-        &test,
-        "allow-network-second",
-        approval_policy,
-        sandbox_policy.clone(),
-    )
-    .await?;
-
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    loop {
-        let remaining = deadline
-            .checked_duration_since(std::time::Instant::now())
-            .expect("timed out waiting for second turn completion");
-        let event = wait_for_event_with_timeout(
-            &test.darwin-code,
-            |event| {
-                matches!(
-                    event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
-                )
-            },
-            remaining,
-        )
-        .await;
-        match event {
-            EventMsg::ExecApprovalRequest(approval) => {
-                if approval.command.first().map(std::string::String::as_str)
-                    == Some("network-access")
-                {
-                    panic!(
-                        "unexpected network approval request: {:?}",
-                        approval.command
-                    );
-                }
-                test.darwin-code
-                    .submit(Op::ExecApproval {
-                        id: approval.effective_approval_id(),
-                        turn_id: None,
-                        decision: ReviewDecision::Approved,
-                    })
-                    .await?;
-            }
-            EventMsg::TurnComplete(_) => break,
-            other => panic!("unexpected event: {other:?}"),
-        }
-    }
-
-    let second_output = parse_result(
-        &second_results
-            .single_request()
-            .function_call_output(call_id_second),
-    );
-    Expectation::CommandFailure {
-        output_contains: "",
-    }
-    .verify(&test, &second_output)?;
-
-    Ok(())
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn network_approval_flow_survives_danger_full_access_session_start() -> Result<()> {
-    skip_if_no_network!(Ok(()));
-
-    let server = start_mock_server().await;
-    let home = Arc::new(TempDir::new()?);
-    fs::write(
-        home.path().join("config.toml"),
-        r#"default_permissions = "workspace"
-
-[permissions.workspace.filesystem]
-":minimal" = "read"
-
-[permissions.workspace.network]
-enabled = true
-mode = "limited"
-allow_local_binding = true
-"#,
-    )?;
-    let approval_policy = AskForApproval::OnFailure;
-    let turn_sandbox_policy = SandboxPolicy::WorkspaceWrite {
-        writable_roots: vec![],
-        read_only_access: Default::default(),
-        network_access: true,
-        exclude_tmpdir_env_var: false,
-        exclude_slash_tmp: false,
-    };
-    let mut builder = test_darwin_code().with_home(home).with_config(move |config| {
-        config.permissions.approval_policy = Constrained::allow_any(approval_policy);
-        config.permissions.sandbox_policy = Constrained::allow_any(SandboxPolicy::DangerFullAccess);
-        let layers = config
-            .config_layer_stack
-            .get_layers(
-                ConfigLayerStackOrdering::LowestPrecedenceFirst,
-                /*include_disabled*/ true,
-            )
-            .into_iter()
-            .cloned()
-            .collect();
-        let mut requirements = config.config_layer_stack.requirements().clone();
-        requirements.network = Some(Sourced::new(
-            NetworkConstraints {
-                enabled: Some(true),
-                allow_local_binding: Some(true),
-                ..Default::default()
-            },
-            RequirementSource::CloudRequirements,
-        ));
-        let mut requirements_toml = config.config_layer_stack.requirements_toml().clone();
-        requirements_toml.network = Some(NetworkRequirementsToml {
-            enabled: Some(true),
-            allow_local_binding: Some(true),
-            ..Default::default()
-        });
-        config.config_layer_stack = ConfigLayerStack::new(layers, requirements, requirements_toml)
-            .expect("rebuild config layer stack with network requirements");
-    });
-    let test = builder.build(&server).await?;
-    assert!(
-        !test.config.managed_network_requirements_enabled(),
-        "expected managed network requirements to stay inactive in danger-full-access"
-    );
-    assert!(
-        test.config.permissions.network.is_some(),
-        "expected managed network proxy config to be present"
-    );
-    assert!(
-        test.session_configured.network_proxy.is_none(),
-        "expected session configured event to hide managed network proxy in danger-full-access"
-    );
-
-    let call_id = "allow-network-after-yolo";
-    let fetch_command = r#"python3 -c "import urllib.request; opener = urllib.request.build_opener(urllib.request.ProxyHandler()); print('OK:' + opener.open('http://darwin-code-network-test.invalid', timeout=30).read().decode(errors='replace'))""#
-        .to_string();
-    let event = shell_event(
-        call_id,
-        &fetch_command,
-        /*timeout_ms*/ 30_000,
-        SandboxPermissions::UseDefault,
-    )?;
-
-    let _ = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_response_created("resp-network-after-yolo-1"),
-            event,
-            ev_completed("resp-network-after-yolo-1"),
-        ]),
-    )
-    .await;
-    let _ = mount_sse_once(
-        &server,
-        sse(vec![
-            ev_assistant_message("msg-network-after-yolo-1", "done"),
-            ev_completed("resp-network-after-yolo-2"),
-        ]),
-    )
-    .await;
-
-    submit_turn(
-        &test,
-        "allow-network-after-yolo",
-        approval_policy,
-        turn_sandbox_policy,
-    )
-    .await?;
-
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    let approval = loop {
-        let remaining = deadline
-            .checked_duration_since(std::time::Instant::now())
-            .expect("timed out waiting for network approval request");
-        let event = wait_for_event_with_timeout(
-            &test.darwin-code,
-            |event| {
-                matches!(
-                    event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
-                )
-            },
-            remaining,
-        )
-        .await;
-        match event {
-            EventMsg::ExecApprovalRequest(approval) => {
-                if approval.command.first().map(std::string::String::as_str)
-                    == Some("network-access")
-                {
-                    break approval;
-                }
-                test.darwin-code
-                    .submit(Op::ExecApproval {
-                        id: approval.effective_approval_id(),
-                        turn_id: None,
-                        decision: ReviewDecision::Approved,
-                    })
-                    .await?;
-            }
-            EventMsg::TurnComplete(_) => {
-                panic!("expected network approval request before completion");
-            }
-            other => panic!("unexpected event: {other:?}"),
-        }
-    };
-
-    let network_context = approval
-        .network_approval_context
-        .clone()
-        .expect("expected network approval context");
-    assert_eq!(network_context.protocol, NetworkApprovalProtocol::Http);
-
-    test.darwin-code
-        .submit(Op::ExecApproval {
-            id: approval.effective_approval_id(),
-            turn_id: None,
-            decision: ReviewDecision::Denied,
-        })
-        .await?;
-    wait_for_completion(&test).await;
-
-    Ok(())
-}
-
-// todo(dylan) add ScenarioSpec support for rules
 #[tokio::test(flavor = "current_thread")]
 #[cfg(unix)]
 async fn compound_command_with_one_safe_command_still_requires_approval() -> Result<()> {
@@ -3023,7 +2555,7 @@ async fn compound_command_with_one_safe_command_still_requires_approval() -> Res
     .await?;
 
     let approval = expect_exec_approval(&test, expected_command.as_str()).await;
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,

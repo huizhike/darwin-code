@@ -61,7 +61,7 @@ X-Doc = "42"
 #[tokio::test]
 async fn write_value_preserves_comments_and_order() -> Result<()> {
     let tmp = tempdir().expect("tempdir");
-    let original = r#"# Darwin-Code user configuration
+    let original = r#"# DarwinCode user configuration
 model = "gpt-5"
 approval_policy = "on-request"
 
@@ -87,7 +87,7 @@ unified_exec = true
         .expect("write succeeds");
 
     let updated = std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("read config");
-    let expected = r#"# Darwin-Code user configuration
+    let expected = r#"# DarwinCode user configuration
 model = "gpt-5"
 approval_policy = "on-request"
 
@@ -222,7 +222,7 @@ async fn read_includes_origins_and_layers() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::with_managed_config_path_for_tests(managed_path.clone()),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let response = service
@@ -300,7 +300,7 @@ writable_roots = ["~/code"]
         tmp.path().to_path_buf(),
         vec![],
         loader_overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let response = service
@@ -340,7 +340,7 @@ async fn write_value_reports_override() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::with_managed_config_path_for_tests(managed_path.clone()),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let result = service
@@ -439,7 +439,7 @@ async fn invalid_user_value_rejected_even_if_overridden_by_managed() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::with_managed_config_path_for_tests(managed_path.clone()),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let error = service
@@ -483,7 +483,11 @@ async fn reserved_builtin_provider_override_rejected() {
         error.write_error_code(),
         Some(ConfigWriteErrorCode::ConfigValidationError)
     );
-    assert!(error.to_string().contains("reserved built-in provider IDs"));
+    assert!(
+        error
+            .to_string()
+            .contains("model_providers contains reserved provider IDs")
+    );
     assert!(error.to_string().contains("`openai`"));
 
     let contents = std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("read config");
@@ -499,7 +503,7 @@ async fn write_value_rejects_feature_requirement_conflict() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::without_managed_config_for_tests(),
-        CloudRequirementsLoader::new(async {
+        ExternalRequirementsLoader::new(async {
             Ok(Some(ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([("personality".to_string(), true)]),
@@ -545,7 +549,7 @@ async fn write_value_rejects_profile_feature_requirement_conflict() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::without_managed_config_for_tests(),
-        CloudRequirementsLoader::new(async {
+        ExternalRequirementsLoader::new(async {
             Ok(Some(ConfigRequirementsToml {
                 feature_requirements: Some(crate::config_loader::FeatureRequirementsToml {
                     entries: BTreeMap::from([("personality".to_string(), true)]),
@@ -602,7 +606,7 @@ async fn read_reports_managed_overrides_user_and_session_flags() {
         tmp.path().to_path_buf(),
         cli_overrides,
         LoaderOverrides::with_managed_config_path_for_tests(managed_path.clone()),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let response = service
@@ -655,7 +659,7 @@ async fn write_value_reports_managed_override() {
         tmp.path().to_path_buf(),
         vec![],
         LoaderOverrides::with_managed_config_path_for_tests(managed_path.clone()),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     );
 
     let result = service

@@ -8,17 +8,10 @@ use darwin_code_arg0::arg0_dispatch_or_else;
 use darwin_code_cli::LandlockCommand;
 use darwin_code_cli::SeatbeltCommand;
 use darwin_code_cli::WindowsCommand;
-use darwin_code_cli::read_api_key_from_stdin;
-use darwin_code_cli::run_login_status;
-use darwin_code_cli::run_login_with_api_key;
-use darwin_code_cli::run_login_with_chatgpt;
-use darwin_code_cli::run_login_with_device_code;
-use darwin_code_cli::run_logout;
 use darwin_code_exec::Cli as ExecCli;
 use darwin_code_exec::Command as ExecCommand;
 use darwin_code_exec::ReviewArgs;
 use darwin_code_execpolicy::ExecPolicyCheckCommand;
-use darwin_code_responses_api_proxy::Args as ResponsesApiProxyArgs;
 use darwin_code_state::StateRuntime;
 use darwin_code_state::state_db_path;
 use darwin_code_tui::AppExitInfo;
@@ -58,7 +51,7 @@ use darwin_code_protocol::protocol::AskForApproval;
 use darwin_code_protocol::user_input::UserInput;
 use darwin_code_terminal_detection::TerminalName;
 
-/// Darwin-Code CLI
+/// DarwinCode CLI
 ///
 /// If no subcommand is specified, options will be forwarded to the interactive CLI.
 #[derive(Debug, Parser)]
@@ -68,10 +61,10 @@ use darwin_code_terminal_detection::TerminalName;
     // If a sub‑command is given, ignore requirements of the default args.
     subcommand_negates_reqs = true,
     // The executable is sometimes invoked via a platform‑specific name like
-    // `darwin-code-x86_64-unknown-linux-musl`, but the help output should always use
-    // the generic `darwin-code` command name that users run.
-    bin_name = "darwin-code",
-    override_usage = "darwin-code [OPTIONS] [PROMPT]\n       darwin-code [OPTIONS] <COMMAND> [ARGS]"
+    // `darwin_code-x86_64-unknown-linux-musl`, but the help output should always use
+    // the generic `darwin_code` command name that users run.
+    bin_name = "darwin_code",
+    override_usage = "darwin_code [OPTIONS] [PROMPT]\n       darwin_code [OPTIONS] <COMMAND> [ARGS]"
 )]
 struct MultitoolCli {
     #[clap(flatten)]
@@ -92,39 +85,33 @@ struct MultitoolCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum Subcommand {
-    /// Run Darwin-Code non-interactively.
+    /// Run DarwinCode non-interactively.
     #[clap(visible_alias = "e")]
     Exec(ExecCli),
 
     /// Run a code review non-interactively.
     Review(ReviewArgs),
 
-    /// Manage login.
-    Login(LoginCommand),
-
-    /// Remove stored authentication credentials.
-    Logout(LogoutCommand),
-
-    /// Manage external MCP servers for Darwin-Code.
+    /// Manage external MCP servers for DarwinCode.
     Mcp(McpCli),
 
-    /// Manage Darwin-Code plugins.
+    /// Manage DarwinCode plugins.
     Plugin(PluginCli),
 
-    /// Start Darwin-Code as an MCP server (stdio).
+    /// Start DarwinCode as an MCP server (stdio).
     McpServer,
 
     /// [experimental] Run the app server or related tooling.
     AppServer(AppServerCommand),
 
-    /// Launch the Darwin-Code desktop app (downloads the macOS installer if missing).
+    /// Launch the DarwinCode desktop app (downloads the macOS installer if missing).
     #[cfg(target_os = "macos")]
     App(app_cmd::AppCommand),
 
     /// Generate shell completion scripts.
     Completion(CompletionCommand),
 
-    /// Run commands within a Darwin-Code-provided sandbox.
+    /// Run commands within a DarwinCode-provided sandbox.
     Sandbox(SandboxArgs),
 
     /// Debugging tools.
@@ -134,25 +121,13 @@ enum Subcommand {
     #[clap(hide = true)]
     Execpolicy(ExecpolicyCommand),
 
-    /// Apply the latest diff produced by Darwin-Code agent as a `git apply` to your local working tree.
-    #[clap(visible_alias = "a")]
-    Apply(ApplyCommand),
-
     /// Resume a previous interactive session (picker by default; use --last to continue the most recent).
     Resume(ResumeCommand),
 
     /// Fork a previous interactive session (picker by default; use --last to fork the most recent).
     Fork(ForkCommand),
 
-    /// [EXPERIMENTAL] Browse tasks from Darwin-Code Cloud and apply changes locally.
-    #[clap(name = "cloud", alias = "cloud-tasks")]
-    Cloud(CloudTasksCli),
-
-    /// Internal: run the responses API proxy.
-    #[clap(hide = true)]
-    ResponsesApiProxy(ResponsesApiProxyArgs),
-
-    /// Internal: send one raw Responses API payload through Darwin-Code auth.
+    /// Internal: send one raw Responses API payload through the configured BYOK provider.
     #[clap(hide = true)]
     Responses(ResponsesCommand),
 
@@ -178,7 +153,7 @@ struct PluginCli {
 
 #[derive(Debug, clap::Subcommand)]
 enum PluginSubcommand {
-    /// Manage plugin marketplaces for Darwin-Code.
+    /// Manage plugin marketplaces for DarwinCode.
     Marketplace(MarketplaceCli),
 }
 
@@ -319,55 +294,6 @@ enum ExecpolicySubcommand {
 }
 
 #[derive(Debug, Parser)]
-struct LoginCommand {
-    #[clap(skip)]
-    config_overrides: CliConfigOverrides,
-
-    #[arg(
-        long = "with-api-key",
-        help = "Read the API key from stdin (e.g. `printenv OPENAI_API_KEY | darwin-code login --with-api-key`)"
-    )]
-    with_api_key: bool,
-
-    #[arg(
-        long = "api-key",
-        num_args = 0..=1,
-        default_missing_value = "",
-        value_name = "API_KEY",
-        help = "(deprecated) Previously accepted the API key directly; now exits with guidance to use --with-api-key",
-        hide = true
-    )]
-    api_key: Option<String>,
-
-    #[arg(long = "device-auth")]
-    use_device_code: bool,
-
-    /// EXPERIMENTAL: Use custom OAuth issuer base URL (advanced)
-    /// Override the OAuth issuer base URL (advanced)
-    #[arg(long = "experimental_issuer", value_name = "URL", hide = true)]
-    issuer_base_url: Option<String>,
-
-    /// EXPERIMENTAL: Use custom OAuth client ID (advanced)
-    #[arg(long = "experimental_client-id", value_name = "CLIENT_ID", hide = true)]
-    client_id: Option<String>,
-
-    #[command(subcommand)]
-    action: Option<LoginSubcommand>,
-}
-
-#[derive(Debug, clap::Subcommand)]
-enum LoginSubcommand {
-    /// Show login status.
-    Status,
-}
-
-#[derive(Debug, Parser)]
-struct LogoutCommand {
-    #[clap(skip)]
-    config_overrides: CliConfigOverrides,
-}
-
-#[derive(Debug, Parser)]
 struct AppServerCommand {
     /// Omit to run the app server; specify a subcommand for tooling.
     #[command(subcommand)]
@@ -396,7 +322,7 @@ struct AppServerCommand {
     /// enabled = false
     /// ```
     ///
-    /// See https://developers.openai.com/darwin-code/config-advanced/#metrics for more details.
+    /// See https://developers.openai.com/darwin_code/config-advanced/#metrics for more details.
     #[arg(long = "analytics-default-enabled")]
     analytics_default_enabled: bool,
 
@@ -424,7 +350,7 @@ enum AppServerSubcommand {
     /// [experimental] Generate JSON Schema for the app server protocol.
     GenerateJsonSchema(GenerateJsonSchemaCommand),
 
-    /// [internal] Generate internal JSON Schema artifacts for Darwin-Code tooling.
+    /// [internal] Generate internal JSON Schema artifacts for DarwinCode tooling.
     #[clap(hide = true)]
     GenerateInternalJsonSchema(GenerateInternalJsonSchemaCommand),
 }
@@ -524,7 +450,7 @@ fn handle_app_exit(exit_info: AppExitInfo) -> anyhow::Result<()> {
 fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     println!();
     let cmd_str = action.command_str();
-    println!("Updating Darwin-Code via `{cmd_str}`...");
+    println!("Updating DarwinCode via `{cmd_str}`...");
 
     let status = {
         #[cfg(windows)]
@@ -559,7 +485,7 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     if !status.success() {
         anyhow::bail!("`{cmd_str}` failed with status {status}");
     }
-    println!("\n🎉 Update ran successfully! Please restart Darwin-Code.");
+    println!("\n🎉 Update ran successfully! Please restart DarwinCode.");
     Ok(())
 }
 
@@ -569,8 +495,8 @@ fn run_execpolicycheck(cmd: ExecPolicyCheckCommand) -> anyhow::Result<()> {
 
 async fn run_debug_app_server_command(cmd: DebugAppServerCommand) -> anyhow::Result<()> {
     match cmd.subcommand {
-        DebugAppServerSubcommand::SendMessageV2(cmd) => {
-            let darwin_code_bin = std::env::current_exe()?;
+        DebugAppServerSubcommand::SendMessageV2(_cmd) => {
+            let _darwin_code_bin = std::env::current_exe()?;
             anyhow::bail!("app-server test client path removed by CUT")
         }
     }
@@ -711,7 +637,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_remote_auth_token_env.as_deref(),
                 "review",
             )?;
-            let mut exec_cli = ExecCli::try_parse_from(["darwin-code", "exec"])?;
+            let mut exec_cli = ExecCli::try_parse_from(["darwin_code", "exec"])?;
             exec_cli.command = Some(ExecCommand::Review(review_args));
             prepend_config_flags(
                 &mut exec_cli.config_overrides,
@@ -800,7 +726,9 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     )?;
                 }
                 Some(AppServerSubcommand::GenerateInternalJsonSchema(gen_cli)) => {
-                    darwin_code_app_server_protocol::generate_internal_json_schema(&gen_cli.out_dir)?;
+                    darwin_code_app_server_protocol::generate_internal_json_schema(
+                        &gen_cli.out_dir,
+                    )?;
                 }
             }
         }
@@ -867,54 +795,6 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             .await?;
             handle_app_exit(exit_info)?;
         }
-        Some(Subcommand::Login(mut login_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "login",
-            )?;
-            prepend_config_flags(
-                &mut login_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            match login_cli.action {
-                Some(LoginSubcommand::Status) => {
-                    run_login_status(login_cli.config_overrides).await;
-                }
-                None => {
-                    if login_cli.use_device_code {
-                        run_login_with_device_code(
-                            login_cli.config_overrides,
-                            login_cli.issuer_base_url,
-                            login_cli.client_id,
-                        )
-                        .await;
-                    } else if login_cli.api_key.is_some() {
-                        eprintln!(
-                            "The --api-key flag is no longer supported. Pipe the key instead, e.g. `printenv OPENAI_API_KEY | darwin-code login --with-api-key`."
-                        );
-                        std::process::exit(1);
-                    } else if login_cli.with_api_key {
-                        let api_key = read_api_key_from_stdin();
-                        run_login_with_api_key(login_cli.config_overrides, api_key).await;
-                    } else {
-                        run_login_with_chatgpt(login_cli.config_overrides).await;
-                    }
-                }
-            }
-        }
-        Some(Subcommand::Logout(mut logout_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "logout",
-            )?;
-            prepend_config_flags(
-                &mut logout_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            run_logout(logout_cli.config_overrides).await;
-        }
         Some(Subcommand::Completion(completion_cli)) => {
             reject_remote_mode_for_subcommand(
                 root_remote.as_deref(),
@@ -922,18 +802,6 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 "completion",
             )?;
             print_completion(completion_cli);
-        }
-        Some(Subcommand::Cloud(mut cloud_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "cloud",
-            )?;
-            prepend_config_flags(
-                &mut cloud_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            anyhow::bail!("cloud command removed by CUT");
         }
         Some(Subcommand::Sandbox(sandbox_args)) => match sandbox_args.cmd {
             SandboxCommand::Macos(mut seatbelt_cli) => {
@@ -1027,27 +895,6 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 run_execpolicycheck(cmd)?
             }
         },
-        Some(Subcommand::Apply(mut apply_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "apply",
-            )?;
-            prepend_config_flags(
-                &mut apply_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            run_apply_command(apply_cli, /*cwd*/ None).await?;
-        }
-        Some(Subcommand::ResponsesApiProxy(args)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "responses-api-proxy",
-            )?;
-            tokio::task::spawn_blocking(move || darwin_code_responses_api_proxy::run_main(args))
-                .await??;
-        }
         Some(Subcommand::Responses(ResponsesCommand {})) => {
             reject_remote_mode_for_subcommand(
                 root_remote.as_deref(),
@@ -1063,8 +910,10 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 "stdio-to-uds",
             )?;
             let socket_path = cmd.socket_path;
-            tokio::task::spawn_blocking(move || darwin_code_stdio_to_uds::run(socket_path.as_path()))
-                .await??;
+            tokio::task::spawn_blocking(move || {
+                darwin_code_stdio_to_uds::run(socket_path.as_path())
+            })
+            .await??;
         }
         Some(Subcommand::ExecServer(cmd)) => {
             reject_remote_mode_for_subcommand(
@@ -1149,9 +998,9 @@ async fn run_exec_server_command(
     arg0_paths: &Arg0DispatchPaths,
 ) -> anyhow::Result<()> {
     let darwin_code_self_exe = arg0_paths
-        .darwin_code_self_exe
+        .codex_self_exe
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("Darwin-Code executable path is not configured"))?;
+        .ok_or_else(|| anyhow::anyhow!("DarwinCode executable path is not configured"))?;
     let runtime_paths = darwin_code_exec_server::ExecServerRuntimePaths::new(
         darwin_code_self_exe,
         arg0_paths.darwin_code_linux_sandbox_exe.clone(),
@@ -1245,10 +1094,10 @@ async fn run_debug_prompt_input_command(
         approval_policy,
         sandbox_mode,
         cwd: interactive.cwd,
-        darwin_code_self_exe: arg0_paths.darwin_code_self_exe,
-        darwin_code_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe,
+        darwin_code_self_exe: arg0_paths.codex_self_exe,
+        codex_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe,
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe,
-        show_raw_agent_reasoning: interactive.oss.then_some(true),
+        show_raw_agent_reasoning: None,
         ephemeral: Some(true),
         additional_writable_roots: interactive.add_dir,
         ..Default::default()
@@ -1334,12 +1183,12 @@ fn reject_remote_mode_for_subcommand(
 ) -> anyhow::Result<()> {
     if let Some(remote) = remote {
         anyhow::bail!(
-            "`--remote {remote}` is only supported for interactive TUI commands, not `darwin-code {subcommand}`"
+            "`--remote {remote}` is only supported for interactive TUI commands, not `darwin_code {subcommand}`"
         );
     }
     if remote_auth_token_env.is_some() {
         anyhow::bail!(
-            "`--remote-auth-token-env` is only supported for interactive TUI commands, not `darwin-code {subcommand}`"
+            "`--remote-auth-token-env` is only supported for interactive TUI commands, not `darwin_code {subcommand}`"
         );
     }
     Ok(())
@@ -1401,7 +1250,7 @@ async fn run_interactive_tui(
         }
 
         eprintln!(
-            "WARNING: TERM is set to \"dumb\". Darwin-Code's interactive TUI may not work in this terminal."
+            "WARNING: TERM is set to \"dumb\". DarwinCode's interactive TUI may not work in this terminal."
         );
         if !confirm("Continue anyway? [y/N]: ")? {
             return Ok(AppExitInfo::fatal(
@@ -1444,7 +1293,7 @@ fn confirm(prompt: &str) -> std::io::Result<bool> {
     Ok(answer.eq_ignore_ascii_case("y") || answer.eq_ignore_ascii_case("yes"))
 }
 
-/// Build the final `TuiCli` for a `darwin-code resume` invocation.
+/// Build the final `TuiCli` for a `darwin_code resume` invocation.
 fn finalize_resume_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1455,7 +1304,7 @@ fn finalize_resume_interactive(
     resume_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so resume shares the same
-    // configuration surface area as `darwin-code` without additional flags.
+    // configuration surface area as `darwin_code` without additional flags.
     let resume_session_id = session_id;
     interactive.resume_picker = resume_session_id.is_none() && !last;
     interactive.resume_last = last;
@@ -1472,7 +1321,7 @@ fn finalize_resume_interactive(
     interactive
 }
 
-/// Build the final `TuiCli` for a `darwin-code fork` invocation.
+/// Build the final `TuiCli` for a `darwin_code fork` invocation.
 fn finalize_fork_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1482,7 +1331,7 @@ fn finalize_fork_interactive(
     fork_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so fork shares the same
-    // configuration surface area as `darwin-code` without additional flags.
+    // configuration surface area as `darwin_code` without additional flags.
     let fork_session_id = session_id;
     interactive.fork_picker = fork_session_id.is_none() && !last;
     interactive.fork_last = last;
@@ -1498,15 +1347,12 @@ fn finalize_fork_interactive(
     interactive
 }
 
-/// Merge flags provided to `darwin-code resume`/`darwin-code fork` so they take precedence over any
+/// Merge flags provided to `darwin_code resume`/`darwin_code fork` so they take precedence over any
 /// root-level flags. Only overrides fields explicitly set on the subcommand-scoped
 /// CLI. Also appends `-c key=value` overrides with highest precedence.
 fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli) {
     if let Some(model) = subcommand_cli.model {
         interactive.model = Some(model);
-    }
-    if subcommand_cli.oss {
-        interactive.oss = true;
     }
     if let Some(profile) = subcommand_cli.config_profile {
         interactive.config_profile = Some(profile);
@@ -1548,7 +1394,7 @@ fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli)
 
 fn print_completion(cmd: CompletionCommand) {
     let mut app = MultitoolCli::command();
-    let name = "darwin-code";
+    let name = "darwin_code";
     generate(cmd.shell, &mut app, name, &mut std::io::stdout());
 }
 
@@ -1619,9 +1465,15 @@ mod tests {
 
     #[test]
     fn exec_resume_last_accepts_prompt_positional() {
-        let cli =
-            MultitoolCli::try_parse_from(["darwin-code", "exec", "--json", "resume", "--last", "2+2"])
-                .expect("parse should succeed");
+        let cli = MultitoolCli::try_parse_from([
+            "darwin_code",
+            "exec",
+            "--json",
+            "resume",
+            "--last",
+            "2+2",
+        ])
+        .expect("parse should succeed");
 
         let Some(Subcommand::Exec(exec)) = cli.subcommand else {
             panic!("expected exec subcommand");
@@ -1638,7 +1490,7 @@ mod tests {
     #[test]
     fn exec_resume_accepts_output_last_message_flag_after_subcommand() {
         let cli = MultitoolCli::try_parse_from([
-            "darwin-code",
+            "darwin_code",
             "exec",
             "resume",
             "session-123",
@@ -1674,7 +1526,7 @@ mod tests {
     #[test]
     fn debug_prompt_input_parses_prompt_and_images() {
         let cli = MultitoolCli::try_parse_from([
-            "darwin-code",
+            "darwin_code",
             "debug",
             "prompt-input",
             "hello",
@@ -1702,24 +1554,34 @@ mod tests {
         let help = MultitoolCli::command().render_help().to_string();
         assert!(!help.contains("responses"));
 
-        let cli = MultitoolCli::try_parse_from(["darwin-code", "responses"]).expect("parse");
+        let cli = MultitoolCli::try_parse_from(["darwin_code", "responses"]).expect("parse");
         assert!(matches!(cli.subcommand, Some(Subcommand::Responses(_))));
     }
 
     #[test]
     fn plugin_marketplace_add_parses_under_plugin() {
-        let cli =
-            MultitoolCli::try_parse_from(["darwin-code", "plugin", "marketplace", "add", "owner/repo"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "darwin_code",
+            "plugin",
+            "marketplace",
+            "add",
+            "owner/repo",
+        ])
+        .expect("parse");
 
         assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
     }
 
     #[test]
     fn plugin_marketplace_upgrade_parses_under_plugin() {
-        let cli =
-            MultitoolCli::try_parse_from(["darwin-code", "plugin", "marketplace", "upgrade", "debug"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "darwin_code",
+            "plugin",
+            "marketplace",
+            "upgrade",
+            "debug",
+        ])
+        .expect("parse");
 
         assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
     }
@@ -1727,11 +1589,11 @@ mod tests {
     #[test]
     fn marketplace_no_longer_parses_at_top_level() {
         let add_result =
-            MultitoolCli::try_parse_from(["darwin-code", "marketplace", "add", "owner/repo"]);
+            MultitoolCli::try_parse_from(["darwin_code", "marketplace", "add", "owner/repo"]);
         assert!(add_result.is_err());
 
         let upgrade_result =
-            MultitoolCli::try_parse_from(["darwin-code", "marketplace", "upgrade", "debug"]);
+            MultitoolCli::try_parse_from(["darwin_code", "marketplace", "upgrade", "debug"]);
         assert!(upgrade_result.is_err());
     }
 
@@ -1776,7 +1638,7 @@ mod tests {
             lines,
             vec![
                 "Token usage: total=2 input=0 output=2".to_string(),
-                "To continue this session, run darwin-code resume 123e4567-e89b-12d3-a456-426614174000"
+                "To continue this session, run darwin_code resume 123e4567-e89b-12d3-a456-426614174000"
                     .to_string(),
             ]
         );
@@ -1804,7 +1666,7 @@ mod tests {
             lines,
             vec![
                 "Token usage: total=2 input=0 output=2".to_string(),
-                "To continue this session, run darwin-code resume my-thread".to_string(),
+                "To continue this session, run darwin_code resume my-thread".to_string(),
             ]
         );
     }
@@ -1812,7 +1674,7 @@ mod tests {
     #[test]
     fn resume_model_flag_applies_when_no_root_flags() {
         let interactive =
-            finalize_resume_from_args(["darwin-code", "resume", "-m", "gpt-5.1-test"].as_ref());
+            finalize_resume_from_args(["darwin_code", "resume", "-m", "gpt-5.1-test"].as_ref());
 
         assert_eq!(interactive.model.as_deref(), Some("gpt-5.1-test"));
         assert!(interactive.resume_picker);
@@ -1822,7 +1684,7 @@ mod tests {
 
     #[test]
     fn resume_picker_logic_none_and_not_last() {
-        let interactive = finalize_resume_from_args(["darwin-code", "resume"].as_ref());
+        let interactive = finalize_resume_from_args(["darwin_code", "resume"].as_ref());
         assert!(interactive.resume_picker);
         assert!(!interactive.resume_last);
         assert_eq!(interactive.resume_session_id, None);
@@ -1831,7 +1693,7 @@ mod tests {
 
     #[test]
     fn resume_picker_logic_last() {
-        let interactive = finalize_resume_from_args(["darwin-code", "resume", "--last"].as_ref());
+        let interactive = finalize_resume_from_args(["darwin_code", "resume", "--last"].as_ref());
         assert!(!interactive.resume_picker);
         assert!(interactive.resume_last);
         assert_eq!(interactive.resume_session_id, None);
@@ -1840,7 +1702,7 @@ mod tests {
 
     #[test]
     fn resume_picker_logic_with_session_id() {
-        let interactive = finalize_resume_from_args(["darwin-code", "resume", "1234"].as_ref());
+        let interactive = finalize_resume_from_args(["darwin_code", "resume", "1234"].as_ref());
         assert!(!interactive.resume_picker);
         assert!(!interactive.resume_last);
         assert_eq!(interactive.resume_session_id.as_deref(), Some("1234"));
@@ -1849,15 +1711,16 @@ mod tests {
 
     #[test]
     fn resume_all_flag_sets_show_all() {
-        let interactive = finalize_resume_from_args(["darwin-code", "resume", "--all"].as_ref());
+        let interactive = finalize_resume_from_args(["darwin_code", "resume", "--all"].as_ref());
         assert!(interactive.resume_picker);
         assert!(interactive.resume_show_all);
     }
 
     #[test]
     fn resume_include_non_interactive_flag_sets_source_filter_override() {
-        let interactive =
-            finalize_resume_from_args(["darwin-code", "resume", "--include-non-interactive"].as_ref());
+        let interactive = finalize_resume_from_args(
+            ["darwin_code", "resume", "--include-non-interactive"].as_ref(),
+        );
 
         assert!(interactive.resume_picker);
         assert!(interactive.resume_include_non_interactive);
@@ -1867,10 +1730,9 @@ mod tests {
     fn resume_merges_option_flags_and_full_auto() {
         let interactive = finalize_resume_from_args(
             [
-                "darwin-code",
+                "darwin_code",
                 "resume",
                 "sid",
-                "--oss",
                 "--full-auto",
                 "--search",
                 "--sandbox",
@@ -1890,7 +1752,6 @@ mod tests {
         );
 
         assert_eq!(interactive.model.as_deref(), Some("gpt-5.1-test"));
-        assert!(interactive.oss);
         assert_eq!(interactive.config_profile.as_deref(), Some("my-profile"));
         assert_matches!(
             interactive.sandbox_mode,
@@ -1924,7 +1785,7 @@ mod tests {
     fn resume_merges_dangerously_bypass_flag() {
         let interactive = finalize_resume_from_args(
             [
-                "darwin-code",
+                "darwin_code",
                 "resume",
                 "--dangerously-bypass-approvals-and-sandbox",
             ]
@@ -1938,7 +1799,7 @@ mod tests {
 
     #[test]
     fn fork_picker_logic_none_and_not_last() {
-        let interactive = finalize_fork_from_args(["darwin-code", "fork"].as_ref());
+        let interactive = finalize_fork_from_args(["darwin_code", "fork"].as_ref());
         assert!(interactive.fork_picker);
         assert!(!interactive.fork_last);
         assert_eq!(interactive.fork_session_id, None);
@@ -1947,7 +1808,7 @@ mod tests {
 
     #[test]
     fn fork_picker_logic_last() {
-        let interactive = finalize_fork_from_args(["darwin-code", "fork", "--last"].as_ref());
+        let interactive = finalize_fork_from_args(["darwin_code", "fork", "--last"].as_ref());
         assert!(!interactive.fork_picker);
         assert!(interactive.fork_last);
         assert_eq!(interactive.fork_session_id, None);
@@ -1956,7 +1817,7 @@ mod tests {
 
     #[test]
     fn fork_picker_logic_with_session_id() {
-        let interactive = finalize_fork_from_args(["darwin-code", "fork", "1234"].as_ref());
+        let interactive = finalize_fork_from_args(["darwin_code", "fork", "1234"].as_ref());
         assert!(!interactive.fork_picker);
         assert!(!interactive.fork_last);
         assert_eq!(interactive.fork_session_id.as_deref(), Some("1234"));
@@ -1965,14 +1826,14 @@ mod tests {
 
     #[test]
     fn fork_all_flag_sets_show_all() {
-        let interactive = finalize_fork_from_args(["darwin-code", "fork", "--all"].as_ref());
+        let interactive = finalize_fork_from_args(["darwin_code", "fork", "--all"].as_ref());
         assert!(interactive.fork_picker);
         assert!(interactive.fork_show_all);
     }
 
     #[test]
     fn app_server_analytics_default_disabled_without_flag() {
-        let app_server = app_server_from_args(["darwin-code", "app-server"].as_ref());
+        let app_server = app_server_from_args(["darwin_code", "app-server"].as_ref());
         assert!(!app_server.analytics_default_enabled);
         assert_eq!(
             app_server.listen,
@@ -1982,14 +1843,15 @@ mod tests {
 
     #[test]
     fn app_server_analytics_default_enabled_with_flag() {
-        let app_server =
-            app_server_from_args(["darwin-code", "app-server", "--analytics-default-enabled"].as_ref());
+        let app_server = app_server_from_args(
+            ["darwin_code", "app-server", "--analytics-default-enabled"].as_ref(),
+        );
         assert!(app_server.analytics_default_enabled);
     }
 
     #[test]
     fn remote_flag_parses_for_interactive_root() {
-        let cli = MultitoolCli::try_parse_from(["darwin-code", "--remote", "ws://127.0.0.1:4500"])
+        let cli = MultitoolCli::try_parse_from(["darwin_code", "--remote", "ws://127.0.0.1:4500"])
             .expect("parse");
         assert_eq!(cli.remote.remote.as_deref(), Some("ws://127.0.0.1:4500"));
     }
@@ -1997,7 +1859,7 @@ mod tests {
     #[test]
     fn remote_auth_token_env_flag_parses_for_interactive_root() {
         let cli = MultitoolCli::try_parse_from([
-            "darwin-code",
+            "darwin_code",
             "--remote-auth-token-env",
             "DARWIN_CODE_REMOTE_AUTH_TOKEN",
             "--remote",
@@ -2012,9 +1874,13 @@ mod tests {
 
     #[test]
     fn remote_flag_parses_for_resume_subcommand() {
-        let cli =
-            MultitoolCli::try_parse_from(["darwin-code", "resume", "--remote", "ws://127.0.0.1:4500"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "darwin_code",
+            "resume",
+            "--remote",
+            "ws://127.0.0.1:4500",
+        ])
+        .expect("parse");
         let Subcommand::Resume(ResumeCommand { remote, .. }) =
             cli.subcommand.expect("resume present")
         else {
@@ -2097,7 +1963,13 @@ mod tests {
     #[test]
     fn app_server_listen_websocket_url_parses() {
         let app_server = app_server_from_args(
-            ["darwin-code", "app-server", "--listen", "ws://127.0.0.1:4500"].as_ref(),
+            [
+                "darwin_code",
+                "app-server",
+                "--listen",
+                "ws://127.0.0.1:4500",
+            ]
+            .as_ref(),
         );
         assert_eq!(
             app_server.listen,
@@ -2110,7 +1982,7 @@ mod tests {
     #[test]
     fn app_server_listen_stdio_url_parses() {
         let app_server =
-            app_server_from_args(["darwin-code", "app-server", "--listen", "stdio://"].as_ref());
+            app_server_from_args(["darwin_code", "app-server", "--listen", "stdio://"].as_ref());
         assert_eq!(
             app_server.listen,
             darwin_code_app_server::AppServerTransport::Stdio
@@ -2119,14 +1991,18 @@ mod tests {
 
     #[test]
     fn app_server_listen_off_parses() {
-        let app_server = app_server_from_args(["darwin-code", "app-server", "--listen", "off"].as_ref());
-        assert_eq!(app_server.listen, darwin_code_app_server::AppServerTransport::Off);
+        let app_server =
+            app_server_from_args(["darwin_code", "app-server", "--listen", "off"].as_ref());
+        assert_eq!(
+            app_server.listen,
+            darwin_code_app_server::AppServerTransport::Off
+        );
     }
 
     #[test]
     fn app_server_listen_invalid_url_fails_to_parse() {
         let parse_result =
-            MultitoolCli::try_parse_from(["darwin-code", "app-server", "--listen", "http://foo"]);
+            MultitoolCli::try_parse_from(["darwin_code", "app-server", "--listen", "http://foo"]);
         assert!(parse_result.is_err());
     }
 
@@ -2134,12 +2010,12 @@ mod tests {
     fn app_server_capability_token_flags_parse() {
         let app_server = app_server_from_args(
             [
-                "darwin-code",
+                "darwin_code",
                 "app-server",
                 "--ws-auth",
                 "capability-token",
                 "--ws-token-file",
-                "/tmp/darwin-code-token",
+                "/tmp/darwin_code-token",
             ]
             .as_ref(),
         );
@@ -2149,7 +2025,7 @@ mod tests {
         );
         assert_eq!(
             app_server.auth.ws_token_file,
-            Some(PathBuf::from("/tmp/darwin-code-token"))
+            Some(PathBuf::from("/tmp/darwin_code-token"))
         );
     }
 
@@ -2157,12 +2033,12 @@ mod tests {
     fn app_server_signed_bearer_flags_parse() {
         let app_server = app_server_from_args(
             [
-                "darwin-code",
+                "darwin_code",
                 "app-server",
                 "--ws-auth",
                 "signed-bearer-token",
                 "--ws-shared-secret-file",
-                "/tmp/darwin-code-secret",
+                "/tmp/darwin_code-secret",
                 "--ws-issuer",
                 "issuer",
                 "--ws-audience",
@@ -2178,7 +2054,7 @@ mod tests {
         );
         assert_eq!(
             app_server.auth.ws_shared_secret_file,
-            Some(PathBuf::from("/tmp/darwin-code-secret"))
+            Some(PathBuf::from("/tmp/darwin_code-secret"))
         );
         assert_eq!(app_server.auth.ws_issuer.as_deref(), Some("issuer"));
         assert_eq!(app_server.auth.ws_audience.as_deref(), Some("audience"));
@@ -2188,7 +2064,7 @@ mod tests {
     #[test]
     fn app_server_rejects_removed_insecure_non_loopback_flag() {
         let parse_result = MultitoolCli::try_parse_from([
-            "darwin-code",
+            "darwin_code",
             "app-server",
             "--allow-unauthenticated-non-loopback-ws",
         ]);
@@ -2197,8 +2073,9 @@ mod tests {
 
     #[test]
     fn features_enable_parses_feature_name() {
-        let cli = MultitoolCli::try_parse_from(["darwin-code", "features", "enable", "unified_exec"])
-            .expect("parse should succeed");
+        let cli =
+            MultitoolCli::try_parse_from(["darwin_code", "features", "enable", "unified_exec"])
+                .expect("parse should succeed");
         let Some(Subcommand::Features(FeaturesCli { sub })) = cli.subcommand else {
             panic!("expected features subcommand");
         };
@@ -2210,8 +2087,9 @@ mod tests {
 
     #[test]
     fn features_disable_parses_feature_name() {
-        let cli = MultitoolCli::try_parse_from(["darwin-code", "features", "disable", "shell_tool"])
-            .expect("parse should succeed");
+        let cli =
+            MultitoolCli::try_parse_from(["darwin_code", "features", "disable", "shell_tool"])
+                .expect("parse should succeed");
         let Some(Subcommand::Features(FeaturesCli { sub })) = cli.subcommand else {
             panic!("expected features subcommand");
         };

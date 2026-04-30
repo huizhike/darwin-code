@@ -4,20 +4,20 @@ use super::SandboxTransformRequest;
 use super::SandboxType;
 use super::SandboxablePreference;
 use super::get_platform_sandbox;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::NetworkAccess;
-use codex_protocol::protocol::ReadOnlyAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::models::NetworkPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::FileSystemSpecialPath;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::NetworkAccess;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use dunce::canonicalize;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ fn danger_full_access_defaults_to_no_sandbox_without_network_requirements() {
         NetworkSandboxPolicy::Enabled,
         SandboxablePreference::Auto,
         WindowsSandboxLevel::Disabled,
-        /*has_managed_network_requirements*/ false,
+        /*has_network_policy_requirements*/ false,
     );
     assert_eq!(sandbox, SandboxType::None);
 }
@@ -46,13 +46,13 @@ fn danger_full_access_uses_platform_sandbox_with_network_requirements() {
         NetworkSandboxPolicy::Enabled,
         SandboxablePreference::Auto,
         WindowsSandboxLevel::Disabled,
-        /*has_managed_network_requirements*/ true,
+        /*has_network_policy_requirements*/ true,
     );
     assert_eq!(sandbox, expected);
 }
 
 #[test]
-fn restricted_file_system_uses_platform_sandbox_without_managed_network() {
+fn restricted_file_system_uses_platform_sandbox_without_network_policy() {
     let manager = SandboxManager::new();
     let expected =
         get_platform_sandbox(/*windows_sandbox_enabled*/ false).unwrap_or(SandboxType::None);
@@ -66,7 +66,7 @@ fn restricted_file_system_uses_platform_sandbox_without_managed_network() {
         NetworkSandboxPolicy::Enabled,
         SandboxablePreference::Auto,
         WindowsSandboxLevel::Disabled,
-        /*has_managed_network_requirements*/ false,
+        /*has_network_policy_requirements*/ false,
     );
     assert_eq!(sandbox, expected);
 }
@@ -90,7 +90,7 @@ fn transform_preserves_unrestricted_file_system_policy_for_restricted_network() 
             file_system_policy: &FileSystemSandboxPolicy::unrestricted(),
             network_policy: NetworkSandboxPolicy::Restricted,
             sandbox: SandboxType::None,
-            enforce_managed_network: false,
+            enforce_network_policy: false,
             network: None,
             sandbox_policy_cwd: cwd.as_path(),
             codex_linux_sandbox_exe: None,
@@ -142,7 +142,7 @@ fn transform_additional_permissions_enable_network_for_external_sandbox() {
             file_system_policy: &FileSystemSandboxPolicy::unrestricted(),
             network_policy: NetworkSandboxPolicy::Restricted,
             sandbox: SandboxType::None,
-            enforce_managed_network: false,
+            enforce_network_policy: false,
             network: None,
             sandbox_policy_cwd: cwd.as_path(),
             codex_linux_sandbox_exe: None,
@@ -210,7 +210,7 @@ fn transform_additional_permissions_preserves_denied_entries() {
             ]),
             network_policy: NetworkSandboxPolicy::Restricted,
             sandbox: SandboxType::None,
-            enforce_managed_network: false,
+            enforce_network_policy: false,
             network: None,
             sandbox_policy_cwd: cwd.as_path(),
             codex_linux_sandbox_exe: None,
@@ -264,7 +264,7 @@ fn transform_linux_seccomp_request(
             file_system_policy: &FileSystemSandboxPolicy::unrestricted(),
             network_policy: NetworkSandboxPolicy::Enabled,
             sandbox: SandboxType::LinuxSeccomp,
-            enforce_managed_network: false,
+            enforce_network_policy: false,
             network: None,
             sandbox_policy_cwd: cwd.as_path(),
             codex_linux_sandbox_exe: Some(codex_linux_sandbox_exe),
@@ -289,7 +289,7 @@ fn wsl1_rejects_linux_bubblewrap_path() {
         super::ensure_linux_bubblewrap_is_supported(
             &restricted_policy,
             /*use_legacy_landlock*/ false,
-            /*allow_network_for_proxy*/ false,
+            /*allow_network_for_network_policy*/ false,
             /*is_wsl1*/ true,
         ),
         Err(super::SandboxTransformError::Wsl1UnsupportedForBubblewrap)
@@ -298,7 +298,7 @@ fn wsl1_rejects_linux_bubblewrap_path() {
         super::ensure_linux_bubblewrap_is_supported(
             &FileSystemSandboxPolicy::unrestricted(),
             /*use_legacy_landlock*/ false,
-            /*allow_network_for_proxy*/ true,
+            /*allow_network_for_network_policy*/ true,
             /*is_wsl1*/ true,
         ),
         Err(super::SandboxTransformError::Wsl1UnsupportedForBubblewrap)
@@ -312,7 +312,7 @@ fn wsl1_allows_non_bubblewrap_linux_paths() {
         super::ensure_linux_bubblewrap_is_supported(
             &FileSystemSandboxPolicy::unrestricted(),
             /*use_legacy_landlock*/ false,
-            /*allow_network_for_proxy*/ false,
+            /*allow_network_for_network_policy*/ false,
             /*is_wsl1*/ true,
         )
         .is_ok()
@@ -328,7 +328,7 @@ fn wsl1_allows_non_bubblewrap_linux_paths() {
         super::ensure_linux_bubblewrap_is_supported(
             &restricted_policy,
             /*use_legacy_landlock*/ true,
-            /*allow_network_for_proxy*/ false,
+            /*allow_network_for_network_policy*/ false,
             /*is_wsl1*/ true,
         )
         .is_ok()

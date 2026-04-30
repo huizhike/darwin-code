@@ -20,6 +20,7 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
+darwin-code-client = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = { workspace = true }
@@ -29,6 +30,8 @@ axum = { workspace = true, default-features = false, features = [
     "tokio",
     "ws",
 ] }
+codex-analytics = { workspace = true }
+codex-feedback = { workspace = true }
 darwin-code-arg0 = { workspace = true }
 darwin-code-config = { workspace = true }
 darwin-code-core = { workspace = true }
@@ -40,9 +43,7 @@ darwin-code-otel = { workspace = true }
 darwin-code-shell-command = { workspace = true }
 darwin-code-utils-cli = { workspace = true }
 darwin-code-utils-pty = { workspace = true }
-darwin-code-backend-client = { workspace = true }
 darwin-code-file-search = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-mcp = { workspace = true }
 darwin-code-models-manager = { workspace = true }
 darwin-code-protocol = { workspace = true }

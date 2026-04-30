@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 #[cfg(unix)]
-const DARWIN_CODE_MANAGED_CONFIG_SYSTEM_PATH: &str = "/etc/darwin-code/managed_config.toml";
+const DARWIN_CODE_MANAGED_CONFIG_SYSTEM_PATH: &str = "/etc/darwin_code/managed_config.toml";
 
 #[derive(Debug, Clone)]
 pub(super) struct MangedConfigFromFile {
@@ -29,7 +29,7 @@ pub(super) struct ManagedConfigFromMdm {
 
 #[derive(Debug, Clone)]
 pub(super) struct LoadedConfigLayers {
-    /// If present, data read from a file such as `/etc/darwin-code/managed_config.toml`.
+    /// If present, data read from a file such as `/etc/darwin_code/managed_config.toml`.
     pub managed_config: Option<MangedConfigFromFile>,
     /// If present, data read from managed preferences (macOS only).
     pub managed_config_from_mdm: Option<ManagedConfigFromMdm>,

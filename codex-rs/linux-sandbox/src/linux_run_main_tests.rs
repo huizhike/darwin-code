@@ -1,15 +1,15 @@
 #[cfg(test)]
 use super::*;
 #[cfg(test)]
-use codex_protocol::protocol::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::FileSystemSandboxPolicy;
 #[cfg(test)]
-use codex_protocol::protocol::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::NetworkSandboxPolicy;
 #[cfg(test)]
-use codex_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
 #[cfg(test)]
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
 #[cfg(test)]
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
@@ -200,15 +200,15 @@ fn split_only_filesystem_policy_requires_direct_runtime_enforcement() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let docs = AbsolutePathBuf::from_absolute_path(&docs).expect("absolute docs");
     let policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::CurrentWorkingDirectory,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path { path: docs },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path { path: docs },
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -224,15 +224,15 @@ fn root_write_read_only_carveout_requires_direct_runtime_enforcement() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let docs = AbsolutePathBuf::from_absolute_path(&docs).expect("absolute docs");
     let policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path { path: docs },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path { path: docs },
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
     ]);
 
@@ -242,7 +242,7 @@ fn root_write_read_only_carveout_requires_direct_runtime_enforcement() {
 }
 
 #[test]
-fn managed_proxy_preflight_argv_is_wrapped_for_full_access_policy() {
+fn network_policy_runtime_preflight_argv_is_wrapped_for_full_access_policy() {
     let mode = bwrap_network_mode(
         NetworkSandboxPolicy::Enabled,
         /*allow_network_for_proxy*/ true,
@@ -258,7 +258,7 @@ fn managed_proxy_preflight_argv_is_wrapped_for_full_access_policy() {
 }
 
 #[test]
-fn managed_proxy_inner_command_includes_route_spec() {
+fn network_policy_runtime_inner_command_includes_route_spec() {
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let args = build_inner_seccomp_command(InnerSeccompCommandArgs {
         sandbox_policy_cwd: Path::new("/tmp"),
@@ -315,7 +315,7 @@ fn non_managed_inner_command_omits_route_spec() {
 }
 
 #[test]
-fn managed_proxy_inner_command_requires_route_spec() {
+fn network_policy_runtime_inner_command_requires_route_spec() {
     let result = std::panic::catch_unwind(|| {
         let sandbox_policy = SandboxPolicy::new_read_only_policy();
         build_inner_seccomp_command(InnerSeccompCommandArgs {
@@ -417,15 +417,15 @@ fn resolve_sandbox_policies_accepts_split_policies_requiring_direct_runtime_enfo
     let docs = AbsolutePathBuf::from_absolute_path(&docs).expect("absolute docs");
     let sandbox_policy = SandboxPolicy::new_read_only_policy();
     let file_system_sandbox_policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path { path: docs },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path { path: docs },
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
     ]);
 
@@ -500,15 +500,15 @@ fn legacy_landlock_rejects_split_only_filesystem_policies() {
     std::fs::create_dir_all(&docs).expect("create docs");
     let docs = AbsolutePathBuf::from_absolute_path(&docs).expect("absolute docs");
     let policy = FileSystemSandboxPolicy::restricted(vec![
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Special {
-                value: codex_protocol::permissions::FileSystemSpecialPath::Root,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Special {
+                value: darwin_code_protocol::permissions::FileSystemSpecialPath::Root,
             },
-            access: codex_protocol::permissions::FileSystemAccessMode::Read,
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Read,
         },
-        codex_protocol::permissions::FileSystemSandboxEntry {
-            path: codex_protocol::permissions::FileSystemPath::Path { path: docs },
-            access: codex_protocol::permissions::FileSystemAccessMode::Write,
+        darwin_code_protocol::permissions::FileSystemSandboxEntry {
+            path: darwin_code_protocol::permissions::FileSystemPath::Path { path: docs },
+            access: darwin_code_protocol::permissions::FileSystemAccessMode::Write,
         },
     ]);
 

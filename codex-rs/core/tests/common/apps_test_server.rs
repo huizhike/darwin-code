@@ -16,7 +16,7 @@ const DISCOVERABLE_CALENDAR_ID: &str = "connector_2128aebfecb84f64a069897515042a
 const DISCOVERABLE_GMAIL_ID: &str = "connector_68df038e0ba48191908c8434991bbac2";
 const CONNECTOR_DESCRIPTION: &str = "Plan events and manage your calendar.";
 const PROTOCOL_VERSION: &str = "2025-11-25";
-const SERVER_NAME: &str = "darwin-code-apps-test";
+const SERVER_NAME: &str = "darwin_code-apps-test";
 const SERVER_VERSION: &str = "1.0.0";
 const SEARCHABLE_TOOL_COUNT: usize = 100;
 pub const CALENDAR_CREATE_EVENT_RESOURCE_URI: &str =
@@ -29,7 +29,7 @@ pub const DOCUMENT_EXTRACT_TEXT_RESOURCE_URI: &str =
 
 #[derive(Clone)]
 pub struct AppsTestServer {
-    pub chatgpt_base_url: String,
+    pub base_url: String,
 }
 
 impl AppsTestServer {
@@ -48,7 +48,7 @@ impl AppsTestServer {
         )
         .await;
         Ok(Self {
-            chatgpt_base_url: server.uri(),
+            base_url: server.uri(),
         })
     }
 
@@ -66,7 +66,7 @@ impl AppsTestServer {
         )
         .await;
         Ok(Self {
-            chatgpt_base_url: server.uri(),
+            base_url: server.uri(),
         })
     }
 }
@@ -121,7 +121,7 @@ async fn mount_streamable_http_json_rpc(
     searchable: bool,
 ) {
     Mock::given(method("POST"))
-        .and(path_regex("^/api/darwin-code/apps/?$"))
+        .and(path_regex("^/api/darwin_code/apps/?$"))
         .respond_with(DarwinCodeAppsJsonRpcResponder {
             connector_name,
             connector_description,
@@ -325,7 +325,8 @@ impl Respond for DarwinCodeAppsJsonRpcResponder {
                     .pointer("/params/arguments/file/file_id")
                     .and_then(Value::as_str)
                     .unwrap_or_default();
-                let darwin_code_apps_meta = body.pointer("/params/_meta/_darwin_code_apps").cloned();
+                let darwin_code_apps_meta =
+                    body.pointer("/params/_meta/_darwin_code_apps").cloned();
 
                 ResponseTemplate::new(200).set_body_json(json!({
                     "jsonrpc": "2.0",

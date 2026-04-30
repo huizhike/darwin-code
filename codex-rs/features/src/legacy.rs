@@ -18,14 +18,6 @@ const ALIASES: &[Alias] = &[
         feature: Feature::WindowsSandbox,
     },
     Alias {
-        legacy_key: "experimental_use_unified_exec_tool",
-        feature: Feature::UnifiedExec,
-    },
-    Alias {
-        legacy_key: "experimental_use_freeform_apply_patch",
-        feature: Feature::ApplyPatchFreeform,
-    },
-    Alias {
         legacy_key: "include_apply_patch_tool",
         feature: Feature::ApplyPatchFreeform,
     },
@@ -64,8 +56,6 @@ pub(crate) fn feature_for_key(key: &str) -> Option<Feature> {
 #[derive(Debug, Default)]
 pub(crate) struct LegacyFeatureToggles {
     pub include_apply_patch_tool: Option<bool>,
-    pub experimental_use_freeform_apply_patch: Option<bool>,
-    pub experimental_use_unified_exec_tool: Option<bool>,
 }
 
 impl LegacyFeatureToggles {
@@ -75,18 +65,6 @@ impl LegacyFeatureToggles {
             Feature::ApplyPatchFreeform,
             self.include_apply_patch_tool,
             "include_apply_patch_tool",
-        );
-        set_if_some(
-            features,
-            Feature::ApplyPatchFreeform,
-            self.experimental_use_freeform_apply_patch,
-            "experimental_use_freeform_apply_patch",
-        );
-        set_if_some(
-            features,
-            Feature::UnifiedExec,
-            self.experimental_use_unified_exec_tool,
-            "experimental_use_unified_exec_tool",
         );
     }
 }

@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
-use codex_exec_server::ExecutorFileSystem;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_protocol::protocol::Product;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SkillMetadata {

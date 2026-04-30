@@ -103,3 +103,22 @@ scan_telemetry_impact*.sh
 .codex/skills/.system/**
 !.codex/prompts/
 !.codex/prompts/**
+
+# local Darwin Code runtime state
+config.toml
+history.jsonl
+installation_id
+.personality_migration
+.tmp/
+sessions/
+shell_snapshots/
+skills/
+state_*.sqlite
+state_*.sqlite-*
+logs_*.sqlite
+logs_*.sqlite-*
+model-catalog.*.json
+
+# test/sandbox marker files created inside crates
+codex-rs/**/.codex
+codex-rs/**/.darwin_code

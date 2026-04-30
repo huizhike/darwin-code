@@ -3,11 +3,11 @@ use crate::config::edit::ConfigEdit;
 use crate::config::edit::ConfigEditsBuilder;
 use crate::config::managed_features::validate_explicit_feature_settings_in_config_toml;
 use crate::config::managed_features::validate_feature_requirements_in_config_toml;
-use crate::config_loader::CloudRequirementsLoader;
 use crate::config_loader::ConfigLayerEntry;
 use crate::config_loader::ConfigLayerStack;
 use crate::config_loader::ConfigLayerStackOrdering;
 use crate::config_loader::ConfigRequirementsToml;
+use crate::config_loader::ExternalRequirementsLoader;
 use crate::config_loader::LoaderOverrides;
 use crate::config_loader::load_config_layers_state;
 use crate::config_loader::merge_toml_values;
@@ -114,7 +114,7 @@ pub struct ConfigService {
     darwin_code_home: PathBuf,
     cli_overrides: Vec<(String, TomlValue)>,
     loader_overrides: LoaderOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
 }
 
 impl ConfigService {
@@ -122,13 +122,13 @@ impl ConfigService {
         darwin_code_home: PathBuf,
         cli_overrides: Vec<(String, TomlValue)>,
         loader_overrides: LoaderOverrides,
-        cloud_requirements: CloudRequirementsLoader,
+        external_requirements: ExternalRequirementsLoader,
     ) -> Self {
         Self {
             darwin_code_home,
             cli_overrides,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
         }
     }
 
@@ -137,7 +137,7 @@ impl ConfigService {
             darwin_code_home,
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            external_requirements: ExternalRequirementsLoader::default(),
         }
     }
 
@@ -147,7 +147,7 @@ impl ConfigService {
             darwin_code_home,
             Vec::new(),
             LoaderOverrides::without_managed_config_for_tests(),
-            CloudRequirementsLoader::default(),
+            ExternalRequirementsLoader::default(),
         )
     }
 
@@ -165,7 +165,7 @@ impl ConfigService {
                     .cli_overrides(self.cli_overrides.clone())
                     .loader_overrides(self.loader_overrides.clone())
                     .fallback_cwd(Some(cwd.to_path_buf()))
-                    .cloud_requirements(self.cloud_requirements.clone())
+                    .external_requirements(self.external_requirements.clone())
                     .build()
                     .await
                     .map_err(|err| {
@@ -350,14 +350,13 @@ impl ConfigService {
             )
         })?;
         let user_config_toml =
-            deserialize_config_toml_with_base(user_config.clone(), &self.darwin_code_home).map_err(
-                |err| {
+            deserialize_config_toml_with_base(user_config.clone(), &self.darwin_code_home)
+                .map_err(|err| {
                     ConfigServiceError::write(
                         ConfigWriteErrorCode::ConfigValidationError,
                         format!("Invalid configuration: {err}"),
                     )
-                },
-            )?;
+                })?;
         validate_explicit_feature_settings_in_config_toml(
             &user_config_toml,
             layers.requirements().feature_requirements.as_ref(),
@@ -420,7 +419,7 @@ impl ConfigService {
     }
 
     /// Loads a "thread-agnostic" config, which means the config layers do not
-    /// include any in-repo .darwin-code/ folders because there is no cwd/project root
+    /// include any in-repo .darwin_code/ folders because there is no cwd/project root
     /// associated with this query.
     async fn load_thread_agnostic_config(&self) -> std::io::Result<ConfigLayerStack> {
         let cwd: Option<AbsolutePathBuf> = None;
@@ -430,7 +429,7 @@ impl ConfigService {
             cwd,
             &self.cli_overrides,
             self.loader_overrides.clone(),
-            self.cloud_requirements.clone(),
+            self.external_requirements.clone(),
         )
         .await
     }
@@ -660,9 +659,9 @@ fn override_message(layer: &ConfigLayerSource) -> String {
         ConfigLayerSource::System { file } => {
             format!("Overridden by managed config (system): {}", file.display())
         }
-        ConfigLayerSource::Project { dot_darwin_code_folder } => format!(
+        ConfigLayerSource::Project { dot_codex_folder } => format!(
             "Overridden by project config: {}/{CONFIG_TOML_FILE}",
-            dot_darwin_code_folder.display(),
+            dot_codex_folder.display(),
         ),
         ConfigLayerSource::SessionFlags => "Overridden by session flags".to_string(),
         ConfigLayerSource::User { file } => {

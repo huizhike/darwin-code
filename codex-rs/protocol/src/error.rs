@@ -1,8 +1,6 @@
 use crate::ThreadId;
 use crate::auth::KnownPlan;
 use crate::auth::PlanType;
-pub use crate::auth::RefreshTokenFailedError;
-pub use crate::auth::RefreshTokenFailedReason;
 use crate::exec_output::ExecToolCallOutput;
 use crate::network_policy::NetworkPolicyDecisionPayload;
 use crate::protocol::CodexErrorInfo;
@@ -13,9 +11,9 @@ use chrono::DateTime;
 use chrono::Datelike;
 use chrono::Local;
 use chrono::Utc;
-use codex_async_utils::CancelErr;
-use codex_utils_string::truncate_middle_chars;
-use codex_utils_string::truncate_middle_with_token_budget;
+use darwin_code_async_utils::CancelErr;
+use darwin_code_utils_string::truncate_middle_chars;
+use darwin_code_utils_string::truncate_middle_with_token_budget;
 use reqwest::StatusCode;
 use serde_json;
 use std::io;
@@ -24,6 +22,7 @@ use thiserror::Error;
 use tokio::task::JoinError;
 
 pub type Result<T> = std::result::Result<T, CodexErr>;
+pub type DarwinCodeErr = CodexErr;
 
 /// Limit UI error messages to a reasonable size while keeping useful context.
 const ERROR_MESSAGE_UI_MAX_BYTES: usize = 2 * 1024;
@@ -116,9 +115,7 @@ pub enum CodexErr {
     ConnectionFailed(ConnectionFailedError),
     #[error("Quota exceeded. Check your plan and billing details.")]
     QuotaExceeded,
-    #[error(
-        "To use Codex with your ChatGPT plan, upgrade to Plus: https://chatgpt.com/explore/plus."
-    )]
+    #[error("The configured provider reports this usage is not included for the current API key.")]
     UsageNotIncluded,
     #[error("We're currently experiencing high demand, which may cause temporary errors.")]
     InternalServerError,
@@ -135,8 +132,6 @@ pub enum CodexErr {
     LandlockSandboxExecutableNotProvided,
     #[error("unsupported operation: {0}")]
     UnsupportedOperation(String),
-    #[error("{0}")]
-    RefreshTokenFailed(RefreshTokenFailedError),
     #[error("Fatal error: {0}")]
     Fatal(String),
     // -----------------------------------------------------------------
@@ -175,7 +170,6 @@ impl CodexErr {
             | CodexErr::QuotaExceeded
             | CodexErr::InvalidImageRequest()
             | CodexErr::InvalidRequest(_)
-            | CodexErr::RefreshTokenFailed(_)
             | CodexErr::UnsupportedOperation(_)
             | CodexErr::Sandbox(_)
             | CodexErr::LandlockSandboxExecutableNotProvided
@@ -226,7 +220,6 @@ impl CodexErr {
             CodexErr::ResponseStreamFailed(_) => CodexErrorInfo::ResponseStreamConnectionFailed {
                 http_status_code: self.http_status_code_value(),
             },
-            CodexErr::RefreshTokenFailed(_) => CodexErrorInfo::Unauthorized,
             CodexErr::SessionConfiguredNotFirstEvent
             | CodexErr::InternalServerError
             | CodexErr::InternalAgentDied => CodexErrorInfo::InternalServerError,
@@ -473,7 +466,7 @@ impl std::fmt::Display for UsageLimitReachedError {
 
         let message = match self.plan_type.as_ref() {
             Some(PlanType::Known(KnownPlan::Plus)) => format!(
-                "You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits{}",
+                "You've hit your usage limit. check provider billing or quota settings{}",
                 retry_suffix_after_or(self.resets_at.as_ref())
             ),
             Some(PlanType::Known(
@@ -489,12 +482,12 @@ impl std::fmt::Display for UsageLimitReachedError {
             }
             Some(PlanType::Known(KnownPlan::Free)) | Some(PlanType::Known(KnownPlan::Go)) => {
                 format!(
-                    "You've hit your usage limit. Upgrade to Plus to continue using Codex (https://chatgpt.com/explore/plus),{}",
+                    "You've hit your usage limit. check provider billing or quota settings,{}",
                     retry_suffix_after_or(self.resets_at.as_ref())
                 )
             }
             Some(PlanType::Known(KnownPlan::Pro | KnownPlan::ProLite)) => format!(
-                "You've hit your usage limit. Visit https://chatgpt.com/codex/settings/usage to purchase more credits{}",
+                "You've hit your usage limit. Check provider billing or quota settings{}",
                 retry_suffix_after_or(self.resets_at.as_ref())
             ),
             Some(PlanType::Known(KnownPlan::Enterprise))

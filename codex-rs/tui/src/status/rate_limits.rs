@@ -71,6 +71,7 @@ pub(crate) struct RateLimitWindowDisplay {
 }
 
 impl RateLimitWindowDisplay {
+    #[cfg_attr(not(test), allow(dead_code))]
     fn from_window(window: &RateLimitWindow, captured_at: DateTime<Local>) -> Self {
         let resets_at_utc = window
             .resets_at
@@ -88,7 +89,7 @@ impl RateLimitWindowDisplay {
 
 #[derive(Debug, Clone)]
 pub(crate) struct RateLimitSnapshotDisplay {
-    /// Canonical limit identifier (for example: `darwin-code` or `darwin_code_other`).
+    /// Canonical limit identifier (for example: `darwin_code` or `darwin_code_other`).
     pub limit_name: String,
     /// Local timestamp representing when this display snapshot was captured.
     pub captured_at: DateTime<Local>,
@@ -120,9 +121,10 @@ pub(crate) fn rate_limit_snapshot_display(
     snapshot: &RateLimitSnapshot,
     captured_at: DateTime<Local>,
 ) -> RateLimitSnapshotDisplay {
-    rate_limit_snapshot_display_for_limit(snapshot, "darwin-code".to_string(), captured_at)
+    rate_limit_snapshot_display_for_limit(snapshot, "darwin_code".to_string(), captured_at)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn rate_limit_snapshot_display_for_limit(
     snapshot: &RateLimitSnapshot,
     limit_name: String,
@@ -183,7 +185,7 @@ pub(crate) fn compose_rate_limit_data_many(
             > ChronoDuration::minutes(RATE_LIMIT_STALE_THRESHOLD_MINUTES);
 
         let limit_bucket_label = snapshot.limit_name.clone();
-        let show_limit_prefix = !limit_bucket_label.eq_ignore_ascii_case("darwin-code");
+        let show_limit_prefix = !limit_bucket_label.eq_ignore_ascii_case("darwin_code");
         let primary_label = snapshot
             .primary
             .as_ref()
@@ -365,8 +367,8 @@ mod tests {
     #[test]
     fn non_darwin_code_single_limit_renders_combined_row() {
         let now = Local::now();
-        let darwin-code = RateLimitSnapshotDisplay {
-            limit_name: "darwin-code".to_string(),
+        let darwin_code = RateLimitSnapshotDisplay {
+            limit_name: "darwin_code".to_string(),
             captured_at: now,
             primary: Some(window(/*used_percent*/ 10.0)),
             secondary: None,
@@ -377,7 +379,7 @@ mod tests {
             }),
         };
         let other = RateLimitSnapshotDisplay {
-            limit_name: "darwin-code-other".to_string(),
+            limit_name: "darwin_code-other".to_string(),
             captured_at: now,
             primary: Some(window(/*used_percent*/ 20.0)),
             secondary: None,
@@ -388,7 +390,7 @@ mod tests {
             }),
         };
 
-        let rows = match compose_rate_limit_data_many(&[darwin-code, other], now) {
+        let rows = match compose_rate_limit_data_many(&[darwin_code, other], now) {
             StatusRateLimitData::Available(rows) => rows,
             other => panic!("unexpected status: {other:?}"),
         };
@@ -399,7 +401,7 @@ mod tests {
             vec![
                 "5h limit".to_string(),
                 "Credits".to_string(),
-                "darwin-code-other 5h limit".to_string(),
+                "darwin_code-other 5h limit".to_string(),
                 "Credits".to_string(),
             ]
         );
@@ -410,7 +412,7 @@ mod tests {
     fn non_darwin_code_multi_limit_keeps_group_row() {
         let now = Local::now();
         let other = RateLimitSnapshotDisplay {
-            limit_name: "darwin-code-other".to_string(),
+            limit_name: "darwin_code-other".to_string(),
             captured_at: now,
             primary: Some(RateLimitWindowDisplay {
                 used_percent: 20.0,
@@ -433,7 +435,7 @@ mod tests {
         assert_eq!(
             labels,
             vec![
-                "darwin-code-other limit".to_string(),
+                "darwin_code-other limit".to_string(),
                 "1h limit".to_string(),
                 "Weekly limit".to_string(),
             ]

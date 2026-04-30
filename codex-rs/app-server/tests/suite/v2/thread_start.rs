@@ -1,10 +1,8 @@
 use anyhow::Result;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::PathBufExt;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use app_test_support::write_chatgpt_auth;
 use darwin_code_app_server_protocol::AskForApproval;
 use darwin_code_app_server_protocol::JSONRPCError;
 use darwin_code_app_server_protocol::JSONRPCMessage;
@@ -19,12 +17,10 @@ use darwin_code_app_server_protocol::ThreadStartResponse;
 use darwin_code_app_server_protocol::ThreadStartedNotification;
 use darwin_code_app_server_protocol::ThreadStatus;
 use darwin_code_app_server_protocol::ThreadStatusChangedNotification;
-use darwin_code_config::types::AuthCredentialsStoreMode;
 use darwin_code_core::config::set_project_trust_level;
 use darwin_code_core::config_loader::project_trust_key;
 use darwin_code_exec_server::LOCAL_FS;
 use darwin_code_git_utils::resolve_root_git_project_for_trust;
-use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use darwin_code_protocol::config_types::ServiceTier;
 use darwin_code_protocol::config_types::TrustLevel;
 use darwin_code_protocol::openai_models::ReasoningEffort;
@@ -36,16 +32,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::timeout;
-use wiremock::Mock;
 use wiremock::MockServer;
-use wiremock::ResponseTemplate;
-use wiremock::matchers::method;
-use wiremock::matchers::path;
 
-use super::analytics::assert_basic_thread_initialized_event;
+use super::analytics::assert_no_analytics_payload;
 use super::analytics::mount_analytics_capture;
-use super::analytics::thread_initialized_event;
-use super::analytics::wait_for_analytics_payload;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
@@ -226,13 +216,12 @@ fn normalize_path_for_comparison(path: impl AsRef<Path>) -> PathBuf {
 }
 
 #[tokio::test]
-async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
+async fn thread_start_drops_hosted_thread_initialized_analytics_in_byok_runtime() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
     let darwin_code_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(
+    create_config_toml_with_base_url(
         darwin_code_home.path(),
-        &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
@@ -249,12 +238,9 @@ async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let _ = to_response::<ThreadStartResponse>(resp)?;
 
-    let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
-    assert_eq!(payload["events"].as_array().expect("events array").len(), 1);
-    let event = thread_initialized_event(&payload)?;
-    assert_basic_thread_initialized_event(event, &thread.id, "mock-model", "new");
+    assert_no_analytics_payload(&server, Duration::from_millis(250)).await?;
     Ok(())
 }
 
@@ -263,9 +249,8 @@ async fn thread_start_does_not_track_thread_initialized_analytics_without_featur
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
     let darwin_code_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(
+    create_config_toml_with_base_url(
         darwin_code_home.path(),
-        &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ false,
     )?;
@@ -284,25 +269,7 @@ async fn thread_start_does_not_track_thread_initialized_analytics_without_featur
     .await??;
     let _ = to_response::<ThreadStartResponse>(resp)?;
 
-    assert_no_thread_initialized_analytics(&server, Duration::from_millis(250)).await?;
-    Ok(())
-}
-
-async fn assert_no_thread_initialized_analytics(
-    server: &MockServer,
-    wait_duration: Duration,
-) -> Result<()> {
-    tokio::time::sleep(wait_duration).await;
-    let requests = server.received_requests().await.unwrap_or_default();
-    for request in requests.iter().filter(|request| {
-        request.method == "POST" && request.url.path() == "/darwin-code/analytics-events/events"
-    }) {
-        let payload: Value = serde_json::from_slice(&request.body)?;
-        assert!(
-            thread_initialized_event(&payload).is_err(),
-            "thread analytics should be gated off when general_analytics is disabled; payload={payload}"
-        );
-    }
+    assert_no_analytics_payload(&server, Duration::from_millis(250)).await?;
     Ok(())
 }
 
@@ -314,7 +281,7 @@ async fn thread_start_respects_project_config_from_cwd() -> Result<()> {
     create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".darwin-code");
+    let project_config_dir = workspace.path().join(".darwin_code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -582,89 +549,6 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
 }
 
 #[tokio::test]
-async fn thread_start_surfaces_cloud_requirements_load_errors() -> Result<()> {
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/wham/config/requirements"))
-        .respond_with(
-            ResponseTemplate::new(401)
-                .insert_header("content-type", "text/html")
-                .set_body_string("<html>nope</html>"),
-        )
-        .mount(&server)
-        .await;
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
-            "error": { "code": "refresh_token_invalidated" }
-        })))
-        .mount(&server)
-        .await;
-
-    let darwin_code_home = TempDir::new()?;
-    let model_server = create_mock_responses_server_repeating_assistant("Done").await;
-    let chatgpt_base_url = format!("{}/backend-api", server.uri());
-    create_config_toml_with_chatgpt_base_url(
-        darwin_code_home.path(),
-        &model_server.uri(),
-        &chatgpt_base_url,
-        /*general_analytics_enabled*/ false,
-    )?;
-    write_chatgpt_auth(
-        darwin_code_home.path(),
-        ChatGptAuthFixture::new("chatgpt-token")
-            .refresh_token("stale-refresh-token")
-            .plan_type("business")
-            .chatgpt_user_id("user-123")
-            .chatgpt_account_id("account-123")
-            .account_id("account-123"),
-        AuthCredentialsStoreMode::File,
-    )?;
-
-    let refresh_token_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
-        darwin_code_home.path(),
-        &[
-            ("OPENAI_API_KEY", None),
-            (
-                REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
-                Some(refresh_token_url.as_str()),
-            ),
-        ],
-    )
-    .await?;
-    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-
-    let req_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
-        .await?;
-
-    let err: JSONRPCError = timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_error_message(RequestId::Integer(req_id)),
-    )
-    .await??;
-
-    assert!(
-        err.error.message.contains("failed to load configuration"),
-        "unexpected error message: {}",
-        err.error.message
-    );
-    assert_eq!(
-        err.error.data,
-        Some(json!({
-            "reason": "cloudRequirements",
-            "errorCode": "Auth",
-            "action": "relogin",
-            "statusCode": 401,
-            "detail": "Your access token could not be refreshed because your refresh token was revoked. Please log out and sign in again.",
-        }))
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
 async fn thread_start_with_elevated_sandbox_trusts_project_and_followup_loads_project_config()
 -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
@@ -673,7 +557,7 @@ async fn thread_start_with_elevated_sandbox_trusts_project_and_followup_loads_pr
     create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".darwin-code");
+    let project_config_dir = workspace.path().join(".darwin_code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -810,7 +694,7 @@ async fn thread_start_skips_trust_write_when_project_is_already_trusted() -> Res
     create_config_toml_without_approval_policy(darwin_code_home.path(), &server.uri())?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".darwin-code");
+    let project_config_dir = workspace.path().join(".darwin_code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -889,10 +773,9 @@ stream_max_retries = 0
     )
 }
 
-fn create_config_toml_with_chatgpt_base_url(
+fn create_config_toml_with_base_url(
     darwin_code_home: &Path,
     server_uri: &str,
-    chatgpt_base_url: &str,
     general_analytics_enabled: bool,
 ) -> std::io::Result<()> {
     let general_analytics_toml = if general_analytics_enabled {
@@ -908,8 +791,6 @@ fn create_config_toml_with_chatgpt_base_url(
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-chatgpt_base_url = "{chatgpt_base_url}"
-
 model_provider = "mock_provider"
 
 [features]

@@ -1,5 +1,5 @@
 // Forbid accidental stdout/stderr writes in the *library* portion of the TUI.
-// The standalone `darwin-code-tui` binary prints a short help message before the
+// The standalone `darwin_code-tui` binary prints a short help message before the
 // alternate‑screen mode starts; that file opts‑out locally via `allow`.
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 #![deny(clippy::disallowed_methods)]
@@ -9,9 +9,8 @@ use crate::legacy_core::config::ConfigBuilder;
 use crate::legacy_core::config::ConfigOverrides;
 use crate::legacy_core::config::find_darwin_code_home;
 use crate::legacy_core::config::load_config_as_toml_with_cli_overrides;
-use crate::legacy_core::config::resolve_oss_provider;
-use crate::legacy_core::config_loader::CloudRequirementsLoader;
 use crate::legacy_core::config_loader::ConfigLoadError;
+use crate::legacy_core::config_loader::ExternalRequirementsLoader;
 use crate::legacy_core::config_loader::LoaderOverrides;
 use crate::legacy_core::config_loader::format_config_error_with_source;
 use crate::legacy_core::find_thread_meta_by_name_str;
@@ -24,24 +23,24 @@ use app::App;
 pub use app::AppExitInfo;
 pub use app::ExitReason;
 use app_server_session::AppServerSession;
+use color_eyre::eyre::WrapErr;
+use cwd_prompt::CwdPromptAction;
+use cwd_prompt::CwdPromptOutcome;
+use cwd_prompt::CwdSelection;
 use darwin_code_app_server_client::AppServerClient;
 use darwin_code_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 use darwin_code_app_server_client::InProcessAppServerClient;
 use darwin_code_app_server_client::InProcessClientStartArgs;
 use darwin_code_app_server_client::RemoteAppServerClient;
 use darwin_code_app_server_client::RemoteAppServerConnectArgs;
-use darwin_code_app_server_protocol::Account as AppServerAccount;
-use darwin_code_app_server_protocol::AuthMode as AppServerAuthMode;
 use darwin_code_app_server_protocol::ConfigWarningNotification;
 use darwin_code_app_server_protocol::Thread as AppServerThread;
 use darwin_code_app_server_protocol::ThreadListParams;
 use darwin_code_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
 use darwin_code_app_server_protocol::ThreadSourceKind;
+use darwin_code_client::set_default_client_residency_requirement;
 use darwin_code_exec_server::EnvironmentManager;
 use darwin_code_exec_server::ExecServerRuntimePaths;
-use darwin_code_login::AuthConfig;
-use darwin_code_login::default_client::set_default_client_residency_requirement;
-use darwin_code_login::enforce_login_restrictions;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::config_types::AltScreenMode;
 use darwin_code_protocol::config_types::SandboxMode;
@@ -55,12 +54,6 @@ use darwin_code_state::log_db;
 use darwin_code_terminal_detection::terminal_info;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use darwin_code_utils_oss::ensure_oss_provider_ready;
-use darwin_code_utils_oss::get_default_model_for_oss_provider;
-use color_eyre::eyre::WrapErr;
-use cwd_prompt::CwdPromptAction;
-use cwd_prompt::CwdPromptOutcome;
-use cwd_prompt::CwdSelection;
 use std::fs::OpenOptions;
 use std::future::Future;
 use std::path::Path;
@@ -68,7 +61,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::Level;
 
-type FeedbackClient = ();
+type FeedbackClient = codex_feedback::CodexFeedback;
 use tracing::error;
 use tracing::warn;
 use tracing_appender::non_blocking;
@@ -106,6 +99,7 @@ mod audio_device {
     }
 }
 mod bottom_pane;
+mod byok_connectors;
 mod chatwidget;
 mod cli;
 mod clipboard_copy;
@@ -132,7 +126,6 @@ mod key_hint;
 mod line_truncation;
 pub(crate) mod live_wrap;
 pub use live_wrap::RowBuilder;
-mod local_chatgpt_auth;
 mod markdown;
 mod markdown_render;
 mod markdown_stream;
@@ -142,7 +135,6 @@ mod model_migration;
 mod multi_agents;
 mod notifications;
 pub(crate) mod onboarding;
-mod oss_selection;
 mod pager_overlay;
 pub(crate) mod public_widgets;
 mod render;
@@ -248,7 +240,7 @@ async fn start_embedded_app_server(
     config: Config,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
@@ -258,7 +250,7 @@ async fn start_embedded_app_server(
         config,
         cli_kv_overrides,
         loader_overrides,
-        cloud_requirements,
+        external_requirements,
         feedback,
         log_db,
         environment_manager,
@@ -357,7 +349,7 @@ async fn connect_remote_app_server(
     let app_server = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
         websocket_url,
         auth_token,
-        client_name: "darwin-code-tui".to_string(),
+        client_name: "darwin_code-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         opt_out_notification_methods: Vec::new(),
@@ -375,7 +367,7 @@ async fn start_app_server(
     config: Config,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
@@ -386,7 +378,7 @@ async fn start_app_server(
             config,
             cli_kv_overrides,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
             feedback,
             log_db,
             environment_manager,
@@ -411,8 +403,8 @@ pub(crate) async fn start_app_server_for_picker(
         config.clone(),
         Vec::new(),
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
-        todo!(),
+        ExternalRequirementsLoader::default(),
+        codex_feedback::CodexFeedback::new(),
         /*log_db*/ None,
         environment_manager,
     )
@@ -438,7 +430,7 @@ async fn start_embedded_app_server_with<F, Fut>(
     config: Config,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     loader_overrides: LoaderOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     environment_manager: Arc<EnvironmentManager>,
@@ -463,14 +455,14 @@ where
         config: Arc::new(config),
         cli_overrides: cli_kv_overrides,
         loader_overrides,
-        cloud_requirements,
+        external_requirements,
         feedback,
         log_db,
         environment_manager,
         config_warnings,
         session_source: darwin_code_protocol::protocol::SessionSource::Cli,
-        enable_darwin_code_api_key_env: false,
-        client_name: "darwin-code-tui".to_string(),
+        enable_codex_api_key_env: false,
+        client_name: "darwin_code-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         opt_out_notification_methods: Vec::new(),
@@ -510,7 +502,7 @@ fn session_target_from_app_server_thread(
 
 async fn lookup_session_target_by_name_with_app_server(
     app_server: &mut AppServerSession,
-    darwin_code_home: &Path,
+    codex_home: &Path,
     name: &str,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     let mut cursor = None;
@@ -539,7 +531,7 @@ async fn lookup_session_target_by_name_with_app_server(
             if app_server.is_remote() {
                 return Ok(None);
             }
-            return Ok(find_thread_meta_by_name_str(darwin_code_home, name).await?.map(
+            return Ok(find_thread_meta_by_name_str(codex_home, name).await?.map(
                 |(path, session_meta)| resume_picker::SessionTarget {
                     path: Some(path),
                     thread_id: session_meta.meta.id,
@@ -552,7 +544,7 @@ async fn lookup_session_target_by_name_with_app_server(
 
 async fn lookup_session_target_with_app_server(
     app_server: &mut AppServerSession,
-    darwin_code_home: &Path,
+    codex_home: &Path,
     id_or_name: &str,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     if Uuid::parse_str(id_or_name).is_ok() {
@@ -583,7 +575,7 @@ async fn lookup_session_target_with_app_server(
         };
     }
 
-    lookup_session_target_by_name_with_app_server(app_server, darwin_code_home, id_or_name).await
+    lookup_session_target_by_name_with_app_server(app_server, codex_home, id_or_name).await
 }
 
 async fn lookup_latest_session_target_with_app_server(
@@ -713,10 +705,7 @@ pub async fn run_main(
             .push("web_search=\"live\"".to_string());
     }
 
-    // When using `--oss`, let the bootstrapper pick the model (defaulting to
-    // gpt-oss:20b) and ensure it is present locally. Also, force the built‑in
     let raw_overrides = cli.config_overrides.raw_overrides.clone();
-    // `oss` model provider.
     let overrides_cli = darwin_code_utils_cli::CliConfigOverrides { raw_overrides };
     let cli_kv_overrides = match overrides_cli.parse_overrides() {
         // Parse `-c` overrides from the CLI.
@@ -733,14 +722,14 @@ pub async fn run_main(
     let darwin_code_home = match find_darwin_code_home() {
         Ok(darwin_code_home) => darwin_code_home.to_path_buf(),
         Err(err) => {
-            eprintln!("Error finding darwin-code home: {err}");
+            eprintln!("Error finding darwin_code home: {err}");
             std::process::exit(1);
         }
     };
 
     let environment_manager = Arc::new(EnvironmentManager::from_env_with_runtime_paths(Some(
         ExecServerRuntimePaths::from_optional_paths(
-            arg0_paths.darwin_code_self_exe.clone(),
+            arg0_paths.codex_self_exe.clone(),
             arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         )?,
     )));
@@ -783,52 +772,11 @@ pub async fn run_main(
         tracing::warn!(error = %err, "failed to run personality migration");
     }
 
-    let chatgpt_base_url = config_toml
-        .chatgpt_base_url
-        .clone()
-        .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_string());
-    let cloud_requirements = cloud_requirements_loader_for_storage(
-        darwin_code_home.to_path_buf(),
-        /*enable_darwin_code_api_key_env*/ false,
-        config_toml.cli_auth_credentials_store.unwrap_or_default(),
-        chatgpt_base_url,
-    );
+    let external_requirements = ExternalRequirementsLoader::default();
 
-    let model_provider_override = if cli.oss {
-        let resolved = resolve_oss_provider(
-            cli.oss_provider.as_deref(),
-            &config_toml,
-            cli.config_profile.clone(),
-        );
+    let model_provider_override = None;
 
-        if let Some(provider) = resolved {
-            Some(provider)
-        } else {
-            // No provider configured, prompt the user
-            let provider = oss_selection::select_oss_provider(&darwin_code_home).await?;
-            if provider == "__CANCELLED__" {
-                return Err(std::io::Error::other(
-                    "OSS provider selection was cancelled by user",
-                ));
-            }
-            Some(provider)
-        }
-    } else {
-        None
-    };
-
-    // When using `--oss`, let the bootstrapper pick the model based on selected provider
-    let model = if let Some(model) = &cli.model {
-        Some(model.clone())
-    } else if cli.oss {
-        // Use the provider from model_provider_override
-        model_provider_override
-            .as_ref()
-            .and_then(|provider_id| get_default_model_for_oss_provider(provider_id))
-            .map(std::borrow::ToOwned::to_owned)
-    } else {
-        None // No model specified, will use the default.
-    };
+    let model = cli.model.clone();
 
     let additional_dirs = cli.add_dir.clone();
 
@@ -843,10 +791,10 @@ pub async fn run_main(
         },
         model_provider: model_provider_override.clone(),
         config_profile: cli.config_profile.clone(),
-        darwin_code_self_exe: arg0_paths.darwin_code_self_exe.clone(),
-        darwin_code_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
+        darwin_code_self_exe: arg0_paths.codex_self_exe.clone(),
+        codex_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
-        show_raw_agent_reasoning: cli.oss.then_some(true),
+        show_raw_agent_reasoning: None,
         additional_writable_roots: additional_dirs,
         ..Default::default()
     };
@@ -854,7 +802,7 @@ pub async fn run_main(
     let config = load_config_or_exit(
         cli_kv_overrides.clone(),
         overrides.clone(),
-        cloud_requirements.clone(),
+        external_requirements.clone(),
     )
     .await;
 
@@ -882,19 +830,6 @@ pub async fn run_main(
         }
     }
 
-    if matches!(app_server_target, AppServerTarget::Embedded) {
-        #[allow(clippy::print_stderr)]
-        if let Err(err) = enforce_login_restrictions(&AuthConfig {
-            darwin_code_home: config.darwin_code_home.to_path_buf(),
-            auth_credentials_store_mode: config.cli_auth_credentials_store_mode,
-            forced_login_method: config.forced_login_method,
-            forced_chatgpt_workspace_id: config.forced_chatgpt_workspace_id.clone(),
-        }) {
-            eprintln!("{err}");
-            std::process::exit(1);
-        }
-    }
-
     let log_dir = crate::legacy_core::config::log_dir(&config)?;
     std::fs::create_dir_all(&log_dir)?;
     // Open (or create) your log file, appending to it.
@@ -904,22 +839,24 @@ pub async fn run_main(
     // Ensure the file is only readable and writable by the current user.
     // Doing the equivalent to `chmod 600` on Windows is quite a bit more code
     // and requires the Windows API crates, so we can reconsider that when
-    // Darwin-Code CLI is officially supported on Windows.
+    // DarwinCode CLI is officially supported on Windows.
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         log_file_opts.mode(0o600);
     }
 
-    let log_file = log_file_opts.open(log_dir.join("darwin-code-tui.log"))?;
+    let log_file = log_file_opts.open(log_dir.join("darwin_code-tui.log"))?;
 
     // Wrap file in non‑blocking writer.
     let (non_blocking, _guard) = non_blocking(log_file);
 
-    // use RUST_LOG env var, default to info for darwin-code crates.
+    // use RUST_LOG env var, default to info for darwin_code crates.
     let env_filter = || {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("darwin_code_core=info,darwin_code_tui=info,darwin_code_rmcp_client=info")
+            EnvFilter::new(
+                "darwin_code_core=info,darwin_code_tui=info,darwin_code_rmcp_client=info",
+            )
         })
     };
 
@@ -936,24 +873,9 @@ pub async fn run_main(
         )
         .with_filter(env_filter());
 
-    let feedback = todo!();
+    let feedback = codex_feedback::CodexFeedback::new();
     let feedback_layer = feedback.logger_layer();
     let feedback_metadata_layer = feedback.metadata_layer();
-
-    if cli.oss && model_provider_override.is_some() {
-        // We're in the oss section, so provider_id should be Some
-        // Let's handle None case gracefully though just in case
-        let provider_id = match model_provider_override.as_ref() {
-            Some(id) => id,
-            None => {
-                error!("OSS provider unexpectedly not set when oss flag is used");
-                return Err(std::io::Error::other(
-                    "OSS provider not set but oss flag was used",
-                ));
-            }
-        };
-        ensure_oss_provider_ready(provider_id, &config).await?;
-    }
 
     let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         crate::legacy_core::otel_init::build_provider(
@@ -1007,7 +929,7 @@ pub async fn run_main(
         config,
         overrides,
         cli_kv_overrides,
-        cloud_requirements,
+        external_requirements,
         feedback,
         log_db,
         remote_url,
@@ -1028,7 +950,7 @@ async fn run_ratatui_app(
     initial_config: Config,
     overrides: ConfigOverrides,
     cli_kv_overrides: Vec<(String, toml::Value)>,
-    mut cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     feedback: FeedbackClient,
     log_db: Option<log_db::LogDbLayer>,
     remote_url: Option<String>,
@@ -1087,7 +1009,7 @@ async fn run_ratatui_app(
             initial_config.clone(),
             cli_kv_overrides.clone(),
             loader_overrides.clone(),
-            cloud_requirements.clone(),
+            external_requirements.clone(),
             feedback.clone(),
             log_db.clone(),
             environment_manager.clone(),
@@ -1106,14 +1028,7 @@ async fn run_ratatui_app(
 
     let should_show_trust_screen_flag = !remote_mode && should_show_trust_screen(&initial_config);
     let mut trust_decision_was_made = false;
-    let login_status = if initial_config.model_provider.requires_openai_auth {
-        let Some(app_server) = app_server.as_mut() else {
-            unreachable!("app server should exist when auth is required");
-        };
-        get_login_status(app_server, &initial_config).await?
-    } else {
-        LoginStatus::NotAuthenticated
-    };
+    let login_status = LoginStatus::NotAuthenticated;
     let should_show_onboarding =
         should_show_onboarding(login_status, &initial_config, should_show_trust_screen_flag);
 
@@ -1151,27 +1066,13 @@ async fn run_ratatui_app(
             });
         }
         trust_decision_was_made = onboarding_result.directory_trust_decision.is_some();
-        // If this onboarding run included the login step, always refresh cloud requirements and
-        // rebuild config. This avoids missing newly available cloud requirements due to login
-        // status detection edge cases.
-        if show_login_screen && !remote_mode {
-            cloud_requirements = cloud_requirements_loader_for_storage(
-                initial_config.darwin_code_home.to_path_buf(),
-                /*enable_darwin_code_api_key_env*/ false,
-                initial_config.cli_auth_credentials_store_mode,
-                initial_config.chatgpt_base_url.clone(),
-            );
-        }
-
-        // If the user made an explicit trust decision, or we showed the login flow, reload config
+        // If the user made an explicit trust decision, reload config
         // so current process state reflects persisted trust/auth changes.
-        if onboarding_result.directory_trust_decision.is_some()
-            || (show_login_screen && !remote_mode)
-        {
+        if onboarding_result.directory_trust_decision.is_some() {
             load_config_or_exit(
                 cli_kv_overrides.clone(),
                 overrides.clone(),
-                cloud_requirements.clone(),
+                external_requirements.clone(),
             )
             .await
         } else {
@@ -1192,7 +1093,7 @@ async fn run_ratatui_app(
             thread_name: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(format!(
-                "No saved session found with ID {id_str}. Run `darwin-code {action}` without an ID to choose from existing sessions."
+                "No saved session found with ID {id_str}. Run `darwin_code {action}` without an ID to choose from existing sessions."
             )),
         })
     };
@@ -1384,7 +1285,7 @@ async fn run_ratatui_app(
             load_config_or_exit_with_fallback_cwd(
                 cli_kv_overrides.clone(),
                 overrides.clone(),
-                cloud_requirements.clone(),
+                external_requirements.clone(),
                 fallback_cwd,
             )
             .await
@@ -1397,7 +1298,9 @@ async fn run_ratatui_app(
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
         config.tui_theme.clone(),
-        find_darwin_code_home().ok().map(AbsolutePathBuf::into_path_buf),
+        find_darwin_code_home()
+            .ok()
+            .map(AbsolutePathBuf::into_path_buf),
     ) {
         config.startup_warnings.push(w);
     }
@@ -1426,7 +1329,7 @@ async fn run_ratatui_app(
             config.clone(),
             cli_kv_overrides.clone(),
             loader_overrides,
-            cloud_requirements.clone(),
+            external_requirements.clone(),
             feedback.clone(),
             log_db.clone(),
             environment_manager.clone(),
@@ -1667,38 +1570,18 @@ fn determine_alt_screen_mode(no_alt_screen: bool, tui_alternate_screen: AltScree
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoginStatus {
-    AuthMode(AppServerAuthMode),
     NotAuthenticated,
-}
-
-/// Determines the user's authentication mode using a lightweight account read
-/// rather than a full `bootstrap`, avoiding the model-list fetch and
-/// rate-limit round-trip that `bootstrap` would trigger.
-async fn get_login_status(
-    app_server: &mut AppServerSession,
-    config: &Config,
-) -> color_eyre::Result<LoginStatus> {
-    if !config.model_provider.requires_openai_auth {
-        return Ok(LoginStatus::NotAuthenticated);
-    }
-
-    let account = app_server.read_account().await?;
-    Ok(match account.account {
-        Some(AppServerAccount::ApiKey {}) => LoginStatus::AuthMode(AppServerAuthMode::ApiKey),
-        Some(AppServerAccount::Chatgpt { .. }) => LoginStatus::AuthMode(AppServerAuthMode::Chatgpt),
-        None => LoginStatus::NotAuthenticated,
-    })
 }
 
 async fn load_config_or_exit(
     cli_kv_overrides: Vec<(String, toml::Value)>,
     overrides: ConfigOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
 ) -> Config {
     load_config_or_exit_with_fallback_cwd(
         cli_kv_overrides,
         overrides,
-        cloud_requirements,
+        external_requirements,
         /*fallback_cwd*/ None,
     )
     .await
@@ -1707,14 +1590,14 @@ async fn load_config_or_exit(
 async fn load_config_or_exit_with_fallback_cwd(
     cli_kv_overrides: Vec<(String, toml::Value)>,
     overrides: ConfigOverrides,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     fallback_cwd: Option<PathBuf>,
 ) -> Config {
     #[allow(clippy::print_stderr)]
     match ConfigBuilder::default()
         .cli_overrides(cli_kv_overrides)
         .harness_overrides(overrides)
-        .cloud_requirements(cloud_requirements)
+        .external_requirements(external_requirements)
         .fallback_cwd(fallback_cwd)
         .build()
         .await
@@ -1744,14 +1627,8 @@ fn should_show_onboarding(
     should_show_login_screen(login_status, config)
 }
 
-fn should_show_login_screen(login_status: LoginStatus, config: &Config) -> bool {
-    // Only show the login screen for providers that actually require OpenAI auth
-    // (OpenAI or equivalents). For OSS/other providers, skip login entirely.
-    if !config.model_provider.requires_openai_auth {
-        return false;
-    }
-
-    login_status == LoginStatus::NotAuthenticated
+fn should_show_login_screen(_login_status: LoginStatus, _config: &Config) -> bool {
+    false
 }
 
 #[cfg(test)]
@@ -1777,6 +1654,7 @@ mod tests {
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> std::io::Result<Config> {
+        crate::test_support::ensure_default_byok_provider_config(temp_dir.path())?;
         ConfigBuilder::default()
             .darwin_code_home(temp_dir.path().to_path_buf())
             .build()
@@ -1791,8 +1669,8 @@ mod tests {
             config,
             Vec::new(),
             LoaderOverrides::default(),
-            CloudRequirementsLoader::default(),
-            todo!(),
+            ExternalRequirementsLoader::default(),
+            codex_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
         )
@@ -2183,8 +2061,8 @@ mod tests {
             config,
             Vec::new(),
             LoaderOverrides::default(),
-            CloudRequirementsLoader::default(),
-            todo!(),
+            ExternalRequirementsLoader::default(),
+            codex_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
             |_args| async { Err(std::io::Error::other("boom")) },
@@ -2366,6 +2244,12 @@ trust_level = "trusted"
 
 [projects."{untrusted_display}"]
 trust_level = "untrusted"
+
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
 "#
         );
         std::fs::write(temp_dir.path().join("config.toml"), config_toml)?;

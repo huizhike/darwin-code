@@ -1,8 +1,8 @@
 #![cfg(not(target_os = "windows"))]
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use darwin_code_utils_cargo_bin::find_resource;
 use core_test_support::test_darwin_code_exec::test_darwin_code_exec;
+use darwin_code_utils_cargo_bin::find_resource;
 use walkdir::WalkDir;
 
 fn session_rollout_count(home_path: &std::path::Path) -> usize {

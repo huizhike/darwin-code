@@ -7,8 +7,8 @@ use std::io::SeekFrom;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SessionMetaLine;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::io::AsyncBufReadExt;

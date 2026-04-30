@@ -75,7 +75,9 @@ async fn list_tool_suggest_discoverable_plugins_deduplicates_allowlisted_configu
     );
     write_curated_plugin(&marketplace_root, plugin_name);
     write_file(
-        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home
+            .path()
+            .join(crate::config::CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -129,7 +131,9 @@ async fn list_tool_suggest_discoverable_plugins_ignores_missing_allowlisted_plug
         ),
     );
     write_file(
-        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home
+            .path()
+            .join(crate::config::CONFIG_TOML_FILE),
         &format!(
             r#"[features]
 plugins = true
@@ -156,7 +160,9 @@ async fn list_tool_suggest_discoverable_plugins_returns_empty_when_plugins_featu
     let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_file(
-        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home
+            .path()
+            .join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = false
 "#,
@@ -177,7 +183,7 @@ async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
     write_openai_curated_marketplace(&curated_root, &["slack"]);
     write_plugins_feature_config(darwin_code_home.path());
     write_file(
-        &curated_root.join("plugins/slack/.darwin-code-plugin/plugin.json"),
+        &curated_root.join("plugins/slack/.codex-plugin/plugin.json"),
         r#"{
   "name": "slack",
   "description": "  Plugin\n   with   extra   spacing  "
@@ -235,7 +241,9 @@ async fn list_tool_suggest_discoverable_plugins_includes_configured_plugin_ids()
     let curated_root = crate::plugins::curated_plugins_repo_path(darwin_code_home.path());
     write_openai_curated_marketplace(&curated_root, &["sample"]);
     write_file(
-        &darwin_code_home.path().join(crate::config::CONFIG_TOML_FILE),
+        &darwin_code_home
+            .path()
+            .join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
@@ -277,7 +285,7 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
     let too_long_prompt = "x".repeat(129);
     for plugin_name in ["build-ios-apps", "life-science-research"] {
         write_file(
-            &curated_root.join(format!("plugins/{plugin_name}/.darwin-code-plugin/plugin.json")),
+            &curated_root.join(format!("plugins/{plugin_name}/.codex-plugin/plugin.json")),
             &format!(
                 r#"{{
   "name": "{plugin_name}",
@@ -316,13 +324,13 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
     let normalized_logs = logs.replace('\\', "/");
     assert_eq!(
         normalized_logs
-            .matches("build-ios-apps/.darwin-code-plugin/plugin.json")
+            .matches("build-ios-apps/.codex-plugin/plugin.json")
             .count(),
         1
     );
     assert_eq!(
         normalized_logs
-            .matches("life-science-research/.darwin-code-plugin/plugin.json")
+            .matches("life-science-research/.codex-plugin/plugin.json")
             .count(),
         1
     );

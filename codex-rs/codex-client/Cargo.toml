@@ -23,6 +23,8 @@ tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 darwin-code-utils-rustls-provider = { workspace = true }
+darwin-code-terminal-detection = { workspace = true }
+os_info = { workspace = true }
 zstd = { workspace = true }
 
 [lints]

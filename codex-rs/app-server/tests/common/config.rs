@@ -3,12 +3,33 @@ use darwin_code_features::Feature;
 use std::collections::BTreeMap;
 use std::path::Path;
 
+pub const DEFAULT_BYOK_TEST_PROVIDER_CONFIG: &str = r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#;
+
+pub fn ensure_default_byok_provider_config(darwin_code_home: &Path) -> std::io::Result<()> {
+    let config_path = darwin_code_home.join("config.toml");
+    let mut contents = std::fs::read_to_string(&config_path).unwrap_or_default();
+    if contents.contains("[providers.") || contents.contains("[openai_compatible_provider]") {
+        return Ok(());
+    }
+    if !contents.is_empty() && !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(DEFAULT_BYOK_TEST_PROVIDER_CONFIG);
+    std::fs::write(config_path, contents)
+}
+
 pub fn write_mock_responses_config_toml(
     darwin_code_home: &Path,
     server_uri: &str,
     feature_flags: &BTreeMap<Feature, bool>,
     auto_compact_limit: i64,
-    requires_openai_auth: Option<bool>,
+    use_openai_provider_name_for_remote_compaction: Option<bool>,
     model_provider_id: &str,
     compact_prompt: &str,
 ) -> std::io::Result<()> {
@@ -30,32 +51,20 @@ pub fn write_mock_responses_config_toml(
         .collect::<Vec<_>>()
         .join("\n");
     // Phase 2: build provider-specific config bits.
-    let requires_line = match requires_openai_auth {
-        Some(true) => "requires_openai_auth = true\n".to_string(),
-        Some(false) | None => String::new(),
-    };
-    let provider_name = if matches!(requires_openai_auth, Some(true)) {
+    let provider_name = if use_openai_provider_name_for_remote_compaction.unwrap_or(false) {
         "OpenAI"
     } else {
         "Mock provider for test"
     };
     let provider_block = format!(
         r#"
-[model_providers.{model_provider_id}]
+[providers.{model_provider_id}]
+family = "openai-compatible"
 name = "{provider_name}"
 base_url = "{server_uri}/v1"
-wire_api = "responses"
-request_max_retries = 0
-stream_max_retries = 0
-supports_websockets = false
-{requires_line}
+api_key = "test-direct-api-key"
 "#
     );
-    let openai_base_url_line = if model_provider_id == "openai" {
-        format!("openai_base_url = \"{server_uri}/v1\"\n")
-    } else {
-        String::new()
-    };
     // Phase 3: write the final config file.
     let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
@@ -69,7 +78,6 @@ compact_prompt = "{compact_prompt}"
 model_auto_compact_token_limit = {auto_compact_limit}
 
 model_provider = "{model_provider_id}"
-{openai_base_url_line}
 
 [features]
 {feature_entries}
@@ -79,10 +87,10 @@ model_provider = "{model_provider_id}"
     )
 }
 
-pub fn write_mock_responses_config_toml_with_chatgpt_base_url(
+pub fn write_mock_responses_config_toml_with_base_url(
     darwin_code_home: &Path,
     server_uri: &str,
-    chatgpt_base_url: &str,
+    _base_url: &str,
 ) -> std::io::Result<()> {
     let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
@@ -92,16 +100,14 @@ pub fn write_mock_responses_config_toml_with_chatgpt_base_url(
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-chatgpt_base_url = "{chatgpt_base_url}"
 
 model_provider = "mock_provider"
 
-[model_providers.mock_provider]
+[providers.mock_provider]
+family = "openai-compatible"
 name = "Mock provider for test"
 base_url = "{server_uri}/v1"
-wire_api = "responses"
-request_max_retries = 0
-stream_max_retries = 0
+api_key = "test-direct-api-key"
 "#
         ),
     )

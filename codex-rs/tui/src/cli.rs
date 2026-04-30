@@ -15,8 +15,8 @@ pub struct Cli {
     #[arg(long = "image", short = 'i', value_name = "FILE", value_delimiter = ',', num_args = 1..)]
     pub images: Vec<PathBuf>,
 
-    // Internal controls set by the top-level `darwin-code resume` subcommand.
-    // These are not exposed as user flags on the base `darwin-code` command.
+    // Internal controls set by the top-level `darwin_code resume` subcommand.
+    // These are not exposed as user flags on the base `darwin_code` command.
     #[clap(skip)]
     pub resume_picker: bool,
 
@@ -24,7 +24,7 @@ pub struct Cli {
     pub resume_last: bool,
 
     /// Internal: resume a specific recorded session by id (UUID). Set by the
-    /// top-level `darwin-code resume <SESSION_ID>` wrapper; not exposed as a public flag.
+    /// top-level `darwin_code resume <SESSION_ID>` wrapper; not exposed as a public flag.
     #[clap(skip)]
     pub resume_session_id: Option<String>,
 
@@ -36,8 +36,8 @@ pub struct Cli {
     #[clap(skip)]
     pub resume_include_non_interactive: bool,
 
-    // Internal controls set by the top-level `darwin-code fork` subcommand.
-    // These are not exposed as user flags on the base `darwin-code` command.
+    // Internal controls set by the top-level `darwin_code fork` subcommand.
+    // These are not exposed as user flags on the base `darwin_code` command.
     #[clap(skip)]
     pub fork_picker: bool,
 
@@ -45,7 +45,7 @@ pub struct Cli {
     pub fork_last: bool,
 
     /// Internal: fork a specific recorded session by id (UUID). Set by the
-    /// top-level `darwin-code fork <SESSION_ID>` wrapper; not exposed as a public flag.
+    /// top-level `darwin_code fork <SESSION_ID>` wrapper; not exposed as a public flag.
     #[clap(skip)]
     pub fork_session_id: Option<String>,
 
@@ -56,16 +56,6 @@ pub struct Cli {
     /// Model the agent should use.
     #[arg(long, short = 'm')]
     pub model: Option<String>,
-
-    /// Convenience flag to select the local open source model provider. Equivalent to -c
-    /// model_provider=oss; verifies a local LM Studio or Ollama server is running.
-    #[arg(long = "oss", default_value_t = false)]
-    pub oss: bool,
-
-    /// Specify which local provider to use (lmstudio or ollama).
-    /// If not specified with --oss, will use config default or show selection.
-    #[arg(long = "local-provider")]
-    pub oss_provider: Option<String>,
 
     /// Configuration profile from config.toml to specify default options.
     #[arg(long = "profile", short = 'p')]

@@ -1,0 +1,8 @@
+---
+source: tui/src/history_cell.rs
+expression: rendered
+---
+• Ran set -o pipefail
+  │ cargo test -p
+  │ darwin_code-tui --quiet
+  └ (no output)

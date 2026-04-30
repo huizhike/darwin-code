@@ -668,19 +668,19 @@ fn load_location_suffix_regexes() {
 #[test]
 fn file_link_hides_destination() {
     let text = render_markdown_text_for_cwd(
-        "[darwin-code-rs/tui/src/markdown_render.rs](/Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[darwin_code-rs/tui/src/markdown_render.rs](/Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
-        Text::from(Line::from_iter(["darwin-code-rs/tui/src/markdown_render.rs".cyan()]));
+        Text::from(Line::from_iter(["darwin_code-rs/tui/src/markdown_render.rs".cyan()]));
     assert_eq!(text, expected);
 }
 
 #[test]
 fn file_link_decodes_percent_encoded_bare_path_destination() {
     let text = render_markdown_text_for_cwd(
-        "[report](/Users/example/code/darwin-code/Example%20Folder/R%C3%A9sum%C3%A9/report.md)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[report](/Users/example/code/darwin_code/Example%20Folder/R%C3%A9sum%C3%A9/report.md)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected = Text::from(Line::from_iter([
         "Example Folder/Résumé/report.md".cyan(),
@@ -691,11 +691,11 @@ fn file_link_decodes_percent_encoded_bare_path_destination() {
 #[test]
 fn file_link_appends_line_number_when_label_lacks_it() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs](/Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs:74)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs](/Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs:74)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected = Text::from(Line::from_iter([
-        "darwin-code-rs/tui/src/markdown_render.rs:74".cyan(),
+        "darwin_code-rs/tui/src/markdown_render.rs:74".cyan(),
     ]));
     assert_eq!(text, expected);
 }
@@ -703,22 +703,22 @@ fn file_link_appends_line_number_when_label_lacks_it() {
 #[test]
 fn file_link_keeps_absolute_paths_outside_cwd() {
     let text = render_markdown_text_for_cwd(
-        "[README.md:74](/Users/example/code/darwin-code/README.md:74)",
-        Path::new("/Users/example/code/darwin-code/darwin-code-rs/tui"),
+        "[README.md:74](/Users/example/code/darwin_code/README.md:74)",
+        Path::new("/Users/example/code/darwin_code/darwin_code-rs/tui"),
     );
-    let expected = Text::from(Line::from_iter(["/Users/example/code/darwin-code/README.md:74".cyan()]));
+    let expected = Text::from(Line::from_iter(["/Users/example/code/darwin_code/README.md:74".cyan()]));
     assert_eq!(text, expected);
 }
 
 #[test]
 fn file_link_appends_hash_anchor_when_label_lacks_it() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs](file:///Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs#L74C3)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs](file:///Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs#L74C3)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -726,12 +726,12 @@ fn file_link_appends_hash_anchor_when_label_lacks_it() {
 #[test]
 fn file_link_uses_target_path_for_hash_anchor() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs#L74C3](file:///Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs#L74C3)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs#L74C3](file:///Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs#L74C3)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -739,12 +739,12 @@ fn file_link_uses_target_path_for_hash_anchor() {
 #[test]
 fn file_link_appends_range_when_label_lacks_it() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs](/Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs](/Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -752,12 +752,12 @@ fn file_link_appends_range_when_label_lacks_it() {
 #[test]
 fn file_link_uses_target_path_for_range() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs:74:3-76:9](/Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs:74:3-76:9](/Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -765,12 +765,12 @@ fn file_link_uses_target_path_for_range() {
 #[test]
 fn file_link_appends_hash_range_when_label_lacks_it() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs](file:///Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs](file:///Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -778,13 +778,13 @@ fn file_link_appends_hash_range_when_label_lacks_it() {
 #[test]
 fn multiline_file_link_label_after_styled_prefix_does_not_panic() {
     let text = render_markdown_text_for_cwd(
-        "**bold** plain [foo\nbar](file:///Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs#L74C3)",
-        Path::new("/Users/example/code/darwin-code"),
+        "**bold** plain [foo\nbar](file:///Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs#L74C3)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected = Text::from(Line::from_iter([
         "bold".bold(),
         " plain ".into(),
-        "darwin-code-rs/tui/src/markdown_render.rs:74:3".cyan(),
+        "darwin_code-rs/tui/src/markdown_render.rs:74:3".cyan(),
     ]));
     assert_eq!(text, expected);
 }
@@ -792,12 +792,12 @@ fn multiline_file_link_label_after_styled_prefix_does_not_panic() {
 #[test]
 fn file_link_uses_target_path_for_hash_range() {
     let text = render_markdown_text_for_cwd(
-        "[markdown_render.rs#L74C3-L76C9](file:///Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
-        Path::new("/Users/example/code/darwin-code"),
+        "[markdown_render.rs#L74C3-L76C9](file:///Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs#L74C3-L76C9)",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let expected =
         Text::from(Line::from_iter([
-            "darwin-code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
+            "darwin_code-rs/tui/src/markdown_render.rs:74:3-76:9".cyan(),
         ]));
     assert_eq!(text, expected);
 }
@@ -817,8 +817,8 @@ fn url_link_shows_destination() {
 #[test]
 fn markdown_render_file_link_snapshot() {
     let text = render_markdown_text_for_cwd(
-        "See [markdown_render.rs:74](/Users/example/code/darwin-code/darwin-code-rs/tui/src/markdown_render.rs:74).",
-        Path::new("/Users/example/code/darwin-code"),
+        "See [markdown_render.rs:74](/Users/example/code/darwin_code/darwin_code-rs/tui/src/markdown_render.rs:74).",
+        Path::new("/Users/example/code/darwin_code"),
     );
     let rendered = text
         .lines
@@ -838,9 +838,9 @@ fn markdown_render_file_link_snapshot() {
 #[test]
 fn unordered_list_local_file_link_stays_inline_with_following_text() {
     let text = render_markdown_text_with_width_and_cwd(
-        "- [binary](/Users/example/code/darwin-code/darwin-code-rs/README.md:93): core is the agent/business logic, tui is the terminal UI, exec is the headless automation surface, and cli is the top-level multitool binary.",
+        "- [binary](/Users/example/code/darwin_code/darwin_code-rs/README.md:93): core is the agent/business logic, tui is the terminal UI, exec is the headless automation surface, and cli is the top-level multitool binary.",
         Some(72),
-        Some(Path::new("/Users/example/code/darwin-code")),
+        Some(Path::new("/Users/example/code/darwin_code")),
     );
     let rendered = text
         .lines
@@ -855,9 +855,9 @@ fn unordered_list_local_file_link_stays_inline_with_following_text() {
     assert_eq!(
         rendered,
         vec![
-            "- darwin-code-rs/README.md:93: core is the agent/business logic, tui is the",
-            "  terminal UI, exec is the headless automation surface, and cli is the",
-            "  top-level multitool binary.",
+            "- darwin_code-rs/README.md:93: core is the agent/business logic, tui is",
+            "  the terminal UI, exec is the headless automation surface, and cli is",
+            "  the top-level multitool binary.",
         ]
     );
 }
@@ -865,9 +865,9 @@ fn unordered_list_local_file_link_stays_inline_with_following_text() {
 #[test]
 fn unordered_list_local_file_link_soft_break_before_colon_stays_inline() {
     let text = render_markdown_text_with_width_and_cwd(
-        "- [binary](/Users/example/code/darwin-code/darwin-code-rs/README.md:93)\n  : core is the agent/business logic.",
+        "- [binary](/Users/example/code/darwin_code/darwin_code-rs/README.md:93)\n  : core is the agent/business logic.",
         Some(72),
-        Some(Path::new("/Users/example/code/darwin-code")),
+        Some(Path::new("/Users/example/code/darwin_code")),
     );
     let rendered = text
         .lines
@@ -881,16 +881,16 @@ fn unordered_list_local_file_link_soft_break_before_colon_stays_inline() {
         .collect::<Vec<_>>();
     assert_eq!(
         rendered,
-        vec!["- darwin-code-rs/README.md:93: core is the agent/business logic.",]
+        vec!["- darwin_code-rs/README.md:93: core is the agent/business logic.",]
     );
 }
 
 #[test]
 fn consecutive_unordered_list_local_file_links_do_not_detach_paths() {
     let text = render_markdown_text_with_width_and_cwd(
-        "- [binary](/Users/example/code/darwin-code/darwin-code-rs/README.md:93)\n  : cli is the top-level multitool binary.\n- [expectations](/Users/example/code/darwin-code/darwin-code-rs/core/README.md:1)\n  : darwin-code-core owns the real runtime behavior.",
+        "- [binary](/Users/example/code/darwin_code/darwin_code-rs/README.md:93)\n  : cli is the top-level multitool binary.\n- [expectations](/Users/example/code/darwin_code/darwin_code-rs/core/README.md:1)\n  : darwin_code-core owns the real runtime behavior.",
         Some(72),
-        Some(Path::new("/Users/example/code/darwin-code")),
+        Some(Path::new("/Users/example/code/darwin_code")),
     );
     let rendered = text
         .lines
@@ -905,8 +905,9 @@ fn consecutive_unordered_list_local_file_links_do_not_detach_paths() {
     assert_eq!(
         rendered,
         vec![
-            "- darwin-code-rs/README.md:93: cli is the top-level multitool binary.",
-            "- darwin-code-rs/core/README.md:1: darwin-code-core owns the real runtime behavior.",
+            "- darwin_code-rs/README.md:93: cli is the top-level multitool binary.",
+            "- darwin_code-rs/core/README.md:1: darwin_code-core owns the real",
+            "  runtime behavior.",
         ]
     );
 }

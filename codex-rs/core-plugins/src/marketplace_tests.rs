@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::protocol::Product;
+use darwin_code_protocol::protocol::Product;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;
@@ -831,7 +831,7 @@ fn list_marketplaces_reads_marketplace_display_name() {
         r#"{
   "name": "openai-curated",
   "interface": {
-    "displayName": "ChatGPT Official"
+    "displayName": "Darwin Official"
   },
   "plugins": [
     {
@@ -856,7 +856,7 @@ fn list_marketplaces_reads_marketplace_display_name() {
     assert_eq!(
         marketplaces[0].interface,
         Some(MarketplaceInterface {
-            display_name: Some("ChatGPT Official".to_string()),
+            display_name: Some("Darwin Official".to_string()),
         })
     );
 }
@@ -1150,7 +1150,7 @@ fn list_marketplaces_resolves_plugin_interface_paths_to_absolute() {
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL",
-        "products": ["CODEX", "CHATGPT", "ATLAS"]
+        "products": ["CODEX", "ATLAS"]
       },
       "category": "Design"
     }
@@ -1191,7 +1191,7 @@ fn list_marketplaces_resolves_plugin_interface_paths_to_absolute() {
     );
     assert_eq!(
         marketplaces[0].plugins[0].policy.products,
-        Some(vec![Product::Codex, Product::Chatgpt, Product::Atlas])
+        Some(vec![Product::Codex, Product::Atlas])
     );
     assert_eq!(
         marketplaces[0].plugins[0].interface,
@@ -1430,13 +1430,13 @@ fn find_installable_marketplace_plugin_rejects_disallowed_product() {
   "name": "codex-curated",
   "plugins": [
     {
-      "name": "chatgpt-plugin",
+      "name": "provider-plugin",
       "source": {
         "source": "local",
         "path": "./plugin"
       },
       "policy": {
-        "products": ["CHATGPT"]
+        "products": ["CODEX"]
       }
     }
   ]
@@ -1446,14 +1446,14 @@ fn find_installable_marketplace_plugin_rejects_disallowed_product() {
 
     let err = find_installable_marketplace_plugin(
         &AbsolutePathBuf::try_from(repo_root.join(".agents/plugins/marketplace.json")).unwrap(),
-        "chatgpt-plugin",
+        "provider-plugin",
         Some(Product::Atlas),
     )
     .unwrap_err();
 
     assert_eq!(
         err.to_string(),
-        "plugin `chatgpt-plugin` is not available for install in marketplace `codex-curated`"
+        "plugin `provider-plugin` is not available for install in marketplace `codex-curated`"
     );
 }
 

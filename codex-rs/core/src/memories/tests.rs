@@ -18,8 +18,13 @@ use tempfile::tempdir;
 
 #[test]
 fn memory_root_uses_shared_global_path() {
-    let darwin_code_home = AbsolutePathBuf::current_dir().expect("cwd").join("darwin-code");
-    assert_eq!(memory_root(&darwin_code_home), darwin_code_home.join("memories"));
+    let darwin_code_home = AbsolutePathBuf::current_dir()
+        .expect("cwd")
+        .join("darwin_code");
+    assert_eq!(
+        memory_root(&darwin_code_home),
+        darwin_code_home.join("memories")
+    );
 }
 
 #[test]
@@ -346,17 +351,17 @@ async fn rebuild_raw_memories_file_adds_canonical_rollout_summary_file_header() 
         raw_memory: "\
 ---
 description: Added a migration test
-keywords: darwin-code-state, migrations
+keywords: darwin_code-state, migrations
 ---
 ### Task 1: migration-test
 task: add-migration-test
-task_group: darwin-code-state
+task_group: darwin_code-state
 task_outcome: success
 - Added regression coverage for migration uniqueness.
 
 ### Task 2: validate-migration
 task: validate-migration-ordering
-task_group: darwin-code-state
+task_group: darwin_code-state
 task_outcome: success
 - Confirmed no ordering regressions."
             .to_string(),
@@ -409,7 +414,7 @@ task_outcome: success
     assert!(raw_memories.contains("description: Added a migration test"));
     assert!(raw_memories.contains("### Task 1: migration-test"));
     assert!(raw_memories.contains("task: add-migration-test"));
-    assert!(raw_memories.contains("task_group: darwin-code-state"));
+    assert!(raw_memories.contains("task_group: darwin_code-state"));
     assert!(raw_memories.contains("task_outcome: success"));
 }
 
@@ -424,11 +429,11 @@ mod phase2 {
     use crate::memories::rollout_summaries_dir;
     use crate::session::session::Session;
     use crate::session::tests::make_session_and_context;
+    use crate::test_support::ByokTestAuth;
     use chrono::Duration as ChronoDuration;
     use chrono::Utc;
     use darwin_code_config::Constrained;
     use darwin_code_features::Feature;
-    use darwin_code_login::DarwinCodeAuth;
     use darwin_code_protocol::ThreadId;
     use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
     use darwin_code_protocol::permissions::NetworkSandboxPolicy;
@@ -469,11 +474,13 @@ mod phase2 {
 
     impl DispatchHarness {
         async fn new() -> Self {
-            let darwin_code_home = tempfile::tempdir().expect("create temp darwin-code home");
+            let darwin_code_home = tempfile::tempdir().expect("create temp darwin_code home");
             let mut config = test_config().await;
             config.darwin_code_home =
-                darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
-                    .expect("darwin-code home is absolute");
+                darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+                    darwin_code_home.path(),
+                )
+                .expect("darwin_code home is absolute");
             config.cwd = config.darwin_code_home.clone();
             config.permissions.file_system_sandbox_policy = FileSystemSandboxPolicy::unrestricted();
             config.permissions.network_sandbox_policy = NetworkSandboxPolicy::Enabled;
@@ -487,7 +494,7 @@ mod phase2 {
             .expect("initialize state db");
 
             let manager = ThreadManager::with_models_provider_and_home_for_tests(
-                DarwinCodeAuth::from_api_key("dummy"),
+                crate::test_support::ByokTestAuth::from_api_key("dummy"),
                 config.model_provider.clone(),
                 config.darwin_code_home.to_path_buf(),
                 std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -539,7 +546,9 @@ mod phase2 {
                 .await
                 .expect("claim stage-1 job");
             let ownership_token = match claim {
-                darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+                darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => {
+                    ownership_token
+                }
                 other => panic!("unexpected stage-1 claim outcome: {other:?}"),
             };
             assert!(
@@ -703,7 +712,7 @@ mod phase2 {
             }
             other => panic!("unexpected sandbox policy: {other:?}"),
         }
-        let turn_context = subagent.darwin-code.session.new_default_turn().await;
+        let turn_context = subagent.darwin_code.session.new_default_turn().await;
         pretty_assertions::assert_eq!(
             turn_context.file_system_sandbox_policy,
             FileSystemSandboxPolicy::from_legacy_sandbox_policy(
@@ -725,7 +734,11 @@ mod phase2 {
             !turn_context
                 .file_system_sandbox_policy
                 .can_write_path_with_cwd(
-                    harness.config.darwin_code_home.join("config.toml").as_path(),
+                    harness
+                        .config
+                        .darwin_code_home
+                        .join("config.toml")
+                        .as_path(),
                     config_snapshot.cwd.as_path(),
                 ),
             "consolidation subagent should not inherit darwin_code_home write access"
@@ -924,11 +937,13 @@ mod phase2 {
 
     #[tokio::test]
     async fn dispatch_marks_job_for_retry_when_spawn_agent_fails() {
-        let darwin_code_home = tempfile::tempdir().expect("create temp darwin-code home");
+        let darwin_code_home = tempfile::tempdir().expect("create temp darwin_code home");
         let mut config = test_config().await;
         config.darwin_code_home =
-            darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
-                .expect("darwin-code home is absolute");
+            darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+                darwin_code_home.path(),
+            )
+            .expect("darwin_code home is absolute");
         config.cwd = config.darwin_code_home.clone();
         let config = Arc::new(config);
 
@@ -973,7 +988,9 @@ mod phase2 {
             .await
             .expect("claim stage-1 job");
         let ownership_token = match claim {
-            darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+            darwin_code_state::Stage1JobClaimOutcome::Claimed { ownership_token } => {
+                ownership_token
+            }
             other => panic!("unexpected stage-1 claim outcome: {other:?}"),
         };
         assert!(

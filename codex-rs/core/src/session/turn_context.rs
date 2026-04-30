@@ -2,11 +2,8 @@ use super::*;
 use darwin_code_model_provider::SharedModelProvider;
 use darwin_code_model_provider::create_model_provider;
 
-pub(super) fn image_generation_tool_auth_allowed(auth_manager: Option<&AuthManager>) -> bool {
-    matches!(
-        auth_manager.and_then(AuthManager::auth_mode),
-        Some(AuthMode::Chatgpt)
-    )
+pub(super) fn image_generation_tool_auth_allowed() -> bool {
+    false
 }
 
 #[derive(Clone, Debug)]
@@ -31,7 +28,6 @@ pub(crate) struct TurnContext {
     pub(crate) trace_id: Option<String>,
     pub(crate) realtime_active: bool,
     pub(crate) config: Arc<Config>,
-    pub(crate) auth_manager: Option<Arc<AuthManager>>,
     pub(crate) model_info: ModelInfo,
     pub(crate) session_telemetry: SessionTelemetry,
     pub(crate) provider: SharedModelProvider,
@@ -55,7 +51,7 @@ pub(crate) struct TurnContext {
     pub(crate) sandbox_policy: Constrained<SandboxPolicy>,
     pub(crate) file_system_sandbox_policy: FileSystemSandboxPolicy,
     pub(crate) network_sandbox_policy: NetworkSandboxPolicy,
-    pub(crate) network: Option<NetworkProxy>,
+    pub(crate) network: Option<NetworkAccessRuntime>,
     pub(crate) windows_sandbox_level: WindowsSandboxLevel,
     pub(crate) shell_environment_policy: ShellEnvironmentPolicy,
     pub(crate) tools_config: ToolsConfig,
@@ -63,7 +59,7 @@ pub(crate) struct TurnContext {
     pub(crate) ghost_snapshot: GhostSnapshotConfig,
     pub(crate) final_output_json_schema: Option<Value>,
     pub(crate) darwin_code_self_exe: Option<PathBuf>,
-    pub(crate) darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    pub(crate) codex_linux_sandbox_exe: Option<PathBuf>,
     pub(crate) tool_call_gate: Arc<ReadinessFlag>,
     pub(crate) truncation_policy: TruncationPolicy,
     pub(crate) js_repl: Arc<JsReplHandle>,
@@ -80,14 +76,12 @@ impl TurnContext {
         })
     }
 
+    pub(crate) fn auto_compact_token_limit(&self) -> Option<i64> {
+        self.model_info.auto_compact_token_limit()
+    }
+
     pub(crate) fn apps_enabled(&self) -> bool {
-        let is_chatgpt_auth = self
-            .auth_manager
-            .as_deref()
-            .and_then(AuthManager::auth_cached)
-            .as_ref()
-            .is_some_and(DarwinCodeAuth::is_chatgpt_auth);
-        self.features.apps_enabled_for_auth(is_chatgpt_auth)
+        self.features.apps_enabled()
     }
 
     pub(crate) async fn with_model(&self, model: String, models_manager: &ModelsManager) -> Self {
@@ -131,9 +125,7 @@ impl TurnContext {
                 .list_models(RefreshStrategy::OnlineIfUncached)
                 .await,
             features: &features,
-            image_generation_tool_auth_allowed: image_generation_tool_auth_allowed(
-                self.auth_manager.as_deref(),
-            ),
+            image_generation_tool_auth_allowed: image_generation_tool_auth_allowed(),
             web_search_mode: self.tools_config.web_search_mode,
             session_source: self.session_source.clone(),
             sandbox_policy: self.sandbox_policy.get(),
@@ -155,7 +147,6 @@ impl TurnContext {
             trace_id: self.trace_id.clone(),
             realtime_active: self.realtime_active,
             config: Arc::new(config),
-            auth_manager: self.auth_manager.clone(),
             model_info: model_info.clone(),
             session_telemetry: self
                 .session_telemetry
@@ -187,7 +178,7 @@ impl TurnContext {
             ghost_snapshot: self.ghost_snapshot.clone(),
             final_output_json_schema: self.final_output_json_schema.clone(),
             darwin_code_self_exe: self.darwin_code_self_exe.clone(),
-            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.clone(),
             tool_call_gate: Arc::new(ReadinessFlag::new()),
             truncation_policy,
             js_repl: Arc::clone(&self.js_repl),
@@ -332,7 +323,6 @@ impl Session {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn make_turn_context(
         conversation_id: ThreadId,
-        auth_manager: Option<Arc<AuthManager>>,
         session_telemetry: &SessionTelemetry,
         provider: ModelProviderInfo,
         session_configuration: &SessionConfiguration,
@@ -342,7 +332,7 @@ impl Session {
         per_turn_config: Config,
         model_info: ModelInfo,
         models_manager: &ModelsManager,
-        network: Option<NetworkProxy>,
+        network: Option<NetworkAccessRuntime>,
         environment: Option<Arc<Environment>>,
         sub_id: String,
         js_repl: Arc<JsReplHandle>,
@@ -357,10 +347,8 @@ impl Session {
             model_info.slug.as_str(),
         );
         let session_source = session_configuration.session_source.clone();
-        let image_generation_tool_auth_allowed =
-            image_generation_tool_auth_allowed(auth_manager.as_deref());
-        let auth_manager_for_context = auth_manager.clone();
-        let provider_for_context = create_model_provider(provider, auth_manager);
+        let image_generation_tool_auth_allowed = image_generation_tool_auth_allowed();
+        let provider_for_context = create_model_provider(provider);
         let session_telemetry_for_context = session_telemetry;
         let tools_config = ToolsConfig::new(&ToolsConfigParams {
             model_info: &model_info,
@@ -404,7 +392,6 @@ impl Session {
             trace_id: current_span_trace_id(),
             realtime_active: false,
             config: per_turn_config.clone(),
-            auth_manager: auth_manager_for_context,
             model_info: model_info.clone(),
             session_telemetry: session_telemetry_for_context,
             provider: provider_for_context,
@@ -433,7 +420,7 @@ impl Session {
             ghost_snapshot: per_turn_config.ghost_snapshot.clone(),
             final_output_json_schema: None,
             darwin_code_self_exe: per_turn_config.darwin_code_self_exe.clone(),
-            darwin_code_linux_sandbox_exe: per_turn_config.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: per_turn_config.codex_linux_sandbox_exe.clone(),
             tool_call_gate: Arc::new(ReadinessFlag::new()),
             truncation_policy: model_info.truncation_policy.into(),
             js_repl,
@@ -484,7 +471,7 @@ impl Session {
                     id: sub_id.clone(),
                     msg: EventMsg::Error(ErrorEvent {
                         message: err.to_string(),
-                        darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                        codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
                     }),
                 })
                 .await;
@@ -500,7 +487,7 @@ impl Session {
         );
 
         if sandbox_policy_changed {
-            self.refresh_managed_network_proxy_for_current_sandbox_policy()
+            self.refresh_network_policy_for_current_sandbox_policy()
                 .await;
         }
 
@@ -555,7 +542,6 @@ impl Session {
         );
         let mut turn_context: TurnContext = Self::make_turn_context(
             self.conversation_id,
-            Some(Arc::clone(&self.services.auth_manager)),
             &self.services.session_telemetry,
             session_configuration.provider.clone(),
             &session_configuration,
@@ -565,15 +551,7 @@ impl Session {
             per_turn_config,
             model_info,
             &self.services.models_manager,
-            self.services
-                .network_proxy
-                .as_ref()
-                .and_then(|started_proxy| {
-                    Self::managed_network_proxy_active_for_sandbox_policy(
-                        session_configuration.sandbox_policy.get(),
-                    )
-                    .then(|| started_proxy.proxy())
-                }),
+            None,
             self.services.environment.clone(),
             sub_id,
             Arc::clone(&self.js_repl),

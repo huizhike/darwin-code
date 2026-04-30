@@ -265,7 +265,7 @@ mod reload {
         ConfigOverrides {
             cwd: Some(config.cwd.to_path_buf()),
             model_provider: preserve_current_provider.then(|| config.model_provider_id.clone()),
-            darwin_code_linux_sandbox_exe: config.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: config.codex_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
             js_repl_node_path: config.js_repl_node_path.clone(),
             ..Default::default()

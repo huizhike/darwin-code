@@ -4,8 +4,8 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_preserving_symlinks;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::canonicalize_preserving_symlinks;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use schemars::JsonSchema;
@@ -1320,13 +1320,14 @@ fn default_read_only_subpaths_for_writable_root(
         subpaths.push(top_level_agents);
     }
 
-    // Keep top-level project metadata under .codex read-only to the agent by
-    // default. For the workspace root itself, protect it even before the
-    // directory exists so first-time creation still goes through the
-    // protected-path approval flow.
-    let top_level_codex = writable_root.join(".codex");
-    if protect_missing_dot_codex || top_level_codex.as_path().is_dir() {
-        subpaths.push(top_level_codex);
+    // Keep top-level project metadata read-only to the agent by default.
+    // Protect the workspace root metadata even before the directory exists so
+    // first-time creation still goes through the protected-path approval flow.
+    for metadata_dir in [".darwin_code", ".codex"] {
+        let top_level_metadata = writable_root.join(metadata_dir);
+        if protect_missing_dot_codex || top_level_metadata.as_path().is_dir() {
+            subpaths.push(top_level_metadata);
+        }
     }
 
     dedup_absolute_paths(subpaths, /*normalize_effective_paths*/ false)
@@ -1574,6 +1575,13 @@ mod tests {
     #[test]
     fn legacy_workspace_write_projection_accepts_relative_cwd() {
         let relative_cwd = Path::new("workspace");
+        let expected_dot_darwin_code = AbsolutePathBuf::from_absolute_path(
+            std::env::current_dir()
+                .expect("current dir")
+                .join(relative_cwd)
+                .join(".darwin_code"),
+        )
+        .expect("absolute dot darwin_code");
         let expected_dot_codex = AbsolutePathBuf::from_absolute_path(
             std::env::current_dir()
                 .expect("current dir")
@@ -1603,6 +1611,12 @@ mod tests {
                         value: FileSystemSpecialPath::CurrentWorkingDirectory,
                     },
                     access: FileSystemAccessMode::Write,
+                },
+                FileSystemSandboxEntry {
+                    path: FileSystemPath::Path {
+                        path: expected_dot_darwin_code,
+                    },
+                    access: FileSystemAccessMode::Read,
                 },
                 FileSystemSandboxEntry {
                     path: FileSystemPath::Path {

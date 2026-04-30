@@ -21,7 +21,7 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
     let marketplace_root = darwin_code_home.path().join("marketplace");
     let plugin_root = marketplace_root.join("plugins").join("sample");
     std::fs::create_dir_all(marketplace_root.join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
+    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
     std::fs::write(
         marketplace_root.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -38,7 +38,7 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".darwin-code-plugin/plugin.json"),
+        plugin_root.join(".codex-plugin/plugin.json"),
         r#"{"name":"sample","version":"0.1.0"}"#,
     )?;
     std::fs::create_dir_all(darwin_code_home.path().join(".claude"))?;
@@ -54,13 +54,19 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
         }
     });
     std::fs::write(
-        darwin_code_home.path().join(".claude").join("settings.json"),
+        darwin_code_home
+            .path()
+            .join(".claude")
+            .join("settings.json"),
         serde_json::to_string_pretty(&settings)?,
     )?;
 
     let home_dir = darwin_code_home.path().display().to_string();
-    let mut mcp =
-        McpProcess::new_with_env(darwin_code_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("HOME", Some(home_dir.as_str()))],
+    )
+    .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -128,7 +134,10 @@ async fn external_agent_config_import_sends_completion_notification_after_pendin
     let darwin_code_home = TempDir::new()?;
     std::fs::create_dir_all(darwin_code_home.path().join(".claude"))?;
     std::fs::write(
-        darwin_code_home.path().join(".claude").join("settings.json"),
+        darwin_code_home
+            .path()
+            .join(".claude")
+            .join("settings.json"),
         r#"{
   "enabledPlugins": {
     "formatter@acme-tools": true
@@ -142,8 +151,11 @@ async fn external_agent_config_import_sends_completion_notification_after_pendin
     )?;
 
     let home_dir = darwin_code_home.path().display().to_string();
-    let mut mcp =
-        McpProcess::new_with_env(darwin_code_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("HOME", Some(home_dir.as_str()))],
+    )
+    .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

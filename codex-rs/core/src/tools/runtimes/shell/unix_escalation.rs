@@ -38,6 +38,7 @@ use darwin_code_protocol::protocol::GuardianCommandSource;
 use darwin_code_protocol::protocol::NetworkPolicyRuleAction;
 use darwin_code_protocol::protocol::ReviewDecision;
 use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_sandboxing::SandboxCommand;
 use darwin_code_sandboxing::SandboxManager;
 use darwin_code_sandboxing::SandboxTransformRequest;
@@ -124,7 +125,7 @@ pub(super) async fn try_run_zsh_fork(
     };
     let sandbox_exec_request = attempt
         .env_for(command, options, req.network.as_ref())
-        .map_err(|err| ToolError::Darwin-Code(err.into()))?;
+        .map_err(|err| ToolError::DarwinCode(err.into()))?;
     let crate::sandboxing::ExecRequest {
         command,
         cwd: sandbox_cwd,
@@ -162,7 +163,7 @@ pub(super) async fn try_run_zsh_fork(
         windows_sandbox_level,
         arg0,
         sandbox_policy_cwd: ctx.turn.cwd.clone(),
-        darwin_code_linux_sandbox_exe: ctx.turn.darwin_code_linux_sandbox_exe.clone(),
+        codex_linux_sandbox_exe: ctx.turn.codex_linux_sandbox_exe.clone(),
         use_legacy_landlock: ctx.turn.features.use_legacy_landlock(),
     };
     let main_execve_wrapper_exe = ctx
@@ -260,7 +261,7 @@ pub(crate) async fn prepare_unified_exec_zsh_fork(
         windows_sandbox_level: exec_request.windows_sandbox_level,
         arg0: exec_request.arg0.clone(),
         sandbox_policy_cwd: ctx.turn.cwd.clone(),
-        darwin_code_linux_sandbox_exe: ctx.turn.darwin_code_linux_sandbox_exe.clone(),
+        codex_linux_sandbox_exe: ctx.turn.codex_linux_sandbox_exe.clone(),
         use_legacy_landlock: ctx.turn.features.use_legacy_landlock(),
     };
     let escalation_policy = CoreShellActionProvider {
@@ -738,11 +739,11 @@ struct CoreShellCommandExecutor {
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox: SandboxType,
     env: HashMap<String, String>,
-    network: Option<darwin_code_network_proxy::NetworkProxy>,
+    network: Option<NetworkAccessRuntime>,
     windows_sandbox_level: WindowsSandboxLevel,
     arg0: Option<String>,
     sandbox_policy_cwd: AbsolutePathBuf,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
     use_legacy_landlock: bool,
 }
 
@@ -916,10 +917,10 @@ impl CoreShellCommandExecutor {
             file_system_policy: file_system_sandbox_policy,
             network_policy: network_sandbox_policy,
             sandbox,
-            enforce_managed_network: self.network.is_some(),
+            enforce_network_policy: self.network.is_some(),
             network: self.network.as_ref(),
             sandbox_policy_cwd: &self.sandbox_policy_cwd,
-            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.as_deref(),
+            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.as_deref(),
             use_legacy_landlock: self.use_legacy_landlock,
             windows_sandbox_level: self.windows_sandbox_level,
             windows_sandbox_private_desktop: false,
@@ -985,16 +986,20 @@ fn map_exec_result(
     };
 
     if result.timed_out {
-        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Timeout {
-            output: Box::new(output),
-        })));
+        return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+            SandboxErr::Timeout {
+                output: Box::new(output),
+            },
+        )));
     }
 
     if is_likely_sandbox_denied(sandbox, &output) {
-        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
-            output: Box::new(output),
-            network_policy_decision: None,
-        })));
+        return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+            SandboxErr::Denied {
+                output: Box::new(output),
+                network_policy_decision: None,
+            },
+        )));
     }
 
     Ok(output)

@@ -9,8 +9,7 @@ use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_login::default_client::build_reqwest_client;
+use darwin_code_client::build_reqwest_client;
 use darwin_code_protocol::models::MessagePhase;
 use darwin_code_protocol::models::ResponseItem;
 
@@ -102,37 +101,18 @@ pub(crate) async fn monitor_action(
     action: serde_json::Value,
     protection_client_callsite: &'static str,
 ) -> ArcMonitorOutcome {
-    let auth = match turn_context.auth_manager.as_ref() {
-        Some(auth_manager) => match auth_manager.auth().await {
-            Some(auth) if auth.is_chatgpt_auth() => Some(auth),
-            _ => None,
-        },
-        None => None,
-    };
     let token = if let Some(token) = read_non_empty_env_var(DARWIN_CODE_ARC_MONITOR_TOKEN) {
         token
     } else {
-        let Some(auth) = auth.as_ref() else {
-            return ArcMonitorOutcome::Ok;
-        };
-        match auth.get_token() {
-            Ok(token) => token,
-            Err(err) => {
-                warn!(
-                    error = %err,
-                    "skipping safety monitor because auth token is unavailable"
-                );
-                return ArcMonitorOutcome::Ok;
-            }
-        }
+        return ArcMonitorOutcome::Ok;
     };
 
-    let url = read_non_empty_env_var(DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE).unwrap_or_else(|| {
-        format!(
-            "{}/darwin-code/safety/arc",
-            turn_context.config.chatgpt_base_url.trim_end_matches('/')
-        )
-    });
+    let Some(url) = read_non_empty_env_var(DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE) else {
+        warn!(
+            "skipping safety monitor because DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE is not configured"
+        );
+        return ArcMonitorOutcome::Ok;
+    };
     let action = match action {
         serde_json::Value::Object(action) => action,
         _ => {
@@ -143,14 +123,11 @@ pub(crate) async fn monitor_action(
     let body =
         build_arc_monitor_request(sess, turn_context, action, protection_client_callsite).await;
     let client = build_reqwest_client();
-    let mut request = client
+    let request = client
         .post(&url)
         .timeout(ARC_MONITOR_TIMEOUT)
         .json(&body)
         .bearer_auth(token);
-    if let Some(account_id) = auth.as_ref().and_then(DarwinCodeAuth::get_account_id) {
-        request = request.header("chatgpt-account-id", account_id);
-    }
 
     let response = match request.send().await {
         Ok(response) => response,

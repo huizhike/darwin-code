@@ -682,7 +682,7 @@ async fn command_exec_process_ids_are_connection_scoped_and_disconnect_terminate
     let darwin_code_home = TempDir::new()?;
     create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let marker = format!(
-        "darwin-code-command-exec-marker-{}",
+        "darwin_code-command-exec-marker-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_nanos()

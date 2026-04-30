@@ -3,8 +3,21 @@
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use core_test_support::ByokTestAuth;
+use core_test_support::responses;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_custom_tool_call;
+use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_models_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event_with_timeout;
 use darwin_code_exec_server::CreateDirectoryOptions;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_protocol::config_types::ReasoningSummary;
 use darwin_code_protocol::openai_models::ConfigShellToolType;
 use darwin_code_protocol::openai_models::InputModality;
@@ -19,19 +32,6 @@ use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::responses;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_custom_tool_call;
-use core_test_support::responses::ev_function_call;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_models_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event_with_timeout;
 use image::DynamicImage;
 use image::GenericImageView;
 use image::ImageBuffer;
@@ -85,7 +85,10 @@ fn png_bytes(width: u32, height: u32, rgba: [u8; 4]) -> anyhow::Result<Vec<u8>> 
     Ok(cursor.into_inner())
 }
 
-async fn create_workspace_directory(test: &TestDarwinCode, rel_path: &str) -> anyhow::Result<PathBuf> {
+async fn create_workspace_directory(
+    test: &TestDarwinCode,
+    rel_path: &str,
+) -> anyhow::Result<PathBuf> {
     let abs_path = test.config.cwd.join(rel_path);
     test.fs()
         .create_directory(
@@ -137,7 +140,7 @@ async fn assert_user_turn_local_image_resizes_to(
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -158,7 +161,7 @@ async fn assert_user_turn_local_image_resizes_to(
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::LocalImage {
                 path: abs_path.clone(),
@@ -178,7 +181,7 @@ async fn assert_user_turn_local_image_resizes_to(
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         // Empirically, image attachment can be slow under Bazel/RBE.
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
@@ -239,7 +242,7 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         session_configured,
         config,
         ..
@@ -277,7 +280,7 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please add the screenshot".into(),
@@ -299,7 +302,7 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
 
     let mut tool_event = None;
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| match event {
             EventMsg::ViewImageToolCall(_) => {
                 tool_event = Some(event.clone());
@@ -372,7 +375,7 @@ async fn view_image_tool_can_preserve_original_resolution_when_requested_on_gpt5
     let mut builder = test_darwin_code().with_model("gpt-5.3-darwin-code");
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -408,7 +411,7 @@ async fn view_image_tool_can_preserve_original_resolution_when_requested_on_gpt5
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please add the original screenshot".into(),
@@ -429,7 +432,7 @@ async fn view_image_tool_can_preserve_original_resolution_when_requested_on_gpt5
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -473,7 +476,7 @@ async fn view_image_tool_errors_clearly_for_unsupported_detail_values() -> anyho
     let mut builder = test_darwin_code().with_model("gpt-5.3-darwin-code");
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -507,7 +510,7 @@ async fn view_image_tool_errors_clearly_for_unsupported_detail_values() -> anyho
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please attach the image at low detail".into(),
@@ -528,7 +531,7 @@ async fn view_image_tool_errors_clearly_for_unsupported_detail_values() -> anyho
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -561,7 +564,7 @@ async fn view_image_tool_treats_null_detail_as_omitted() -> anyhow::Result<()> {
     let mut builder = test_darwin_code().with_model("gpt-5.3-darwin-code");
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -597,7 +600,7 @@ async fn view_image_tool_treats_null_detail_as_omitted() -> anyhow::Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please attach the image with a null detail".into(),
@@ -618,7 +621,7 @@ async fn view_image_tool_treats_null_detail_as_omitted() -> anyhow::Result<()> {
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -658,7 +661,7 @@ async fn view_image_tool_resizes_when_model_lacks_original_detail_support() -> a
     let mut builder = test_darwin_code().with_model("gpt-5.2");
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -694,7 +697,7 @@ async fn view_image_tool_resizes_when_model_lacks_original_detail_support() -> a
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please add the screenshot".into(),
@@ -715,7 +718,7 @@ async fn view_image_tool_resizes_when_model_lacks_original_detail_support() -> a
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -759,7 +762,7 @@ async fn view_image_tool_does_not_force_original_resolution_with_capability_only
     let mut builder = test_darwin_code().with_model("gpt-5.3-darwin-code");
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -795,7 +798,7 @@ async fn view_image_tool_does_not_force_original_resolution_with_capability_only
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please add the screenshot".into(),
@@ -816,7 +819,7 @@ async fn view_image_tool_does_not_force_original_resolution_with_capability_only
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -860,7 +863,7 @@ async fn js_repl_emit_image_attaches_local_image() -> anyhow::Result<()> {
             .expect("test config should allow feature update");
     });
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         ..
@@ -870,14 +873,14 @@ async fn js_repl_emit_image_attaches_local_image() -> anyhow::Result<()> {
     let js_input = r#"
 const fs = await import("node:fs/promises");
 const path = await import("node:path");
-const imagePath = path.join(darwin-code.tmpDir, "js-repl-view-image.png");
+const imagePath = path.join(darwin_code.tmpDir, "js-repl-view-image.png");
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
 await fs.writeFile(imagePath, png);
-const out = await darwin-code.tool("view_image", { path: imagePath });
-await darwin-code.emitImage(out);
+const out = await darwin_code.tool("view_image", { path: imagePath });
+await darwin_code.emitImage(out);
 "#;
 
     let first_response = sse(vec![
@@ -894,7 +897,7 @@ await darwin-code.emitImage(out);
     let mock = responses::mount_sse_once(&server, second_response).await;
 
     let session_model = session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "use js_repl to write an image and attach it".into(),
@@ -916,7 +919,7 @@ await darwin-code.emitImage(out);
 
     let mut tool_event = None;
     wait_for_event_with_timeout(
-        &darwin-code,
+        &darwin_code,
         |event| match event {
             EventMsg::ViewImageToolCall(_) => {
                 tool_event = Some(event.clone());
@@ -980,7 +983,7 @@ async fn js_repl_view_image_requires_explicit_emit() -> anyhow::Result<()> {
             .expect("test config should allow feature update");
     });
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         ..
@@ -990,13 +993,13 @@ async fn js_repl_view_image_requires_explicit_emit() -> anyhow::Result<()> {
     let js_input = r#"
 const fs = await import("node:fs/promises");
 const path = await import("node:path");
-const imagePath = path.join(darwin-code.tmpDir, "js-repl-view-image-no-emit.png");
+const imagePath = path.join(darwin_code.tmpDir, "js-repl-view-image-no-emit.png");
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
   "base64"
 );
 await fs.writeFile(imagePath, png);
-const out = await darwin-code.tool("view_image", { path: imagePath });
+const out = await darwin_code.tool("view_image", { path: imagePath });
 console.log(out.type);
 "#;
 
@@ -1014,7 +1017,7 @@ console.log(out.type);
     let mock = responses::mount_sse_once(&server, second_response).await;
 
     let session_model = session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "use js_repl to write an image but do not emit it".into(),
@@ -1036,7 +1039,7 @@ console.log(out.type);
 
     let mut tool_event = None;
     wait_for_event_with_timeout(
-        &darwin-code,
+        &darwin_code,
         |event| match event {
             EventMsg::ViewImageToolCall(_) => {
                 tool_event = Some(event.clone());
@@ -1080,7 +1083,7 @@ async fn view_image_tool_errors_when_path_is_directory() -> anyhow::Result<()> {
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1107,7 +1110,7 @@ async fn view_image_tool_errors_when_path_is_directory() -> anyhow::Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please attach the folder".into(),
@@ -1128,7 +1131,7 @@ async fn view_image_tool_errors_when_path_is_directory() -> anyhow::Result<()> {
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -1160,7 +1163,7 @@ async fn view_image_tool_errors_for_non_image_files() -> anyhow::Result<()> {
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1188,7 +1191,7 @@ async fn view_image_tool_errors_for_non_image_files() -> anyhow::Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please use the view_image tool to read the json file".into(),
@@ -1209,7 +1212,7 @@ async fn view_image_tool_errors_for_non_image_files() -> anyhow::Result<()> {
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -1247,7 +1250,7 @@ async fn view_image_tool_errors_when_file_missing() -> anyhow::Result<()> {
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1274,7 +1277,7 @@ async fn view_image_tool_errors_when_file_missing() -> anyhow::Result<()> {
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please attach the missing image".into(),
@@ -1295,7 +1298,7 @@ async fn view_image_tool_errors_when_file_missing() -> anyhow::Result<()> {
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -1378,12 +1381,16 @@ async fn view_image_tool_returns_unsupported_message_for_text_only_model() -> an
     .await;
 
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_config(|config| {
             config.model = Some(model_slug.to_string());
         });
     let test = builder.build_remote_aware(&server).await?;
-    let TestDarwinCode { darwin-code, config, .. } = &test;
+    let TestDarwinCode {
+        darwin_code,
+        config,
+        ..
+    } = &test;
 
     let rel_path = "assets/example.png";
     write_workspace_png(
@@ -1410,7 +1417,7 @@ async fn view_image_tool_returns_unsupported_message_for_text_only_model() -> an
     ]);
     let mock = responses::mount_sse_once(&server, second_response).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please attach the image".into(),
@@ -1431,7 +1438,7 @@ async fn view_image_tool_returns_unsupported_message_for_text_only_model() -> an
         .await?;
 
     wait_for_event_with_timeout(
-        darwin-code,
+        darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )
@@ -1480,7 +1487,7 @@ async fn replaces_invalid_local_image_after_bad_request() -> anyhow::Result<()> 
     let mut builder = test_darwin_code();
     let test = builder.build_remote_aware(&server).await?;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1491,7 +1498,7 @@ async fn replaces_invalid_local_image_after_bad_request() -> anyhow::Result<()> 
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::LocalImage {
                 path: abs_path.clone(),
@@ -1511,7 +1518,7 @@ async fn replaces_invalid_local_image_after_bad_request() -> anyhow::Result<()> 
         .await?;
 
     wait_for_event_with_timeout(
-        &darwin-code,
+        &darwin_code,
         |event| matches!(event, EventMsg::TurnComplete(_)),
         VIEW_IMAGE_TURN_COMPLETE_TIMEOUT,
     )

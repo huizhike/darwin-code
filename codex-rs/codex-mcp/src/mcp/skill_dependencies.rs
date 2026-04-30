@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_protocol::protocol::SkillMetadata;
-use codex_protocol::protocol::SkillToolDependency;
+use darwin_code_config::McpServerConfig;
+use darwin_code_config::McpServerTransportConfig;
+use darwin_code_protocol::protocol::SkillMetadata;
+use darwin_code_protocol::protocol::SkillToolDependency;
 use tracing::warn;
 
 pub fn collect_missing_mcp_dependencies(

@@ -66,13 +66,15 @@ fn pipes_stdin_and_stdout_through_socket() -> anyhow::Result<()> {
     });
 
     let stdin = std::fs::File::open(&request_path).context("failed to open child stdin fixture")?;
-    let mut child = Command::new(codex_utils_cargo_bin::cargo_bin("codex-stdio-to-uds")?)
-        .arg(&socket_path)
-        .stdin(Stdio::from(stdin))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("failed to spawn codex-stdio-to-uds")?;
+    let mut child = Command::new(darwin_code_utils_cargo_bin::cargo_bin(
+        "darwin-code-stdio-to-uds",
+    )?)
+    .arg(&socket_path)
+    .stdin(Stdio::from(stdin))
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .spawn()
+    .context("failed to spawn darwin-code-stdio-to-uds")?;
 
     let mut child_stdout = child.stdout.take().context("missing child stdout")?;
     let mut child_stderr = child.stderr.take().context("missing child stderr")?;
@@ -108,7 +110,7 @@ fn pipes_stdin_and_stdout_through_socket() -> anyhow::Result<()> {
                 .context("timed out waiting for child stderr after kill")?
                 .context("failed to read child stderr")?;
             anyhow::bail!(
-                "codex-stdio-to-uds did not exit in time; server events: {:?}; stderr: {}",
+                "darwin-code-stdio-to-uds did not exit in time; server events: {:?}; stderr: {}",
                 server_events,
                 String::from_utf8_lossy(&stderr).trim_end()
             );
@@ -127,7 +129,7 @@ fn pipes_stdin_and_stdout_through_socket() -> anyhow::Result<()> {
         .context("failed to read child stderr")?;
     assert!(
         status.success(),
-        "codex-stdio-to-uds exited with {status}; server events: {:?}; stderr: {}",
+        "darwin-code-stdio-to-uds exited with {status}; server events: {:?}; stderr: {}",
         server_events,
         String::from_utf8_lossy(&stderr).trim_end()
     );

@@ -1,6 +1,6 @@
-use codex_rollout::RolloutConfig;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::parse_cursor;
+use darwin_code_rollout::RolloutConfig;
+use darwin_code_rollout::RolloutRecorder;
+use darwin_code_rollout::parse_cursor;
 
 use super::LocalThreadStore;
 use super::helpers::stored_thread_from_rollout_item;
@@ -25,12 +25,12 @@ pub(super) async fn list_threads(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => codex_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => codex_rollout::ThreadSortKey::UpdatedAt,
+        ThreadSortKey::CreatedAt => darwin_code_rollout::ThreadSortKey::CreatedAt,
+        ThreadSortKey::UpdatedAt => darwin_code_rollout::ThreadSortKey::UpdatedAt,
     };
     let sort_direction = match params.sort_direction {
-        SortDirection::Asc => codex_rollout::SortDirection::Asc,
-        SortDirection::Desc => codex_rollout::SortDirection::Desc,
+        SortDirection::Asc => darwin_code_rollout::SortDirection::Asc,
+        SortDirection::Desc => darwin_code_rollout::SortDirection::Desc,
     };
     let page = list_rollout_threads(
         &store.config,
@@ -64,10 +64,10 @@ pub(super) async fn list_threads(
 async fn list_rollout_threads(
     config: &RolloutConfig,
     params: &ListThreadsParams,
-    cursor: Option<&codex_rollout::Cursor>,
-    sort_key: codex_rollout::ThreadSortKey,
-    sort_direction: codex_rollout::SortDirection,
-) -> ThreadStoreResult<codex_rollout::ThreadsPage> {
+    cursor: Option<&darwin_code_rollout::Cursor>,
+    sort_key: darwin_code_rollout::ThreadSortKey,
+    sort_direction: darwin_code_rollout::SortDirection,
+) -> ThreadStoreResult<darwin_code_rollout::ThreadsPage> {
     let page = if params.archived {
         RolloutRecorder::list_archived_threads(
             config,
@@ -103,8 +103,8 @@ async fn list_rollout_threads(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::fs;
     use tempfile::TempDir;
@@ -160,7 +160,7 @@ mod tests {
         let rollout_path = home.path().join("rollout-title-search.jsonl");
         fs::write(&rollout_path, "").expect("placeholder rollout file");
 
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.model_provider_id.clone(),
         )
@@ -171,7 +171,7 @@ mod tests {
             .await
             .expect("backfill should be complete");
         let created_at = Utc::now();
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
             thread_id,
             rollout_path,
             created_at,

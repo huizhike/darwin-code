@@ -211,7 +211,8 @@ impl ToolHandler for UnifiedExecHandler {
                     turn.tools_config.allow_login_shell,
                 )
                 .map_err(FunctionCallError::RespondToModel)?;
-                let command_for_display = darwin_code_shell_command::parse_command::shlex_join(&command);
+                let command_for_display =
+                    darwin_code_shell_command::parse_command::shlex_join(&command);
 
                 let ExecCommandArgs {
                     workdir,

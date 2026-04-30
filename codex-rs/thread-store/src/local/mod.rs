@@ -8,7 +8,7 @@ mod unarchive_thread;
 mod test_support;
 
 use async_trait::async_trait;
-use codex_rollout::RolloutConfig;
+use darwin_code_rollout::RolloutConfig;
 
 use crate::AppendThreadItemsParams;
 use crate::ArchiveThreadParams;

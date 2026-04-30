@@ -1,16 +1,32 @@
-use darwin_code_config::types::AuthCredentialsStoreMode;
+use core_test_support::ByokTestAuth;
+use core_test_support::PathBufExt;
+use core_test_support::apps_test_server::AppsTestServer;
+use core_test_support::load_default_config_for_test;
+use core_test_support::responses::ResponsesRequest;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_completed_with_tokens;
+use core_test_support::responses::ev_message_item_added;
+use core_test_support::responses::ev_output_text_delta;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_chat_completions_sse_once;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_once_match;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::sse;
+use core_test_support::responses::sse_failed;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
+use darwin_code_client::originator;
 use darwin_code_core::ModelClient;
 use darwin_code_core::NewThread;
 use darwin_code_core::Prompt;
 use darwin_code_core::ResponseEvent;
 use darwin_code_core::ThreadManager;
 use darwin_code_features::Feature;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_login::default_client::originator;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
-use darwin_code_model_provider_info::built_in_model_providers;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_otel::SessionTelemetry;
@@ -44,24 +60,6 @@ use darwin_code_protocol::protocol::SessionMeta;
 use darwin_code_protocol::protocol::SessionMetaLine;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::PathBufExt;
-use core_test_support::apps_test_server::AppsTestServer;
-use core_test_support::load_default_config_for_test;
-use core_test_support::responses::ResponsesRequest;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_completed_with_tokens;
-use core_test_support::responses::ev_message_item_added;
-use core_test_support::responses::ev_output_text_delta;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_once_match;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::sse;
-use core_test_support::responses::sse_failed;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use dunce::canonicalize as normalize_path;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
@@ -105,153 +103,6 @@ fn message_input_text_contains(request: &ResponsesRequest, role: &str, needle: &
         .any(|text| text.contains(needle))
 }
 
-/// Writes an `auth.json` into the provided `darwin_code_home` with the specified parameters.
-/// Returns the fake JWT string written to `tokens.id_token`.
-#[expect(clippy::unwrap_used)]
-fn write_auth_json(
-    darwin_code_home: &TempDir,
-    openai_api_key: Option<&str>,
-    chatgpt_plan_type: &str,
-    access_token: &str,
-    account_id: Option<&str>,
-) -> String {
-    use base64::Engine as _;
-
-    let header = json!({ "alg": "none", "typ": "JWT" });
-    let payload = json!({
-        "email": "user@example.com",
-        "https://api.openai.com/auth": {
-            "chatgpt_plan_type": chatgpt_plan_type,
-            "chatgpt_account_id": account_id.unwrap_or("acc-123")
-        }
-    });
-
-    let b64 = |b: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b);
-    let header_b64 = b64(&serde_json::to_vec(&header).unwrap());
-    let payload_b64 = b64(&serde_json::to_vec(&payload).unwrap());
-    let signature_b64 = b64(b"sig");
-    let fake_jwt = format!("{header_b64}.{payload_b64}.{signature_b64}");
-
-    let mut tokens = json!({
-        "id_token": fake_jwt,
-        "access_token": access_token,
-        "refresh_token": "refresh-test",
-    });
-    if let Some(acc) = account_id {
-        tokens["account_id"] = json!(acc);
-    }
-
-    let auth_json = json!({
-        "OPENAI_API_KEY": openai_api_key,
-        "tokens": tokens,
-        // RFC3339 datetime; value doesn't matter for these tests
-        "last_refresh": chrono::Utc::now(),
-    });
-
-    std::fs::write(
-        darwin_code_home.path().join("auth.json"),
-        serde_json::to_string_pretty(&auth_json).unwrap(),
-    )
-    .unwrap();
-
-    fake_jwt
-}
-
-struct ProviderAuthCommandFixture {
-    tempdir: TempDir,
-    command: String,
-    args: Vec<String>,
-}
-
-impl ProviderAuthCommandFixture {
-    fn new(tokens: &[&str]) -> std::io::Result<Self> {
-        let tempdir = tempfile::tempdir()?;
-        let tokens_file = tempdir.path().join("tokens.txt");
-        let mut token_file_contents = String::new();
-        for token in tokens {
-            token_file_contents.push_str(token);
-            token_file_contents.push('\n');
-        }
-        std::fs::write(&tokens_file, token_file_contents)?;
-
-        #[cfg(unix)]
-        let (command, args) = {
-            let script_path = tempdir.path().join("print-token.sh");
-            std::fs::write(
-                &script_path,
-                r#"#!/bin/sh
-first_line=$(sed -n '1p' tokens.txt)
-printf '%s\n' "$first_line"
-tail -n +2 tokens.txt > tokens.next
-mv tokens.next tokens.txt
-"#,
-            )?;
-            let mut permissions = std::fs::metadata(&script_path)?.permissions();
-            {
-                use std::os::unix::fs::PermissionsExt;
-                permissions.set_mode(0o755);
-            }
-            std::fs::set_permissions(&script_path, permissions)?;
-            ("./print-token.sh".to_string(), Vec::new())
-        };
-
-        #[cfg(windows)]
-        let (command, args) = {
-            let script_path = tempdir.path().join("print-token.cmd");
-            std::fs::write(
-                &script_path,
-                r#"@echo off
-setlocal EnableExtensions DisableDelayedExpansion
-
-set "first_line="
-<tokens.txt set /p first_line=
-if not defined first_line exit /b 1
-
-echo(%first_line%
-more +1 tokens.txt > tokens.next
-move /y tokens.next tokens.txt >nul
-"#,
-            )?;
-            (
-                "cmd.exe".to_string(),
-                vec![
-                    "/D".to_string(),
-                    "/Q".to_string(),
-                    "/C".to_string(),
-                    ".\\print-token.cmd".to_string(),
-                ],
-            )
-        };
-
-        Ok(Self {
-            tempdir,
-            command,
-            args,
-        })
-    }
-
-    fn auth(&self) -> ModelProviderAuthInfo {
-        ModelProviderAuthInfo {
-            command: self.command.clone(),
-            args: self.args.clone(),
-            // Match the model-provider default to avoid brittle shell-startup timing in CI.
-            timeout_ms: non_zero_u64(/*value*/ 5_000),
-            refresh_interval_ms: 60_000,
-            cwd: match darwin_code_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path()) {
-                Ok(cwd) => cwd,
-                Err(err) => panic!("tempdir should be absolute: {err}"),
-            },
-        }
-    }
-}
-
-fn non_zero_u64(value: u64) -> NonZeroU64 {
-    match NonZeroU64::new(value) {
-        Some(value) => value,
-        None => panic!("expected non-zero value: {value}"),
-    }
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn resume_includes_initial_messages_and_sends_prior_items() {
     skip_if_no_network!();
@@ -289,6 +140,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let prior_user_json = serde_json::to_value(&prior_user).unwrap();
     writeln!(
@@ -311,6 +163,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let prior_system_json = serde_json::to_value(&prior_system).unwrap();
     writeln!(
@@ -333,6 +186,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         }],
         end_turn: None,
         phase: Some(MessagePhase::Commentary),
+        reasoning_content: None,
     };
     let prior_item_json = serde_json::to_value(&prior_item).unwrap();
     writeln!(
@@ -355,7 +209,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     )
     .await;
 
-    // Configure Darwin-Code to resume from our file
+    // Configure DarwinCode to resume from our file
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
     let mut builder = test_darwin_code()
         .with_home(darwin_code_home.clone())
@@ -367,7 +221,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         .resume(&server, darwin_code_home, session_path.clone())
         .await
         .expect("resume conversation");
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let session_configured = test.session_configured;
 
     // 1) Assert initial_messages only includes existing EventMsg entries; response items are not converted
@@ -380,7 +234,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     assert_eq!(initial_json, expected_initial_json);
 
     // 2) Submit new input; the request body must include the prior items, then initial context, then new user input.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -391,7 +245,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -514,6 +368,7 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }),
         },
     ];
@@ -735,15 +590,15 @@ async fn includes_conversation_id_and_model_headers_in_request() {
     )
     .await;
 
-    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::from_api_key("Test API Key"));
+    let mut builder = test_darwin_code().with_auth(ByokTestAuth::from_api_key("Test API Key"));
     let test = builder
         .build(&server)
         .await
         .expect("create new conversation");
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let session_id = test.session_configured.session_id;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -755,7 +610,7 @@ async fn includes_conversation_id_and_model_headers_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert_eq!(request.path(), "/v1/responses");
@@ -773,151 +628,9 @@ async fn includes_conversation_id_and_model_headers_in_request() {
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Test API Key");
     assert_eq!(
-        request_body["client_metadata"]["x-darwin-code-installation-id"].as_str(),
+        request_body["client_metadata"]["x-darwin_code-installation-id"].as_str(),
         Some(installation_id.as_str())
     );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn provider_auth_command_supplies_bearer_token() {
-    skip_if_no_network!();
-
-    let server = MockServer::start().await;
-    mount_sse_once_match(
-        &server,
-        header("authorization", "Bearer command-token"),
-        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-    )
-    .await;
-    let auth_fixture = ProviderAuthCommandFixture::new(&["command-token"]).unwrap();
-
-    send_provider_auth_request(&server, auth_fixture.auth()).await;
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn provider_auth_command_refreshes_after_401() {
-    skip_if_no_network!();
-
-    let server = MockServer::start().await;
-    let auth_fixture = ProviderAuthCommandFixture::new(&["first-token", "second-token"]).unwrap();
-
-    Mock::given(method("POST"))
-        .and(path("/v1/responses"))
-        .and(header_regex("Authorization", "Bearer first-token"))
-        .respond_with(ResponseTemplate::new(401).set_body_string("unauthorized"))
-        .expect(1)
-        .mount(&server)
-        .await;
-    Mock::given(method("POST"))
-        .and(path("/v1/responses"))
-        .and(header_regex("Authorization", "Bearer second-token"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .insert_header("content-type", "text/event-stream")
-                .set_body_raw(
-                    sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-                    "text/event-stream",
-                ),
-        )
-        .expect(1)
-        .mount(&server)
-        .await;
-
-    send_provider_auth_request(&server, auth_fixture.auth()).await;
-}
-
-/// Issues one streamed Responses request through a provider configured with command-backed auth.
-///
-/// The caller owns the server-side assertions, so this helper only validates that the request
-/// reaches `Completed` without surfacing an auth or transport error to the client.
-#[expect(clippy::expect_used, clippy::unwrap_used)]
-async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuthInfo) {
-    let provider = ModelProviderInfo {
-        name: "corp".into(),
-        base_url: Some(format!("{}/v1", server.uri())),
-        env_key: None,
-        env_key_instructions: None,
-        experimental_bearer_token: None,
-        auth: Some(auth),
-        wire_api: WireApi::Responses,
-        query_params: None,
-        http_headers: None,
-        env_http_headers: None,
-        request_max_retries: Some(0),
-        stream_max_retries: Some(0),
-        stream_idle_timeout_ms: Some(5_000),
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
-    };
-
-    let darwin_code_home = TempDir::new().unwrap();
-    let mut config = load_default_config_for_test(&darwin_code_home).await;
-    config.model_provider_id = provider.name.clone();
-    config.model_provider = provider.clone();
-    let effort = config.model_reasoning_effort;
-    let summary = config.model_reasoning_summary;
-    let model = darwin_code_core::test_support::get_model_offline(config.model.as_deref());
-    config.model = Some(model.clone());
-    let config = Arc::new(config);
-    let model_info =
-        darwin_code_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let conversation_id = ThreadId::new();
-    let session_telemetry = SessionTelemetry::new(
-        conversation_id,
-        model.as_str(),
-        model_info.slug.as_str(),
-        /*account_id*/ None,
-        Some("test@test.com".to_string()),
-        /*auth_mode*/ None,
-        "test_originator".to_string(),
-        /*log_user_prompts*/ false,
-        "test".to_string(),
-        SessionSource::Exec,
-    );
-    let client = ModelClient::new(
-        Some(AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key(
-            "unused-api-key",
-        ))),
-        conversation_id,
-        /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        provider,
-        SessionSource::Exec,
-        config.model_verbosity,
-        /*enable_request_compression*/ false,
-        /*include_timing_metrics*/ false,
-        /*beta_features_header*/ None,
-    );
-    let mut client_session = client.new_session();
-    let mut prompt = Prompt::default();
-    prompt.input.push(ResponseItem::Message {
-        id: None,
-        role: "user".to_string(),
-        content: vec![ContentItem::InputText {
-            text: "hello".to_string(),
-        }],
-        end_turn: None,
-        phase: None,
-    });
-
-    let mut stream = client_session
-        .stream(
-            &prompt,
-            &model_info,
-            &session_telemetry,
-            effort,
-            summary.unwrap_or(ReasoningSummary::Auto),
-            /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
-        )
-        .await
-        .expect("responses stream to start");
-
-    while let Some(event) = stream.next().await {
-        if let Ok(ResponseEvent::Completed { .. }) = event {
-            break;
-        }
-    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -932,17 +645,17 @@ async fn includes_base_instructions_override_in_request() {
     .await;
 
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
+        .with_auth(ByokTestAuth::from_api_key("Test API Key"))
         .with_config(|config| {
             config.base_instructions = Some("test instructions".to_string());
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -954,7 +667,7 @@ async fn includes_base_instructions_override_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -965,164 +678,6 @@ async fn includes_base_instructions_override_in_request() {
             .unwrap()
             .contains("test instructions")
     );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn chatgpt_auth_sends_correct_request() {
-    skip_if_no_network!();
-
-    // Mock server
-    let server = MockServer::start().await;
-
-    let resp_mock = mount_sse_once(
-        &server,
-        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-    )
-    .await;
-
-    let mut model_provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
-    model_provider.base_url = Some(format!("{}/api/darwin-code", server.uri()));
-    model_provider.supports_websockets = false;
-    let mut builder = test_darwin_code()
-        .with_auth(create_dummy_darwin_code_auth())
-        .with_config(move |config| {
-            config.model_provider = model_provider;
-        });
-    let test = builder
-        .build(&server)
-        .await
-        .expect("create new conversation");
-    let darwin-code = test.darwin-code.clone();
-    let thread_id = test.session_configured.session_id;
-
-    darwin-code
-        .submit(Op::UserInput {
-            items: vec![UserInput::Text {
-                text: "hello".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            responsesapi_client_metadata: None,
-        })
-        .await
-        .unwrap();
-
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-    let request = resp_mock.single_request();
-    assert_eq!(request.path(), "/api/darwin-code/responses");
-    let request_authorization = request
-        .header("authorization")
-        .expect("authorization header");
-    let request_originator = request.header("originator").expect("originator header");
-    let request_chatgpt_account_id = request
-        .header("chatgpt-account-id")
-        .expect("chatgpt-account-id header");
-    let request_body = request.body_json();
-
-    let session_id = request.header("session_id").expect("session_id header");
-    let installation_id =
-        std::fs::read_to_string(test.darwin_code_home_path().join(INSTALLATION_ID_FILENAME))
-            .expect("read installation id");
-    assert_eq!(session_id, thread_id.to_string());
-
-    assert_eq!(request_originator, originator().value);
-    assert_eq!(request_authorization, "Bearer Access Token");
-    assert_eq!(request_chatgpt_account_id, "account_id");
-    assert_eq!(
-        request_body["client_metadata"]["x-darwin-code-installation-id"].as_str(),
-        Some(installation_id.as_str())
-    );
-    assert!(request_body["stream"].as_bool().unwrap());
-    assert_eq!(
-        request_body["include"][0].as_str().unwrap(),
-        "reasoning.encrypted_content"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
-    skip_if_no_network!();
-
-    // Mock server
-    let server = MockServer::start().await;
-
-    let first = ResponseTemplate::new(200)
-        .insert_header("content-type", "text/event-stream")
-        .set_body_raw(
-            sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-            "text/event-stream",
-        );
-
-    // Expect API key header, no ChatGPT account header required.
-    Mock::given(method("POST"))
-        .and(path("/v1/responses"))
-        .and(header_regex("Authorization", r"Bearer sk-test-key"))
-        .respond_with(first)
-        .expect(1)
-        .mount(&server)
-        .await;
-
-    let model_provider = ModelProviderInfo {
-        base_url: Some(format!("{}/v1", server.uri())),
-        supports_websockets: false,
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
-    };
-
-    // Init session
-    let darwin_code_home = TempDir::new().unwrap();
-    // Write auth.json that contains both API key and ChatGPT tokens for a plan that should prefer ChatGPT,
-    // but config will force API key preference.
-    let _jwt = write_auth_json(
-        &darwin_code_home,
-        Some("sk-test-key"),
-        "pro",
-        "Access-123",
-        Some("acc-123"),
-    );
-
-    let mut config = load_default_config_for_test(&darwin_code_home).await;
-    config.model_provider = model_provider;
-
-    let auth_manager =
-        match DarwinCodeAuth::from_auth_storage(darwin_code_home.path(), AuthCredentialsStoreMode::File) {
-            Ok(Some(auth)) => darwin_code_core::test_support::auth_manager_from_auth(auth),
-            Ok(None) => panic!("No DarwinCodeAuth found in darwin_code_home"),
-            Err(e) => panic!("Failed to load DarwinCodeAuth: {e}"),
-        };
-    let thread_manager = ThreadManager::new(
-        &config,
-        auth_manager,
-        SessionSource::Exec,
-        CollaborationModesConfig {
-            default_mode_request_user_input: config
-                .features
-                .enabled(Feature::DefaultModeRequestUserInput),
-        },
-        Arc::new(darwin_code_exec_server::EnvironmentManager::new(
-            /*exec_server_url*/ None,
-        )),
-        /*analytics_events_client*/ None,
-    );
-    let NewThread { thread: darwin-code, .. } = thread_manager
-        .start_thread(config)
-        .await
-        .expect("create new conversation");
-
-    darwin-code
-        .submit(Op::UserInput {
-            items: vec![UserInput::Text {
-                text: "hello".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            responsesapi_client_metadata: None,
-        })
-        .await
-        .unwrap();
-
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1137,17 +692,17 @@ async fn includes_user_instructions_message_in_request() {
     .await;
 
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
+        .with_auth(ByokTestAuth::from_api_key("Test API Key"))
         .with_config(|config| {
             config.user_instructions = Some("be nice".to_string());
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1159,7 +714,7 @@ async fn includes_user_instructions_message_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1204,176 +759,6 @@ async fn includes_user_instructions_message_in_request() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn includes_apps_guidance_as_developer_message_for_chatgpt_auth() {
-    skip_if_no_network!();
-    let server = MockServer::start().await;
-    let apps_server = AppsTestServer::mount(&server)
-        .await
-        .expect("mount apps MCP mock");
-    let apps_base_url = apps_server.chatgpt_base_url.clone();
-
-    let resp_mock = mount_sse_once(
-        &server,
-        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-    )
-    .await;
-
-    let mut builder = test_darwin_code()
-        .with_auth(create_dummy_darwin_code_auth())
-        .with_config(move |config| {
-            config
-                .features
-                .enable(Feature::Apps)
-                .expect("test config should allow feature update");
-            config.chatgpt_base_url = apps_base_url;
-        });
-    let darwin-code = builder
-        .build(&server)
-        .await
-        .expect("create new conversation")
-        .darwin-code;
-
-    darwin-code
-        .submit(Op::UserInput {
-            items: vec![UserInput::Text {
-                text: "hello".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            responsesapi_client_metadata: None,
-        })
-        .await
-        .unwrap();
-
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-    let request = resp_mock.single_request();
-    let apps_snippet =
-        "Apps (Connectors) can be explicitly triggered in user messages in the format";
-
-    assert!(
-        message_input_text_contains(&request, "developer", apps_snippet),
-        "expected apps guidance in a developer message, got {:?}",
-        request.body_json()["input"]
-    );
-
-    assert!(
-        !message_input_text_contains(&request, "user", apps_snippet),
-        "did not expect apps guidance in user messages, got {:?}",
-        request.body_json()["input"]
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn omits_apps_guidance_for_api_key_auth_even_when_feature_enabled() {
-    skip_if_no_network!();
-    let server = MockServer::start().await;
-    let apps_server = AppsTestServer::mount(&server)
-        .await
-        .expect("mount apps MCP mock");
-    let apps_base_url = apps_server.chatgpt_base_url.clone();
-
-    let resp_mock = mount_sse_once(
-        &server,
-        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-    )
-    .await;
-
-    let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
-        .with_config(move |config| {
-            config
-                .features
-                .enable(Feature::Apps)
-                .expect("test config should allow feature update");
-            config.chatgpt_base_url = apps_base_url;
-        });
-    let darwin-code = builder
-        .build(&server)
-        .await
-        .expect("create new conversation")
-        .darwin-code;
-
-    darwin-code
-        .submit(Op::UserInput {
-            items: vec![UserInput::Text {
-                text: "hello".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            responsesapi_client_metadata: None,
-        })
-        .await
-        .unwrap();
-
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-    let request = resp_mock.single_request();
-    let apps_snippet =
-        "Apps (Connectors) can be explicitly triggered in user messages in the format";
-
-    assert!(
-        !message_input_text_contains(&request, "developer", apps_snippet)
-            && !message_input_text_contains(&request, "user", apps_snippet),
-        "did not expect apps guidance for API key auth, got {:?}",
-        request.body_json()["input"]
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn omits_apps_guidance_when_configured_off() {
-    skip_if_no_network!();
-    let server = MockServer::start().await;
-    let apps_server = AppsTestServer::mount(&server)
-        .await
-        .expect("mount apps MCP mock");
-    let apps_base_url = apps_server.chatgpt_base_url.clone();
-
-    let resp_mock = mount_sse_once(
-        &server,
-        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
-    )
-    .await;
-
-    let mut builder = test_darwin_code()
-        .with_auth(create_dummy_darwin_code_auth())
-        .with_config(move |config| {
-            config
-                .features
-                .enable(Feature::Apps)
-                .expect("test config should allow feature update");
-            config.chatgpt_base_url = apps_base_url;
-            config.include_apps_instructions = false;
-        });
-    let darwin-code = builder
-        .build(&server)
-        .await
-        .expect("create new conversation")
-        .darwin-code;
-
-    darwin-code
-        .submit(Op::UserInput {
-            items: vec![UserInput::Text {
-                text: "hello".into(),
-                text_elements: Vec::new(),
-            }],
-            final_output_json_schema: None,
-            responsesapi_client_metadata: None,
-        })
-        .await
-        .unwrap();
-
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-    let request = resp_mock.single_request();
-    assert!(
-        !message_input_text_contains(&request, "developer", "<apps_instructions>"),
-        "did not expect apps instructions when include_apps_instructions = false, got {:?}",
-        request.body_json()["input"]
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn omits_environment_context_when_configured_off() {
     let server = MockServer::start().await;
     let resp_mock = mount_sse_once(
@@ -1385,13 +770,13 @@ async fn omits_environment_context_when_configured_off() {
     let mut builder = test_darwin_code().with_config(|config| {
         config.include_environment_context = false;
     });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1403,7 +788,7 @@ async fn omits_environment_context_when_configured_off() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert!(
@@ -1436,17 +821,17 @@ async fn skills_append_to_developer_message() {
     let darwin_code_home_path = darwin_code_home.path().to_path_buf();
     let mut builder = test_darwin_code()
         .with_home(darwin_code_home.clone())
-        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
+        .with_auth(ByokTestAuth::from_api_key("Test API Key"))
         .with_config(move |config| {
             config.cwd = darwin_code_home_path.abs();
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1458,7 +843,7 @@ async fn skills_append_to_developer_message() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let developer_messages = request.message_input_texts("developer");
@@ -1490,7 +875,7 @@ async fn includes_configured_effort_in_request() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_model("gpt-5.1-darwin-code")
         .with_config(|config| {
             config.model_reasoning_effort = Some(ReasoningEffort::Medium);
@@ -1498,7 +883,7 @@ async fn includes_configured_effort_in_request() -> anyhow::Result<()> {
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1510,7 +895,7 @@ async fn includes_configured_effort_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1536,12 +921,12 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_model("gpt-5.1-darwin-code")
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1553,7 +938,7 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1580,9 +965,12 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code().with_model("gpt-5.1").build(&server).await?;
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
+        .with_model("gpt-5.1")
+        .build(&server)
+        .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1594,7 +982,7 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1621,7 +1009,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
     )
     .await;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1639,7 +1027,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
         },
     };
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1663,7 +1051,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
         })
         .await?;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
     assert_eq!(request_body["model"].as_str(), Some("gpt-5.1"));
@@ -1679,6 +1067,72 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deepseek_chat_completions_provider_posts_to_chat_completions_and_streams_text() {
+    skip_if_no_network!();
+
+    let server = MockServer::start().await;
+    let chat_mock = mount_chat_completions_sse_once(
+        &server,
+        concat!(
+            "data: {\"id\":\"chatcmpl_1\",\"model\":\"deepseek-v4-flash\",\"choices\":[{\"delta\":{\"content\":\"hello\"},\"finish_reason\":null}]}\n\n",
+            "data: [DONE]\n\n",
+        )
+        .to_string(),
+    )
+    .await;
+
+    let mut provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        server.uri(),
+        WireApi::ChatCompletions,
+        "test-direct-key".to_string(),
+    );
+    provider.request_max_retries = Some(0);
+    provider.stream_max_retries = Some(0);
+
+    let mut builder = test_darwin_code()
+        .with_auth(ByokTestAuth::from_api_key("test-direct-key"))
+        .with_model("deepseek-v4-flash")
+        .with_config(move |config| {
+            config.model_provider_id = "deepseek".to_string();
+            config.model_provider = provider;
+        });
+    let test = builder.build(&server).await.expect("create conversation");
+    let darwin_code = test.darwin_code.clone();
+
+    darwin_code
+        .submit(Op::UserInput {
+            items: vec![UserInput::Text {
+                text: "hi".into(),
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+        })
+        .await
+        .unwrap();
+
+    let agent_message = wait_for_event(
+        &darwin_code,
+        |ev| matches!(ev, EventMsg::AgentMessage(message) if message.message == "hello"),
+    )
+    .await;
+    assert!(matches!(agent_message, EventMsg::AgentMessage(_)));
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+
+    let request = chat_mock.single_request();
+    assert_eq!(request.path(), "/chat/completions");
+    let body = request.body_json();
+    assert_eq!(body["model"].as_str(), Some("deepseek-v4-flash"));
+    assert_eq!(body["stream"], serde_json::Value::Bool(true));
+    assert!(body.get("messages").is_some());
+    assert!(body.get("input").is_none());
+    assert!(body.get("include").is_none());
+    assert!(body.get("prompt_cache_key").is_none());
+    assert_ne!(request.path(), "/responses");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
     let server = MockServer::start().await;
@@ -1688,14 +1142,14 @@ async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.model_reasoning_summary = Some(ReasoningSummary::Concise);
         })
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1707,7 +1161,7 @@ async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1746,7 +1200,7 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
     model.default_reasoning_summary = ReasoningSummary::Detailed;
 
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -1758,7 +1212,7 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1779,7 +1233,7 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
 
@@ -1804,14 +1258,14 @@ async fn reasoning_summary_is_omitted_when_disabled() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.model_reasoning_summary = Some(ReasoningSummary::None);
         })
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1823,7 +1277,7 @@ async fn reasoning_summary_is_omitted_when_disabled() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1859,7 +1313,7 @@ async fn reasoning_summary_none_overrides_model_catalog_default() -> anyhow::Res
     model.supports_reasoning_summaries = true;
     model.default_reasoning_summary = ReasoningSummary::Detailed;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_model("gpt-5.1")
         .with_config(move |config| {
             config.model_reasoning_summary = Some(ReasoningSummary::None);
@@ -1868,7 +1322,7 @@ async fn reasoning_summary_none_overrides_model_catalog_default() -> anyhow::Res
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1880,7 +1334,7 @@ async fn reasoning_summary_none_overrides_model_catalog_default() -> anyhow::Res
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
     pretty_assertions::assert_eq!(
@@ -1903,9 +1357,12 @@ async fn includes_default_verbosity_in_request() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code().with_model("gpt-5.1").build(&server).await?;
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
+        .with_model("gpt-5.1")
+        .build(&server)
+        .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1917,7 +1374,7 @@ async fn includes_default_verbosity_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1943,7 +1400,7 @@ async fn configured_verbosity_not_sent_for_models_without_support() -> anyhow::R
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_model("gpt-5.1-darwin-code")
         .with_config(|config| {
             config.model_verbosity = Some(Verbosity::High);
@@ -1951,7 +1408,7 @@ async fn configured_verbosity_not_sent_for_models_without_support() -> anyhow::R
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1963,7 +1420,7 @@ async fn configured_verbosity_not_sent_for_models_without_support() -> anyhow::R
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1988,7 +1445,7 @@ async fn configured_verbosity_is_sent() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_model("gpt-5.1")
         .with_config(|config| {
             config.model_verbosity = Some(Verbosity::High);
@@ -1996,7 +1453,7 @@ async fn configured_verbosity_is_sent() -> anyhow::Result<()> {
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2008,7 +1465,7 @@ async fn configured_verbosity_is_sent() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2035,18 +1492,18 @@ async fn includes_developer_instructions_message_in_request() {
     )
     .await;
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::from_api_key("Test API Key"))
+        .with_auth(ByokTestAuth::from_api_key("Test API Key"))
         .with_config(|config| {
             config.user_instructions = Some("be nice".to_string());
             config.developer_instructions = Some("be useful".to_string());
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2058,7 +1515,7 @@ async fn includes_developer_instructions_message_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2132,8 +1589,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let provider = ModelProviderInfo {
         name: "azure".into(),
         base_url: Some(format!("{}/openai", server.uri())),
-        env_key: None,
-        env_key_instructions: None,
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -2160,15 +1616,13 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let model_info =
         darwin_code_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let conversation_id = ThreadId::new();
-    let auth_manager =
-        darwin_code_core::test_support::auth_manager_from_auth(DarwinCodeAuth::from_api_key("Test API Key"));
     let session_telemetry = SessionTelemetry::new(
         conversation_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
         Some("test@test.com".to_string()),
-        auth_manager.auth_mode().map(TelemetryAuthMode::from),
+        Some(TelemetryAuthMode::ApiKey),
         "test_originator".to_string(),
         /*log_user_prompts*/ false,
         "test".to_string(),
@@ -2176,7 +1630,6 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     );
 
     let client = ModelClient::new(
-        /*auth_manager*/ None,
         conversation_id,
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
         provider.clone(),
@@ -2207,6 +1660,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     });
     prompt.input.push(ResponseItem::WebSearchCall {
         id: Some("web-search-id".into()),
@@ -2306,12 +1760,12 @@ async fn token_count_includes_rate_limits_snapshot() {
 
     let response = ResponseTemplate::new(200)
         .insert_header("content-type", "text/event-stream")
-        .insert_header("x-darwin-code-primary-used-percent", "12.5")
-        .insert_header("x-darwin-code-secondary-used-percent", "40.0")
-        .insert_header("x-darwin-code-primary-window-minutes", "10")
-        .insert_header("x-darwin-code-secondary-window-minutes", "60")
-        .insert_header("x-darwin-code-primary-reset-at", "1704069000")
-        .insert_header("x-darwin-code-secondary-reset-at", "1704074400")
+        .insert_header("x-darwin_code-primary-used-percent", "12.5")
+        .insert_header("x-darwin_code-secondary-used-percent", "40.0")
+        .insert_header("x-darwin_code-primary-window-minutes", "10")
+        .insert_header("x-darwin_code-secondary-window-minutes", "60")
+        .insert_header("x-darwin_code-primary-reset-at", "1704069000")
+        .insert_header("x-darwin_code-secondary-reset-at", "1704074400")
         .set_body_raw(sse_body, "text/event-stream");
 
     Mock::given(method("POST"))
@@ -2321,23 +1775,22 @@ async fn token_count_includes_rate_limits_snapshot() {
         .mount(&server)
         .await;
 
-    let mut provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
+    let mut provider = ModelProviderInfo::create_openai_provider(None, None);
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
 
     let mut builder = test_darwin_code()
-        .with_auth(DarwinCodeAuth::from_api_key("test"))
+        .with_auth(ByokTestAuth::from_api_key("test"))
         .with_config(move |config| {
             config.model_provider = provider;
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2350,7 +1803,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         .unwrap();
 
     let first_token_event =
-        wait_for_event(&darwin-code, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
+        wait_for_event(&darwin_code, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let rate_limit_only = match first_token_event {
         EventMsg::TokenCount(ev) => ev,
         _ => unreachable!(),
@@ -2362,7 +1815,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         json!({
             "info": null,
             "rate_limits": {
-                "limit_id": "darwin-code",
+                "limit_id": "darwin_code",
                 "limit_name": null,
                 "primary": {
                     "used_percent": 12.5,
@@ -2382,7 +1835,7 @@ async fn token_count_includes_rate_limits_snapshot() {
     );
 
     let token_event = wait_for_event(
-        &darwin-code,
+        &darwin_code,
         |msg| matches!(msg, EventMsg::TokenCount(ev) if ev.info.is_some()),
     )
     .await;
@@ -2414,7 +1867,7 @@ async fn token_count_includes_rate_limits_snapshot() {
                 "model_context_window": 258400
             },
             "rate_limits": {
-                "limit_id": "darwin-code",
+                "limit_id": "darwin_code",
                 "limit_name": null,
                 "primary": {
                     "used_percent": 12.5,
@@ -2454,7 +1907,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         Some(1704069000)
     );
 
-    wait_for_event(&darwin-code, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2463,11 +1916,11 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
     let server = MockServer::start().await;
 
     let response = ResponseTemplate::new(429)
-        .insert_header("x-darwin-code-primary-used-percent", "100.0")
-        .insert_header("x-darwin-code-secondary-used-percent", "87.5")
-        .insert_header("x-darwin-code-primary-over-secondary-limit-percent", "95.0")
-        .insert_header("x-darwin-code-primary-window-minutes", "15")
-        .insert_header("x-darwin-code-secondary-window-minutes", "60")
+        .insert_header("x-darwin_code-primary-used-percent", "100.0")
+        .insert_header("x-darwin_code-secondary-used-percent", "87.5")
+        .insert_header("x-darwin_code-primary-over-secondary-limit-percent", "95.0")
+        .insert_header("x-darwin_code-primary-window-minutes", "15")
+        .insert_header("x-darwin_code-secondary-window-minutes", "60")
         .set_body_json(json!({
             "error": {
                 "type": "usage_limit_reached",
@@ -2486,10 +1939,10 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
 
     let mut builder = test_darwin_code();
     let darwin_code_fixture = builder.build(&server).await?;
-    let darwin-code = darwin_code_fixture.darwin-code.clone();
+    let darwin_code = darwin_code_fixture.darwin_code.clone();
 
     let expected_limits = json!({
-        "limit_id": "darwin-code",
+        "limit_id": "darwin_code",
         "limit_name": null,
         "primary": {
             "used_percent": 100.0,
@@ -2506,7 +1959,7 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
         "rate_limit_reached_type": null
     });
 
-    let submission_id = darwin-code
+    let submission_id = darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2518,7 +1971,8 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
         .await
         .expect("submission should succeed while emitting usage limit error events");
 
-    let token_event = wait_for_event(&darwin-code, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
+    let token_event =
+        wait_for_event(&darwin_code, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let EventMsg::TokenCount(event) = token_event else {
         unreachable!();
     };
@@ -2532,7 +1986,7 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
         })
     );
 
-    let error_event = wait_for_event(&darwin-code, |msg| matches!(msg, EventMsg::Error(_))).await;
+    let error_event = wait_for_event(&darwin_code, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
         unreachable!();
     };
@@ -2573,7 +2027,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
     )
     .await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.model = Some("gpt-5.1".to_string());
             config.model_context_window = Some(272_000);
@@ -2581,7 +2035,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "seed turn".into(),
@@ -2592,9 +2046,9 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         })
         .await?;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "trigger context window".into(),
@@ -2605,7 +2059,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         })
         .await?;
 
-    let token_event = wait_for_event(&darwin-code, |event| {
+    let token_event = wait_for_event(&darwin_code, |event| {
         matches!(
             event,
             EventMsg::TokenCount(payload)
@@ -2631,7 +2085,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         EFFECTIVE_CONTEXT_WINDOW
     );
 
-    let error_event = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Error(_))).await;
+    let error_event = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Error(_))).await;
     let expected_context_window_message = DarwinCodeErr::ContextWindowExceeded.to_string();
     assert!(
         matches!(
@@ -2641,7 +2095,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         "expected context window error; got {error_event:?}"
     );
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(())
 }
@@ -2671,13 +2125,13 @@ async fn incomplete_response_emits_content_filter_error_message() -> anyhow::Res
 
     let responses_mock = mount_sse_once(&server, incomplete_response).await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.model_provider.stream_max_retries = Some(0);
         })
         .build(&server)
         .await?;
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "trigger incomplete".into(),
@@ -2688,7 +2142,7 @@ async fn incomplete_response_emits_content_filter_error_message() -> anyhow::Res
         })
         .await?;
 
-    let error_event = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Error(_))).await;
+    let error_event = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Error(_))).await;
     assert!(
         matches!(
             error_event,
@@ -2701,7 +2155,7 @@ async fn incomplete_response_emits_content_filter_error_message() -> anyhow::Res
 
     assert_eq!(responses_mock.requests().len(), 1);
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     Ok(())
 }
 
@@ -2751,14 +2205,15 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         name: "custom".to_string(),
         base_url: Some(format!("{}/openai", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
-        env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
+        api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
+            "test-direct-api-key".to_string(),
+        )),
         experimental_bearer_token: None,
         auth: None,
         query_params: Some(std::collections::HashMap::from([(
             "api-version".to_string(),
             "2025-04-01-preview".to_string(),
         )])),
-        env_key_instructions: None,
         wire_api: WireApi::Responses,
         http_headers: Some(std::collections::HashMap::from([(
             "Custom-Header".to_string(),
@@ -2779,13 +2234,13 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         .with_config(move |config| {
             config.model_provider = provider;
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2797,7 +2252,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2837,12 +2292,13 @@ async fn env_var_overrides_loaded_auth() {
         name: "custom".to_string(),
         base_url: Some(format!("{}/openai", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
-        env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
+        api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
+            "test-direct-api-key".to_string(),
+        )),
         query_params: Some(std::collections::HashMap::from([(
             "api-version".to_string(),
             "2025-04-01-preview".to_string(),
         )])),
-        env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -2865,13 +2321,13 @@ async fn env_var_overrides_loaded_auth() {
         .with_config(move |config| {
             config.model_provider = provider;
         });
-    let darwin-code = builder
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -2883,11 +2339,11 @@ async fn env_var_overrides_loaded_auth() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 
-fn create_dummy_darwin_code_auth() -> DarwinCodeAuth {
-    DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing()
+fn create_dummy_darwin_code_auth() -> ByokTestAuth {
+    ByokTestAuth::dummy_for_testing()
 }
 
 /// Scenario:
@@ -2898,7 +2354,7 @@ fn create_dummy_darwin_code_auth() -> DarwinCodeAuth {
 /// We assert that the `input` sent on each turn contains the expected conversation history
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn history_dedupes_streamed_and_final_messages_across_turns() {
-    // Skip under Darwin-Code sandbox network restrictions (mirrors other tests).
+    // Skip under DarwinCode sandbox network restrictions (mirrors other tests).
     skip_if_no_network!();
 
     // Mock server that will receive three sequential requests and return the same SSE stream
@@ -2925,15 +2381,15 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
 
     let request_log = mount_sse_sequence(&server, vec![sse1.clone(), sse1.clone(), sse1]).await;
 
-    let mut builder = test_darwin_code().with_auth(DarwinCodeAuth::from_api_key("Test API Key"));
-    let darwin-code = builder
+    let mut builder = test_darwin_code().with_auth(ByokTestAuth::from_api_key("Test API Key"));
+    let darwin_code = builder
         .build(&server)
         .await
         .expect("create new conversation")
-        .darwin-code;
+        .darwin_code;
 
     // Turn 1: user sends U1; wait for completion.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "U1".into(),
@@ -2944,10 +2400,10 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Turn 2: user sends U2; wait for completion.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "U2".into(),
@@ -2958,10 +2414,10 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Turn 3: user sends U3; wait for completion.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "U3".into(),
@@ -2972,7 +2428,7 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Inspect the three captured requests.
     let requests = request_log.requests();

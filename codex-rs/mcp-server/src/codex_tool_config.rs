@@ -1,12 +1,12 @@
 //! Configuration object accepted by the `codex` MCP tool-call.
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config::ConfigOverrides;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_json_to_toml::json_to_toml;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_core::config::Config;
+use darwin_code_core::config::ConfigOverrides;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_utils_json_to_toml::json_to_toml;
 use rmcp::model::JsonObject;
 use rmcp::model::Tool;
 use schemars::JsonSchema;
@@ -176,8 +176,8 @@ impl CodexToolCallParam {
             cwd: cwd.map(PathBuf::from),
             approval_policy: approval_policy.map(Into::into),
             sandbox_mode: sandbox.map(Into::into),
-            codex_self_exe: arg0_paths.codex_self_exe.clone(),
-            codex_linux_sandbox_exe: arg0_paths.codex_linux_sandbox_exe.clone(),
+            darwin_code_self_exe: arg0_paths.codex_self_exe.clone(),
+            codex_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
             base_instructions,
             developer_instructions,

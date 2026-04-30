@@ -146,6 +146,7 @@ class Codex:
         sandbox: SandboxMode | None = None,
         service_name: str | None = None,
         service_tier: ServiceTier | None = None,
+        session_start_source: ThreadStartSource | None = None,
     ) -> Thread:
         params = ThreadStartParams(
             approval_policy=approval_policy,
@@ -161,6 +162,7 @@ class Codex:
             sandbox=sandbox,
             service_name=service_name,
             service_tier=service_tier,
+            session_start_source=session_start_source,
         )
         started = self._client.thread_start(params)
         return Thread(self._client, started.thread.id)
@@ -174,6 +176,7 @@ class Codex:
         limit: int | None = None,
         model_providers: list[str] | None = None,
         search_term: str | None = None,
+        sort_direction: SortDirection | None = None,
         sort_key: ThreadSortKey | None = None,
         source_kinds: list[ThreadSourceKind] | None = None,
     ) -> ThreadListResponse:
@@ -184,6 +187,7 @@ class Codex:
             limit=limit,
             model_providers=model_providers,
             search_term=search_term,
+            sort_direction=sort_direction,
             sort_key=sort_key,
             source_kinds=source_kinds,
         )
@@ -336,6 +340,7 @@ class AsyncCodex:
         sandbox: SandboxMode | None = None,
         service_name: str | None = None,
         service_tier: ServiceTier | None = None,
+        session_start_source: ThreadStartSource | None = None,
     ) -> AsyncThread:
         await self._ensure_initialized()
         params = ThreadStartParams(
@@ -352,6 +357,7 @@ class AsyncCodex:
             sandbox=sandbox,
             service_name=service_name,
             service_tier=service_tier,
+            session_start_source=session_start_source,
         )
         started = await self._client.thread_start(params)
         return AsyncThread(self, started.thread.id)
@@ -365,6 +371,7 @@ class AsyncCodex:
         limit: int | None = None,
         model_providers: list[str] | None = None,
         search_term: str | None = None,
+        sort_direction: SortDirection | None = None,
         sort_key: ThreadSortKey | None = None,
         source_kinds: list[ThreadSourceKind] | None = None,
     ) -> ThreadListResponse:
@@ -376,6 +383,7 @@ class AsyncCodex:
             limit=limit,
             model_providers=model_providers,
             search_term=search_term,
+            sort_direction=sort_direction,
             sort_key=sort_key,
             source_kinds=source_kinds,
         )

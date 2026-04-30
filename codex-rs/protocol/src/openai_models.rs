@@ -462,13 +462,14 @@ impl ModelPreset {
             .any(|tier| tier == SPEED_TIER_FAST)
     }
 
-    /// Filter models based on authentication mode.
-    ///
-    /// In ChatGPT mode, all models are visible. Otherwise, only API-supported models are shown.
-    pub fn filter_by_auth(models: Vec<ModelPreset>, chatgpt_mode: bool) -> Vec<ModelPreset> {
+    /// Filter models to the subset usable through standard API providers.
+    pub fn filter_by_auth(
+        models: Vec<ModelPreset>,
+        include_non_api_models: bool,
+    ) -> Vec<ModelPreset> {
         models
             .into_iter()
-            .filter(|model| chatgpt_mode || model.supported_in_api)
+            .filter(|model| include_non_api_models || model.supported_in_api)
             .collect()
     }
 

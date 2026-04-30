@@ -100,7 +100,7 @@ impl EventProcessorWithHumanOutput {
             ThreadItem::AgentMessage { text, .. } => {
                 eprintln!(
                     "{}\n{}",
-                    "darwin-code".style(self.italic).style(self.magenta),
+                    "darwin_code".style(self.italic).style(self.magenta),
                     text
                 );
                 self.final_message = Some(text);
@@ -216,7 +216,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
         session_configured_event: &SessionConfiguredEvent,
     ) {
         const VERSION: &str = env!("CARGO_PKG_VERSION");
-        eprintln!("OpenAI Darwin-Code v{VERSION} (research preview)\n--------");
+        eprintln!("OpenAI DarwinCode v{VERSION} (research preview)\n--------");
         for (key, value) in config_summary_entries(config, session_configured_event) {
             eprintln!("{} {}", format!("{key}:").style(self.bold), value);
         }
@@ -224,7 +224,10 @@ impl EventProcessor for EventProcessorWithHumanOutput {
         eprintln!("{}\n{}", "user".style(self.cyan), prompt);
     }
 
-    fn process_server_notification(&mut self, notification: ServerNotification) -> DarwinCodeStatus {
+    fn process_server_notification(
+        &mut self,
+        notification: ServerNotification,
+    ) -> DarwinCodeStatus {
         match notification {
             ServerNotification::ConfigWarning(notification) => {
                 let details = notification
@@ -408,7 +411,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
         {
             eprintln!(
                 "{}\n{}",
-                "darwin-code".style(self.italic).style(self.magenta),
+                "darwin_code".style(self.italic).style(self.magenta),
                 message
             );
         }

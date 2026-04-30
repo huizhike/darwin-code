@@ -9,15 +9,16 @@
 //! - multi-cert PEM bundles load,
 //! - error messages guide users when CA files are invalid.
 //!
-//! The detailed explanation of what "hermetic" means here lives in `codex_client::custom_ca`.
+//! The detailed explanation of what "hermetic" means here lives in `darwin_code_client::custom_ca`.
 //! This binary exists so the tests can exercise
-//! [`codex_client::build_reqwest_client_for_subprocess_tests`] in a separate process without
+//! [`darwin_code_client::build_reqwest_client_for_subprocess_tests`] in a separate process without
 //! duplicating client-construction logic.
 
 use std::process;
 
 fn main() {
-    match codex_client::build_reqwest_client_for_subprocess_tests(reqwest::Client::builder()) {
+    match darwin_code_client::build_reqwest_client_for_subprocess_tests(reqwest::Client::builder())
+    {
         Ok(_) => {
             println!("ok");
         }

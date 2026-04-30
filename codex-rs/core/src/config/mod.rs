@@ -1,12 +1,11 @@
 use crate::agents_md::AgentsMdManager;
-use crate::config::edit::ConfigEdit;
 use crate::config::edit::ConfigEditsBuilder;
-use crate::config_loader::CloudRequirementsLoader;
 use crate::config_loader::ConfigLayerStack;
 use crate::config_loader::ConfigLayerStackOrdering;
 use crate::config_loader::ConfigRequirements;
 use crate::config_loader::ConfigRequirementsToml;
 use crate::config_loader::ConstrainedWithSource;
+use crate::config_loader::ExternalRequirementsLoader;
 use crate::config_loader::LoaderOverrides;
 use crate::config_loader::McpServerIdentity;
 use crate::config_loader::McpServerRequirement;
@@ -21,6 +20,7 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
+use darwin_code_config::config_toml::ByokProviderFamily;
 use darwin_code_config::config_toml::ConfigToml;
 use darwin_code_config::config_toml::ProjectConfig;
 use darwin_code_config::config_toml::RealtimeAudioConfig;
@@ -29,7 +29,6 @@ use darwin_code_config::config_toml::validate_model_providers;
 use darwin_code_config::profile_toml::ConfigProfile;
 use darwin_code_config::types::ApprovalsReviewer;
 use darwin_code_config::types::AuthCredentialsStoreMode;
-use darwin_code_config::types::DEFAULT_OTEL_ENVIRONMENT;
 use darwin_code_config::types::History;
 use darwin_code_config::types::McpServerConfig;
 use darwin_code_config::types::McpServerDisabledReason;
@@ -39,13 +38,10 @@ use darwin_code_config::types::ModelAvailabilityNuxConfig;
 use darwin_code_config::types::Notice;
 use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_config::types::OtelConfig;
-use darwin_code_config::types::OtelConfigToml;
-use darwin_code_config::types::OtelExporterKind;
 use darwin_code_config::types::ShellEnvironmentPolicy;
 use darwin_code_config::types::ToolSuggestConfig;
 use darwin_code_config::types::ToolSuggestDiscoverable;
 use darwin_code_config::types::TuiNotificationSettings;
-use darwin_code_config::types::UriBasedFileOpener;
 use darwin_code_config::types::WindowsSandboxModeToml;
 use darwin_code_exec_server::ExecutorFileSystem;
 use darwin_code_exec_server::LOCAL_FS;
@@ -57,12 +53,9 @@ use darwin_code_features::Features;
 use darwin_code_features::FeaturesToml;
 use darwin_code_features::MultiAgentV2ConfigToml;
 use darwin_code_git_utils::resolve_root_git_project_for_trust;
-use darwin_code_login::AuthManagerConfig;
 use darwin_code_mcp::McpConfig;
-use darwin_code_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
 use darwin_code_model_provider_info::ModelProviderInfo;
-use darwin_code_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use darwin_code_model_provider_info::built_in_model_providers;
+use darwin_code_model_provider_info::WireApi;
 use darwin_code_models_manager::ModelsManagerConfig;
 use darwin_code_protocol::config_types::AltScreenMode;
 use darwin_code_protocol::config_types::ForcedLoginMethod;
@@ -83,6 +76,7 @@ use darwin_code_protocol::protocol::AskForApproval;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
+use dirs::home_dir;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -92,15 +86,15 @@ use std::path::PathBuf;
 
 use crate::config::permissions::compile_permission_profile;
 use crate::config::permissions::get_readable_roots_required_for_darwin_code_runtime;
-use crate::config::permissions::network_proxy_config_from_profile_network;
-use darwin_code_network_proxy::NetworkProxyConfig;
+use crate::config::permissions::network_access_config_from_profile_network;
+use darwin_code_config::permissions_toml::NetworkAccessConfig;
 use toml::Value as TomlValue;
 use toml_edit::DocumentMut;
 
 pub(crate) mod agent_roles;
 pub mod edit;
 mod managed_features;
-mod network_proxy_spec;
+mod network_access_spec;
 mod permissions;
 #[cfg(test)]
 mod schema;
@@ -108,11 +102,22 @@ pub(crate) mod service;
 pub use darwin_code_config::Constrained;
 pub use darwin_code_config::ConstraintError;
 pub use darwin_code_config::ConstraintResult;
-pub use darwin_code_network_proxy::NetworkProxyAuditMetadata;
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NetworkAccessAuditMetadata {
+    pub conversation_id: Option<String>,
+    pub app_version: Option<String>,
+    pub user_account_id: Option<String>,
+    pub auth_mode: Option<String>,
+    pub originator: Option<String>,
+    pub user_email: Option<String>,
+    pub terminal_type: Option<String>,
+    pub model: Option<String>,
+    pub slug: Option<String>,
+}
 pub use darwin_code_sandboxing::system_bwrap_warning;
 pub use managed_features::ManagedFeatures;
-pub use network_proxy_spec::NetworkProxySpec;
-pub use network_proxy_spec::StartedNetworkProxy;
+pub use network_access_spec::NetworkAccessSpec;
+pub use network_access_spec::StartedNetworkAccess;
 pub(crate) use permissions::resolve_permission_profile;
 pub use service::ConfigService;
 pub use service::ConfigServiceError;
@@ -173,10 +178,13 @@ fn resolve_mcp_oauth_credentials_store_mode(
 #[cfg(test)]
 pub(crate) async fn test_config() -> Config {
     let darwin_code_home = tempfile::tempdir().expect("create temp dir");
+    let mut config_toml = ConfigToml::default();
+    ensure_default_byok_provider_config_toml_for_tests(&mut config_toml);
     Config::load_from_base_config_with_overrides(
-        ConfigToml::default(),
+        config_toml,
         ConfigOverrides::default(),
-        AbsolutePathBuf::from_absolute_path(darwin_code_home.path()).expect("temp dir should resolve"),
+        AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
+            .expect("temp dir should resolve"),
     )
     .await
     .expect("load default test config")
@@ -196,7 +204,7 @@ pub struct Permissions {
     /// [`SandboxPolicy`] projection.
     pub network_sandbox_policy: NetworkSandboxPolicy,
     /// Effective network configuration applied to all spawned processes.
-    pub network: Option<NetworkProxySpec>,
+    pub network: Option<NetworkAccessSpec>,
     /// Whether the model may request a login shell for shell-based tools.
     /// Default to `true`
     ///
@@ -240,7 +248,7 @@ pub struct Config {
     /// Token usage threshold triggering auto-compaction of conversation history.
     pub model_auto_compact_token_limit: Option<i64>,
 
-    /// Key into the model_providers map that specifies which provider to use.
+    /// Key into the resolved provider map that specifies which provider to use.
     pub model_provider_id: String,
 
     /// Info needed to make an API request to the model.
@@ -289,9 +297,6 @@ pub struct Config {
     /// Whether to inject the `<permissions instructions>` developer block.
     pub include_permissions_instructions: bool,
 
-    /// Whether to inject the `<apps_instructions>` developer block.
-    pub include_apps_instructions: bool,
-
     /// Whether to inject the `<environment_context>` user block.
     pub include_environment_context: bool,
 
@@ -300,28 +305,28 @@ pub struct Config {
 
     /// Optional commit attribution text for commit message co-author trailers.
     ///
-    /// - `None`: use default attribution (`Darwin-Code <noreply@openai.com>`)
+    /// - `None`: use default attribution (`DarwinCode <noreply@openai.com>`)
     /// - `Some("")` or whitespace-only: disable commit attribution
     /// - `Some("...")`: use the provided attribution text verbatim
     pub commit_attribution: Option<String>,
 
-    /// Optional external notifier command. When set, Darwin-Code will spawn this
+    /// Optional external notifier command. When set, DarwinCode will spawn this
     /// program after each completed *turn* (i.e. when the agent finishes
     /// processing a user submission). The value must be the full command
-    /// broken into argv tokens **without** the trailing JSON argument - Darwin-Code
+    /// broken into argv tokens **without** the trailing JSON argument - DarwinCode
     /// appends one extra argument containing a JSON payload describing the
     /// event.
     ///
-    /// Example `~/.darwin-code/config.toml` snippet:
+    /// Example `~/.darwin_code/config.toml` snippet:
     ///
     /// ```toml
-    /// notify = ["notify-send", "Darwin-Code"]
+    /// notify = ["notify-send", "DarwinCode"]
     /// ```
     ///
     /// which will be invoked as:
     ///
     /// ```shell
-    /// notify-send Darwin-Code '{"type":"agent-turn-complete","turn-id":"12345"}'
+    /// notify-send DarwinCode '{"type":"agent-turn-complete","turn-id":"12345"}'
     /// ```
     ///
     /// If unset the feature is disabled.
@@ -368,26 +373,26 @@ pub struct Config {
     pub cwd: AbsolutePathBuf,
 
     /// Preferred store for CLI auth credentials.
-    /// file (default): Use a file in the Darwin-Code home directory.
+    /// file (default): Use a file in the DarwinCode home directory.
     /// keyring: Use an OS-specific keyring service.
     /// auto: Use the OS-specific keyring service if available, otherwise use a file.
     pub cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
 
-    /// Definition for MCP servers that Darwin-Code can reach out to for tool calls.
+    /// Definition for MCP servers that DarwinCode can reach out to for tool calls.
     pub mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
 
     /// Preferred store for MCP OAuth credentials.
     /// keyring: Use an OS-specific keyring service.
-    ///          Credentials stored in the keyring will only be readable by Darwin-Code unless the user explicitly grants access via OS-level keyring access.
-    ///          https://github.com/openai/darwin-code/blob/main/darwin-code-rs/rmcp-client/src/oauth.rs#L2
+    ///          Credentials stored in the keyring will only be readable by DarwinCode unless the user explicitly grants access via OS-level keyring access.
+    ///          https://github.com/openai/darwin_code/blob/main/darwin_code-rs/rmcp-client/src/oauth.rs#L2
     /// file: DARWIN_CODE_HOME/.credentials.json
-    ///       This file will be readable to Darwin-Code and other applications running as the same user.
+    ///       This file will be readable to DarwinCode and other applications running as the same user.
     /// auto (default): keyring if available, otherwise file.
     pub mcp_oauth_credentials_store_mode: OAuthCredentialsStoreMode,
 
     /// Optional fixed port to use for the local HTTP callback server used during MCP OAuth login.
     ///
-    /// When unset, Darwin-Code will bind to an ephemeral port chosen by the OS.
+    /// When unset, DarwinCode will bind to an ephemeral port chosen by the OS.
     pub mcp_oauth_callback_port: Option<u16>,
 
     /// Optional redirect URI to use during MCP OAuth login.
@@ -423,39 +428,35 @@ pub struct Config {
     /// Memories subsystem settings.
     pub memories: MemoriesConfig,
 
-    /// Directory containing all Darwin-Code state (defaults to `~/.darwin-code` but can be
+    /// Directory containing all DarwinCode state (defaults to `~/.darwin_code` but can be
     /// overridden by the `DARWIN_CODE_HOME` environment variable).
     pub darwin_code_home: AbsolutePathBuf,
 
-    /// Directory where Darwin-Code stores the SQLite state DB.
+    /// Directory where DarwinCode stores the SQLite state DB.
     pub sqlite_home: PathBuf,
 
-    /// Directory where Darwin-Code writes log files (defaults to `$DARWIN_CODE_HOME/log`).
+    /// Directory where DarwinCode writes log files (defaults to `$DARWIN_CODE_HOME/log`).
     pub log_dir: PathBuf,
 
-    /// Settings that govern if and what will be written to `~/.darwin-code/history.jsonl`.
+    /// Settings that govern if and what will be written to `~/.darwin_code/history.jsonl`.
     pub history: History,
 
     /// When true, session is not persisted on disk. Default to `false`
     pub ephemeral: bool,
 
-    /// Optional URI-based file opener. If set, citations to files in the model
-    /// output will be hyperlinked using the specified URI scheme.
-    pub file_opener: UriBasedFileOpener,
-
-    /// Path to the current Darwin-Code executable. This cannot be set in the config
+    /// Path to the current DarwinCode executable. This cannot be set in the config
     /// file: it must be set in code via [`ConfigOverrides`].
     pub darwin_code_self_exe: Option<PathBuf>,
 
-    /// Path to the `darwin-code-linux-sandbox` executable. This must be set if
+    /// Path to the `darwin_code-linux-sandbox` executable. This must be set if
     /// [`darwin_code_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
     /// cannot be set in the config file: it must be set in code via
     /// [`ConfigOverrides`].
     ///
-    /// When this program is invoked, arg0 will be set to `darwin-code-linux-sandbox`.
-    pub darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    /// When this program is invoked, arg0 will be set to `darwin_code-linux-sandbox`.
+    pub codex_linux_sandbox_exe: Option<PathBuf>,
 
-    /// Path to the `darwin-code-execve-wrapper` executable used for shell
+    /// Path to the `darwin_code-execve-wrapper` executable used for shell
     /// escalation. This cannot be set in the config file: it must be set in
     /// code via [`ConfigOverrides`].
     pub main_execve_wrapper_exe: Option<PathBuf>,
@@ -494,37 +495,21 @@ pub struct Config {
     /// Optional verbosity control for GPT-5 models (Responses API `text.verbosity`).
     pub model_verbosity: Option<Verbosity>,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
-    pub chatgpt_base_url: String,
-
     /// Machine-local realtime audio device preferences used by realtime voice.
     pub realtime_audio: RealtimeAudioConfig,
 
-    /// Experimental / do not use. Overrides only the realtime conversation
-    /// websocket transport base URL (the `Op::RealtimeConversation`
-    /// `/v1/realtime`
-    /// connection) without changing normal provider HTTP requests.
-    pub experimental_realtime_ws_base_url: Option<String>,
-    /// Experimental / do not use. Selects the realtime websocket model/snapshot
-    /// used for the `Op::RealtimeConversation` connection.
-    pub experimental_realtime_ws_model: Option<String>,
     /// Experimental / do not use. Realtime websocket session selection.
     /// `version` controls v1/v2 and `type` controls conversational/transcription.
     pub realtime: RealtimeConfig,
-    /// Experimental / do not use. Overrides only the realtime conversation
-    /// websocket transport instructions (the `Op::RealtimeConversation`
-    /// `/ws` session.update instructions) without changing normal prompts.
+
+    /// Optional local override used by realtime integration tests and development.
+    pub experimental_realtime_ws_base_url: Option<String>,
+
+    /// Optional prompt override used by realtime integration tests and development.
     pub experimental_realtime_ws_backend_prompt: Option<String>,
-    /// Experimental / do not use. Replaces the synthesized realtime startup
-    /// context appended to websocket session instructions. An empty string
-    /// disables startup context injection entirely.
+
+    /// Optional startup-context override used by realtime integration tests and development.
     pub experimental_realtime_ws_startup_context: Option<String>,
-    /// Experimental / do not use. Replaces the built-in realtime start
-    /// instructions inserted into developer messages when realtime becomes
-    /// active.
-    pub experimental_realtime_start_instructions: Option<String>,
-    /// When set, restricts ChatGPT login to a specific workspace identifier.
-    pub forced_chatgpt_workspace_id: Option<String>,
 
     /// When set, restricts the login mechanism users may use.
     pub forced_login_method: Option<ForcedLoginMethod>,
@@ -572,8 +557,8 @@ pub struct Config {
     /// Collection of various notices we show the user
     pub notices: Notice,
 
-    /// When `true`, checks for Darwin-Code updates on startup and surfaces update prompts.
-    /// Set to `false` only if your Darwin-Code updates are centrally managed.
+    /// When `true`, checks for DarwinCode updates on startup and surfaces update prompts.
+    /// Set to `false` only if your DarwinCode updates are centrally managed.
     /// Defaults to `true`.
     pub check_for_update_on_startup: bool,
 
@@ -582,11 +567,11 @@ pub struct Config {
     /// or placeholder replacement will occur for fast keypress bursts.
     pub disable_paste_burst: bool,
 
-    /// When `false`, disables analytics across Darwin-Code product surfaces in this machine.
+    /// When `false`, disables analytics across DarwinCode product surfaces in this machine.
     /// Voluntarily left as Optional because the default value might depend on the client.
     pub analytics_enabled: Option<bool>,
 
-    /// When `false`, disables feedback collection across Darwin-Code product surfaces.
+    /// When `false`, disables feedback collection across DarwinCode product surfaces.
     /// Defaults to `true`.
     pub feedback_enabled: bool,
 
@@ -614,27 +599,13 @@ impl Default for MultiAgentV2Config {
     }
 }
 
-impl AuthManagerConfig for Config {
-    fn darwin_code_home(&self) -> PathBuf {
-        self.darwin_code_home.to_path_buf()
-    }
-
-    fn cli_auth_credentials_store_mode(&self) -> AuthCredentialsStoreMode {
-        self.cli_auth_credentials_store_mode
-    }
-
-    fn forced_chatgpt_workspace_id(&self) -> Option<String> {
-        self.forced_chatgpt_workspace_id.clone()
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct ConfigBuilder {
     darwin_code_home: Option<PathBuf>,
     cli_overrides: Option<Vec<(String, TomlValue)>>,
     harness_overrides: Option<ConfigOverrides>,
     loader_overrides: Option<LoaderOverrides>,
-    cloud_requirements: CloudRequirementsLoader,
+    external_requirements: ExternalRequirementsLoader,
     fallback_cwd: Option<PathBuf>,
 }
 
@@ -659,8 +630,11 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn cloud_requirements(mut self, cloud_requirements: CloudRequirementsLoader) -> Self {
-        self.cloud_requirements = cloud_requirements;
+    pub fn external_requirements(
+        mut self,
+        external_requirements: ExternalRequirementsLoader,
+    ) -> Self {
+        self.external_requirements = external_requirements;
         self
     }
 
@@ -675,7 +649,7 @@ impl ConfigBuilder {
             cli_overrides,
             harness_overrides,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
             fallback_cwd,
         } = self;
         let darwin_code_home = match darwin_code_home {
@@ -697,10 +671,16 @@ impl ConfigBuilder {
             Some(cwd),
             &cli_overrides,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
         )
         .await?;
         let merged_toml = config_layer_stack.effective_config();
+        #[cfg(test)]
+        let merged_toml = {
+            let mut merged_toml = merged_toml;
+            ensure_default_byok_provider_for_tests(&mut merged_toml);
+            merged_toml
+        };
 
         // Note that each layer in ConfigLayerStack should have resolved
         // relative paths to absolute paths based on the parent folder of the
@@ -737,6 +717,59 @@ impl ConfigBuilder {
     }
 }
 
+#[cfg(test)]
+fn ensure_default_byok_provider_for_tests(root_value: &mut TomlValue) {
+    let Some(root_table) = root_value.as_table_mut() else {
+        return;
+    };
+    if root_table.contains_key("providers") || root_table.contains_key("openai_compatible_provider")
+    {
+        if root_table.contains_key("openai_compatible_provider") {
+            return;
+        }
+        if let Some(TomlValue::Table(providers)) = root_table.get_mut("providers") {
+            if providers.is_empty() {
+                providers.insert("openai".to_string(), {
+                    TomlValue::Table(toml::map::Map::from_iter([
+                        (
+                            "family".to_string(),
+                            TomlValue::String("openai-compatible".to_string()),
+                        ),
+                        ("name".to_string(), TomlValue::String("OpenAI".to_string())),
+                        (
+                            "base_url".to_string(),
+                            TomlValue::String("https://api.openai.com/v1".to_string()),
+                        ),
+                        (
+                            "api_key".to_string(),
+                            TomlValue::String("test-openai-api-key".to_string()),
+                        ),
+                    ]))
+                });
+            }
+        }
+        return;
+    }
+
+    let provider = toml::map::Map::from_iter([
+        (
+            "family".to_string(),
+            TomlValue::String("openai-compatible".to_string()),
+        ),
+        ("name".to_string(), TomlValue::String("OpenAI".to_string())),
+        (
+            "base_url".to_string(),
+            TomlValue::String("https://api.openai.com/v1".to_string()),
+        ),
+        (
+            "api_key".to_string(),
+            TomlValue::String("test-openai-api-key".to_string()),
+        ),
+    ]);
+    let providers = toml::map::Map::from_iter([("openai".to_string(), TomlValue::Table(provider))]);
+    root_table.insert("providers".to_string(), TomlValue::Table(providers));
+}
+
 impl Config {
     pub fn to_models_manager_config(&self) -> ModelsManagerConfig {
         ModelsManagerConfig {
@@ -761,8 +794,7 @@ impl Config {
         }
 
         McpConfig {
-            chatgpt_base_url: self.chatgpt_base_url.clone(),
-            darwin_code_home: self.darwin_code_home.to_path_buf(),
+            codex_home: self.darwin_code_home.to_path_buf(),
             mcp_oauth_credentials_store_mode: self.mcp_oauth_credentials_store_mode,
             mcp_oauth_callback_port: self.mcp_oauth_callback_port,
             mcp_oauth_callback_url: self.mcp_oauth_callback_url.clone(),
@@ -770,7 +802,7 @@ impl Config {
                 .features
                 .enabled(Feature::SkillMcpDependencyInstall),
             approval_policy: self.permissions.approval_policy.clone(),
-            darwin_code_linux_sandbox_exe: self.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: self.codex_linux_sandbox_exe.clone(),
             use_legacy_landlock: self.features.use_legacy_landlock(),
             apps_enabled: self.features.enabled(Feature::Apps),
             configured_mcp_servers,
@@ -800,7 +832,7 @@ impl Config {
         .await
     }
 
-    /// Load a default configuration for a specific Darwin-Code home without reading
+    /// Load a default configuration for a specific DarwinCode home without reading
     /// user, project, or system config layers.
     pub async fn load_default_with_cli_overrides_for_darwin_code_home(
         darwin_code_home: PathBuf,
@@ -828,11 +860,11 @@ impl Config {
 
     /// This is a secondary way of creating [Config], which is appropriate when
     /// the harness is meant to be used with a specific configuration that
-    /// ignores user settings. For example, the `darwin-code exec` subcommand is
+    /// ignores user settings. For example, the `darwin_code exec` subcommand is
     /// designed to use [AskForApproval::Never] exclusively.
     ///
     /// Further, [ConfigOverrides] contains some options that are not supported
-    /// in [ConfigToml], such as `cwd`, `darwin_code_self_exe`, `darwin_code_linux_sandbox_exe`, and
+    /// in [ConfigToml], such as `cwd`, `darwin_code_self_exe`, `codex_linux_sandbox_exe`, and
     /// `main_execve_wrapper_exe`.
     pub async fn load_with_cli_overrides_and_harness_overrides(
         cli_overrides: Vec<(String, TomlValue)>,
@@ -860,7 +892,7 @@ pub async fn load_config_as_toml_with_cli_overrides(
         cwd.cloned(),
         &cli_overrides,
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1023,7 +1055,7 @@ pub async fn load_global_mcp_servers(
     // result.
     let cli_overrides = Vec::<(String, TomlValue)>::new();
     // There is no cwd/project context for this query, so this will not include
-    // MCP servers defined in in-repo .darwin-code/ folders.
+    // MCP servers defined in in-repo .darwin_code/ folders.
     let cwd: Option<AbsolutePathBuf> = None;
     let config_layer_stack = load_config_layers_state(
         LOCAL_FS.as_ref(),
@@ -1031,7 +1063,7 @@ pub async fn load_global_mcp_servers(
         cwd,
         &cli_overrides,
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
     let merged_toml = config_layer_stack.effective_config();
@@ -1144,27 +1176,9 @@ pub fn set_project_trust_level(
     project_path: &Path,
     trust_level: TrustLevel,
 ) -> anyhow::Result<()> {
-    use crate::config::edit::ConfigEditsBuilder;
-
     ConfigEditsBuilder::new(darwin_code_home)
         .set_project_trust_level(project_path, trust_level)
         .apply_blocking()
-}
-
-/// Save the default OSS provider preference to config.toml
-pub fn set_default_oss_provider(darwin_code_home: &Path, provider: &str) -> std::io::Result<()> {
-    darwin_code_config::config_toml::validate_oss_provider(provider)?;
-    use toml_edit::value;
-
-    let edits = [ConfigEdit::SetPath {
-        segments: vec!["oss_provider".to_string()],
-        value: value(provider),
-    }];
-
-    ConfigEditsBuilder::new(darwin_code_home)
-        .with_edits(edits)
-        .apply_blocking()
-        .map_err(|err| std::io::Error::other(format!("failed to persist config.toml: {err}")))
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1294,7 +1308,7 @@ pub struct ConfigOverrides {
     pub service_tier: Option<Option<ServiceTier>>,
     pub config_profile: Option<String>,
     pub darwin_code_self_exe: Option<PathBuf>,
-    pub darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    pub codex_linux_sandbox_exe: Option<PathBuf>,
     pub main_execve_wrapper_exe: Option<PathBuf>,
     pub js_repl_node_path: Option<PathBuf>,
     pub js_repl_node_module_dirs: Option<Vec<PathBuf>>,
@@ -1309,34 +1323,6 @@ pub struct ConfigOverrides {
     pub ephemeral: Option<bool>,
     /// Additional directories that should be treated as writable roots for this session.
     pub additional_writable_roots: Vec<PathBuf>,
-}
-
-/// Resolves the OSS provider from CLI override, profile config, or global config.
-/// Returns `None` if no provider is configured at any level.
-pub fn resolve_oss_provider(
-    explicit_provider: Option<&str>,
-    config_toml: &ConfigToml,
-    config_profile: Option<String>,
-) -> Option<String> {
-    if let Some(provider) = explicit_provider {
-        // Explicit provider specified (e.g., via --local-provider)
-        Some(provider.to_string())
-    } else {
-        // Check profile config first, then global config
-        let profile = config_toml.get_config_profile(config_profile).ok();
-        if let Some(profile) = &profile {
-            // Check if profile has an oss provider
-            if let Some(profile_oss_provider) = &profile.oss_provider {
-                Some(profile_oss_provider.clone())
-            }
-            // If not then check if the toml has an oss provider
-            else {
-                config_toml.oss_provider.clone()
-            }
-        } else {
-            config_toml.oss_provider.clone()
-        }
-    }
 }
 
 /// Resolve the web search mode from explicit config and feature flags.
@@ -1453,6 +1439,17 @@ pub(crate) fn resolve_web_search_mode_for_turn(
 impl Config {
     #[cfg(test)]
     async fn load_from_base_config_with_overrides(
+        mut cfg: ConfigToml,
+        overrides: ConfigOverrides,
+        darwin_code_home: AbsolutePathBuf,
+    ) -> std::io::Result<Self> {
+        ensure_default_byok_provider_config_toml_for_tests(&mut cfg);
+        Self::load_from_base_config_with_overrides_raw_for_tests(cfg, overrides, darwin_code_home)
+            .await
+    }
+
+    #[cfg(test)]
+    async fn load_from_base_config_with_overrides_raw_for_tests(
         cfg: ConfigToml,
         overrides: ConfigOverrides,
         darwin_code_home: AbsolutePathBuf,
@@ -1478,8 +1475,6 @@ impl Config {
     ) -> std::io::Result<Self> {
         // Keep the large config-construction future off small test thread stacks.
         Box::pin(async move {
-        validate_model_providers(&cfg.model_providers)
-            .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
         // Ensure that every field of ConfigRequirements is applied to the final
         // Config.
         let ConfigRequirements {
@@ -1511,7 +1506,7 @@ impl Config {
             service_tier: service_tier_override,
             config_profile: config_profile_key,
             darwin_code_self_exe,
-            darwin_code_linux_sandbox_exe,
+            codex_linux_sandbox_exe,
             main_execve_wrapper_exe,
             js_repl_node_path: js_repl_node_path_override,
             js_repl_node_module_dirs: js_repl_node_module_dirs_override,
@@ -1554,16 +1549,10 @@ impl Config {
             FeatureConfigSource {
                 features: cfg.features.as_ref(),
                 include_apply_patch_tool: None,
-                experimental_use_freeform_apply_patch: cfg.experimental_use_freeform_apply_patch,
-                experimental_use_unified_exec_tool: cfg.experimental_use_unified_exec_tool,
             },
             FeatureConfigSource {
                 features: config_profile.features.as_ref(),
                 include_apply_patch_tool: config_profile.include_apply_patch_tool,
-                experimental_use_freeform_apply_patch: config_profile
-                    .experimental_use_freeform_apply_patch,
-                experimental_use_unified_exec_tool: config_profile
-                    .experimental_use_unified_exec_tool,
             },
             feature_overrides,
         );
@@ -1643,7 +1632,7 @@ impl Config {
         ) || (permission_config_syntax.is_none()
             && has_permission_profiles);
         let (
-            configured_network_proxy_config,
+            configured_network_access_config,
             sandbox_policy,
             file_system_sandbox_policy,
             network_sandbox_policy,
@@ -1661,8 +1650,8 @@ impl Config {
                 )
             })?;
             let profile = resolve_permission_profile(permissions, default_permissions)?;
-            let configured_network_proxy_config =
-                network_proxy_config_from_profile_network(profile.network.as_ref());
+            let configured_network_access_config =
+                network_access_config_from_profile_network(profile.network.as_ref());
             let (mut file_system_sandbox_policy, network_sandbox_policy) =
                 compile_permission_profile(
                     permissions,
@@ -1682,13 +1671,13 @@ impl Config {
                     .to_legacy_sandbox_policy(network_sandbox_policy, resolved_cwd.as_path())?;
             }
             (
-                configured_network_proxy_config,
+                configured_network_access_config,
                 sandbox_policy,
                 file_system_sandbox_policy,
                 network_sandbox_policy,
             )
         } else {
-            let configured_network_proxy_config = NetworkProxyConfig::default();
+            let configured_network_access_config = NetworkAccessConfig::default();
             let mut sandbox_policy = cfg
                 .derive_sandbox_policy(
                     sandbox_mode,
@@ -1711,7 +1700,7 @@ impl Config {
             );
             let network_sandbox_policy = NetworkSandboxPolicy::from(&sandbox_policy);
             (
-                configured_network_proxy_config,
+                configured_network_access_config,
                 sandbox_policy,
                 file_system_sandbox_policy,
                 network_sandbox_policy,
@@ -1766,30 +1755,130 @@ impl Config {
             agent_roles::load_agent_roles(fs, &cfg, &config_layer_stack, &mut startup_warnings)
                 .await?;
 
-        let openai_base_url = cfg
-            .openai_base_url
+        let explicit_model_provider_id = model_provider
             .clone()
-            .filter(|value| !value.is_empty());
+            .or_else(|| config_profile.model_provider.clone())
+            .or_else(|| cfg.model_provider.clone());
+        let model_provider_id = explicit_model_provider_id.unwrap_or_else(|| "openai".to_string());
 
-        let mut model_providers = built_in_model_providers(openai_base_url);
-        // Merge user-defined providers into the built-in list.
-        for (key, provider) in cfg.model_providers.into_iter() {
-            model_providers.entry(key).or_insert(provider);
+        let mut model_providers = HashMap::new();
+
+        if let Some(openai) = &cfg.openai {
+            model_providers.insert(
+                "openai".to_string(),
+                ModelProviderInfo::create_openai_provider(
+                    openai.base_url.clone(),
+                    openai
+                        .api_key
+                        .as_ref()
+                        .map(|key| key.expose_secret().to_string()),
+                ),
+            );
+        } else {
+            model_providers.insert(
+                "openai".to_string(),
+                ModelProviderInfo::create_openai_provider(None, None),
+            );
         }
 
-        let model_provider_id = model_provider
-            .or(config_profile.model_provider)
-            .or(cfg.model_provider)
-            .unwrap_or_else(|| "openai".to_string());
+        if let Some(gemini) = &cfg.gemini {
+            model_providers.insert(
+                "gemini".to_string(),
+                ModelProviderInfo::create_gemini_native_provider(
+                    gemini.base_url.clone(),
+                    gemini
+                        .api_key
+                        .as_ref()
+                        .map(|key| key.expose_secret().to_string()),
+                ),
+            );
+        } else {
+            model_providers.insert(
+                "gemini".to_string(),
+                ModelProviderInfo::create_gemini_native_provider(None, None),
+            );
+        }
+
+        if let Some(claude) = &cfg.claude {
+            model_providers.insert(
+                "claude".to_string(),
+                ModelProviderInfo::create_claude_native_provider(
+                    claude.base_url.clone(),
+                    claude
+                        .api_key
+                        .as_ref()
+                        .map(|key| key.expose_secret().to_string()),
+                ),
+            );
+        } else {
+            model_providers.insert(
+                "claude".to_string(),
+                ModelProviderInfo::create_claude_native_provider(None, None),
+            );
+        }
+
+        for (id, custom_provider) in &cfg.openai_compatible {
+            let resolved = custom_provider.resolve_with_id(id).map_err(|message| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, message)
+            })?;
+            model_providers.insert(
+                id.clone(),
+                ModelProviderInfo::create_openai_compatible_provider(
+                    resolved.name,
+                    resolved.base_url,
+                    resolved.wire_api,
+                    resolved.api_key,
+                ),
+            );
+        }
+
+        for (id, byok_provider) in &cfg.providers {
+            if cfg.model_providers.contains_key(id) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("providers.{id} conflicts with model_providers.{id}"),
+                ));
+            }
+            let resolved = byok_provider.resolve(id).map_err(|message| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, message)
+            })?;
+            let provider = match resolved.family {
+                ByokProviderFamily::OpenAiCompatible => {
+                    ModelProviderInfo::create_openai_compatible_provider(
+                        resolved.name,
+                        resolved.base_url,
+                        resolved.wire_api.unwrap_or(WireApi::ChatCompletions),
+                        resolved.api_key,
+                    )
+                }
+                ByokProviderFamily::GeminiNative | ByokProviderFamily::ClaudeNative => {
+                    if id == &model_provider_id {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidInput,
+                            format!(
+                                "providers.{id} native provider runtime adapter is not implemented yet"
+                            ),
+                        ));
+                    }
+                    continue;
+                }
+            };
+            model_providers.insert(id.clone(), provider);
+        }
+
+        validate_model_providers(&cfg.model_providers)
+            .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
+        for (id, provider) in &cfg.model_providers {
+            model_providers.insert(id.clone(), provider.clone());
+        }
+
         let model_provider = model_providers
             .get(&model_provider_id)
             .ok_or_else(|| {
-                let message = if model_provider_id == LEGACY_OLLAMA_CHAT_PROVIDER_ID {
-                    OLLAMA_CHAT_PROVIDER_REMOVED_ERROR.to_string()
-                } else {
-                    format!("Model provider `{model_provider_id}` not found")
-                };
-                std::io::Error::new(std::io::ErrorKind::NotFound, message)
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("Model provider `{model_provider_id}` not found"),
+                )
             })?
             .clone();
 
@@ -1843,6 +1932,22 @@ impl Config {
             .background_terminal_max_timeout
             .unwrap_or(DEFAULT_MAX_BACKGROUND_TERMINAL_TIMEOUT_MS)
             .max(MIN_EMPTY_YIELD_TIME_MS);
+        let realtime_audio = cfg
+            .audio
+            .map(|audio| RealtimeAudioConfig {
+                microphone: audio.microphone,
+                speaker: audio.speaker,
+            })
+            .unwrap_or_default();
+        let realtime = cfg
+            .realtime
+            .map(|realtime| RealtimeConfig {
+                version: realtime.version.unwrap_or_default(),
+                session_type: realtime.session_type.unwrap_or_default(),
+                transport: realtime.transport.unwrap_or_default(),
+                voice: realtime.voice,
+            })
+            .unwrap_or_default();
 
         let ghost_snapshot = {
             let mut config = GhostSnapshotConfig::default();
@@ -1871,18 +1976,6 @@ impl Config {
 
         let include_apply_patch_tool_flag = features.enabled(Feature::ApplyPatchFreeform);
         let use_experimental_unified_exec_tool = features.enabled(Feature::UnifiedExec);
-
-        let forced_chatgpt_workspace_id =
-            cfg.forced_chatgpt_workspace_id.as_ref().and_then(|value| {
-                let trimmed = value.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            });
-
-        let forced_login_method = cfg.forced_login_method;
 
         let model = model.or(config_profile.model).or(cfg.model);
         let service_tier = service_tier_override
@@ -1925,10 +2018,6 @@ impl Config {
             .include_permissions_instructions
             .or(cfg.include_permissions_instructions)
             .unwrap_or(true);
-        let include_apps_instructions = config_profile
-            .include_apps_instructions
-            .or(cfg.include_apps_instructions)
-            .unwrap_or(true);
         let include_environment_context = config_profile
             .include_environment_context
             .or(cfg.include_environment_context)
@@ -1944,17 +2033,6 @@ impl Config {
                     .then_some(Personality::Pragmatic)
             });
 
-        let experimental_compact_prompt_path = config_profile
-            .experimental_compact_prompt_file
-            .as_ref()
-            .or(cfg.experimental_compact_prompt_file.as_ref());
-        let file_compact_prompt = Self::try_read_non_empty_file(
-            fs,
-            experimental_compact_prompt_path,
-            "experimental compact prompt file",
-        )
-        .await?;
-        let compact_prompt = compact_prompt.or(file_compact_prompt);
         let js_repl_node_path = js_repl_node_path_override
             .or(config_profile.js_repl_node_path.map(Into::into))
             .or(cfg.js_repl_node_path.map(Into::into));
@@ -2057,8 +2135,8 @@ impl Config {
             None => (None, None),
         };
         let has_network_requirements = network_requirements.is_some();
-        let network = NetworkProxySpec::from_config_and_constraints(
-            configured_network_proxy_config,
+        let network = NetworkAccessSpec::from_config_and_constraints(
+            configured_network_access_config,
             network_requirements,
             constrained_sandbox_policy.get(),
         )
@@ -2066,7 +2144,7 @@ impl Config {
             if let Some(source) = network_requirements_source.as_ref() {
                 std::io::Error::new(
                     err.kind(),
-                    format!("failed to build managed network proxy from {source}: {err}"),
+                    format!("failed to build network policy runtime from {source}: {err}"),
                 )
             } else {
                 err
@@ -2142,7 +2220,6 @@ impl Config {
             compact_prompt,
             commit_attribution,
             include_permissions_instructions,
-            include_apps_instructions,
             include_environment_context,
             // The config.toml omits "_mode" because it's a config file. However, "_mode"
             // is important in code to differentiate the mode from the store implementation.
@@ -2186,9 +2263,8 @@ impl Config {
             config_layer_stack,
             history,
             ephemeral: ephemeral.unwrap_or_default(),
-            file_opener: cfg.file_opener.unwrap_or(UriBasedFileOpener::VsCode),
             darwin_code_self_exe,
-            darwin_code_linux_sandbox_exe,
+            codex_linux_sandbox_exe,
             main_execve_wrapper_exe,
             js_repl_node_path,
             js_repl_node_module_dirs,
@@ -2212,34 +2288,12 @@ impl Config {
             model_supports_reasoning_summaries: cfg.model_supports_reasoning_summaries,
             model_catalog,
             model_verbosity: config_profile.model_verbosity.or(cfg.model_verbosity),
-            chatgpt_base_url: config_profile
-                .chatgpt_base_url
-                .or(cfg.chatgpt_base_url)
-                .unwrap_or("https://chatgpt.com/backend-api/".to_string()),
-            realtime_audio: cfg
-                .audio
-                .map_or_else(RealtimeAudioConfig::default, |audio| RealtimeAudioConfig {
-                    microphone: audio.microphone,
-                    speaker: audio.speaker,
-                }),
+            realtime_audio,
+            realtime,
             experimental_realtime_ws_base_url: cfg.experimental_realtime_ws_base_url,
-            experimental_realtime_ws_model: cfg.experimental_realtime_ws_model,
-            realtime: cfg
-                .realtime
-                .map_or_else(RealtimeConfig::default, |realtime| {
-                    let defaults = RealtimeConfig::default();
-                    RealtimeConfig {
-                        version: realtime.version.unwrap_or(defaults.version),
-                        session_type: realtime.session_type.unwrap_or(defaults.session_type),
-                        transport: realtime.transport.unwrap_or(defaults.transport),
-                        voice: realtime.voice,
-                    }
-                }),
             experimental_realtime_ws_backend_prompt: cfg.experimental_realtime_ws_backend_prompt,
             experimental_realtime_ws_startup_context: cfg.experimental_realtime_ws_startup_context,
-            experimental_realtime_start_instructions: cfg.experimental_realtime_start_instructions,
-            forced_chatgpt_workspace_id,
-            forced_login_method,
+            forced_login_method: None,
             include_apply_patch_tool: include_apply_patch_tool_flag,
             web_search_mode: constrained_web_search_mode.value,
             web_search_config,
@@ -2254,19 +2308,11 @@ impl Config {
             active_profile: active_profile_name,
             active_project,
             windows_wsl_setup_acknowledged: cfg.windows_wsl_setup_acknowledged.unwrap_or(false),
-            notices: cfg.notice.unwrap_or_default(),
+            notices: Notice::default(),
             check_for_update_on_startup,
             disable_paste_burst: cfg.disable_paste_burst.unwrap_or(false),
-            analytics_enabled: config_profile
-                .analytics
-                .as_ref()
-                .and_then(|a| a.enabled)
-                .or(cfg.analytics.as_ref().and_then(|a| a.enabled)),
-            feedback_enabled: cfg
-                .feedback
-                .as_ref()
-                .and_then(|feedback| feedback.enabled)
-                .unwrap_or(true),
+            analytics_enabled: Some(false),
+            feedback_enabled: false,
             tool_suggest,
             tui_notifications: cfg
                 .tui
@@ -2288,23 +2334,7 @@ impl Config {
             tui_status_line: cfg.tui.as_ref().and_then(|t| t.status_line.clone()),
             tui_terminal_title: cfg.tui.as_ref().and_then(|t| t.terminal_title.clone()),
             tui_theme: cfg.tui.as_ref().and_then(|t| t.theme.clone()),
-            otel: {
-                let t: OtelConfigToml = cfg.otel.unwrap_or_default();
-                let log_user_prompt = t.log_user_prompt.unwrap_or(false);
-                let environment = t
-                    .environment
-                    .unwrap_or(DEFAULT_OTEL_ENVIRONMENT.to_string());
-                let exporter = t.exporter.unwrap_or(OtelExporterKind::None);
-                let trace_exporter = t.trace_exporter.unwrap_or_else(|| exporter.clone());
-                let metrics_exporter = t.metrics_exporter.unwrap_or(OtelExporterKind::Statsig);
-                OtelConfig {
-                    log_user_prompt,
-                    environment,
-                    exporter,
-                    trace_exporter,
-                    metrics_exporter,
-                }
-            },
+            otel: OtelConfig::default(),
         };
         Ok(config)
         })
@@ -2370,27 +2400,35 @@ impl Config {
         };
     }
 
-    pub fn managed_network_requirements_enabled(&self) -> bool {
-        !matches!(
-            self.permissions.sandbox_policy.get(),
-            SandboxPolicy::DangerFullAccess
-        ) && self
-            .config_layer_stack
-            .requirements_toml()
-            .network
-            .is_some()
-    }
-
     pub fn bundled_skills_enabled(&self) -> bool {
         crate::manager::bundled_skills_enabled_from_stack(&self.config_layer_stack)
     }
 }
 
-pub(crate) fn uses_deprecated_instructions_file(config_layer_stack: &ConfigLayerStack) -> bool {
-    config_layer_stack
-        .layers_high_to_low()
-        .into_iter()
-        .any(|layer| toml_uses_deprecated_instructions_file(&layer.config))
+#[cfg(test)]
+pub(crate) fn ensure_default_byok_provider_config_toml_for_tests(cfg: &mut ConfigToml) {
+    if cfg.openai.is_some()
+        || cfg.gemini.is_some()
+        || cfg.claude.is_some()
+        || !cfg.openai_compatible.is_empty()
+        || !cfg.providers.is_empty()
+        || !cfg.model_providers.is_empty()
+    {
+        return;
+    }
+    cfg.openai_compatible.insert(
+        "cli2api".to_string(),
+        darwin_code_config::config_toml::OpenAiCompatibleProviderToml {
+            preset: None,
+            name: Some("Local cli2api".to_string()),
+            base_url: Some("http://127.0.0.1:8317/v1".to_string()),
+            wire_api: Some(WireApi::Responses),
+            api_key: Some(darwin_code_config::config_toml::ApiKeyToml::new(
+                "test-cli2api-api-key".to_string(),
+            )),
+            available_models: vec![],
+        },
+    );
 }
 
 fn guardian_policy_config_from_requirements(
@@ -2405,36 +2443,115 @@ fn guardian_policy_config_from_requirements(
         })
 }
 
-fn toml_uses_deprecated_instructions_file(value: &TomlValue) -> bool {
-    let Some(table) = value.as_table() else {
-        return false;
-    };
-    if table.contains_key("experimental_instructions_file") {
-        return true;
-    }
-    let Some(profiles) = table.get("profiles").and_then(TomlValue::as_table) else {
-        return false;
-    };
-    profiles.values().any(|profile| {
-        profile.as_table().is_some_and(|profile_table| {
-            profile_table.contains_key("experimental_instructions_file")
-        })
-    })
-}
+const DARWIN_CODE_HOME_ENV: &str = "DARWIN_CODE_HOME";
+const CODEX_HOME_ENV: &str = "CODEX_HOME";
 
-/// Returns the path to the Darwin-Code configuration directory, which can be
-/// specified by the `DARWIN_CODE_HOME` environment variable. If not set, defaults to
-/// `~/.darwin-code`.
+/// Returns the path to the DarwinCode configuration directory.
 ///
-/// - If `DARWIN_CODE_HOME` is set, the value must exist and be a directory. The
-///   value will be canonicalized and this function will Err otherwise.
-/// - If `DARWIN_CODE_HOME` is not set, this function does not verify that the
-///   directory exists.
+/// Resolution order:
+/// 1. `DARWIN_CODE_HOME`, when set to a non-empty value.
+/// 2. `CODEX_HOME`, when set to a non-empty value, for Codex-compatible usage.
+/// 3. The Darwin Code source checkout root, when running from inside it.
+/// 4. `~/.codex`.
+///
+/// Explicit environment-variable values must exist and be directories. Source
+/// checkout detection is intentionally narrow so ordinary project-local
+/// `config.toml` files are not mistaken for Darwin Code home directories.
 pub fn find_darwin_code_home() -> std::io::Result<AbsolutePathBuf> {
-    darwin_code_utils_home_dir::find_darwin_code_home()
+    let darwin_code_home_env = std::env::var(DARWIN_CODE_HOME_ENV)
+        .ok()
+        .filter(|val| !val.is_empty());
+    let codex_home_env = std::env::var(CODEX_HOME_ENV)
+        .ok()
+        .filter(|val| !val.is_empty());
+    let cwd = std::env::current_dir().ok();
+    find_darwin_code_home_from_env_and_cwd(
+        darwin_code_home_env.as_deref(),
+        codex_home_env.as_deref(),
+        cwd.as_deref(),
+    )
 }
 
-/// Returns the path to the folder where Darwin-Code logs are stored. Does not verify
+fn find_darwin_code_home_from_env_and_cwd(
+    darwin_code_home_env: Option<&str>,
+    codex_home_env: Option<&str>,
+    cwd: Option<&Path>,
+) -> std::io::Result<AbsolutePathBuf> {
+    if let Some(value) = darwin_code_home_env {
+        return resolve_home_env_dir(DARWIN_CODE_HOME_ENV, value);
+    }
+
+    if let Some(value) = codex_home_env {
+        return resolve_home_env_dir(CODEX_HOME_ENV, value);
+    }
+
+    if let Some(source_home) = cwd.and_then(find_darwin_code_source_home_from_cwd) {
+        return AbsolutePathBuf::from_absolute_path(source_home);
+    }
+
+    default_codex_home()
+}
+
+fn resolve_home_env_dir(env_name: &str, value: &str) -> std::io::Result<AbsolutePathBuf> {
+    let path = PathBuf::from(value);
+    let metadata = std::fs::metadata(&path).map_err(|err| match err.kind() {
+        std::io::ErrorKind::NotFound => std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("{env_name} points to {value:?}, but that path does not exist"),
+        ),
+        _ => std::io::Error::new(
+            err.kind(),
+            format!("failed to read {env_name} {value:?}: {err}"),
+        ),
+    })?;
+
+    if !metadata.is_dir() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{env_name} points to {value:?}, but that path is not a directory"),
+        ));
+    }
+
+    let canonical = path.canonicalize().map_err(|err| {
+        std::io::Error::new(
+            err.kind(),
+            format!("failed to canonicalize {env_name} {value:?}: {err}"),
+        )
+    })?;
+    AbsolutePathBuf::from_absolute_path(canonical)
+}
+
+fn find_darwin_code_source_home_from_cwd(cwd: &Path) -> Option<PathBuf> {
+    cwd.ancestors()
+        .find(|ancestor| is_darwin_code_source_home(ancestor))
+        .and_then(|ancestor| ancestor.canonicalize().ok())
+}
+
+fn is_darwin_code_source_home(path: &Path) -> bool {
+    let cargo_toml = path.join("codex-rs").join("Cargo.toml");
+    if !path.join(CONFIG_TOML_FILE).is_file() || !cargo_toml.is_file() {
+        return false;
+    }
+
+    let cargo_marker = std::fs::read_to_string(cargo_toml)
+        .is_ok_and(|cargo| cargo.contains("darwin-code-cli") || cargo.contains("darwin-code-core"));
+    let readme_marker = std::fs::read_to_string(path.join("README.md"))
+        .is_ok_and(|readme| readme.contains("Darwin Code Engine"));
+    cargo_marker || readme_marker
+}
+
+fn default_codex_home() -> std::io::Result<AbsolutePathBuf> {
+    let mut path = home_dir().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not find home directory",
+        )
+    })?;
+    path.push(".codex");
+    AbsolutePathBuf::from_absolute_path(path)
+}
+
+/// Returns the path to the folder where DarwinCode logs are stored. Does not verify
 /// that the directory exists.
 pub fn log_dir(cfg: &Config) -> std::io::Result<PathBuf> {
     Ok(cfg.log_dir.clone())

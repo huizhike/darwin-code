@@ -5,12 +5,18 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
+use core_test_support::responses;
+use core_test_support::responses::WebSocketConnectionConfig;
+use core_test_support::responses::WebSocketRequest;
+use core_test_support::responses::WebSocketTestServer;
+use core_test_support::responses::start_websocket_server;
+use core_test_support::responses::start_websocket_server_with_headers;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server_protocol::CommandExecutionStatus;
 use darwin_code_app_server_protocol::ItemCompletedNotification;
 use darwin_code_app_server_protocol::ItemStartedNotification;
 use darwin_code_app_server_protocol::JSONRPCError;
 use darwin_code_app_server_protocol::JSONRPCResponse;
-use darwin_code_app_server_protocol::LoginAccountResponse;
 use darwin_code_app_server_protocol::RequestId;
 use darwin_code_app_server_protocol::ThreadItem;
 use darwin_code_app_server_protocol::ThreadRealtimeAppendAudioParams;
@@ -43,13 +49,6 @@ use darwin_code_protocol::protocol::RealtimeConversationVersion;
 use darwin_code_protocol::protocol::RealtimeOutputModality;
 use darwin_code_protocol::protocol::RealtimeVoice;
 use darwin_code_protocol::protocol::RealtimeVoicesList;
-use core_test_support::responses;
-use core_test_support::responses::WebSocketConnectionConfig;
-use core_test_support::responses::WebSocketRequest;
-use core_test_support::responses::WebSocketTestServer;
-use core_test_support::responses::start_websocket_server;
-use core_test_support::responses::start_websocket_server_with_headers;
-use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -73,7 +72,7 @@ use wiremock::matchers::path_regex;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const DELEGATED_SHELL_TOOL_TIMEOUT_MS: u64 = 30_000;
-const STARTUP_CONTEXT_HEADER: &str = "Startup context from Darwin-Code.";
+const STARTUP_CONTEXT_HEADER: &str = "Startup context from DarwinCode.";
 const V2_STEERING_ACKNOWLEDGEMENT: &str =
     "This was sent to steer the previous background agent task.";
 const V2_HANDOFF_COMPLETE_ACKNOWLEDGEMENT: &str =
@@ -280,9 +279,12 @@ impl RealtimeE2eHarness {
             sandbox,
         )?;
 
-        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+        let mut mcp = McpProcess::new_with_env(
+            darwin_code_home.path(),
+            &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+        )
+        .await?;
         mcp.initialize().await?;
-        login_with_api_key(&mut mcp, "sk-test-key").await?;
 
         let thread_start_request_id = mcp
             .send_thread_start_request(ThreadStartParams::default())
@@ -526,9 +528,12 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+    )
+    .await?;
     mcp.initialize().await?;
-    login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
         .send_thread_start_request(ThreadStartParams::default())
@@ -769,9 +774,12 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+    )
+    .await?;
     mcp.initialize().await?;
-    login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
         .send_thread_start_request(ThreadStartParams::default())
@@ -943,9 +951,12 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
         StartupContextConfig::Generated,
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+    )
+    .await?;
     mcp.initialize().await?;
-    login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
         .send_thread_start_request(ThreadStartParams::default())
@@ -1039,9 +1050,12 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
         StartupContextConfig::Override("startup context"),
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+    )
+    .await?;
     mcp.initialize().await?;
-    login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
         .send_thread_start_request(ThreadStartParams::default())
@@ -1139,7 +1153,7 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
             .headers
             .get("content-type")
             .and_then(|value| value.to_str().ok()),
-        Some("multipart/form-data; boundary=darwin-code-realtime-call-boundary")
+        Some("multipart/form-data; boundary=darwin_code-realtime-call-boundary")
     );
     let body = String::from_utf8(request.body).context("multipart body should be utf-8")?;
     let session = r#"{"tool_choice":"auto","type":"realtime","model":"gpt-realtime-1.5","instructions":"backend prompt\n\nstartup context","output_modalities":["audio"],"audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"noise_reduction":{"type":"near_field"},"turn_detection":{"type":"server_vad","interrupt_response":true,"create_response":true,"silence_duration_ms":500}},"output":{"format":{"type":"audio/pcm","rate":24000},"voice":"marin"}},"tools":[{"type":"function","name":"background_agent","description":"Send a user request to the background agent. Use this as the default action. Do not rephrase the user's ask or rewrite it in your own words; pass along the user's own words. If the background agent is idle, this starts a new task and returns the final result to the user. If the background agent is already working on a task, this sends the request as guidance to steer that previous task. If the user asks to do something next, later, after this, or once current work finishes, call this tool so the work is actually queued instead of merely promising to do it later.","parameters":{"type":"object","properties":{"prompt":{"type":"string","description":"The user request to delegate to the background agent."}},"required":["prompt"],"additionalProperties":false}}]}"#;
@@ -1147,18 +1161,18 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     assert_eq!(
         body,
         format!(
-            "--darwin-code-realtime-call-boundary\r\n\
+            "--darwin_code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"sdp\"\r\n\
              Content-Type: application/sdp\r\n\
              \r\n\
              v=offer\r\n\
              \r\n\
-             --darwin-code-realtime-call-boundary\r\n\
+             --darwin_code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"session\"\r\n\
              Content-Type: application/json\r\n\
              \r\n\
              {session}\r\n\
-             --darwin-code-realtime-call-boundary--\r\n"
+             --darwin_code-realtime-call-boundary--\r\n"
         )
     );
 
@@ -1644,7 +1658,7 @@ async fn webrtc_v2_background_agent_steering_ack_requests_response_create() -> R
     // acknowledgement so it can surface that acknowledgement to the user.
     assert_v2_response_create(&harness.sideband_outbound_request(/*request_index*/ 2).await);
 
-    // Phase 4: release the gated delegated turn. Darwin-Code should then continue
+    // Phase 4: release the gated delegated turn. DarwinCode should then continue
     // the same run with the steering text included in the follow-up Responses
     // request, proving realtime did not merely acknowledge and drop it.
     let _ = gate_completed_tx.send(());
@@ -1903,9 +1917,12 @@ async fn realtime_webrtc_start_surfaces_backend_error() -> Result<()> {
         StartupContextConfig::Override("startup context"),
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
+    let mut mcp = McpProcess::new_with_env(
+        darwin_code_home.path(),
+        &[("DARWIN_CODE_TEST_API_KEY", Some("sk-test-key"))],
+    )
+    .await?;
     mcp.initialize().await?;
-    login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     // Phase 2: start a normal app-server thread and request realtime over WebRTC.
     let thread_start_request_id = mcp
@@ -2014,19 +2031,6 @@ async fn read_notification<T: DeserializeOwned>(mcp: &mut McpProcess, method: &s
         .params
         .context("expected notification params to be present")?;
     Ok(serde_json::from_value(params)?)
-}
-
-async fn login_with_api_key(mcp: &mut McpProcess, api_key: &str) -> Result<()> {
-    let request_id = mcp.send_login_account_api_key_request(api_key).await?;
-    let response: JSONRPCResponse = timeout(
-        DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
-    )
-    .await??;
-    let login: LoginAccountResponse = to_response(response)?;
-    assert_eq!(login, LoginAccountResponse::ApiKey {});
-
-    Ok(())
 }
 
 async fn wait_for_started_command_execution(
@@ -2202,24 +2206,24 @@ fn assert_call_create_multipart(
             .headers
             .get("content-type")
             .and_then(|value| value.to_str().ok()),
-        Some("multipart/form-data; boundary=darwin-code-realtime-call-boundary")
+        Some("multipart/form-data; boundary=darwin_code-realtime-call-boundary")
     );
     let body = String::from_utf8(request.body).context("multipart body should be utf-8")?;
     let session = normalized_json_string(session)?;
     assert_eq!(
         body,
         format!(
-            "--darwin-code-realtime-call-boundary\r\n\
+            "--darwin_code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"sdp\"\r\n\
              Content-Type: application/sdp\r\n\
              \r\n\
              {offer_sdp}\r\n\
-             --darwin-code-realtime-call-boundary\r\n\
+             --darwin_code-realtime-call-boundary\r\n\
              Content-Disposition: form-data; name=\"session\"\r\n\
              Content-Type: application/json\r\n\
              \r\n\
              {session}\r\n\
-             --darwin-code-realtime-call-boundary--\r\n"
+             --darwin_code-realtime-call-boundary--\r\n"
         )
     );
     Ok(())
@@ -2295,6 +2299,7 @@ base_url = "{responses_server_uri}/v1"
 wire_api = "responses"
 request_max_retries = 0
 stream_max_retries = 0
+env_key = "DARWIN_CODE_TEST_API_KEY"
 "#
         ),
     )

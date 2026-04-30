@@ -12,7 +12,6 @@ use tokio::process::ChildStdout;
 
 use anyhow::Context;
 use darwin_code_app_server_protocol::AppsListParams;
-use darwin_code_app_server_protocol::CancelLoginAccountParams;
 use darwin_code_app_server_protocol::ClientInfo;
 use darwin_code_app_server_protocol::ClientNotification;
 use darwin_code_app_server_protocol::CollaborationModeListParams;
@@ -34,8 +33,6 @@ use darwin_code_app_server_protocol::FsRemoveParams;
 use darwin_code_app_server_protocol::FsUnwatchParams;
 use darwin_code_app_server_protocol::FsWatchParams;
 use darwin_code_app_server_protocol::FsWriteFileParams;
-use darwin_code_app_server_protocol::GetAccountParams;
-use darwin_code_app_server_protocol::GetAuthStatusParams;
 use darwin_code_app_server_protocol::GetConversationSummaryParams;
 use darwin_code_app_server_protocol::InitializeCapabilities;
 use darwin_code_app_server_protocol::InitializeParams;
@@ -46,7 +43,6 @@ use darwin_code_app_server_protocol::JSONRPCNotification;
 use darwin_code_app_server_protocol::JSONRPCRequest;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::ListMcpServerStatusParams;
-use darwin_code_app_server_protocol::LoginAccountParams;
 use darwin_code_app_server_protocol::MarketplaceAddParams;
 use darwin_code_app_server_protocol::McpResourceReadParams;
 use darwin_code_app_server_protocol::McpServerToolCallParams;
@@ -87,7 +83,8 @@ use darwin_code_app_server_protocol::TurnInterruptParams;
 use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnSteerParams;
 use darwin_code_app_server_protocol::WindowsSandboxSetupStartParams;
-use darwin_code_login::default_client::DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
+use darwin_code_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
+use darwin_code_client::DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
 use tokio::process::Command;
 
 pub struct McpProcess {
@@ -102,7 +99,7 @@ pub struct McpProcess {
     pending_messages: VecDeque<JSONRPCMessage>,
 }
 
-pub const DEFAULT_CLIENT_NAME: &str = "darwin-code-app-server-tests";
+pub const DEFAULT_CLIENT_NAME: &str = "darwin_code-app-server-tests";
 const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "DARWIN_CODE_APP_SERVER_DISABLE_MANAGED_CONFIG";
 
 impl McpProcess {
@@ -111,7 +108,11 @@ impl McpProcess {
     }
 
     pub async fn new_without_managed_config(darwin_code_home: &Path) -> anyhow::Result<Self> {
-        Self::new_with_env(darwin_code_home, &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))]).await
+        Self::new_with_env(
+            darwin_code_home,
+            &[(DISABLE_MANAGED_CONFIG_ENV_VAR, Some("1"))],
+        )
+        .await
     }
 
     pub async fn new_with_args(darwin_code_home: &Path, args: &[&str]) -> anyhow::Result<Self> {
@@ -135,8 +136,17 @@ impl McpProcess {
         env_overrides: &[(&str, Option<&str>)],
         args: &[&str],
     ) -> anyhow::Result<Self> {
-        let program = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-app-server")
-            .context("should find binary for darwin-code-app-server")?;
+        crate::ensure_default_byok_provider_config(darwin_code_home)?;
+        let models_cache_path = darwin_code_home.join("models_cache.json");
+        if !models_cache_path.exists() {
+            crate::write_models_cache(darwin_code_home)?;
+        }
+        let program = match darwin_code_utils_cargo_bin::cargo_bin("darwin-code-app-server") {
+            Ok(path) => path,
+            Err(_) => std::env::current_dir()
+                .context("should read current dir for darwin-code-app-server fallback")?
+                .join("target/debug/darwin-code-app-server"),
+        };
         let mut cmd = Command::new(program);
 
         cmd.stdin(Stdio::piped());
@@ -144,12 +154,15 @@ impl McpProcess {
         cmd.stderr(Stdio::piped());
         cmd.current_dir(darwin_code_home);
         cmd.env("DARWIN_CODE_HOME", darwin_code_home);
+        cmd.env("CODEX_HOME", darwin_code_home);
+        cmd.env("OPENAI_API_KEY", "test-api-key");
         cmd.env("RUST_LOG", "info");
         // Keep integration tests isolated from host managed configuration.
         cmd.env(
             "DARWIN_CODE_APP_SERVER_MANAGED_CONFIG_PATH",
             darwin_code_home.join("managed_config.toml"),
         );
+        cmd.env_remove(CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
         cmd.env_remove(DARWIN_CODE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR);
         cmd.args(args);
 
@@ -167,7 +180,7 @@ impl McpProcess {
         let mut process = cmd
             .kill_on_drop(true)
             .spawn()
-            .context("darwin-code-mcp-server proc should start")?;
+            .context("darwin_code-mcp-server proc should start")?;
         let stdin = process
             .stdin
             .take()
@@ -281,15 +294,6 @@ impl McpProcess {
         }
     }
 
-    /// Send a `getAuthStatus` JSON-RPC request.
-    pub async fn send_get_auth_status_request(
-        &mut self,
-        params: GetAuthStatusParams,
-    ) -> anyhow::Result<i64> {
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("getAuthStatus", params).await
-    }
-
     /// Send a `getConversationSummary` JSON-RPC request.
     pub async fn send_get_conversation_summary_request(
         &mut self,
@@ -297,37 +301,6 @@ impl McpProcess {
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
         self.send_request("getConversationSummary", params).await
-    }
-
-    /// Send an `account/rateLimits/read` JSON-RPC request.
-    pub async fn send_get_account_rate_limits_request(&mut self) -> anyhow::Result<i64> {
-        self.send_request("account/rateLimits/read", /*params*/ None)
-            .await
-    }
-
-    /// Send an `account/read` JSON-RPC request.
-    pub async fn send_get_account_request(
-        &mut self,
-        params: GetAccountParams,
-    ) -> anyhow::Result<i64> {
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("account/read", params).await
-    }
-
-    /// Send an `account/login/start` JSON-RPC request with ChatGPT auth tokens.
-    pub async fn send_chatgpt_auth_tokens_login_request(
-        &mut self,
-        access_token: String,
-        chatgpt_account_id: String,
-        chatgpt_plan_type: Option<String>,
-    ) -> anyhow::Result<i64> {
-        let params = LoginAccountParams::ChatgptAuthTokens {
-            access_token,
-            chatgpt_account_id,
-            chatgpt_plan_type,
-        };
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("account/login/start", params).await
     }
 
     /// Send a `feedback/upload` JSON-RPC request.
@@ -905,48 +878,6 @@ impl McpProcess {
         self.send_request("fs/unwatch", params).await
     }
 
-    /// Send an `account/logout` JSON-RPC request.
-    pub async fn send_logout_account_request(&mut self) -> anyhow::Result<i64> {
-        self.send_request("account/logout", /*params*/ None).await
-    }
-
-    /// Send an `account/login/start` JSON-RPC request for API key login.
-    pub async fn send_login_account_api_key_request(
-        &mut self,
-        api_key: &str,
-    ) -> anyhow::Result<i64> {
-        let params = serde_json::json!({
-            "type": "apiKey",
-            "apiKey": api_key,
-        });
-        self.send_request("account/login/start", Some(params)).await
-    }
-
-    /// Send an `account/login/start` JSON-RPC request for ChatGPT login.
-    pub async fn send_login_account_chatgpt_request(&mut self) -> anyhow::Result<i64> {
-        let params = serde_json::json!({
-            "type": "chatgpt"
-        });
-        self.send_request("account/login/start", Some(params)).await
-    }
-
-    /// Send an `account/login/start` JSON-RPC request for ChatGPT device code login.
-    pub async fn send_login_account_chatgpt_device_code_request(&mut self) -> anyhow::Result<i64> {
-        let params = serde_json::json!({
-            "type": "chatgptDeviceCode"
-        });
-        self.send_request("account/login/start", Some(params)).await
-    }
-
-    /// Send an `account/login/cancel` JSON-RPC request.
-    pub async fn send_cancel_login_account_request(
-        &mut self,
-        params: CancelLoginAccountParams,
-    ) -> anyhow::Result<i64> {
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("account/login/cancel", params).await
-    }
-
     /// Send a `fuzzyFileSearch` JSON-RPC request.
     pub async fn send_fuzzy_file_search_request(
         &mut self,
@@ -1284,7 +1215,7 @@ impl McpProcess {
 
 impl Drop for McpProcess {
     fn drop(&mut self) {
-        // These tests spawn a `darwin-code-app-server` child process.
+        // These tests spawn a `darwin_code-app-server` child process.
         //
         // We keep that child alive for the test and rely on Tokio's `kill_on_drop(true)` when this
         // helper is dropped. Tokio documents kill-on-drop as best-effort: dropping requests

@@ -23,7 +23,7 @@ async fn exec_uses_darwin_code_api_key_env_var() -> anyhow::Result<()> {
         .arg("--skip-git-repo-check")
         .arg("-C")
         .arg(&repo_root)
-        .arg("echo testing darwin-code api key")
+        .arg("echo testing darwin_code api key")
         .assert()
         .success();
 

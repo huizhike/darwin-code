@@ -27,6 +27,8 @@ use ratatui::prelude::*;
 use tempfile::TempDir;
 
 async fn test_config(temp_home: &TempDir) -> Config {
+    crate::test_support::ensure_default_byok_provider_config(temp_home.path())
+        .expect("write BYOK test config");
     ConfigBuilder::default()
         .darwin_code_home(temp_home.path().to_path_buf())
         .build()

@@ -1,10 +1,10 @@
 use crate::app_event_sender::AppEventSender;
 use crate::legacy_core::config::Config;
 use base64::Engine;
-use darwin_code_protocol::protocol::ConversationAudioParams;
-use darwin_code_protocol::protocol::RealtimeAudioFrame;
 use cpal::traits::DeviceTrait;
 use cpal::traits::StreamTrait;
+use darwin_code_protocol::protocol::ConversationAudioParams;
+use darwin_code_protocol::protocol::RealtimeAudioFrame;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Mutex;

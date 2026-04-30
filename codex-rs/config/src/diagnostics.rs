@@ -4,8 +4,8 @@
 use crate::ConfigLayerEntry;
 use crate::ConfigLayerStack;
 use crate::ConfigLayerStackOrdering;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
 use serde::de::DeserializeOwned;
 use serde_path_to_error::Path as SerdePath;
 use serde_path_to_error::Segment as SerdeSegment;

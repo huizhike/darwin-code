@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use darwin_code_protocol::models::ShellCommandToolCallParams;
 use core_test_support::PathBufExt;
 use core_test_support::test_path_buf;
+use darwin_code_protocol::models::ShellCommandToolCallParams;
 use pretty_assertions::assert_eq;
 
 use crate::exec_env::create_env;

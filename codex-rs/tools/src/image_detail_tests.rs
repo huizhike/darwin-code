@@ -1,7 +1,7 @@
 use super::*;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::models::FunctionCallOutputContentItem;
+use darwin_code_protocol::models::ImageDetail;
+use darwin_code_protocol::openai_models::ModelInfo;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 

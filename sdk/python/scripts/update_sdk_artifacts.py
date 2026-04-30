@@ -37,7 +37,7 @@ def schema_bundle_path() -> Path:
         / "app-server-protocol"
         / "schema"
         / "json"
-        / "codex_app_server_protocol.v2.schemas.json"
+        / "darwin_code_app_server_protocol.v2.schemas.json"
     )
 
 

@@ -1,21 +1,11 @@
 use super::*;
-use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
 use pretty_assertions::assert_eq;
-use std::num::NonZeroU64;
-use tempfile::tempdir;
 
-#[test]
-fn test_deserialize_ollama_model_provider_toml() {
-    let azure_provider_toml = r#"
-name = "Ollama"
-base_url = "http://localhost:11434/v1"
-        "#;
-    let expected_provider = ModelProviderInfo {
-        name: "Ollama".into(),
-        base_url: Some("http://localhost:11434/v1".into()),
-        env_key: None,
-        env_key_instructions: None,
+fn expected_minimal_provider(name: &str, base_url: &str) -> ModelProviderInfo {
+    ModelProviderInfo {
+        name: name.into(),
+        base_url: Some(base_url.into()),
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -28,25 +18,34 @@ base_url = "http://localhost:11434/v1"
         websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         supports_websockets: false,
-    };
+    }
+}
 
-    let provider: ModelProviderInfo = toml::from_str(azure_provider_toml).unwrap();
+#[test]
+fn test_deserialize_local_openai_compatible_model_provider_toml() {
+    let provider_toml = r#"
+name = "Local OpenAI Compatible"
+base_url = "http://localhost:11434/v1"
+        "#;
+    let expected_provider =
+        expected_minimal_provider("Local OpenAI Compatible", "http://localhost:11434/v1");
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
     assert_eq!(expected_provider, provider);
 }
 
 #[test]
 fn test_deserialize_azure_model_provider_toml() {
-    let azure_provider_toml = r#"
+    let provider_toml = r#"
 name = "Azure"
 base_url = "https://xxxxx.openai.azure.com/openai"
-env_key = "AZURE_OPENAI_API_KEY"
+api_key = "azure-direct-key"
 query_params = { api-version = "2025-04-01-preview" }
         "#;
     let expected_provider = ModelProviderInfo {
         name: "Azure".into(),
         base_url: Some("https://xxxxx.openai.azure.com/openai".into()),
-        env_key: Some("AZURE_OPENAI_API_KEY".into()),
-        env_key_instructions: None,
+        api_key: Some(InlineApiKey::new("azure-direct-key".into())),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -63,24 +62,27 @@ query_params = { api-version = "2025-04-01-preview" }
         supports_websockets: false,
     };
 
-    let provider: ModelProviderInfo = toml::from_str(azure_provider_toml).unwrap();
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
     assert_eq!(expected_provider, provider);
+    assert_eq!(
+        provider.api_key().expect("direct key should resolve"),
+        Some("azure-direct-key".to_string())
+    );
 }
 
 #[test]
 fn test_deserialize_example_model_provider_toml() {
-    let azure_provider_toml = r#"
+    let provider_toml = r#"
 name = "Example"
 base_url = "https://example.com"
-env_key = "API_KEY"
+api_key = "example-direct-key"
 http_headers = { "X-Example-Header" = "example-value" }
 env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         "#;
     let expected_provider = ModelProviderInfo {
         name: "Example".into(),
         base_url: Some("https://example.com".into()),
-        env_key: Some("API_KEY".into()),
-        env_key_instructions: None,
+        api_key: Some(InlineApiKey::new("example-direct-key".into())),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -99,7 +101,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         supports_websockets: false,
     };
 
-    let provider: ModelProviderInfo = toml::from_str(azure_provider_toml).unwrap();
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
     assert_eq!(expected_provider, provider);
 }
 
@@ -108,7 +110,7 @@ fn test_deserialize_chat_wire_api_shows_helpful_error() {
     let provider_toml = r#"
 name = "OpenAI using Chat Completions"
 base_url = "https://api.openai.com/v1"
-env_key = "OPENAI_API_KEY"
+api_key = "direct-key"
 wire_api = "chat"
         "#;
 
@@ -117,12 +119,25 @@ wire_api = "chat"
 }
 
 #[test]
+fn test_deserialize_chat_completions_wire_api() {
+    let provider_toml = r#"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+api_key = "direct-key"
+wire_api = "chat-completions"
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    assert_eq!(provider.wire_api, WireApi::ChatCompletions);
+    assert_eq!(provider.wire_api.to_string(), "chat-completions");
+}
+
+#[test]
 fn test_deserialize_websocket_connect_timeout() {
     let provider_toml = r#"
 name = "OpenAI"
 base_url = "https://api.openai.com/v1"
 websocket_connect_timeout_ms = 15000
-supports_websockets = true
         "#;
 
     let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
@@ -130,10 +145,118 @@ supports_websockets = true
 }
 
 #[test]
-fn test_supports_remote_compaction_for_openai() {
-    let provider = ModelProviderInfo::create_openai_provider(/*base_url*/ None);
+fn test_deserialize_supports_websockets_is_rejected() {
+    let provider_toml = r#"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+supports_websockets = true
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    let err = provider
+        .validate()
+        .expect_err("BYOK-only provider configs must not enable websockets");
+
+    assert!(
+        err.contains("supports_websockets"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn test_builtin_openai_provider_is_byok_http_sse() {
+    let provider =
+        ModelProviderInfo::create_openai_provider(/*base_url*/ None, /*api_key*/ None);
 
     assert!(provider.supports_remote_compaction());
+    assert_eq!(
+        provider.base_url.as_deref(),
+        Some("https://api.openai.com/v1")
+    );
+    assert_eq!(provider.api_key().expect("direct key read"), None);
+    assert!(!provider.requires_openai_auth);
+    assert!(!provider.supports_websockets);
+}
+
+#[test]
+fn test_create_openai_compatible_provider_uses_direct_api_key() {
+    let provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.com".to_string(),
+        WireApi::ChatCompletions,
+        Some("test-direct-api-key".to_string()),
+    );
+
+    assert_eq!(
+        provider,
+        ModelProviderInfo {
+            name: "DeepSeek".to_string(),
+            base_url: Some("https://api.deepseek.com".to_string()),
+            api_key: Some(InlineApiKey::new("test-direct-api-key".to_string())),
+            experimental_bearer_token: None,
+            auth: None,
+            wire_api: WireApi::ChatCompletions,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    );
+    assert_eq!(
+        provider.api_key().expect("direct api_key should resolve"),
+        Some("test-direct-api-key".to_string())
+    );
+}
+
+#[test]
+fn test_openai_compatible_provider_direct_api_key_is_redacted() {
+    let provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.com".to_string(),
+        WireApi::ChatCompletions,
+        Some("test-direct-api-key".to_string()),
+    );
+
+    assert_eq!(
+        provider.api_key().expect("direct api_key should resolve"),
+        Some("test-direct-api-key".to_string())
+    );
+    assert!(
+        !format!("{provider:?}").contains("test-direct-api-key"),
+        "direct key should be redacted from debug output"
+    );
+}
+
+#[test]
+fn test_provider_without_direct_api_key_returns_none() {
+    let provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.com".to_string(),
+        WireApi::ChatCompletions,
+        None,
+    );
+
+    assert_eq!(provider.api_key().expect("direct key read"), None);
+}
+
+#[test]
+fn test_legacy_env_backed_key_field_is_rejected() {
+    let removed_field = format!("env_{}", "key");
+    let provider_toml = format!(
+        r#"
+name = "Advanced"
+base_url = "https://example.test/v1"
+{removed_field} = "OLD_API_KEY"
+        "#
+    );
+
+    let err = toml::from_str::<ModelProviderInfo>(&provider_toml).unwrap_err();
+    assert!(err.to_string().contains(&removed_field));
 }
 
 #[test]
@@ -141,8 +264,7 @@ fn test_supports_remote_compaction_for_azure_name() {
     let provider = ModelProviderInfo {
         name: "Azure".into(),
         base_url: Some("https://example.com/openai".into()),
-        env_key: Some("AZURE_OPENAI_API_KEY".into()),
-        env_key_instructions: None,
+        api_key: Some(InlineApiKey::new("azure-direct-key".into())),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -165,8 +287,7 @@ fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
     let provider = ModelProviderInfo {
         name: "Example".into(),
         base_url: Some("https://example.com/v1".into()),
-        env_key: Some("API_KEY".into()),
-        env_key_instructions: None,
+        api_key: Some(InlineApiKey::new("example-direct-key".into())),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -185,64 +306,21 @@ fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
 }
 
 #[test]
-fn test_deserialize_provider_auth_config_defaults() {
-    let base_dir = tempdir().unwrap();
+fn test_deserialize_provider_auth_config_is_rejected() {
     let provider_toml = r#"
 name = "Corp"
 
 [auth]
 command = "./scripts/print-token"
-args = ["--format=text"]
         "#;
 
-    let provider: ModelProviderInfo = {
-        let _guard = AbsolutePathBufGuard::new(base_dir.path());
-        toml::from_str(provider_toml).unwrap()
-    };
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    let err = provider
+        .validate()
+        .expect_err("command-backed provider auth is outside BYOK scope");
 
-    assert_eq!(
-        provider.auth,
-        Some(ModelProviderAuthInfo {
-            command: "./scripts/print-token".to_string(),
-            args: vec!["--format=text".to_string()],
-            timeout_ms: NonZeroU64::new(5_000).unwrap(),
-            refresh_interval_ms: 300_000,
-            cwd: AbsolutePathBuf::resolve_path_against_base(".", base_dir.path()),
-        })
-    );
-}
-
-#[test]
-fn test_deserialize_provider_auth_config_allows_zero_refresh_interval() {
-    let base_dir = tempdir().unwrap();
-    let provider_toml = r#"
-name = "Corp"
-
-[auth]
-command = "./scripts/print-token"
-refresh_interval_ms = 0
-        "#;
-
-    let provider: ModelProviderInfo = {
-        let _guard = AbsolutePathBufGuard::new(base_dir.path());
-        toml::from_str(provider_toml).unwrap()
-    };
-
-    let auth = provider.auth.expect("auth config should deserialize");
-    assert_eq!(auth.refresh_interval_ms, 0);
-    assert_eq!(auth.refresh_interval(), None);
-}
-
-#[test]
-fn test_chatgpt_auth_uses_official_codex_backend_path_by_default() {
-    let provider = ModelProviderInfo::create_openai_provider(None);
-
-    let api_provider = provider
-        .to_api_provider(Some(AuthMode::Chatgpt))
-        .expect("chatgpt auth should produce an api provider");
-
-    assert_eq!(
-        api_provider.base_url,
-        "https://chatgpt.com/backend-api/codex"
+    assert!(
+        err.contains("command-backed auth"),
+        "unexpected error: {err}"
     );
 }

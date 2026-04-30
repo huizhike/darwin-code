@@ -375,7 +375,7 @@ async fn sandbox_blocks_first_time_dot_darwin_code_creation() {
     let temp = tempfile::tempdir().expect("should be able to create temp dir");
     let repo_root = temp.path().join("repo").abs();
     create_dir_all(&repo_root).await.expect("mkdir repo");
-    let dot_darwin_code = repo_root.join(".darwin-code");
+    let dot_darwin_code = repo_root.join(".darwin_code");
     let config_toml = dot_darwin_code.join("config.toml");
     let policy = SandboxPolicy::WorkspaceWrite {
         writable_roots: vec![],
@@ -389,7 +389,7 @@ async fn sandbox_blocks_first_time_dot_darwin_code_creation() {
         vec![
             "bash".to_string(),
             "-lc".to_string(),
-            "mkdir -p .darwin-code && echo 'sandbox_mode = \"danger-full-access\"' > .darwin-code/config.toml"
+            "mkdir -p .darwin_code && echo 'sandbox_mode = \"danger-full-access\"' > .darwin_code/config.toml"
                 .to_string(),
         ],
         repo_root.clone(),
@@ -399,12 +399,15 @@ async fn sandbox_blocks_first_time_dot_darwin_code_creation() {
         sandbox_env,
     )
     .await
-    .expect("should spawn command creating .darwin-code");
+    .expect("should spawn command creating .darwin_code");
 
-    let status = child.wait().await.expect("should wait for .darwin-code command");
+    let status = child
+        .wait()
+        .await
+        .expect("should wait for .darwin_code command");
     assert!(
         !status.success(),
-        "sandbox unexpectedly allowed first-time .darwin-code creation: {status:?}"
+        "sandbox unexpectedly allowed first-time .darwin_code creation: {status:?}"
     );
     let dot_darwin_code_metadata = tokio::fs::symlink_metadata(&dot_darwin_code).await;
     if let Ok(metadata) = dot_darwin_code_metadata {

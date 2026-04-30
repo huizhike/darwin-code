@@ -9,11 +9,11 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::ExecCommandToolOutput;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::process::OutputHandles;
-use darwin_code_sandboxing::SandboxType;
-use darwin_code_utils_output_truncation::approx_token_count;
 use core_test_support::get_remote_test_env;
 use core_test_support::skip_if_sandbox;
 use core_test_support::test_darwin_code::test_env as remote_test_env;
+use darwin_code_sandboxing::SandboxType;
+use darwin_code_utils_output_truncation::approx_token_count;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -246,7 +246,7 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     write_stdin(
         &session,
         process_id,
-        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin-code\n",
+        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin_code\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -259,7 +259,7 @@ async fn unified_exec_persists_across_requests() -> anyhow::Result<()> {
     )
     .await?;
     assert!(
-        out_2.truncated_output().contains("darwin-code"),
+        out_2.truncated_output().contains("darwin_code"),
         "expected environment variable output"
     );
 
@@ -281,7 +281,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     write_stdin(
         &session,
         session_a,
-        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin-code\n",
+        "export DARWIN_CODE_INTERACTIVE_SHELL_VAR=darwin_code\n",
         /*yield_time_ms*/ 2_500,
     )
     .await?;
@@ -300,7 +300,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
         "short command should not report a process id if it exits quickly"
     );
     assert!(
-        !out_2.truncated_output().contains("darwin-code"),
+        !out_2.truncated_output().contains("darwin_code"),
         "short command should run in a fresh shell"
     );
 
@@ -312,7 +312,7 @@ async fn multi_unified_exec_sessions() -> anyhow::Result<()> {
     )
     .await?;
     assert!(
-        out_3.truncated_output().contains("darwin-code"),
+        out_3.truncated_output().contains("darwin_code"),
         "session should preserve state"
     );
 
@@ -412,14 +412,14 @@ async fn requests_with_large_timeout_are_capped() -> anyhow::Result<()> {
     let result = exec_command(
         &session,
         &turn,
-        "echo darwin-code",
+        "echo darwin_code",
         /*yield_time_ms*/ 120_000,
         /*workdir*/ None,
     )
     .await?;
 
     assert!(result.process_id.is_some());
-    assert!(result.truncated_output().contains("darwin-code"));
+    assert!(result.truncated_output().contains("darwin_code"));
 
     Ok(())
 }
@@ -431,7 +431,7 @@ async fn completed_commands_do_not_persist_sessions() -> anyhow::Result<()> {
     let result = exec_command(
         &session,
         &turn,
-        "echo darwin-code",
+        "echo darwin_code",
         /*yield_time_ms*/ 2_500,
         /*workdir*/ None,
     )
@@ -441,7 +441,7 @@ async fn completed_commands_do_not_persist_sessions() -> anyhow::Result<()> {
         result.process_id.is_some(),
         "completed command should report a process id"
     );
-    assert!(result.truncated_output().contains("darwin-code"));
+    assert!(result.truncated_output().contains("darwin_code"));
 
     assert!(
         session

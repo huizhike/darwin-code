@@ -78,7 +78,7 @@ pub(crate) enum StatusLineItem {
     /// Remaining usage on the weekly rate limit.
     WeeklyLimit,
 
-    /// Darwin-Code application version.
+    /// DarwinCode application version.
     DarwinCodeVersion,
 
     /// Total context window size in tokens.
@@ -124,7 +124,7 @@ impl StatusLineItem {
             StatusLineItem::WeeklyLimit => {
                 "Remaining usage on weekly usage limit (omitted when unavailable)"
             }
-            StatusLineItem::DarwinCodeVersion => "Darwin-Code application version",
+            StatusLineItem::DarwinCodeVersion => "DarwinCode application version",
             StatusLineItem::ContextWindowSize => {
                 "Total context window size in tokens (omitted when unknown)"
             }
@@ -415,7 +415,7 @@ mod tests {
             ]),
             StatusLinePreviewData::from_iter([
                 (StatusLineItem::ModelName, "gpt-5-darwin-code".to_string()),
-                (StatusLineItem::CurrentDir, "~/darwin-code-rs".to_string()),
+                (StatusLineItem::CurrentDir, "~/darwin_code-rs".to_string()),
                 (
                     StatusLineItem::GitBranch,
                     "jif/statusline-preview".to_string(),

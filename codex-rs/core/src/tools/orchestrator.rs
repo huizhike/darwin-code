@@ -57,7 +57,7 @@ impl ToolOrchestrator {
         req: &Rq,
         tool_ctx: &ToolCtx,
         attempt: &SandboxAttempt<'_>,
-        managed_network_active: bool,
+        network_policy_active: bool,
     ) -> (Result<Out, ToolError>, Option<DeferredNetworkApproval>)
     where
         T: ToolRuntime<Rq, Out>,
@@ -65,7 +65,7 @@ impl ToolOrchestrator {
         let network_approval = begin_network_approval(
             &tool_ctx.session,
             &tool_ctx.turn.sub_id,
-            managed_network_active,
+            network_policy_active,
             tool.network_approval_spec(req, tool_ctx),
         )
         .await;
@@ -186,7 +186,7 @@ impl ToolOrchestrator {
         }
 
         // 2) First attempt under the selected sandbox.
-        let managed_network_active = turn_ctx.network.is_some();
+        let network_policy_active = turn_ctx.network.is_some();
         let initial_sandbox = match tool.sandbox_mode_for_first_attempt(req) {
             SandboxOverride::BypassSandboxFirstAttempt => SandboxType::None,
             SandboxOverride::NoOverride => self.sandbox.select_initial(
@@ -194,7 +194,7 @@ impl ToolOrchestrator {
                 turn_ctx.network_sandbox_policy,
                 tool.sandbox_preference(),
                 turn_ctx.windows_sandbox_level,
-                managed_network_active,
+                network_policy_active,
             ),
         };
 
@@ -205,10 +205,10 @@ impl ToolOrchestrator {
             policy: &turn_ctx.sandbox_policy,
             file_system_policy: &turn_ctx.file_system_sandbox_policy,
             network_policy: turn_ctx.network_sandbox_policy,
-            enforce_managed_network: managed_network_active,
+            enforce_network_policy: network_policy_active,
             manager: &self.sandbox,
             sandbox_cwd: &turn_ctx.cwd,
-            darwin_code_linux_sandbox_exe: turn_ctx.darwin_code_linux_sandbox_exe.as_ref(),
+            codex_linux_sandbox_exe: turn_ctx.codex_linux_sandbox_exe.as_ref(),
             use_legacy_landlock,
             windows_sandbox_level: turn_ctx.windows_sandbox_level,
             windows_sandbox_private_desktop: turn_ctx
@@ -217,14 +217,8 @@ impl ToolOrchestrator {
                 .windows_sandbox_private_desktop,
         };
 
-        let (first_result, first_deferred_network_approval) = Self::run_attempt(
-            tool,
-            req,
-            tool_ctx,
-            &initial_attempt,
-            managed_network_active,
-        )
-        .await;
+        let (first_result, first_deferred_network_approval) =
+            Self::run_attempt(tool, req, tool_ctx, &initial_attempt, network_policy_active).await;
         match first_result {
             Ok(out) => {
                 // We have a successful initial result
@@ -233,11 +227,11 @@ impl ToolOrchestrator {
                     deferred_network_approval: first_deferred_network_approval,
                 })
             }
-            Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
+            Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(SandboxErr::Denied {
                 output,
                 network_policy_decision,
             }))) => {
-                let network_approval_context = if managed_network_active {
+                let network_approval_context = if network_policy_active {
                     network_policy_decision
                         .as_ref()
                         .and_then(network_approval_context_from_payload)
@@ -245,16 +239,20 @@ impl ToolOrchestrator {
                     None
                 };
                 if network_policy_decision.is_some() && network_approval_context.is_none() {
-                    return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
-                        output,
-                        network_policy_decision,
-                    })));
+                    return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+                        SandboxErr::Denied {
+                            output,
+                            network_policy_decision,
+                        },
+                    )));
                 }
                 if !tool.escalate_on_failure() {
-                    return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
-                        output,
-                        network_policy_decision,
-                    })));
+                    return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+                        SandboxErr::Denied {
+                            output,
+                            network_policy_decision,
+                        },
+                    )));
                 }
                 // Under `Never` or `OnRequest`, do not retry without sandbox;
                 // surface a concise sandbox denial that preserves the
@@ -271,10 +269,12 @@ impl ToolOrchestrator {
                                 ExecApprovalRequirement::NeedsApproval { .. }
                             );
                     if !allow_on_request_network_prompt {
-                        return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
-                            output,
-                            network_policy_decision,
-                        })));
+                        return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+                            SandboxErr::Denied {
+                                output,
+                                network_policy_decision,
+                            },
+                        )));
                     }
                 }
                 let retry_reason =
@@ -346,10 +346,10 @@ impl ToolOrchestrator {
                     policy: &turn_ctx.sandbox_policy,
                     file_system_policy: &turn_ctx.file_system_sandbox_policy,
                     network_policy: turn_ctx.network_sandbox_policy,
-                    enforce_managed_network: managed_network_active,
+                    enforce_network_policy: network_policy_active,
                     manager: &self.sandbox,
                     sandbox_cwd: &turn_ctx.cwd,
-                    darwin_code_linux_sandbox_exe: None,
+                    codex_linux_sandbox_exe: None,
                     use_legacy_landlock,
                     windows_sandbox_level: turn_ctx.windows_sandbox_level,
                     windows_sandbox_private_desktop: turn_ctx
@@ -364,7 +364,7 @@ impl ToolOrchestrator {
                     req,
                     tool_ctx,
                     &escalated_attempt,
-                    managed_network_active,
+                    network_policy_active,
                 )
                 .await;
                 retry_result.map(|output| OrchestratorRunResult {

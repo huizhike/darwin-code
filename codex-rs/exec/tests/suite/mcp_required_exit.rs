@@ -10,8 +10,14 @@ async fn exits_non_zero_when_required_mcp_server_fails_to_initialize() -> anyhow
     let test = test_darwin_code_exec();
 
     let config_toml = r#"
+        [providers.openai]
+        family = "openai-compatible"
+        name = "OpenAI"
+        base_url = "https://api.openai.com/v1"
+        api_key = "test-direct-api-key"
+
         [mcp_servers.required_broken]
-        command = "darwin-code-definitely-not-a-real-binary"
+        command = "darwin_code-definitely-not-a-real-binary"
         required = true
     "#;
     std::fs::write(test.home_path().join("config.toml"), config_toml)?;

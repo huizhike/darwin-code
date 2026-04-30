@@ -1,10 +1,12 @@
 use std::process::Command;
 use std::sync::Arc;
 
+use core_test_support::load_default_config_for_test;
+use core_test_support::responses;
+use core_test_support::test_darwin_code::test_darwin_code;
 use darwin_code_core::ModelClient;
 use darwin_code_core::Prompt;
 use darwin_code_core::ResponseEvent;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_otel::SessionTelemetry;
@@ -15,9 +17,6 @@ use darwin_code_protocol::models::ContentItem;
 use darwin_code_protocol::models::ResponseItem;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::protocol::SubAgentSource;
-use core_test_support::load_default_config_for_test;
-use core_test_support::responses;
-use core_test_support::test_darwin_code::test_darwin_code;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -53,8 +52,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
     let provider = ModelProviderInfo {
         name: "mock".into(),
         base_url: Some(format!("{}/v1", server.uri())),
-        env_key: None,
-        env_key_instructions: None,
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -80,7 +78,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
     let config = Arc::new(config);
 
     let conversation_id = ThreadId::new();
-    let auth_mode = TelemetryAuthMode::Chatgpt;
+    let auth_mode = TelemetryAuthMode::ApiKey;
     let session_source = SessionSource::SubAgent(SubAgentSource::Review);
     let model_info =
         darwin_code_core::test_support::construct_model_info_offline(model.as_str(), &config);
@@ -98,7 +96,6 @@ async fn responses_stream_includes_subagent_header_on_review() {
     );
 
     let client = ModelClient::new(
-        /*auth_manager*/ None,
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
         provider.clone(),
@@ -119,6 +116,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }];
 
     let mut stream = client_session
@@ -146,15 +144,15 @@ async fn responses_stream_includes_subagent_header_on_review() {
         Some("review")
     );
     assert_eq!(
-        request.header("x-darwin-code-window-id").as_deref(),
+        request.header("x-darwin_code-window-id").as_deref(),
         Some(expected_window_id.as_str())
     );
-    assert_eq!(request.header("x-darwin-code-parent-thread-id"), None);
+    assert_eq!(request.header("x-darwin_code-parent-thread-id"), None);
     assert_eq!(
-        request.body_json()["client_metadata"]["x-darwin-code-installation-id"].as_str(),
+        request.body_json()["client_metadata"]["x-darwin_code-installation-id"].as_str(),
         Some(TEST_INSTALLATION_ID)
     );
-    assert_eq!(request.header("x-darwin-code-sandbox"), None);
+    assert_eq!(request.header("x-darwin_code-sandbox"), None);
 }
 
 #[tokio::test]
@@ -177,8 +175,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
     let provider = ModelProviderInfo {
         name: "mock".into(),
         base_url: Some(format!("{}/v1", server.uri())),
-        env_key: None,
-        env_key_instructions: None,
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -204,7 +201,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
     let config = Arc::new(config);
 
     let conversation_id = ThreadId::new();
-    let auth_mode = TelemetryAuthMode::Chatgpt;
+    let auth_mode = TelemetryAuthMode::ApiKey;
     let session_source = SessionSource::SubAgent(SubAgentSource::Other("my-task".to_string()));
     let model_info =
         darwin_code_core::test_support::construct_model_info_offline(model.as_str(), &config);
@@ -223,7 +220,6 @@ async fn responses_stream_includes_subagent_header_on_other() {
     );
 
     let client = ModelClient::new(
-        /*auth_manager*/ None,
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
         provider.clone(),
@@ -244,6 +240,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }];
 
     let mut stream = client_session
@@ -286,8 +283,7 @@ async fn responses_respects_model_info_overrides_from_config() {
     let provider = ModelProviderInfo {
         name: "mock".into(),
         base_url: Some(format!("{}/v1", server.uri())),
-        env_key: None,
-        env_key_instructions: None,
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -315,10 +311,7 @@ async fn responses_respects_model_info_overrides_from_config() {
     let config = Arc::new(config);
 
     let conversation_id = ThreadId::new();
-    let auth_mode =
-        darwin_code_core::test_support::auth_manager_from_auth(DarwinCodeAuth::from_api_key("Test API Key"))
-            .auth_mode()
-            .map(TelemetryAuthMode::from);
+    let auth_mode = Some(TelemetryAuthMode::ApiKey);
     let session_source =
         SessionSource::SubAgent(SubAgentSource::Other("override-check".to_string()));
     let model_info =
@@ -337,7 +330,6 @@ async fn responses_respects_model_info_overrides_from_config() {
     );
 
     let client = ModelClient::new(
-        /*auth_manager*/ None,
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
         provider.clone(),
@@ -358,6 +350,7 @@ async fn responses_respects_model_info_overrides_from_config() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }];
 
     let mut stream = client_session
@@ -409,7 +402,10 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         responses::ev_completed("resp-1"),
     ]);
 
-    let test = test_darwin_code().build(&server).await.expect("build test darwin-code");
+    let test = test_darwin_code()
+        .build(&server)
+        .await
+        .expect("build test darwin_code");
     let cwd = test.cwd_path();
 
     let first_request = responses::mount_sse_once(&server, response_body.clone()).await;
@@ -418,10 +414,10 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         .expect("submit first turn prompt");
     let initial_header = first_request
         .single_request()
-        .header("x-darwin-code-turn-metadata")
-        .expect("x-darwin-code-turn-metadata header should be present");
-    let initial_parsed: serde_json::Value =
-        serde_json::from_str(&initial_header).expect("x-darwin-code-turn-metadata should be valid JSON");
+        .header("x-darwin_code-turn-metadata")
+        .expect("x-darwin_code-turn-metadata header should be present");
+    let initial_parsed: serde_json::Value = serde_json::from_str(&initial_header)
+        .expect("x-darwin_code-turn-metadata should be valid JSON");
     let initial_turn_id = initial_parsed
         .get("turn_id")
         .and_then(serde_json::Value::as_str)
@@ -429,7 +425,7 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         .to_string();
     assert!(
         !initial_turn_id.is_empty(),
-        "turn_id should not be empty in x-darwin-code-turn-metadata"
+        "turn_id should not be empty in x-darwin_code-turn-metadata"
     );
     assert_eq!(
         initial_parsed
@@ -474,7 +470,7 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         "remote",
         "add",
         "origin",
-        "https://github.com/openai/darwin-code.git",
+        "https://github.com/openai/darwin_code.git",
     ]);
 
     let expected_head = String::from_utf8(run_git(&["rev-parse", "HEAD"]).stdout)
@@ -515,13 +511,13 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
 
     let first_parsed: serde_json::Value = serde_json::from_str(
         &requests[0]
-            .header("x-darwin-code-turn-metadata")
+            .header("x-darwin_code-turn-metadata")
             .expect("first request should include turn metadata"),
     )
     .expect("first metadata should be valid json");
     let second_parsed: serde_json::Value = serde_json::from_str(
         &requests[1]
-            .header("x-darwin-code-turn-metadata")
+            .header("x-darwin_code-turn-metadata")
             .expect("second request should include turn metadata"),
     )
     .expect("second metadata should be valid json");

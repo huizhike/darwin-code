@@ -1,9 +1,9 @@
 use crate::JsonSchema;
 use crate::ResponsesApiTool;
 use crate::ToolSpec;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
-use codex_protocol::request_user_input::RequestUserInputArgs;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
+use darwin_code_protocol::request_user_input::RequestUserInputArgs;
 use std::collections::BTreeMap;
 
 pub const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";

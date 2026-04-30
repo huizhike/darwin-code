@@ -6,16 +6,16 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_state::BackfillStatus;
-use codex_state::ThreadMetadataBuilder;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_state::BackfillStatus;
+use darwin_code_state::ThreadMetadataBuilder;
 use pretty_assertions::assert_eq;
 use std::fs::File;
 use std::io::Write;
@@ -196,9 +196,10 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
         /*git*/ None,
     );
 
-    let runtime = codex_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        darwin_code_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
     let first_watermark = backfill_watermark_for_path(codex_home.as_path(), first_path.as_path());
     runtime.mark_backfill_running().await.expect("mark running");
     runtime
@@ -256,15 +257,16 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
         "2026-01-27T12:34:56Z",
         thread_uuid,
         Some(GitInfo {
-            commit_hash: Some(codex_git_utils::GitSha::new("rollout-sha")),
+            commit_hash: Some(darwin_code_git_utils::GitSha::new("rollout-sha")),
             branch: Some("rollout-branch".to_string()),
             repository_url: Some("git@example.com:openai/codex.git".to_string()),
         }),
     );
 
-    let runtime = codex_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        darwin_code_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
     let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
     let mut existing = extract_metadata_from_rollout(&rollout_path, "test-provider")
         .await
@@ -309,9 +311,10 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
         /*git*/ None,
     );
 
-    let runtime = codex_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        darwin_code_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
 
     let config = test_config(codex_home.clone());
     backfill_sessions(runtime.as_ref(), &config).await;

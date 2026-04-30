@@ -1,15 +1,15 @@
 use super::*;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::PathExt;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::ConfigLayerEntry;
+use darwin_code_config::ConfigLayerStack;
+use darwin_code_config::ConfigRequirements;
+use darwin_code_config::ConfigRequirementsToml;
+use darwin_code_exec_server::LOCAL_FS;
+use darwin_code_protocol::protocol::Product;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::test_support::PathBufExt;
+use darwin_code_utils_absolute_path::test_support::PathExt;
 use dunce::canonicalize as canonicalize_path;
 use pretty_assertions::assert_eq;
 use std::fs;
@@ -611,7 +611,6 @@ async fn loads_skill_policy_products_from_yaml() {
 policy:
   products:
     - codex
-    - CHATGPT
     - atlas
 "#,
     );
@@ -629,7 +628,7 @@ policy:
         outcome.skills[0].policy,
         Some(SkillPolicy {
             allow_implicit_invocation: None,
-            products: vec![Product::Codex, Product::Chatgpt, Product::Atlas],
+            products: vec![Product::Codex, Product::Atlas],
         })
     );
 }

@@ -1,4 +1,4 @@
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use include_dir::Dir;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage and optionally package the @openai/darwin-code npm module."""
+"""Stage and optionally package the @darwin/darwin-code npm module."""
 
 import argparse
 import json
@@ -12,50 +12,49 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 DARWIN_CODE_CLI_ROOT = SCRIPT_DIR.parent
 REPO_ROOT = DARWIN_CODE_CLI_ROOT.parent
-RESPONSES_API_PROXY_NPM_ROOT = REPO_ROOT / "darwin-code-rs" / "responses-api-proxy" / "npm"
 DARWIN_CODE_SDK_ROOT = REPO_ROOT / "sdk" / "typescript"
-DARWIN_CODE_NPM_NAME = "@openai/darwin-code"
+DARWIN_CODE_NPM_NAME = "@darwin/darwin-code"
 
 # `npm_name` is the local optional-dependency alias consumed by `bin/darwin-code.js`.
-# The underlying package published to npm is always `@openai/darwin-code`.
+# The underlying package published to npm is always `@darwin/darwin-code`.
 DARWIN_CODE_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     "darwin-code-linux-x64": {
-        "npm_name": "@openai/darwin-code-linux-x64",
+        "npm_name": "@darwin/darwin-code-linux-x64",
         "npm_tag": "linux-x64",
         "target_triple": "x86_64-unknown-linux-musl",
         "os": "linux",
         "cpu": "x64",
     },
     "darwin-code-linux-arm64": {
-        "npm_name": "@openai/darwin-code-linux-arm64",
+        "npm_name": "@darwin/darwin-code-linux-arm64",
         "npm_tag": "linux-arm64",
         "target_triple": "aarch64-unknown-linux-musl",
         "os": "linux",
         "cpu": "arm64",
     },
     "darwin-code-darwin-x64": {
-        "npm_name": "@openai/darwin-code-darwin-x64",
+        "npm_name": "@darwin/darwin-code-darwin-x64",
         "npm_tag": "darwin-x64",
         "target_triple": "x86_64-apple-darwin",
         "os": "darwin",
         "cpu": "x64",
     },
     "darwin-code-darwin-arm64": {
-        "npm_name": "@openai/darwin-code-darwin-arm64",
+        "npm_name": "@darwin/darwin-code-darwin-arm64",
         "npm_tag": "darwin-arm64",
         "target_triple": "aarch64-apple-darwin",
         "os": "darwin",
         "cpu": "arm64",
     },
     "darwin-code-win32-x64": {
-        "npm_name": "@openai/darwin-code-win32-x64",
+        "npm_name": "@darwin/darwin-code-win32-x64",
         "npm_tag": "win32-x64",
         "target_triple": "x86_64-pc-windows-msvc",
         "os": "win32",
         "cpu": "x64",
     },
     "darwin-code-win32-arm64": {
-        "npm_name": "@openai/darwin-code-win32-arm64",
+        "npm_name": "@darwin/darwin-code-win32-arm64",
         "npm_tag": "win32-arm64",
         "target_triple": "aarch64-pc-windows-msvc",
         "os": "win32",
@@ -75,7 +74,6 @@ PACKAGE_NATIVE_COMPONENTS: dict[str, list[str]] = {
     "darwin-code-darwin-arm64": ["darwin-code", "rg"],
     "darwin-code-win32-x64": ["darwin-code", "rg", "darwin-code-windows-sandbox-setup", "darwin-code-command-runner"],
     "darwin-code-win32-arm64": ["darwin-code", "rg", "darwin-code-windows-sandbox-setup", "darwin-code-command-runner"],
-    "darwin-code-responses-api-proxy": ["darwin-code-responses-api-proxy"],
     "darwin-code-sdk": [],
 }
 
@@ -88,7 +86,6 @@ PACKAGE_CHOICES = tuple(PACKAGE_NATIVE_COMPONENTS)
 
 COMPONENT_DEST_DIR: dict[str, str] = {
     "darwin-code": "darwin-code",
-    "darwin-code-responses-api-proxy": "darwin-code-responses-api-proxy",
     "darwin-code-windows-sandbox-setup": "darwin-code",
     "darwin-code-command-runner": "darwin-code",
     "rg": "path",
@@ -188,12 +185,6 @@ def main() -> int:
                     f"    node {staging_dir_str}/bin/darwin-code.js --version\n"
                     f"    node {staging_dir_str}/bin/darwin-code.js --help\n\n"
                 )
-            elif package == "darwin-code-responses-api-proxy":
-                print(
-                    f"Staged version {version} for release in {staging_dir_str}\n\n"
-                    "Verify the responses API proxy:\n"
-                    f"    node {staging_dir_str}/bin/darwin-code-responses-api-proxy.js --help\n\n"
-                )
             elif package in DARWIN_CODE_PLATFORM_PACKAGES:
                 print(
                     f"Staged version {version} for release in {staging_dir_str}\n\n"
@@ -279,17 +270,6 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         package_manager = darwin_code_package_json.get("packageManager")
         if isinstance(package_manager, str):
             package_json["packageManager"] = package_manager
-    elif package == "darwin-code-responses-api-proxy":
-        bin_dir = staging_dir / "bin"
-        bin_dir.mkdir(parents=True, exist_ok=True)
-        launcher_src = RESPONSES_API_PROXY_NPM_ROOT / "bin" / "darwin-code-responses-api-proxy.js"
-        shutil.copy2(launcher_src, bin_dir / "darwin-code-responses-api-proxy.js")
-
-        readme_src = RESPONSES_API_PROXY_NPM_ROOT / "README.md"
-        if readme_src.exists():
-            shutil.copy2(readme_src, staging_dir / "README.md")
-
-        package_json_path = RESPONSES_API_PROXY_NPM_ROOT / "package.json"
     elif package == "darwin-code-sdk":
         package_json_path = DARWIN_CODE_SDK_ROOT / "package.json"
         stage_darwin_code_sdk_sources(staging_dir)

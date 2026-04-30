@@ -67,10 +67,12 @@ struct StatusRateLimitState {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StatusHistoryHandle {
+    #[cfg_attr(not(test), allow(dead_code))]
     rate_limit_state: Arc<RwLock<StatusRateLimitState>>,
 }
 
 impl StatusHistoryHandle {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn finish_rate_limit_refresh(
         &self,
         rate_limits: &[RateLimitSnapshotDisplay],
@@ -552,7 +554,7 @@ impl HistoryCell for StatusHistoryCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![
             Span::from(format!("{}>_ ", FieldFormatter::INDENT)).dim(),
-            Span::from("OpenAI Darwin-Code").bold(),
+            Span::from("OpenAI DarwinCode").bold(),
             Span::from(" ").dim(),
             Span::from(format!("(v{DARWIN_CODE_CLI_VERSION})")).dim(),
         ]));
@@ -564,15 +566,7 @@ impl HistoryCell for StatusHistoryCell {
         }
 
         let account_value = self.account.as_ref().map(|account| match account {
-            StatusAccountDisplay::ChatGpt { email, plan } => match (email, plan) {
-                (Some(email), Some(plan)) => format!("{email} ({plan})"),
-                (Some(email), None) => email.clone(),
-                (None, Some(plan)) => plan.clone(),
-                (None, None) => "ChatGPT".to_string(),
-            },
-            StatusAccountDisplay::ApiKey => {
-                "API key configured (run darwin-code login to use ChatGPT)".to_string()
-            }
+            StatusAccountDisplay::ApiKey => "BYOK API key configured".to_string(),
         });
 
         let mut labels: Vec<String> = vec!["Model", "Directory", "Permissions", "Agents.md"]
@@ -622,14 +616,10 @@ impl HistoryCell for StatusHistoryCell {
         let value_width = formatter.value_width(available_inner_width);
 
         let note_first_line = Line::from(vec![
-            Span::from("Visit ").cyan(),
-            "https://chatgpt.com/darwin-code/settings/usage"
-                .cyan()
-                .underlined(),
-            Span::from(" for up-to-date").cyan(),
+            Span::from("BYOK mode uses provider-side billing,").cyan(),
         ]);
         let note_second_line = Line::from(vec![
-            Span::from("information on rate limits and credits").cyan(),
+            Span::from("rate limits, and quota from the configured API endpoint").cyan(),
         ]);
         let note_lines = adaptive_wrap_lines(
             [note_first_line, note_second_line],
@@ -675,10 +665,7 @@ impl HistoryCell for StatusHistoryCell {
         }
 
         lines.push(Line::from(Vec::<Span<'static>>::new()));
-        // Hide token usage only for ChatGPT subscribers
-        if !matches!(self.account, Some(StatusAccountDisplay::ChatGpt { .. })) {
-            lines.push(formatter.line("Token usage", self.token_usage_spans()));
-        }
+        lines.push(formatter.line("Token usage", self.token_usage_spans()));
 
         if let Some(spans) = self.context_window_spans() {
             lines.push(formatter.line("Context window", spans));

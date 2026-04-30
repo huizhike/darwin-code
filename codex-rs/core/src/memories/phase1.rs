@@ -333,6 +333,7 @@ mod job {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }],
             tools: Vec::new(),
             parallel_tool_calls: false,
@@ -490,6 +491,7 @@ mod job {
             content,
             end_turn,
             phase,
+            reasoning_content,
         } = item
         else {
             return should_persist_response_item_for_memories(item).then(|| item.clone());
@@ -518,6 +520,7 @@ mod job {
             content,
             end_turn: *end_turn,
             phase: phase.clone(),
+            reasoning_content: reasoning_content.clone(),
         })
     }
 }

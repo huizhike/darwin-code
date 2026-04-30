@@ -86,7 +86,7 @@ The watcher surfaces review items from:
 - Inline review comments
 - Review submissions (COMMENT / APPROVED / CHANGES_REQUESTED)
 
-It intentionally surfaces Codex reviewer bot feedback (for example comments/reviews from `chatgpt-codex-connector[bot]`) in addition to human reviewer feedback. Most unrelated bot noise should still be ignored.
+It intentionally surfaces Codex reviewer bot feedback in addition to human reviewer feedback. Most unrelated bot noise should still be ignored.
 For safety, the watcher only auto-surfaces trusted human review authors (for example repo OWNER/MEMBER/COLLABORATOR, plus the authenticated operator) and approved review bots such as Codex.
 On a fresh watcher state file, existing pending review feedback may be surfaced immediately (not only comments that arrive after monitoring starts). This is intentional so already-open review comments are not missed.
 

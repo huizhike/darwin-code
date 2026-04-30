@@ -118,7 +118,9 @@ fn hunk_source_path(hunk: &Hunk) -> &Path {
     }
 }
 
-fn format_update_chunks_for_progress(chunks: &[darwin_code_apply_patch::UpdateFileChunk]) -> String {
+fn format_update_chunks_for_progress(
+    chunks: &[darwin_code_apply_patch::UpdateFileChunk],
+) -> String {
     let mut unified_diff = String::new();
     for chunk in chunks {
         match &chunk.change_context {
@@ -403,8 +405,13 @@ pub(crate) async fn intercept_apply_patch(
         .as_ref()
         .filter(|env| env.is_remote())
         .map(|_| turn.file_system_sandbox_context(/*additional_permissions*/ None));
-    match darwin_code_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, sandbox.as_ref())
-        .await
+    match darwin_code_apply_patch::maybe_parse_apply_patch_verified(
+        command,
+        cwd,
+        fs,
+        sandbox.as_ref(),
+    )
+    .await
     {
         darwin_code_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
             session

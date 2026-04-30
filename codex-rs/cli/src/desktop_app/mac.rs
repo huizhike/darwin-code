@@ -10,18 +10,18 @@ pub async fn run_mac_app_open_or_install(
 ) -> anyhow::Result<()> {
     if let Some(app_path) = find_existing_darwin_code_app_path() {
         eprintln!(
-            "Opening Darwin-Code Desktop at {app_path}...",
+            "Opening DarwinCode Desktop at {app_path}...",
             app_path = app_path.display()
         );
         open_darwin_code_app(&app_path, &workspace).await?;
         return Ok(());
     }
-    eprintln!("Darwin-Code Desktop not found; downloading installer...");
+    eprintln!("DarwinCode Desktop not found; downloading installer...");
     let installed_app = download_and_install_darwin_code_to_user_applications(&download_url)
         .await
-        .context("failed to download/install Darwin-Code Desktop")?;
+        .context("failed to download/install DarwinCode Desktop")?;
     eprintln!(
-        "Launching Darwin-Code Desktop from {installed_app}...",
+        "Launching DarwinCode Desktop from {installed_app}...",
         installed_app = installed_app.display()
     );
     open_darwin_code_app(&installed_app, &workspace).await?;
@@ -35,9 +35,13 @@ fn find_existing_darwin_code_app_path() -> Option<PathBuf> {
 }
 
 fn candidate_darwin_code_app_paths() -> Vec<PathBuf> {
-    let mut paths = vec![PathBuf::from("/Applications/Darwin-Code.app")];
+    let mut paths = vec![PathBuf::from("/Applications/DarwinCode.app")];
     if let Some(home) = std::env::var_os("HOME") {
-        paths.push(PathBuf::from(home).join("Applications").join("Darwin-Code.app"));
+        paths.push(
+            PathBuf::from(home)
+                .join("Applications")
+                .join("DarwinCode.app"),
+        );
     }
     paths
 }
@@ -66,18 +70,20 @@ async fn open_darwin_code_app(app_path: &Path, workspace: &Path) -> anyhow::Resu
     );
 }
 
-async fn download_and_install_darwin_code_to_user_applications(dmg_url: &str) -> anyhow::Result<PathBuf> {
+async fn download_and_install_darwin_code_to_user_applications(
+    dmg_url: &str,
+) -> anyhow::Result<PathBuf> {
     let temp_dir = Builder::new()
-        .prefix("darwin-code-app-installer-")
+        .prefix("darwin_code-app-installer-")
         .tempdir()
         .context("failed to create temp dir")?;
     let tmp_root = temp_dir.path().to_path_buf();
     let _temp_dir = temp_dir;
 
-    let dmg_path = tmp_root.join("Darwin-Code.dmg");
+    let dmg_path = tmp_root.join("DarwinCode.dmg");
     download_dmg(dmg_url, &dmg_path).await?;
 
-    eprintln!("Mounting Darwin-Code Desktop installer...");
+    eprintln!("Mounting DarwinCode Desktop installer...");
     let mount_point = mount_dmg(&dmg_path).await?;
     eprintln!(
         "Installer mounted at {mount_point}.",
@@ -85,7 +91,7 @@ async fn download_and_install_darwin_code_to_user_applications(dmg_url: &str) ->
     );
     let result = async {
         let app_in_volume = find_darwin_code_app_in_mount(&mount_point)
-            .context("failed to locate Darwin-Code.app in mounted dmg")?;
+            .context("failed to locate DarwinCode.app in mounted dmg")?;
         install_darwin_code_app_bundle(&app_in_volume).await
     }
     .await;
@@ -104,7 +110,7 @@ async fn download_and_install_darwin_code_to_user_applications(dmg_url: &str) ->
 async fn install_darwin_code_app_bundle(app_in_volume: &Path) -> anyhow::Result<PathBuf> {
     for applications_dir in candidate_applications_dirs()? {
         eprintln!(
-            "Installing Darwin-Code Desktop into {applications_dir}...",
+            "Installing DarwinCode Desktop into {applications_dir}...",
             applications_dir = applications_dir.display()
         );
         std::fs::create_dir_all(&applications_dir).with_context(|| {
@@ -114,7 +120,7 @@ async fn install_darwin_code_app_bundle(app_in_volume: &Path) -> anyhow::Result<
             )
         })?;
 
-        let dest_app = applications_dir.join("Darwin-Code.app");
+        let dest_app = applications_dir.join("DarwinCode.app");
         if dest_app.is_dir() {
             return Ok(dest_app);
         }
@@ -123,14 +129,14 @@ async fn install_darwin_code_app_bundle(app_in_volume: &Path) -> anyhow::Result<
             Ok(()) => return Ok(dest_app),
             Err(err) => {
                 eprintln!(
-                    "warning: failed to install Darwin-Code.app to {applications_dir}: {err}",
+                    "warning: failed to install DarwinCode.app to {applications_dir}: {err}",
                     applications_dir = applications_dir.display()
                 );
             }
         }
     }
 
-    anyhow::bail!("failed to install Darwin-Code.app to any applications directory");
+    anyhow::bail!("failed to install DarwinCode.app to any applications directory");
 }
 
 fn candidate_applications_dirs() -> anyhow::Result<Vec<PathBuf>> {
@@ -199,7 +205,7 @@ async fn detach_dmg(mount_point: &Path) -> anyhow::Result<()> {
 }
 
 fn find_darwin_code_app_in_mount(mount_point: &Path) -> anyhow::Result<PathBuf> {
-    let direct = mount_point.join("Darwin-Code.app");
+    let direct = mount_point.join("DarwinCode.app");
     if direct.is_dir() {
         return Ok(direct);
     }
@@ -263,19 +269,20 @@ mod tests {
 
     #[test]
     fn parses_mount_point_from_tab_separated_hdiutil_output() {
-        let output = "/dev/disk2s1\tApple_HFS\tDarwinCode\t/Volumes/Darwin-Code\n";
+        let output = "/dev/disk2s1\tApple_HFS\tDarwinCode\t/Volumes/DarwinCode\n";
         assert_eq!(
             parse_hdiutil_attach_mount_point(output).as_deref(),
-            Some("/Volumes/Darwin-Code")
+            Some("/Volumes/DarwinCode")
         );
     }
 
     #[test]
     fn parses_mount_point_with_spaces() {
-        let output = "/dev/disk2s1\tApple_HFS\tDarwinCode Installer\t/Volumes/Darwin-Code Installer\n";
+        let output =
+            "/dev/disk2s1\tApple_HFS\tDarwinCode Installer\t/Volumes/DarwinCode Installer\n";
         assert_eq!(
             parse_hdiutil_attach_mount_point(output).as_deref(),
-            Some("/Volumes/Darwin-Code Installer")
+            Some("/Volumes/DarwinCode Installer")
         );
     }
 }

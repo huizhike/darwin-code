@@ -1,4 +1,4 @@
-use codex_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCMessage;
 use futures::SinkExt;
 use futures::StreamExt;
 use tokio::io::AsyncRead;

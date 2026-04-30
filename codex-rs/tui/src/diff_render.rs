@@ -1470,9 +1470,9 @@ mod tests {
     #[test]
     fn display_path_prefers_cwd_without_git_repo() {
         let cwd = if cfg!(windows) {
-            PathBuf::from(r"C:\workspace\darwin-code")
+            PathBuf::from(r"C:\workspace\darwin_code")
         } else {
-            PathBuf::from("/workspace/darwin-code")
+            PathBuf::from("/workspace/darwin_code")
         };
         let path = cwd.join("tui").join("example.png");
 

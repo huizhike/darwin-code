@@ -32,10 +32,10 @@ use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::sandbox_override_for_first_attempt;
 use crate::tools::sandboxing::with_cached_approval;
-use darwin_code_network_proxy::NetworkProxy;
 use darwin_code_protocol::exec_output::ExecToolCallOutput;
 use darwin_code_protocol::models::PermissionProfile;
 use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_sandboxing::SandboxablePreference;
 use darwin_code_shell_command::powershell::prefix_powershell_script_with_utf8;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
@@ -50,7 +50,7 @@ pub struct ShellRequest {
     pub timeout_ms: Option<u64>,
     pub env: HashMap<String, String>,
     pub explicit_env_overrides: HashMap<String, String>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<NetworkAccessRuntime>,
     pub sandbox_permissions: SandboxPermissions,
     pub additional_permissions: Option<PermissionProfile>,
     #[cfg(unix)]
@@ -80,7 +80,7 @@ pub(crate) enum ShellRuntimeBackend {
     ShellCommandClassic,
     /// zsh-fork backend for the `shell_command` tool.
     ///
-    /// On Unix, attempts to run via the zsh-fork + `darwin-code-shell-escalation`
+    /// On Unix, attempts to run via the zsh-fork + `darwin_code-shell-escalation`
     /// adapter, with fallback to the standard shell runtime flow if
     /// prerequisites are not met.
     ShellCommandZshFork,
@@ -269,10 +269,10 @@ impl ToolRuntime<ShellRequest, ExecToolCallOutput> for ShellRuntime {
         };
         let env = attempt
             .env_for(command, options, req.network.as_ref())
-            .map_err(|err| ToolError::Darwin-Code(err.into()))?;
+            .map_err(|err| ToolError::DarwinCode(err.into()))?;
         let out = execute_env(env, Self::stdout_stream(ctx))
             .await
-            .map_err(ToolError::Darwin-Code)?;
+            .map_err(ToolError::DarwinCode)?;
         Ok(out)
     }
 }

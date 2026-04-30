@@ -1,13 +1,13 @@
 use crate::SkillsManager;
 use crate::agent::AgentControl;
-use crate::darwin_code_thread::DarwinCodeThread;
 use crate::config::Config;
+use crate::darwin_code_thread::DarwinCodeThread;
 use crate::file_watcher::FileWatcher;
 use crate::mcp::McpManager;
 use crate::plugins::PluginsManager;
 use crate::rollout::RolloutRecorder;
 use crate::rollout::truncation;
-use crate::session::Darwin-Code;
+use crate::session::DarwinCode;
 use crate::session::DarwinCodeSpawnArgs;
 use crate::session::DarwinCodeSpawnOk;
 use crate::session::INITIAL_SUBMIT_ID;
@@ -15,11 +15,10 @@ use crate::shell_snapshot::ShellSnapshot;
 use crate::skills_watcher::SkillsWatcher;
 use crate::skills_watcher::SkillsWatcherEvent;
 use crate::tasks::interrupted_turn_history_marker;
+use codex_analytics::AnalyticsEventsClient;
 use darwin_code_app_server_protocol::ThreadHistoryBuilder;
 use darwin_code_app_server_protocol::TurnStatus;
 use darwin_code_exec_server::EnvironmentManager;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::OPENAI_PROVIDER_ID;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
@@ -130,7 +129,7 @@ fn build_skills_watcher(skills_manager: Arc<SkillsManager>) -> Arc<SkillsWatcher
     skills_watcher
 }
 
-/// Represents a newly created Darwin-Code thread (formerly called a conversation), including the first event
+/// Represents a newly created DarwinCode thread (formerly called a conversation), including the first event
 /// (which is [`EventMsg::SessionConfigured`]).
 pub struct NewThread {
     pub thread_id: ThreadId,
@@ -203,7 +202,6 @@ pub struct ThreadManager {
 pub(crate) struct ThreadManagerState {
     threads: Arc<RwLock<HashMap<ThreadId, Arc<DarwinCodeThread>>>>,
     thread_created_tx: broadcast::Sender<ThreadId>,
-    auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
     environment_manager: Arc<EnvironmentManager>,
     skills_manager: Arc<SkillsManager>,
@@ -219,7 +217,6 @@ pub(crate) struct ThreadManagerState {
 impl ThreadManager {
     pub fn new(
         config: &Config,
-        auth_manager: Arc<AuthManager>,
         session_source: SessionSource,
         collaboration_modes_config: CollaborationModesConfig,
         environment_manager: Arc<EnvironmentManager>,
@@ -231,7 +228,11 @@ impl ThreadManager {
             .model_providers
             .get(OPENAI_PROVIDER_ID)
             .cloned()
-            .unwrap_or_else(|| ModelProviderInfo::create_openai_provider(/*base_url*/ None));
+            .unwrap_or_else(|| {
+                ModelProviderInfo::create_openai_provider(
+                    /*base_url*/ None, /*api_key*/ None,
+                )
+            });
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let plugins_manager = Arc::new(PluginsManager::new_with_restriction_product(
             darwin_code_home.to_path_buf(),
@@ -250,7 +251,6 @@ impl ThreadManager {
                 thread_created_tx,
                 models_manager: Arc::new(ModelsManager::new_with_provider(
                     darwin_code_home.to_path_buf(),
-                    auth_manager.clone(),
                     config.model_catalog.clone(),
                     collaboration_modes_config,
                     openai_models_provider,
@@ -260,7 +260,6 @@ impl ThreadManager {
                 plugins_manager,
                 mcp_manager,
                 skills_watcher,
-                auth_manager,
                 session_source,
                 analytics_events_client,
                 ops_log: should_use_test_thread_manager_behavior()
@@ -270,43 +269,45 @@ impl ThreadManager {
         }
     }
 
-    /// Construct with a dummy AuthManager containing the provided DarwinCodeAuth.
+    /// Construct with a test provider.
     /// Used for integration tests: should not be used by ordinary business logic.
-    pub(crate) fn with_models_provider_for_tests(
-        auth: DarwinCodeAuth,
+    pub(crate) fn with_models_provider_for_tests<T>(
+        _legacy_auth: T,
         provider: ModelProviderInfo,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let darwin_code_home = std::env::temp_dir().join(format!(
-            "darwin-code-thread-manager-test-{}",
+            "darwin_code-thread-manager-test-{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&darwin_code_home)
-            .unwrap_or_else(|err| panic!("temp darwin-code home dir create failed: {err}"));
+            .unwrap_or_else(|err| panic!("temp darwin_code home dir create failed: {err}"));
         let mut manager = Self::with_models_provider_and_home_for_tests(
-            auth,
+            (),
             provider,
             darwin_code_home.clone(),
             Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
         );
-        manager._test_darwin_code_home_guard = Some(TempDarwinCodeHomeGuard { path: darwin_code_home });
+        manager._test_darwin_code_home_guard = Some(TempDarwinCodeHomeGuard {
+            path: darwin_code_home,
+        });
         manager
     }
 
-    /// Construct with a dummy AuthManager containing the provided DarwinCodeAuth and darwin-code home.
+    /// Construct with a test provider and darwin_code home.
     /// Used for integration tests: should not be used by ordinary business logic.
-    pub(crate) fn with_models_provider_and_home_for_tests(
-        auth: DarwinCodeAuth,
+    pub(crate) fn with_models_provider_and_home_for_tests<T>(
+        _legacy_auth: T,
         provider: ModelProviderInfo,
         darwin_code_home: PathBuf,
         environment_manager: Arc<EnvironmentManager>,
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
-        let auth_manager = AuthManager::from_auth_for_testing(auth);
-        let skills_darwin_code_home = match AbsolutePathBuf::from_absolute_path_checked(&darwin_code_home) {
-            Ok(darwin_code_home) => darwin_code_home,
-            Err(err) => panic!("test darwin_code_home should be absolute: {err}"),
-        };
+        let skills_darwin_code_home =
+            match AbsolutePathBuf::from_absolute_path_checked(&darwin_code_home) {
+                Ok(darwin_code_home) => darwin_code_home,
+                Err(err) => panic!("test darwin_code_home should be absolute: {err}"),
+            };
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let restriction_product = SessionSource::Exec.restriction_product();
         let plugins_manager = Arc::new(PluginsManager::new_with_restriction_product(
@@ -326,7 +327,6 @@ impl ThreadManager {
                 thread_created_tx,
                 models_manager: Arc::new(ModelsManager::with_provider_for_tests(
                     darwin_code_home,
-                    auth_manager.clone(),
                     provider,
                 )),
                 environment_manager,
@@ -334,7 +334,6 @@ impl ThreadManager {
                 plugins_manager,
                 mcp_manager,
                 skills_watcher,
-                auth_manager,
                 session_source: SessionSource::Exec,
                 analytics_events_client: None,
                 ops_log: should_use_test_thread_manager_behavior()
@@ -346,10 +345,6 @@ impl ThreadManager {
 
     pub fn session_source(&self) -> SessionSource {
         self.state.session_source.clone()
-    }
-
-    pub fn auth_manager(&self) -> Arc<AuthManager> {
-        self.state.auth_manager.clone()
     }
 
     pub fn skills_manager(&self) -> Arc<SkillsManager> {
@@ -437,7 +432,9 @@ impl ThreadManager {
                     .list_thread_spawn_descendants_with_status(thread_id, status)
                     .await
                     .map_err(|err| {
-                        DarwinCodeErr::Fatal(format!("failed to load thread-spawn descendants: {err}"))
+                        DarwinCodeErr::Fatal(format!(
+                            "failed to load thread-spawn descendants: {err}"
+                        ))
                     })?
                 {
                     if seen_thread_ids.insert(descendant_id) {
@@ -448,7 +445,7 @@ impl ThreadManager {
         }
 
         for descendant_id in thread
-            .darwin-code
+            .darwin_code
             .session
             .services
             .agent_control
@@ -503,7 +500,6 @@ impl ThreadManager {
         Box::pin(self.state.spawn_thread(
             config,
             initial_history,
-            Arc::clone(&self.state.auth_manager),
             self.agent_control(),
             dynamic_tools,
             persist_extended_history,
@@ -518,14 +514,12 @@ impl ThreadManager {
         &self,
         config: Config,
         rollout_path: PathBuf,
-        auth_manager: Arc<AuthManager>,
         parent_trace: Option<W3cTraceContext>,
     ) -> DarwinCodeResult<NewThread> {
         let initial_history = RolloutRecorder::get_rollout_history(&rollout_path).await?;
         Box::pin(self.resume_thread_with_history(
             config,
             initial_history,
-            auth_manager,
             /*persist_extended_history*/ false,
             parent_trace,
         ))
@@ -536,14 +530,12 @@ impl ThreadManager {
         &self,
         config: Config,
         initial_history: InitialHistory,
-        auth_manager: Arc<AuthManager>,
         persist_extended_history: bool,
         parent_trace: Option<W3cTraceContext>,
     ) -> DarwinCodeResult<NewThread> {
         Box::pin(self.state.spawn_thread(
             config,
             initial_history,
-            auth_manager,
             self.agent_control(),
             Vec::new(),
             persist_extended_history,
@@ -562,7 +554,6 @@ impl ThreadManager {
         Box::pin(self.state.spawn_thread(
             config,
             InitialHistory::New,
-            Arc::clone(&self.state.auth_manager),
             self.agent_control(),
             Vec::new(),
             /*persist_extended_history*/ false,
@@ -577,14 +568,12 @@ impl ThreadManager {
         &self,
         config: Config,
         rollout_path: PathBuf,
-        auth_manager: Arc<AuthManager>,
         user_shell_override: crate::shell::Shell,
     ) -> DarwinCodeResult<NewThread> {
         let initial_history = RolloutRecorder::get_rollout_history(&rollout_path).await?;
         Box::pin(self.state.spawn_thread(
             config,
             initial_history,
-            auth_manager,
             self.agent_control(),
             Vec::new(),
             /*persist_extended_history*/ false,
@@ -692,7 +681,6 @@ impl ThreadManager {
         Box::pin(self.state.spawn_thread(
             config,
             history,
-            Arc::clone(&self.state.auth_manager),
             self.agent_control(),
             Vec::new(),
             persist_extended_history,
@@ -723,7 +711,10 @@ impl ThreadManagerState {
     }
 
     /// Fetch a thread by ID or return ThreadNotFound.
-    pub(crate) async fn get_thread(&self, thread_id: ThreadId) -> DarwinCodeResult<Arc<DarwinCodeThread>> {
+    pub(crate) async fn get_thread(
+        &self,
+        thread_id: ThreadId,
+    ) -> DarwinCodeResult<Arc<DarwinCodeThread>> {
         let threads = self.threads.read().await;
         threads
             .get(&thread_id)
@@ -754,7 +745,10 @@ impl ThreadManagerState {
     }
 
     /// Remove a thread from the manager by ID, returning it when present.
-    pub(crate) async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<DarwinCodeThread>> {
+    pub(crate) async fn remove_thread(
+        &self,
+        thread_id: &ThreadId,
+    ) -> Option<Arc<DarwinCodeThread>> {
         self.threads.write().await.remove(thread_id)
     }
 
@@ -790,7 +784,6 @@ impl ThreadManagerState {
         Box::pin(self.spawn_thread_with_source(
             config,
             InitialHistory::New,
-            Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
             Vec::new(),
@@ -817,7 +810,6 @@ impl ThreadManagerState {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
-            Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
             Vec::new(),
@@ -845,7 +837,6 @@ impl ThreadManagerState {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
-            Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
             Vec::new(),
@@ -865,7 +856,6 @@ impl ThreadManagerState {
         &self,
         config: Config,
         initial_history: InitialHistory,
-        auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
         dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
         persist_extended_history: bool,
@@ -876,7 +866,6 @@ impl ThreadManagerState {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
-            auth_manager,
             agent_control,
             self.session_source.clone(),
             dynamic_tools,
@@ -895,7 +884,6 @@ impl ThreadManagerState {
         &self,
         config: Config,
         initial_history: InitialHistory,
-        auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
         session_source: SessionSource,
         dynamic_tools: Vec<darwin_code_protocol::dynamic_tools::DynamicToolSpec>,
@@ -906,11 +894,10 @@ impl ThreadManagerState {
         parent_trace: Option<W3cTraceContext>,
         user_shell_override: Option<crate::shell::Shell>,
     ) -> DarwinCodeResult<NewThread> {
-        let environment = self
-            .environment_manager
-            .current()
-            .await
-            .map_err(|err| DarwinCodeErr::Fatal(format!("failed to create environment: {err}")))?;
+        let environment =
+            self.environment_manager.current().await.map_err(|err| {
+                DarwinCodeErr::Fatal(format!("failed to create environment: {err}"))
+            })?;
         let watch_registration = match environment.as_ref() {
             Some(environment) if !environment.is_remote() => {
                 self.skills_watcher
@@ -925,10 +912,11 @@ impl ThreadManagerState {
             Some(_) | None => crate::file_watcher::WatchRegistration::default(),
         };
         let DarwinCodeSpawnOk {
-            darwin-code, thread_id, ..
-        } = Darwin-Code::spawn(DarwinCodeSpawnArgs {
+            darwin_code,
+            thread_id,
+            ..
+        } = DarwinCode::spawn(DarwinCodeSpawnArgs {
             config,
-            auth_manager,
             models_manager: Arc::clone(&self.models_manager),
             environment_manager: Arc::clone(&self.environment_manager),
             skills_manager: Arc::clone(&self.skills_manager),
@@ -948,17 +936,17 @@ impl ThreadManagerState {
             analytics_events_client: self.analytics_events_client.clone(),
         })
         .await?;
-        self.finalize_thread_spawn(darwin-code, thread_id, watch_registration)
+        self.finalize_thread_spawn(darwin_code, thread_id, watch_registration)
             .await
     }
 
     async fn finalize_thread_spawn(
         &self,
-        darwin-code: Darwin-Code,
+        darwin_code: DarwinCode,
         thread_id: ThreadId,
         watch_registration: crate::file_watcher::WatchRegistration,
     ) -> DarwinCodeResult<NewThread> {
-        let event = darwin-code.next_event().await?;
+        let event = darwin_code.next_event().await?;
         let session_configured = match event {
             Event {
                 id,
@@ -970,7 +958,7 @@ impl ThreadManagerState {
         };
 
         let thread = Arc::new(DarwinCodeThread::new(
-            darwin-code,
+            darwin_code,
             session_configured.rollout_path.clone(),
             watch_registration,
         ));

@@ -1,12 +1,4 @@
 use anyhow::Result;
-use darwin_code_features::Feature;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::ExecCommandBeginEvent;
-use darwin_code_protocol::protocol::ExecCommandEndEvent;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -17,6 +9,14 @@ use core_test_support::test_darwin_code::TestDarwinCodeHarness;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashMap;
@@ -36,8 +36,8 @@ struct SnapshotRun {
     darwin_code_home: PathBuf,
 }
 
-const POLICY_PATH_FOR_TEST: &str = "/darwin-code/policy/path";
-const SNAPSHOT_PATH_FOR_TEST: &str = "/darwin-code/snapshot/path";
+const POLICY_PATH_FOR_TEST: &str = "/darwin_code/policy/path";
+const SNAPSHOT_PATH_FOR_TEST: &str = "/darwin_code/snapshot/path";
 const SNAPSHOT_MARKER_VAR: &str = "DARWIN_CODE_SNAPSHOT_POLICY_MARKER";
 const SNAPSHOT_MARKER_VALUE: &str = "from_snapshot";
 const POLICY_SUCCESS_OUTPUT: &str = "policy-after-snapshot";
@@ -150,12 +150,12 @@ async fn run_snapshot_command_with_options(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let darwin_code_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run unified exec with shell snapshot".into(),
@@ -175,7 +175,7 @@ async fn run_snapshot_command_with_options(
         })
         .await?;
 
-    let begin = wait_for_event_match(&darwin-code, |ev| match ev {
+    let begin = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -183,13 +183,13 @@ async fn run_snapshot_command_with_options(
     let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
-    let end = wait_for_event_match(&darwin-code, |ev| match ev {
+    let end = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
@@ -241,12 +241,12 @@ async fn run_shell_command_snapshot_with_options(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let darwin_code_home = test.home.path().to_path_buf();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run shell_command with shell snapshot".into(),
@@ -266,7 +266,7 @@ async fn run_shell_command_snapshot_with_options(
         })
         .await?;
 
-    let begin = wait_for_event_match(&darwin-code, |ev| match ev {
+    let begin = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
@@ -274,13 +274,13 @@ async fn run_shell_command_snapshot_with_options(
     let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     let snapshot_content = fs::read_to_string(&snapshot_path).await?;
 
-    let end = wait_for_event_match(&darwin-code, |ev| match ev {
+    let end = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
@@ -314,10 +314,10 @@ async fn run_tool_turn_on_harness(
     mount_sse_sequence(harness.server(), responses).await;
 
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let session_model = test.session_configured.model.clone();
     let cwd = test.cwd_path().to_path_buf();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -337,17 +337,17 @@ async fn run_tool_turn_on_harness(
         })
         .await?;
 
-    wait_for_event_match(&darwin-code, |ev| match ev {
+    wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandBegin(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    let end = wait_for_event_match(&darwin-code, |ev| match ev {
+    let end = wait_for_event_match(&darwin_code, |ev| match ev {
         EventMsg::ExecCommandEnd(ev) if ev.call_id == call_id => Some(ev.clone()),
         _ => None,
     })
     .await;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     Ok(end)
 }
 
@@ -523,7 +523,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
     let harness = TestDarwinCodeHarness::with_builder(builder).await?;
 
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let cwd = test.cwd_path().to_path_buf();
     let darwin_code_home = test.home.path().to_path_buf();
     let target = cwd.join("snapshot-apply.txt");
@@ -552,7 +552,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
     mount_sse_sequence(harness.server(), responses).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply patch via shell_command with snapshot".into(),
@@ -578,7 +578,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
 
     let mut saw_patch_begin = false;
     let mut patch_end = None;
-    wait_for_event(&darwin-code, |ev| match ev {
+    wait_for_event(&darwin_code, |ev| match ev {
         EventMsg::PatchApplyBegin(begin) if begin.call_id == call_id => {
             saw_patch_begin = true;
             false
@@ -623,15 +623,15 @@ async fn shell_snapshot_deleted_after_shutdown_with_skills() -> Result<()> {
     let harness = TestDarwinCodeHarness::with_builder(builder).await?;
     let home = harness.test().home.clone();
     let darwin_code_home = home.path().to_path_buf();
-    let darwin-code = harness.test().darwin-code.clone();
+    let darwin_code = harness.test().darwin_code.clone();
 
     let snapshot_path = wait_for_snapshot(&darwin_code_home).await?;
     assert!(snapshot_path.exists());
 
-    darwin-code.submit(Op::Shutdown {}).await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    darwin_code.submit(Op::Shutdown {}).await?;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    drop(darwin-code);
+    drop(darwin_code);
     drop(harness);
     sleep(Duration::from_millis(150)).await;
 

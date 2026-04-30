@@ -2,7 +2,7 @@
 //!
 //! `ChatComposer` publishes every change of the `@token` as
 //! `AppEvent::StartFileSearch(query)`. This manager owns a single
-//! `darwin-code-file-search` session for the current search root, updates the query
+//! `darwin_code-file-search` session for the current search root, updates the query
 //! on every keystroke, and drops the session when the query becomes empty.
 
 use darwin_code_file_search as file_search;

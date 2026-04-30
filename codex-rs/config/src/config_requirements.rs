@@ -1,9 +1,9 @@
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::config_types::ApprovalsReviewer;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::Error as _;
@@ -21,7 +21,7 @@ use crate::ConstraintError;
 pub enum RequirementSource {
     Unknown,
     MdmManagedPreferences { domain: String, key: String },
-    CloudRequirements,
+    ExternalRequirements,
     SystemRequirementsToml { file: AbsolutePathBuf },
     LegacyManagedConfigTomlFromFile { file: AbsolutePathBuf },
     LegacyManagedConfigTomlFromMdm,
@@ -34,8 +34,8 @@ impl fmt::Display for RequirementSource {
             RequirementSource::MdmManagedPreferences { domain, key } => {
                 write!(f, "MDM {domain}:{key}")
             }
-            RequirementSource::CloudRequirements => {
-                write!(f, "cloud requirements")
+            RequirementSource::ExternalRequirements => {
+                write!(f, "external requirements")
             }
             RequirementSource::SystemRequirementsToml { file } => {
                 write!(f, "{}", file.as_path().display())
@@ -1075,12 +1075,12 @@ impl TryFrom<ConfigRequirementsWithSources> for ConfigRequirements {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_execpolicy::Decision;
-    use codex_execpolicy::Evaluation;
-    use codex_execpolicy::RuleMatch;
-    use codex_protocol::protocol::NetworkAccess;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::AbsolutePathBufGuard;
+    use darwin_code_execpolicy::Decision;
+    use darwin_code_execpolicy::Evaluation;
+    use darwin_code_execpolicy::RuleMatch;
+    use darwin_code_protocol::protocol::NetworkAccess;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::AbsolutePathBufGuard;
     use pretty_assertions::assert_eq;
     use toml::from_str;
 
@@ -1292,7 +1292,7 @@ mod tests {
     fn merge_unset_fields_ignores_blank_guardian_override() {
         let mut target = ConfigRequirementsWithSources::default();
         target.merge_unset_fields(
-            RequirementSource::CloudRequirements,
+            RequirementSource::ExternalRequirements,
             ConfigRequirementsToml {
                 guardian_policy_config: Some("   \n\t".to_string()),
                 ..Default::default()
@@ -1535,7 +1535,7 @@ allowed_approvals_reviewers = ["user"]
 
     #[test]
     fn merge_unset_fields_merges_apps_across_sources_with_enabled_evaluation() {
-        let higher_source = RequirementSource::CloudRequirements;
+        let higher_source = RequirementSource::ExternalRequirements;
         let lower_source = RequirementSource::LegacyManagedConfigTomlFromMdm;
         let mut target = ConfigRequirementsWithSources::default();
 
@@ -1577,7 +1577,7 @@ allowed_approvals_reviewers = ["user"]
         let mut target = ConfigRequirementsWithSources::default();
 
         target.merge_unset_fields(
-            RequirementSource::CloudRequirements,
+            RequirementSource::ExternalRequirements,
             ConfigRequirementsToml {
                 apps: Some(apps_requirements(&[])),
                 ..Default::default()
@@ -1652,14 +1652,14 @@ allowed_approvals_reviewers = ["user"]
     }
 
     #[test]
-    fn constraint_error_includes_cloud_requirements_source() -> Result<()> {
+    fn constraint_error_includes_external_requirements_source() -> Result<()> {
         let source: ConfigRequirementsToml = from_str(
             r#"
                 allowed_approval_policies = ["on-request"]
             "#,
         )?;
 
-        let source_location = RequirementSource::CloudRequirements;
+        let source_location = RequirementSource::ExternalRequirements;
 
         let mut target = ConfigRequirementsWithSources::default();
         target.merge_unset_fields(source_location.clone(), source);
@@ -1692,7 +1692,7 @@ allowed_approvals_reviewers = ["user"]
             "#,
         )?;
 
-        let source_location = RequirementSource::CloudRequirements;
+        let source_location = RequirementSource::ExternalRequirements;
         let mut target = ConfigRequirementsWithSources::default();
         target.merge_unset_fields(source_location.clone(), source);
         let requirements = ConfigRequirements::try_from(target)?;
@@ -2022,7 +2022,7 @@ allowed_approvals_reviewers = ["user"]
             "/tmp/example.sock" = "allow"
         "#;
 
-        let source = RequirementSource::CloudRequirements;
+        let source = RequirementSource::ExternalRequirements;
         let mut requirements_with_sources = ConfigRequirementsWithSources::default();
         requirements_with_sources.merge_unset_fields(source.clone(), from_str(toml_str)?);
 
@@ -2089,7 +2089,7 @@ allowed_approvals_reviewers = ["user"]
             allow_local_binding = false
         "#;
 
-        let source = RequirementSource::CloudRequirements;
+        let source = RequirementSource::ExternalRequirements;
         let mut requirements_with_sources = ConfigRequirementsWithSources::default();
         requirements_with_sources.merge_unset_fields(source.clone(), from_str(toml_str)?);
 

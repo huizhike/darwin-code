@@ -31,13 +31,15 @@
 //! `MessageProcessor` with overload or internal errors so approval flows do
 //! not hang indefinitely.
 //!
-//! # Relationship to `darwin-code-app-server-client`
+//! # Relationship to `darwin_code-app-server-client`
 //!
 //! This module provides the low-level runtime handle ([`InProcessClientHandle`]).
-//! Higher-level callers (TUI, exec) should go through `darwin-code-app-server-client`,
+//! Higher-level callers (TUI, exec) should go through `darwin_code-app-server-client`,
 //! which wraps this module behind a worker task with async request/response
 //! helpers, surface-specific startup policy, and bounded shutdown.
 
+use codex_analytics::AppServerRpcTransport;
+use codex_feedback::CodexFeedback as DarwinCodeFeedback;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
@@ -75,10 +77,9 @@ use darwin_code_app_server_protocol::ServerNotification;
 use darwin_code_app_server_protocol::ServerRequest;
 use darwin_code_arg0::Arg0DispatchPaths;
 use darwin_code_core::config::Config;
-use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
 use darwin_code_exec_server::EnvironmentManager;
-use darwin_code_login::AuthManager;
 use darwin_code_protocol::protocol::SessionSource;
 pub use darwin_code_state::log_db::LogDbLayer;
 use tokio::sync::mpsc;
@@ -112,8 +113,8 @@ pub struct InProcessStartArgs {
     pub cli_overrides: Vec<(String, TomlValue)>,
     /// Loader override knobs used by config API paths.
     pub loader_overrides: LoaderOverrides,
-    /// Preloaded cloud requirements provider.
-    pub cloud_requirements: CloudRequirementsLoader,
+    /// Preloaded external requirements provider.
+    pub external_requirements: ExternalRequirementsLoader,
     /// Feedback sink used by app-server/core telemetry and logs.
     pub feedback: DarwinCodeFeedback,
     /// SQLite tracing layer used to flush recently emitted logs before feedback upload.
@@ -237,7 +238,7 @@ impl InProcessClientSender {
 /// Handle used by an in-process client to call app-server and consume events.
 ///
 /// This is the low-level runtime handle. Higher-level callers should usually go
-/// through `darwin-code-app-server-client`, which adds worker-task buffering,
+/// through `darwin_code-app-server-client`, which adds worker-task buffering,
 /// request/response helpers, and surface-specific startup policy.
 pub struct InProcessClientHandle {
     client: InProcessClientSender,
@@ -383,8 +384,6 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
         });
 
         let processor_outgoing = Arc::clone(&outgoing_message_sender);
-        let auth_manager =
-            AuthManager::shared_from_config(args.config.as_ref(), args.enable_darwin_code_api_key_env);
         let (processor_tx, mut processor_rx) = mpsc::channel::<ProcessorCommand>(channel_capacity);
         let mut processor_handle = tokio::spawn(async move {
             let processor = Arc::new(MessageProcessor::new(MessageProcessorArgs {
@@ -394,12 +393,11 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
                 environment_manager: args.environment_manager,
                 cli_overrides: args.cli_overrides,
                 loader_overrides: args.loader_overrides,
-                cloud_requirements: args.cloud_requirements,
+                external_requirements: args.external_requirements,
                 feedback: args.feedback,
                 log_db: args.log_db,
                 config_warnings: args.config_warnings,
                 session_source: args.session_source,
-                auth_manager,
                 rpc_transport: AppServerRpcTransport::InProcess,
                 remote_control_handle: None,
             }));
@@ -700,7 +698,8 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
 mod tests {
     use super::*;
     use darwin_code_app_server_protocol::ClientInfo;
-    use darwin_code_app_server_protocol::ConfigRequirementsReadResponse;
+    use darwin_code_app_server_protocol::ConfigReadParams;
+    use darwin_code_app_server_protocol::ConfigReadResponse;
     use darwin_code_app_server_protocol::SessionSource as ApiSessionSource;
     use darwin_code_app_server_protocol::ThreadStartParams;
     use darwin_code_app_server_protocol::ThreadStartResponse;
@@ -728,7 +727,7 @@ mod tests {
             config: Arc::new(build_test_config().await),
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            external_requirements: ExternalRequirementsLoader::default(),
             feedback: DarwinCodeFeedback::new(),
             log_db: None,
             environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
@@ -737,7 +736,7 @@ mod tests {
             enable_darwin_code_api_key_env: false,
             initialize: InitializeParams {
                 client_info: ClientInfo {
-                    name: "darwin-code-in-process-test".to_string(),
+                    name: "darwin_code-in-process-test".to_string(),
                     title: None,
                     version: "0.0.0".to_string(),
                 },
@@ -756,16 +755,19 @@ mod tests {
     async fn in_process_start_initializes_and_handles_typed_v2_request() {
         let client = start_test_client(SessionSource::Cli).await;
         let response = client
-            .request(ClientRequest::ConfigRequirementsRead {
+            .request(ClientRequest::ConfigRead {
                 request_id: RequestId::Integer(1),
-                params: None,
+                params: ConfigReadParams {
+                    include_layers: false,
+                    cwd: None,
+                },
             })
             .await
             .expect("request transport should work")
             .expect("request should succeed");
         assert!(response.is_object());
 
-        let _parsed: ConfigRequirementsReadResponse =
+        let _parsed: ConfigReadResponse =
             serde_json::from_value(response).expect("response should match v2 schema");
         client
             .shutdown()
@@ -807,9 +809,12 @@ mod tests {
             start_test_client_with_capacity(SessionSource::Cli, /*channel_capacity*/ 0).await;
         let response = loop {
             match client
-                .request(ClientRequest::ConfigRequirementsRead {
+                .request(ClientRequest::ConfigRead {
                     request_id: RequestId::Integer(4),
-                    params: None,
+                    params: ConfigReadParams {
+                        include_layers: false,
+                        cwd: None,
+                    },
                 })
                 .await
             {
@@ -820,7 +825,7 @@ mod tests {
                 Err(err) => panic!("request transport should work: {err}"),
             }
         };
-        let _parsed: ConfigRequirementsReadResponse =
+        let _parsed: ConfigReadResponse =
             serde_json::from_value(response).expect("response should match v2 schema");
         client
             .shutdown()

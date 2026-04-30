@@ -85,6 +85,7 @@ pub(crate) fn compose_account_display(
     account_display.cloned()
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn plan_type_display_name(plan_type: PlanType) -> String {
     if plan_type.is_team_like() {
         "Business".to_string()
@@ -161,6 +162,7 @@ pub(crate) fn format_directory_display(directory: &Path, max_width: Option<usize
     formatted
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn format_reset_timestamp(dt: DateTime<Local>, captured_at: DateTime<Local>) -> String {
     let time = dt.format("%H:%M").to_string();
     if dt.date_naive() == captured_at.date_naive() {
@@ -170,6 +172,7 @@ pub(crate) fn format_reset_timestamp(dt: DateTime<Local>, captured_at: DateTime<
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn title_case(s: &str) -> String {
     if s.is_empty() {
         return String::new();
@@ -193,6 +196,8 @@ mod tests {
     use tempfile::TempDir;
 
     async fn test_config(darwin_code_home: &TempDir, cwd: &TempDir) -> Config {
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .fallback_cwd(Some(cwd.path().to_path_buf()))
@@ -225,7 +230,7 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_includes_global_agents_path() {
-        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
+        let darwin_code_home = TempDir::new().expect("temp darwin_code home");
         let cwd = TempDir::new().expect("temp cwd");
         let global_agents_path = darwin_code_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
         let config = test_config(&darwin_code_home, &cwd).await;
@@ -238,7 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_names_global_agents_override() {
-        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
+        let darwin_code_home = TempDir::new().expect("temp darwin_code home");
         let cwd = TempDir::new().expect("temp cwd");
         let override_path = darwin_code_home.path().join(LOCAL_AGENTS_MD_FILENAME);
         let config = test_config(&darwin_code_home, &cwd).await;
@@ -251,7 +256,7 @@ mod tests {
 
     #[tokio::test]
     async fn compose_agents_summary_orders_global_before_project_agents() {
-        let darwin_code_home = TempDir::new().expect("temp darwin-code home");
+        let darwin_code_home = TempDir::new().expect("temp darwin_code home");
         let cwd = TempDir::new().expect("temp cwd");
         let global_agents_path = darwin_code_home.path().join(DEFAULT_AGENTS_MD_FILENAME);
         let project_agents_path = cwd.path().join(DEFAULT_AGENTS_MD_FILENAME);

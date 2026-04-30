@@ -258,6 +258,9 @@ async fn config_read_includes_apps() -> Result<()> {
     write_config(
         &darwin_code_home,
         r#"
+[features]
+apps = true
+
 [apps.app1]
 enabled = false
 destructive_enabled = false
@@ -341,7 +344,7 @@ async fn config_read_includes_project_layers_for_cwd() -> Result<()> {
     write_config(&darwin_code_home, r#"model = "gpt-user""#)?;
 
     let workspace = TempDir::new()?;
-    let project_config_dir = workspace.path().join(".darwin-code");
+    let project_config_dir = workspace.path().join(".darwin_code");
     std::fs::create_dir_all(&project_config_dir)?;
     std::fs::write(
         project_config_dir.join("config.toml"),
@@ -349,7 +352,11 @@ async fn config_read_includes_project_layers_for_cwd() -> Result<()> {
 model_reasoning_effort = "high"
 "#,
     )?;
-    set_project_trust_level(darwin_code_home.path(), workspace.path(), TrustLevel::Trusted)?;
+    set_project_trust_level(
+        darwin_code_home.path(),
+        workspace.path(),
+        TrustLevel::Trusted,
+    )?;
     let project_config = AbsolutePathBuf::try_from(project_config_dir)?;
 
     let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
@@ -374,7 +381,7 @@ model_reasoning_effort = "high"
     assert_eq!(
         origins.get("model_reasoning_effort").expect("origin").name,
         ConfigLayerSource::Project {
-            dot_darwin_code_folder: project_config
+            dot_codex_folder: project_config
         }
     );
 
@@ -548,7 +555,8 @@ model = "gpt-old"
     )
     .await??;
     let write: ConfigWriteResponse = to_response(write_resp)?;
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", darwin_code_home);
+    let expected_file_path =
+        AbsolutePathBuf::resolve_path_against_base("config.toml", darwin_code_home);
 
     assert_eq!(write.status, WriteStatus::Ok);
     assert_eq!(write.file_path, expected_file_path);
@@ -635,7 +643,13 @@ model = "gpt-old"
 
     let write_id = mcp
         .send_config_value_write_request(ConfigValueWriteParams {
-            file_path: Some(darwin_code_home.path().join("config.toml").display().to_string()),
+            file_path: Some(
+                darwin_code_home
+                    .path()
+                    .join("config.toml")
+                    .display()
+                    .to_string(),
+            ),
             key_path: "model".to_string(),
             value: json!("gpt-new"),
             merge_strategy: MergeStrategy::Replace,
@@ -698,7 +712,8 @@ async fn config_batch_write_applies_multiple_edits() -> Result<()> {
     .await??;
     let batch_write: ConfigWriteResponse = to_response(batch_resp)?;
     assert_eq!(batch_write.status, WriteStatus::Ok);
-    let expected_file_path = AbsolutePathBuf::resolve_path_against_base("config.toml", darwin_code_home);
+    let expected_file_path =
+        AbsolutePathBuf::resolve_path_against_base("config.toml", darwin_code_home);
     assert_eq!(batch_write.file_path, expected_file_path);
 
     let read_id = mcp

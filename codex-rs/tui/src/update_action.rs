@@ -6,15 +6,15 @@ use darwin_code_install_context::StandalonePlatform;
 /// Update action the CLI should perform after the TUI exits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateAction {
-    /// Update via `npm install -g @openai/darwin-code@latest`.
+    /// Update via `npm install -g @openai/darwin_code@latest`.
     NpmGlobalLatest,
-    /// Update via `bun install -g @openai/darwin-code@latest`.
+    /// Update via `bun install -g @openai/darwin_code@latest`.
     BunGlobalLatest,
-    /// Update via `brew upgrade darwin-code`.
+    /// Update via `brew upgrade darwin_code`.
     BrewUpgrade,
-    /// Update via `curl -fsSL https://chatgpt.com/darwin-code/install.sh | sh`.
+    /// Update via `curl -fsSL https://example.invalid/darwin-code/install.sh | sh`.
     StandaloneUnix,
-    /// Update via `irm https://chatgpt.com/darwin-code/install.ps1|iex`.
+    /// Update via `irm https://example.invalid/darwin-code/install.ps1|iex`.
     StandaloneWindows,
 }
 
@@ -36,16 +36,22 @@ impl UpdateAction {
     /// Returns the list of command-line arguments for invoking the update.
     pub fn command_args(self) -> (&'static str, &'static [&'static str]) {
         match self {
-            UpdateAction::NpmGlobalLatest => ("npm", &["install", "-g", "@openai/darwin-code"]),
-            UpdateAction::BunGlobalLatest => ("bun", &["install", "-g", "@openai/darwin-code"]),
-            UpdateAction::BrewUpgrade => ("brew", &["upgrade", "--cask", "darwin-code"]),
+            UpdateAction::NpmGlobalLatest => ("npm", &["install", "-g", "@openai/darwin_code"]),
+            UpdateAction::BunGlobalLatest => ("bun", &["install", "-g", "@openai/darwin_code"]),
+            UpdateAction::BrewUpgrade => ("brew", &["upgrade", "--cask", "darwin_code"]),
             UpdateAction::StandaloneUnix => (
                 "sh",
-                &["-c", "curl -fsSL https://chatgpt.com/darwin-code/install.sh | sh"],
+                &[
+                    "-c",
+                    "curl -fsSL https://example.invalid/darwin-code/install.sh | sh",
+                ],
             ),
             UpdateAction::StandaloneWindows => (
                 "powershell",
-                &["-c", "irm https://chatgpt.com/darwin-code/install.ps1|iex"],
+                &[
+                    "-c",
+                    "irm https://example.invalid/darwin-code/install.ps1|iex",
+                ],
             ),
         }
     }
@@ -93,7 +99,7 @@ mod tests {
             UpdateAction::from_install_context(&InstallContext::Standalone {
                 platform: StandalonePlatform::Unix,
                 release_dir: native_release_dir.clone(),
-                resources_dir: Some(native_release_dir.join("darwin-code-resources")),
+                resources_dir: Some(native_release_dir.join("darwin_code-resources")),
             }),
             Some(UpdateAction::StandaloneUnix)
         );
@@ -101,7 +107,7 @@ mod tests {
             UpdateAction::from_install_context(&InstallContext::Standalone {
                 platform: StandalonePlatform::Windows,
                 release_dir: native_release_dir.clone(),
-                resources_dir: Some(native_release_dir.join("darwin-code-resources")),
+                resources_dir: Some(native_release_dir.join("darwin_code-resources")),
             }),
             Some(UpdateAction::StandaloneWindows)
         );
@@ -113,14 +119,20 @@ mod tests {
             UpdateAction::StandaloneUnix.command_args(),
             (
                 "sh",
-                &["-c", "curl -fsSL https://chatgpt.com/darwin-code/install.sh | sh"][..],
+                &[
+                    "-c",
+                    "curl -fsSL https://example.invalid/darwin-code/install.sh | sh"
+                ][..],
             )
         );
         assert_eq!(
             UpdateAction::StandaloneWindows.command_args(),
             (
                 "powershell",
-                &["-c", "irm https://chatgpt.com/darwin-code/install.ps1|iex"][..],
+                &[
+                    "-c",
+                    "irm https://example.invalid/darwin-code/install.ps1|iex"
+                ][..],
             )
         );
     }

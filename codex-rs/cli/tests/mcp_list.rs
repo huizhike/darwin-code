@@ -12,9 +12,27 @@ use serde_json::json;
 use tempfile::TempDir;
 
 fn darwin_code_command(darwin_code_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?);
+    write_byok_test_config(darwin_code_home)?;
+    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?);
     cmd.env("DARWIN_CODE_HOME", darwin_code_home);
     Ok(cmd)
+}
+
+fn write_byok_test_config(darwin_code_home: &Path) -> Result<()> {
+    let config_path = darwin_code_home.join("config.toml");
+    if !config_path.exists() {
+        std::fs::write(
+            config_path,
+            r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#,
+        )?;
+    }
+    Ok(())
 }
 
 #[test]
@@ -126,7 +144,7 @@ async fn list_and_get_render_expected_output() -> Result<()> {
     assert!(stdout.contains("APP_TOKEN=*****"));
     assert!(stdout.contains("WORKSPACE_ID=*****"));
     assert!(stdout.contains("enabled: true"));
-    assert!(stdout.contains("remove: darwin-code mcp remove docs"));
+    assert!(stdout.contains("remove: darwin_code mcp remove docs"));
 
     let mut get_json_cmd = darwin_code_command(darwin_code_home.path())?;
     get_json_cmd

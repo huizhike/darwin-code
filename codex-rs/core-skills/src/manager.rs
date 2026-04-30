@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use codex_config::ConfigLayerStack;
-use codex_exec_server::ExecutorFileSystem;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::ConfigLayerStack;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_protocol::protocol::Product;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use tracing::info;
 use tracing::warn;
 
@@ -21,7 +21,7 @@ use crate::loader::load_skills_from_roots;
 use crate::loader::skill_roots;
 use crate::system::install_system_skills;
 use crate::system::uninstall_system_skills;
-use codex_config::SkillsConfig;
+use darwin_code_config::SkillsConfig;
 
 #[derive(Debug, Clone)]
 pub struct SkillsLoadInput {
@@ -244,7 +244,7 @@ struct ConfigSkillsCacheKey {
 }
 
 pub fn bundled_skills_enabled_from_stack(
-    config_layer_stack: &codex_config::ConfigLayerStack,
+    config_layer_stack: &darwin_code_config::ConfigLayerStack,
 ) -> bool {
     let effective_config = config_layer_stack.effective_config();
     let Some(skills_value) = effective_config

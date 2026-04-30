@@ -51,28 +51,29 @@ fn render_js_repl_instructions(config: &Config) -> Option<String> {
     section.push_str(
         "- Use `js_repl` for Node-backed JavaScript with top-level await in a persistent kernel.\n",
     );
-    section.push_str("- `js_repl` is a freeform/custom tool. Direct `js_repl` calls must send raw JavaScript tool input (optionally with first-line `// darwin-code-js-repl: timeout_ms=15000`). Do not wrap code in JSON (for example `{\"code\":\"...\"}`), quotes, or markdown code fences.\n");
+    section.push_str("- `js_repl` is a freeform/custom tool. Direct `js_repl` calls must send raw JavaScript tool input (optionally with first-line `// darwin_code-js-repl: timeout_ms=15000`). Do not wrap code in JSON (for example `{\"code\":\"...\"}`), quotes, or markdown code fences.\n");
     section.push_str(
-        "- Helpers: `darwin-code.cwd`, `darwin-code.homeDir`, `darwin-code.tmpDir`, `darwin-code.tool(name, args?)`, and `darwin-code.emitImage(imageLike)`.\n",
+        "- Helpers: `darwin_code.cwd`, `darwin_code.homeDir`, `darwin_code.tmpDir`, `darwin_code.tool(name, args?)`, and `darwin_code.emitImage(imageLike)`.\n",
     );
-    section.push_str("- `darwin-code.tool` executes a normal tool call and resolves to the raw tool output object. Use it for shell and non-shell tools alike. Nested tool outputs stay inside JavaScript unless you emit them explicitly.\n");
-    section.push_str("- `darwin-code.emitImage(...)` adds one image to the outer `js_repl` function output each time you call it, so you can call it multiple times to emit multiple images. It accepts a data URL, a single `input_image` item, an object like `{ bytes, mimeType }`, or a raw tool response object with exactly one image and no text. It rejects mixed text-and-image content.\n");
-    section.push_str("- `darwin-code.tool(...)` and `darwin-code.emitImage(...)` keep stable helper identities across cells. Saved references and persisted objects can reuse them in later cells, but async callbacks that fire after a cell finishes still fail because no exec is active.\n");
-    section.push_str("- Request full-resolution image processing with `detail: \"original\"` only when the `view_image` tool schema includes a `detail` argument. The same availability applies to `darwin-code.emitImage(...)`: if `view_image.detail` is present, you may also pass `detail: \"original\"` there. Use this when high-fidelity image perception or precise localization is needed, especially for CUA agents.\n");
-    section.push_str("- Raw MCP image blocks can request the same behavior by returning `_meta: { \"darwin-code/imageDetail\": \"original\" }` on the image content item.\n");
-    section.push_str("- Example of sharing an in-memory Playwright screenshot: `await darwin-code.emitImage({ bytes: await page.screenshot({ type: \"jpeg\", quality: 85 }), mimeType: \"image/jpeg\", detail: \"original\" })`.\n");
-    section.push_str("- Example of sharing a local image tool result: `await darwin-code.emitImage(darwin-code.tool(\"view_image\", { path: \"/absolute/path\", detail: \"original\" }))`.\n");
-    section.push_str("- When encoding an image to send with `darwin-code.emitImage(...)` or `view_image`, prefer JPEG at about 85 quality when lossy compression is acceptable; use PNG when transparency or lossless detail matters. Smaller uploads are faster and less likely to hit size limits.\n");
+    section.push_str("- `darwin_code.tool` executes a normal tool call and resolves to the raw tool output object. Use it for shell and non-shell tools alike. Nested tool outputs stay inside JavaScript unless you emit them explicitly.\n");
+    section.push_str("- `darwin_code.emitImage(...)` adds one image to the outer `js_repl` function output each time you call it, so you can call it multiple times to emit multiple images. It accepts a data URL, a single `input_image` item, an object like `{ bytes, mimeType }`, or a raw tool response object with exactly one image and no text. It rejects mixed text-and-image content.\n");
+    section.push_str("- `darwin_code.tool(...)` and `darwin_code.emitImage(...)` keep stable helper identities across cells. Saved references and persisted objects can reuse them in later cells, but async callbacks that fire after a cell finishes still fail because no exec is active.\n");
+    section.push_str("- Request full-resolution image processing with `detail: \"original\"` only when the `view_image` tool schema includes a `detail` argument. The same availability applies to `darwin_code.emitImage(...)`: if `view_image.detail` is present, you may also pass `detail: \"original\"` there. Use this when high-fidelity image perception or precise localization is needed, especially for CUA agents.\n");
+    section.push_str("- Raw MCP image blocks can request the same behavior by returning `_meta: { \"darwin_code/imageDetail\": \"original\" }` on the image content item.\n");
+    section.push_str("- Example of sharing an in-memory Playwright screenshot: `await darwin_code.emitImage({ bytes: await page.screenshot({ type: \"jpeg\", quality: 85 }), mimeType: \"image/jpeg\", detail: \"original\" })`.\n");
+    section.push_str("- Example of sharing a local image tool result: `await darwin_code.emitImage(darwin_code.tool(\"view_image\", { path: \"/absolute/path\", detail: \"original\" }))`.\n");
+    section.push_str("- When encoding an image to send with `darwin_code.emitImage(...)` or `view_image`, prefer JPEG at about 85 quality when lossy compression is acceptable; use PNG when transparency or lossless detail matters. Smaller uploads are faster and less likely to hit size limits.\n");
     section.push_str("- Top-level bindings persist across cells. If a cell throws, prior bindings remain available and bindings that finished initializing before the throw often remain usable in later cells. For code you plan to reuse across cells, prefer declaring or assigning it in direct top-level statements before operations that might throw. If you hit `SyntaxError: Identifier 'x' has already been declared`, first reuse the existing binding, reassign a previously declared `let`, or pick a new descriptive name. Use `{ ... }` only for a short temporary block when you specifically need local scratch names; do not wrap an entire cell in block scope if you want those names reusable later. Reset the kernel with `js_repl_reset` only when you need a clean state.\n");
     section.push_str("- Top-level static import declarations (for example `import x from \"./file.js\"`) are currently unsupported in `js_repl`; use dynamic imports with `await import(\"pkg\")`, `await import(\"./file.js\")`, or `await import(\"/abs/path/file.mjs\")` instead. Imported local files must be ESM `.js`/`.mjs` files and run in the same REPL VM context. Bare package imports always resolve from REPL-global search roots (`DARWIN_CODE_JS_REPL_NODE_MODULE_DIRS`, then cwd), not relative to the imported file location. Local files may statically import only other local relative/absolute/`file://` `.js`/`.mjs` files; package and builtin imports from local files must stay dynamic. `import.meta.resolve()` returns importable strings such as `file://...`, bare package names, and `node:...` specifiers. Local file modules reload between execs, while top-level bindings persist until `js_repl_reset`.\n");
 
     if config.features.enabled(Feature::JsReplToolsOnly) {
-        section.push_str("- Do not call tools directly; use `js_repl` + `darwin-code.tool(...)` for all tool calls, including shell commands.\n");
-        section
-            .push_str("- MCP tools (if any) can also be called by name via `darwin-code.tool(...)`.\n");
+        section.push_str("- Do not call tools directly; use `js_repl` + `darwin_code.tool(...)` for all tool calls, including shell commands.\n");
+        section.push_str(
+            "- MCP tools (if any) can also be called by name via `darwin_code.tool(...)`.\n",
+        );
     }
 
-    section.push_str("- Avoid direct access to `process.stdout` / `process.stderr` / `process.stdin`; it can corrupt the JSON line protocol. Use `console.log`, `darwin-code.tool(...)`, and `darwin-code.emitImage(...)`.");
+    section.push_str("- Avoid direct access to `process.stdout` / `process.stderr` / `process.stdin`; it can corrupt the JSON line protocol. Use `console.log`, `darwin_code.tool(...)`, and `darwin_code.emitImage(...)`.");
 
     Some(section)
 }

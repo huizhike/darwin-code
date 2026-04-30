@@ -77,12 +77,13 @@ fn filter_darwin_code_apps_mcp_tools(
             let Some(connector_id) = tool.connector_id.as_deref() else {
                 return false;
             };
-            allowed.contains(connector_id) && connectors::darwin_code_app_tool_is_enabled(config, tool)
+            allowed.contains(connector_id)
+                && connectors::darwin_code_app_tool_is_enabled(config, tool)
         })
         .map(|(name, tool)| (name.clone(), tool.clone()))
         .collect()
 }
 
 #[cfg(test)]
-#[path = "mcp_tool_exposure_test.rs"]
+#[path = "mcp_tool_exposure_tests.rs"]
 mod tests;

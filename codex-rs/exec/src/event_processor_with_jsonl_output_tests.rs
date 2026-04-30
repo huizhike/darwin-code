@@ -36,7 +36,7 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
                 error: Some(darwin_code_app_server_protocol::TurnError {
                     message: "turn failed".to_string(),
                     additional_details: None,
-                    darwin_code_error_info: None,
+                    codex_error_info: None,
                 }),
                 started_at: None,
                 completed_at: Some(0),

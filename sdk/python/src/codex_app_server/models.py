@@ -6,9 +6,6 @@ from typing import TypeAlias
 from pydantic import BaseModel
 
 from .generated.v2_all import (
-    AccountLoginCompletedNotification,
-    AccountRateLimitsUpdatedNotification,
-    AccountUpdatedNotification,
     AgentMessageDeltaNotification,
     AppListUpdatedNotification,
     CommandExecutionOutputDeltaNotification,
@@ -48,10 +45,7 @@ class UnknownNotification:
 
 
 NotificationPayload: TypeAlias = (
-    AccountLoginCompletedNotification
-    | AccountRateLimitsUpdatedNotification
-    | AccountUpdatedNotification
-    | AgentMessageDeltaNotification
+    AgentMessageDeltaNotification
     | AppListUpdatedNotification
     | CommandExecutionOutputDeltaNotification
     | ConfigWarningNotification

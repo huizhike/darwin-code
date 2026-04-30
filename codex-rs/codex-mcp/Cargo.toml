@@ -16,11 +16,11 @@ anyhow = { workspace = true }
 async-channel = { workspace = true }
 darwin-code-async-utils = { workspace = true }
 darwin-code-config = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-otel = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-rmcp-client = { workspace = true }
 darwin-code-utils-plugins = { workspace = true }
+codex-plugin = { workspace = true }
 futures = { workspace = true }
 regex-lite = { workspace = true }
 rmcp = { workspace = true, default-features = false, features = ["base64", "macros", "schemars", "server"] }

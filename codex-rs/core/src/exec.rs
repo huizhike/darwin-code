@@ -23,7 +23,6 @@ use crate::sandboxing::SandboxPermissions;
 use crate::spawn::SpawnChildRequest;
 use crate::spawn::StdioPolicy;
 use crate::spawn::spawn_child_async;
-use darwin_code_network_proxy::NetworkProxy;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::error::Result;
@@ -38,6 +37,7 @@ use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::ExecCommandOutputDeltaEvent;
 use darwin_code_protocol::protocol::ExecOutputStream;
 use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_sandboxing::SandboxCommand;
 use darwin_code_sandboxing::SandboxManager;
 use darwin_code_sandboxing::SandboxTransformRequest;
@@ -86,7 +86,7 @@ pub struct ExecParams {
     pub expiration: ExecExpiration,
     pub capture_policy: ExecCapturePolicy,
     pub env: HashMap<String, String>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<NetworkAccessRuntime>,
     pub sandbox_permissions: SandboxPermissions,
     pub windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
@@ -132,14 +132,14 @@ fn select_process_exec_tool_sandbox_type(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
     windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
-    enforce_managed_network: bool,
+    enforce_network_policy: bool,
 ) -> SandboxType {
     SandboxManager::new().select_initial(
         file_system_sandbox_policy,
         network_sandbox_policy,
         SandboxablePreference::Auto,
         windows_sandbox_level,
-        enforce_managed_network,
+        enforce_network_policy,
     )
 }
 
@@ -222,7 +222,7 @@ pub async fn process_exec_tool_call(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox_cwd: &AbsolutePathBuf,
-    darwin_code_linux_sandbox_exe: &Option<PathBuf>,
+    codex_linux_sandbox_exe: &Option<PathBuf>,
     use_legacy_landlock: bool,
     stdout_stream: Option<StdoutStream>,
 ) -> Result<ExecToolCallOutput> {
@@ -232,7 +232,7 @@ pub async fn process_exec_tool_call(
         file_system_sandbox_policy,
         network_sandbox_policy,
         sandbox_cwd,
-        darwin_code_linux_sandbox_exe,
+        codex_linux_sandbox_exe,
         use_legacy_landlock,
     )?;
 
@@ -248,7 +248,7 @@ pub fn build_exec_request(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox_cwd: &AbsolutePathBuf,
-    darwin_code_linux_sandbox_exe: &Option<PathBuf>,
+    codex_linux_sandbox_exe: &Option<PathBuf>,
     use_legacy_landlock: bool,
 ) -> Result<ExecRequest> {
     let ExecParams {
@@ -268,12 +268,12 @@ pub fn build_exec_request(
         sandbox_permissions: _,
     } = params;
 
-    let enforce_managed_network = network.is_some();
+    let enforce_network_policy = network.is_some();
     let sandbox_type = select_process_exec_tool_sandbox_type(
         file_system_sandbox_policy,
         network_sandbox_policy,
         windows_sandbox_level,
-        enforce_managed_network,
+        enforce_network_policy,
     );
     tracing::debug!("Sandbox type: {sandbox_type:?}");
 
@@ -306,10 +306,10 @@ pub fn build_exec_request(
             file_system_policy: file_system_sandbox_policy,
             network_policy: network_sandbox_policy,
             sandbox: sandbox_type,
-            enforce_managed_network,
+            enforce_network_policy,
             network: network.as_ref(),
             sandbox_policy_cwd: sandbox_cwd,
-            darwin_code_linux_sandbox_exe: darwin_code_linux_sandbox_exe.as_deref(),
+            codex_linux_sandbox_exe: codex_linux_sandbox_exe.as_deref(),
             use_legacy_landlock,
             windows_sandbox_level,
             windows_sandbox_private_desktop,
@@ -470,7 +470,7 @@ fn record_windows_sandbox_spawn_failure(
     };
     if let Some(metrics) = darwin_code_otel::global() {
         let _ = metrics.counter(
-            "darwin-code.windows_sandbox.createprocessasuserw_failed",
+            "darwin_code.windows_sandbox.createprocessasuserw_failed",
             /*inc*/ 1,
             &[
                 ("error_code", error_code.as_str()),

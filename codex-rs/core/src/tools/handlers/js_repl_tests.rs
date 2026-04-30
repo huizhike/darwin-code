@@ -15,7 +15,7 @@ fn parse_freeform_args_without_pragma() {
 
 #[test]
 fn parse_freeform_args_with_pragma() {
-    let input = "// darwin-code-js-repl: timeout_ms=15000\nconsole.log('ok');";
+    let input = "// darwin_code-js-repl: timeout_ms=15000\nconsole.log('ok');";
     let args = parse_freeform_args(input).expect("parse args");
     assert_eq!(args.code, "console.log('ok');");
     assert_eq!(args.timeout_ms, Some(15_000));
@@ -23,7 +23,7 @@ fn parse_freeform_args_with_pragma() {
 
 #[test]
 fn parse_freeform_args_rejects_unknown_key() {
-    let err = parse_freeform_args("// darwin-code-js-repl: nope=1\nconsole.log('ok');")
+    let err = parse_freeform_args("// darwin_code-js-repl: nope=1\nconsole.log('ok');")
         .expect_err("expected error");
     assert_eq!(
         err.to_string(),
@@ -33,7 +33,7 @@ fn parse_freeform_args_rejects_unknown_key() {
 
 #[test]
 fn parse_freeform_args_rejects_reset_key() {
-    let err = parse_freeform_args("// darwin-code-js-repl: reset=true\nconsole.log('ok');")
+    let err = parse_freeform_args("// darwin_code-js-repl: reset=true\nconsole.log('ok');")
         .expect_err("expected error");
     assert_eq!(
         err.to_string(),
@@ -46,7 +46,7 @@ fn parse_freeform_args_rejects_json_wrapped_code() {
     let err = parse_freeform_args(r#"{"code":"await doThing()"}"#).expect_err("expected error");
     assert_eq!(
         err.to_string(),
-        "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// darwin-code-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences."
+        "js_repl is a freeform tool and expects raw JavaScript source. Resend plain JS only (optional first line `// darwin_code-js-repl: ...`); do not send JSON (`{\"code\":...}`), quoted code, or markdown fences."
     );
 }
 

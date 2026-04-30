@@ -8,7 +8,7 @@ use darwin_code_shell_command::is_safe_command::is_known_safe_command;
 use darwin_code_shell_command::parse_command::parse_command;
 use std::path::PathBuf;
 
-const MEMORIES_USAGE_METRIC: &str = "darwin-code.memories.usage";
+const MEMORIES_USAGE_METRIC: &str = "darwin_code.memories.usage";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum MemoriesUsageKind {

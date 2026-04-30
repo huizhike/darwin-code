@@ -477,7 +477,8 @@ mod tests {
     #[test]
     fn theme_picker_uses_half_width_with_stacked_fallback_preview() {
         let params = build_theme_picker_params(
-            /*current_name*/ None, /*darwin_code_home*/ None, /*terminal_width*/ None,
+            /*current_name*/ None, /*darwin_code_home*/ None,
+            /*terminal_width*/ None,
         );
         assert_eq!(params.side_content_width, SideContentWidth::Half);
         assert_eq!(params.side_content_min_width, WIDE_PREVIEW_MIN_WIDTH);
@@ -487,7 +488,8 @@ mod tests {
     #[test]
     fn theme_picker_items_include_search_values_for_preview_mapping() {
         let params = build_theme_picker_params(
-            /*current_name*/ None, /*darwin_code_home*/ None, /*terminal_width*/ None,
+            /*current_name*/ None, /*darwin_code_home*/ None,
+            /*terminal_width*/ None,
         );
         assert!(
             params.items.iter().all(|item| item.search_value.is_some()),
@@ -597,7 +599,7 @@ mod tests {
     #[test]
     fn subtitle_uses_tilde_path_when_darwin_code_home_under_home_directory() {
         let home = dirs::home_dir().expect("home directory should be available");
-        let darwin_code_home = home.join(".darwin-code");
+        let darwin_code_home = home.join(".darwin_code");
 
         let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(200));
 
@@ -609,7 +611,7 @@ mod tests {
     fn subtitle_falls_back_when_tilde_path_subtitle_is_too_wide() {
         let home = dirs::home_dir().expect("home directory should be available");
         let long_segment = "a".repeat(120);
-        let darwin_code_home = home.join(long_segment).join(".darwin-code");
+        let darwin_code_home = home.join(long_segment).join(".darwin_code");
 
         let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(140));
 
@@ -626,7 +628,7 @@ mod tests {
     #[test]
     fn subtitle_falls_back_for_94_column_terminal_side_by_side_layout() {
         let home = dirs::home_dir().expect("home directory should be available");
-        let darwin_code_home = home.join(".darwin-code");
+        let darwin_code_home = home.join(".darwin_code");
 
         let subtitle = theme_picker_subtitle(Some(&darwin_code_home), Some(94));
 

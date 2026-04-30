@@ -1,21 +1,20 @@
 # npm releases
 
 Use the staging helper in the repo root to generate npm tarballs for a release. For
-example, to stage the CLI, responses proxy, and SDK packages for version `0.6.0`:
+example, to stage the CLI and SDK packages for version `0.6.0`:
 
 ```bash
 ./scripts/stage_npm_packages.py \
   --release-version 0.6.0 \
-  --package codex \
-  --package codex-responses-api-proxy \
-  --package codex-sdk
+  --package darwin-code \
+  --package darwin-code-sdk
 ```
 
 This downloads the native artifacts once, hydrates `vendor/` for each package, and writes
 tarballs to `dist/npm/`.
 
-When `--package codex` is provided, the staging helper builds the lightweight
-`@openai/codex` meta package plus all platform-native `@openai/codex` variants
+When `--package darwin-code` is provided, the staging helper builds the lightweight
+`@openai/darwin-code` meta package plus all platform-native `@openai/darwin-code` variants
 that are later published under platform-specific dist-tags.
 
 If you need to invoke `build_npm_package.py` directly, run

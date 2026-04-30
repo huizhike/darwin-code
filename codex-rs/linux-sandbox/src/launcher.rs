@@ -8,8 +8,8 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use crate::vendored_bwrap::exec_vendored_bwrap;
-use codex_sandboxing::find_system_bwrap_in_path;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_sandboxing::find_system_bwrap_in_path;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum BubblewrapLauncher {

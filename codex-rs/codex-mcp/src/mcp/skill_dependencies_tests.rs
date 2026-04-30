@@ -1,9 +1,9 @@
 use super::*;
-use codex_protocol::protocol::SkillDependencies;
-use codex_protocol::protocol::SkillMetadata;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::test_support::PathBufExt as _;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use darwin_code_protocol::protocol::SkillDependencies;
+use darwin_code_protocol::protocol::SkillMetadata;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_utils_absolute_path::test_support::PathBufExt as _;
+use darwin_code_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 
 fn skill_with_tools(tools: Vec<SkillToolDependency>) -> SkillMetadata {

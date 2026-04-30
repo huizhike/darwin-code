@@ -65,14 +65,13 @@ impl ToolHandler for ToolSuggestHandler {
             ));
         }
         if args.tool_type == DiscoverableToolType::Plugin
-            && turn.app_server_client_name.as_deref() == Some("darwin-code-tui")
+            && turn.app_server_client_name.as_deref() == Some("darwin_code-tui")
         {
             return Err(FunctionCallError::RespondToModel(
-                "plugin tool suggestions are not available in darwin-code-tui yet".to_string(),
+                "plugin tool suggestions are not available in darwin_code-tui yet".to_string(),
             ));
         }
 
-        let auth = session.services.auth_manager.auth().await;
         let manager = session.services.mcp_connection_manager.read().await;
         let mcp_tools = manager.list_all_tools().await;
         drop(manager);
@@ -82,7 +81,7 @@ impl ToolHandler for ToolSuggestHandler {
         );
         let discoverable_tools = connectors::list_tool_suggest_discoverable_tools_with_auth(
             &turn.config,
-            auth.as_ref(),
+            None,
             &accessible_connectors,
         )
         .await
@@ -124,7 +123,7 @@ impl ToolHandler for ToolSuggestHandler {
             .is_some_and(|response| response.action == ElicitationAction::Accept);
 
         let completed = if user_confirmed {
-            verify_tool_suggestion_completed(&session, &turn, &tool, auth.as_ref()).await
+            verify_tool_suggestion_completed(&session, &turn, &tool).await
         } else {
             false
         };
@@ -158,13 +157,11 @@ async fn verify_tool_suggestion_completed(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
     tool: &DiscoverableTool,
-    auth: Option<&darwin_code_login::DarwinCodeAuth>,
 ) -> bool {
     match tool {
         DiscoverableTool::Connector(connector) => refresh_missing_suggested_connectors(
             session,
             turn,
-            auth,
             std::slice::from_ref(&connector.id),
             connector.id.as_str(),
         )
@@ -183,7 +180,6 @@ async fn verify_tool_suggestion_completed(
             let _ = refresh_missing_suggested_connectors(
                 session,
                 turn,
-                auth,
                 &plugin.app_connector_ids,
                 plugin.id.as_str(),
             )
@@ -196,7 +192,6 @@ async fn verify_tool_suggestion_completed(
 async fn refresh_missing_suggested_connectors(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
-    auth: Option<&darwin_code_login::DarwinCodeAuth>,
     expected_connector_ids: &[String],
     tool_id: &str,
 ) -> Option<Vec<AppInfo>> {
@@ -214,7 +209,7 @@ async fn refresh_missing_suggested_connectors(
         return Some(accessible_connectors);
     }
 
-    match manager.hard_refresh_darwin_code_apps_tools_cache().await {
+    match manager.hard_refresh_codex_apps_tools_cache().await {
         Ok(mcp_tools) => {
             let accessible_connectors = connectors::with_app_enabled_state(
                 connectors::accessible_connectors_from_mcp_tools(&mcp_tools),
@@ -222,14 +217,14 @@ async fn refresh_missing_suggested_connectors(
             );
             connectors::refresh_accessible_connectors_cache_from_mcp_tools(
                 &turn.config,
-                auth,
+                None,
                 &mcp_tools,
             );
             Some(accessible_connectors)
         }
         Err(err) => {
             warn!(
-                "failed to refresh darwin-code apps tools cache after tool suggestion for {tool_id}: {err:#}"
+                "failed to refresh darwin_code apps tools cache after tool suggestion for {tool_id}: {err:#}"
             );
             None
         }

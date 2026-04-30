@@ -1,10 +1,6 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use anyhow::Result;
-use darwin_code_config::types::McpServerConfig;
-use darwin_code_config::types::McpServerTransportConfig;
-use darwin_code_features::Feature;
-use darwin_code_protocol::protocol::EventMsg;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
@@ -17,6 +13,10 @@ use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event_match;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::EventMsg;
 use std::collections::HashMap;
 use std::fs;
 #[cfg(unix)]
@@ -33,7 +33,19 @@ fn custom_tool_output_text_and_success(
     let (output, success) = req
         .custom_tool_call_output_content_and_success(call_id)
         .expect("custom tool output should be present");
-    (output.unwrap_or_default(), success)
+    let output = output.unwrap_or_else(|| {
+        req.custom_tool_call_output(call_id)
+            .get("output")
+            .and_then(|value| value.as_array())
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.get("text").and_then(serde_json::Value::as_str))
+                    .collect::<String>()
+            })
+            .unwrap_or_default()
+    });
+    (output, success)
 }
 
 fn assert_js_repl_ok(req: &ResponsesRequest, call_id: &str, expected_output: &str) {
@@ -203,7 +215,7 @@ async fn js_repl_is_not_advertised_when_startup_node_is_incompatible() -> Result
         config.js_repl_node_path = Some(old_node);
     });
     let test = builder.build(&server).await?;
-    let warning = wait_for_event_match(&test.darwin-code, |event| match event {
+    let warning = wait_for_event_match(&test.darwin_code, |event| match event {
         EventMsg::Warning(ev) if ev.message.contains("Disabled `js_repl` for this session") => {
             Some(ev.message.clone())
         }
@@ -582,7 +594,7 @@ async fn js_repl_can_invoke_builtin_tools() -> Result<()> {
         "use js_repl to call a tool",
         &[(
             "call-1",
-            "const toolOut = await darwin-code.tool(\"list_mcp_resources\", {}); console.log(toolOut.type);",
+            "const toolOut = await darwin_code.tool(\"list_mcp_resources\", {}); console.log(toolOut.type);",
         )],
     )
     .await?;
@@ -652,7 +664,7 @@ async fn js_repl_can_invoke_mcp_tools_by_display_name() -> Result<()> {
                 "call-1",
                 "js_repl",
                 r#"
-const result = await darwin-code.tool("mcp__rmcp__echo", { message: "ping" });
+const result = await darwin_code.tool("mcp__rmcp__echo", { message: "ping" });
 console.log(result.output);
 "#,
             ),
@@ -689,7 +701,7 @@ async fn js_repl_tool_call_rejects_recursive_js_repl_invocation() -> Result<()> 
             "call-1",
             r#"
 try {
-  await darwin-code.tool("js_repl", "console.log('recursive')");
+  await darwin_code.tool("js_repl", "console.log('recursive')");
   console.log("unexpected-success");
 } catch (err) {
   console.log(String(err));
@@ -749,10 +761,10 @@ async fn js_repl_exposes_darwin_code_path_helpers() -> Result<()> {
     let server = responses::start_mock_server().await;
     let mock = run_js_repl_turn(
         &server,
-        "check darwin-code path helpers",
+        "check darwin_code path helpers",
         &[(
             "call-1",
-            "console.log(`cwd:${typeof darwin-code.cwd}:${darwin-code.cwd.length > 0}`); console.log(`home:${darwin-code.homeDir === null || typeof darwin-code.homeDir === \"string\"}`);",
+            "console.log(`cwd:${typeof darwin_code.cwd}:${darwin_code.cwd.length > 0}`); console.log(`home:${darwin_code.homeDir === null || typeof darwin_code.homeDir === \"string\"}`);",
         )],
     )
     .await?;
@@ -764,8 +776,8 @@ async fn js_repl_exposes_darwin_code_path_helpers() -> Result<()> {
         Some(false),
         "js_repl call failed unexpectedly: {output}"
     );
-    assert!(output.contains("cwd:string:true"));
-    assert!(output.contains("home:true"));
+    assert!(output.contains("cwd:string:true"), "output was: {output}");
+    assert!(output.contains("home:true"), "output was: {output}");
 
     Ok(())
 }

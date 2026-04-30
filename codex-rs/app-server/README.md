@@ -1,6 +1,6 @@
 # darwin-code-app-server
 
-`darwin-code app-server` is the interface Darwin-Code uses to power rich interfaces such as the [Darwin-Code VS Code extension](https://marketplace.visualstudio.com/items?itemName=openai.chatgpt).
+`darwin-code app-server` is the interface Darwin-Code uses to power rich interfaces such as local IDE extensions and first-party desktop clients.
 
 ## Table of Contents
 
@@ -13,8 +13,6 @@
 - [Events](#events)
 - [Approvals](#approvals)
 - [Skills](#skills)
-- [Apps](#apps)
-- [Auth endpoints](#auth-endpoints)
 - [Experimental API Opt-in](#experimental-api-opt-in)
 
 ## Protocol
@@ -94,9 +92,7 @@ Clients must send a single `initialize` request per transport connection before 
 
 Applications building on top of `darwin-code app-server` should identify themselves via the `clientInfo` parameter.
 
-**Important**: `clientInfo.name` is used to identify the client for the OpenAI Compliance Logs Platform. If
-you are developing a new Darwin-Code integration that is intended for enterprise use, please contact us to get it
-added to a known clients list. For more context: https://chatgpt.com/admin/api-reference#tag/Logs:-Darwin-Code
+**Important**: `clientInfo.name` identifies the local client in app-server logs and telemetry. Use a stable integration name for enterprise deployments.
 
 Example (from OpenAI's official VSCode extension):
 
@@ -159,10 +155,6 @@ Example with notification opt-out:
 - `thread/inject_items` — append raw Responses API items to a loaded thread’s model-visible history without starting a user turn; returns `{}` on success.
 - `turn/steer` — add user input to an already in-flight regular turn without starting a new turn; returns the active `turnId` that accepted the input. Review and manual compaction turns reject `turn/steer`.
 - `turn/interrupt` — request cancellation of an in-flight turn by `(thread_id, turn_id)`; success is an empty `{}` response and the turn finishes with `status: "interrupted"`.
-- `thread/realtime/start` — start a thread-scoped realtime session (experimental); pass `outputModality: "text"` or `outputModality: "audio"` to choose model output, returns `{}` and streams `thread/realtime/*` notifications. Omit `transport` for the websocket transport, or pass `{ "type": "webrtc", "sdp": "..." }` to create a WebRTC session from a browser-generated SDP offer; the remote answer SDP is emitted as `thread/realtime/sdp`.
-- `thread/realtime/appendAudio` — append an input audio chunk to the active realtime session (experimental); returns `{}`.
-- `thread/realtime/appendText` — append text input to the active realtime session (experimental); returns `{}`.
-- `thread/realtime/stop` — stop the active realtime session for the thread (experimental); returns `{}`.
 - `review/start` — kick off Darwin-Code’s automated reviewer for a thread; responds like `turn/start` and emits `item/started`/`item/completed` notifications with `enteredReviewMode` and `exitedReviewMode` items, plus a final assistant `agentMessage` containing the review.
 - `command/exec` — run a single command under the server sandbox without starting a thread/turn (handy for utilities and validation).
 - `command/exec/write` — write base64-decoded stdin bytes to a running `command/exec` session or close stdin; returns `{}`.
@@ -188,7 +180,6 @@ Example with notification opt-out:
 - `plugin/list` — list discovered plugin marketplaces and plugin state, including effective marketplace install/auth policy metadata, fail-open `marketplaceLoadErrors` entries for marketplace files that could not be parsed or loaded, and best-effort `featuredPluginIds` for the official curated marketplace. `interface.category` uses the marketplace category when present; otherwise it falls back to the plugin manifest category (**under development; do not call from production clients yet**).
 - `plugin/read` — read one plugin by `marketplacePath` plus `pluginName`, returning marketplace info, a list-style `summary`, manifest descriptions/interface metadata, and bundled skills/apps/MCP server names. Returned plugin skills include their current `enabled` state after local config filtering. Plugin app summaries also include `needsAuth` when the server can determine connector accessibility (**under development; do not call from production clients yet**).
 - `skills/changed` — notification emitted when watched local skill files change.
-- `app/list` — list available apps.
 - `skills/config/write` — write user-level skill config by name or absolute path.
 - `plugin/install` — install a plugin from a discovered marketplace entry, rejecting marketplace entries marked unavailable for install, install MCPs if any, and return the effective plugin auth policy plus any apps that still need auth (**under development; do not call from production clients yet**).
 - `plugin/uninstall` — uninstall a plugin by id by removing its cached files and clearing its user-level config entry (**under development; do not call from production clients yet**).
@@ -199,13 +190,11 @@ Example with notification opt-out:
 - `mcpServer/resource/read` — read a resource from a thread's configured MCP server by `threadId`, `server`, and `uri`, returning text/blob resource `contents`.
 - `mcpServer/tool/call` — call a tool on a thread's configured MCP server by `threadId`, `server`, `tool`, optional `arguments`, and optional `_meta`, returning the MCP tool result.
 - `windowsSandbox/setupStart` — start Windows sandbox setup for the selected mode (`elevated` or `unelevated`); accepts an optional absolute `cwd` to target setup for a specific workspace, returns `{ started: true }` immediately, and later emits `windowsSandbox/setupCompleted`.
-- `feedback/upload` — submit a feedback report (classification + optional reason/logs, conversation_id, and optional `extraLogFiles` attachments array); returns the tracking thread id.
 - `config/read` — fetch the effective config on disk after resolving config layering.
 - `externalAgentConfig/detect` — detect migratable external-agent artifacts with `includeHome` and optional `cwds`; each detected item includes `cwd` (`null` for home), and plugin migration items may additionally include structured `details` grouping plugin ids under each detected marketplace name.
 - `externalAgentConfig/import` — apply selected external-agent migration items by passing explicit `migrationItems` with `cwd` (`null` for home) and any plugin `details` returned by detect. When a request includes plugin imports, the server emits `externalAgentConfig/import/completed` after the full import finishes (immediately after the response when everything completed synchronously, or after background remote imports finish).
 - `config/value/write` — write a single config key/value to the user's config.toml on disk.
 - `config/batchWrite` — apply multiple config edits atomically to the user's config.toml on disk, with optional `reloadUserConfig: true` to hot-reload loaded threads.
-- `configRequirements/read` — fetch loaded requirements constraints from `requirements.toml` and/or MDM (or `null` if none are configured), including allow-lists (`allowedApprovalPolicies`, `allowedSandboxModes`, `allowedWebSearchModes`), pinned feature values (`featureRequirements`), `enforceResidency`, and `network` constraints such as canonical domain/socket permissions plus `managedAllowedDomainsOnly`.
 
 ### Example: Start or resume a thread
 
@@ -575,26 +564,6 @@ Invoke a skill explicitly by including `$<skill-name>` in the text input and add
 } } }
 ```
 
-### Example: Start a turn (invoke an app)
-
-Invoke an app by including `$<app-slug>` in the text input and adding a `mention` input item with the app id in `app://<connector-id>` form.
-
-```json
-{ "method": "turn/start", "id": 34, "params": {
-    "threadId": "thr_123",
-    "input": [
-        { "type": "text", "text": "$demo-app Summarize the latest updates." },
-        { "type": "mention", "name": "Demo App", "path": "app://demo-app" }
-    ]
-} }
-{ "id": 34, "result": { "turn": {
-    "id": "turn_458",
-    "status": "inProgress",
-    "items": [],
-    "error": null
-} } }
-```
-
 ### Example: Start a turn (invoke a plugin)
 
 Invoke a plugin by including a UI mention token such as `@sample` in the text input and adding a `mention` input item with the exact `plugin://<plugin-name>@<marketplace-name>` path returned by `plugin/list`.
@@ -631,55 +600,6 @@ Use `thread/inject_items` to append prebuilt Responses API items to a loaded thr
     ]
 } }
 { "id": 36, "result": {} }
-```
-
-### Example: Start realtime with WebRTC
-
-Use `thread/realtime/start` with `transport.type: "webrtc"` when a browser or webview owns the `RTCPeerConnection` and app-server should create the server-side realtime session. The transport `sdp` must be the offer SDP produced by `RTCPeerConnection.createOffer()`, not a hand-written or minimal SDP string.
-
-The offer should include the media sections the client wants to negotiate. For the standard realtime UI flow, create the audio track/transceiver and the `oai-events` data channel before calling `createOffer()`:
-
-```javascript
-const pc = new RTCPeerConnection();
-
-audioElement.autoplay = true;
-pc.ontrack = (event) => {
-  audioElement.srcObject = event.streams[0];
-};
-
-const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-pc.addTrack(mediaStream.getAudioTracks()[0], mediaStream);
-pc.createDataChannel("oai-events");
-
-const offer = await pc.createOffer();
-await pc.setLocalDescription(offer);
-```
-
-Then send `offer.sdp` to app-server. Core uses `experimental_realtime_ws_backend_prompt` for the backend instructions and the thread conversation id for the realtime session id. The start response is `{}`; the remote answer SDP arrives later as `thread/realtime/sdp` and should be passed to `setRemoteDescription()`:
-
-```json
-{ "method": "thread/realtime/start", "id": 40, "params": {
-    "threadId": "thr_123",
-    "outputModality": "audio",
-    "prompt": "You are on a call.",
-    "sessionId": null,
-    "transport": { "type": "webrtc", "sdp": "v=0\r\no=..." }
-} }
-{ "id": 40, "result": {} }
-{ "method": "thread/realtime/sdp", "params": {
-    "threadId": "thr_123",
-    "sdp": "v=0\r\no=..."
-} }
-```
-
-Omit `prompt` to use Darwin-Code's default realtime backend prompt. Send `prompt: null` or
-`prompt: ""` when the session should start without that default backend prompt.
-
-```javascript
-await pc.setRemoteDescription({
-  type: "answer",
-  sdp: notification.params.sdp,
-});
 ```
 
 ### Example: Interrupt an active turn
@@ -956,7 +876,6 @@ All filesystem paths in this section must be absolute.
 
 Event notifications are the server-initiated event stream for thread lifecycles, turn lifecycles, and the items within them. After you start or resume a thread, keep reading stdout for `thread/started`, `thread/archived`, `thread/unarchived`, `thread/closed`, `turn/*`, and `item/*` notifications.
 
-Thread realtime uses a separate thread-scoped notification surface. `thread/realtime/*` notifications are ephemeral transport events, not `ThreadItem`s, and are not returned by `thread/read`, `thread/resume`, or `thread/fork`.
 
 Recoverable configuration and initialization warnings use the existing `configWarning` notification: `{ summary, details?, path?, range? }`. App-server may emit it during initialization for config parsing and related setup diagnostics.
 
@@ -982,20 +901,6 @@ The fuzzy file search session API emits per-query notifications:
 
 - `fuzzyFileSearch/sessionUpdated` — `{ sessionId, query, files }` with the current matching files for the active query.
 - `fuzzyFileSearch/sessionCompleted` — `{ sessionId, query }` once indexing/matching for that query has completed.
-
-### Thread realtime events (experimental)
-
-The thread realtime API emits thread-scoped notifications for session lifecycle and streaming media:
-
-- `thread/realtime/started` — `{ threadId, sessionId }` once realtime starts for the thread (experimental).
-- `thread/realtime/itemAdded` — `{ threadId, item }` for raw non-audio realtime items that do not have a dedicated typed app-server notification, including `handoff_request` (experimental). `item` is forwarded as raw JSON while the upstream websocket item schema remains unstable.
-- `thread/realtime/transcript/delta` — `{ threadId, role, delta }` for live realtime transcript deltas (experimental).
-- `thread/realtime/transcript/done` — `{ threadId, role, text }` when realtime emits the final full text for a transcript part (experimental).
-- `thread/realtime/outputAudio/delta` — `{ threadId, audio }` for streamed output audio chunks (experimental). `audio` uses camelCase fields (`data`, `sampleRate`, `numChannels`, `samplesPerChannel`).
-- `thread/realtime/error` — `{ threadId, message }` when realtime encounters a transport or backend error (experimental).
-- `thread/realtime/closed` — `{ threadId, reason }` when the realtime transport closes (experimental).
-
-Because audio is intentionally separate from `ThreadItem`, clients can opt out of `thread/realtime/outputAudio/delta` independently with `optOutNotificationMethods`.
 
 ### Windows sandbox setup events
 
@@ -1340,215 +1245,22 @@ To enable or disable a skill by name:
 }
 ```
 
-## Apps
+## BYOK/auth boundary
 
-Use `app/list` to fetch available apps (connectors). Each entry includes metadata like the app `id`, display `name`, `installUrl`, `branding`, `appMetadata`, `labels`, whether it is currently accessible, and whether it is enabled in config.
+Darwin-Code app-server is a local JSON-RPC/IPC bridge. It no longer exposes a
+user account login/logout surface, legacy device/browser auth flows, or
+remote quota polling. Model credentials are supplied by the local BYOK provider
+configuration (`api_key` in `config.toml`) and resolved by the provider
+runtime, not by app-server account RPCs.
 
-```json
-{ "method": "app/list", "id": 50, "params": {
-    "cursor": null,
-    "limit": 50,
-    "threadId": "thr_123",
-    "forceRefetch": false
-} }
-{ "id": 50, "result": {
-    "data": [
-        {
-            "id": "demo-app",
-            "name": "Demo App",
-            "description": "Example connector for documentation.",
-            "logoUrl": "https://example.com/demo-app.png",
-            "logoUrlDark": null,
-            "distributionChannel": null,
-            "branding": null,
-            "appMetadata": null,
-            "labels": null,
-            "installUrl": "https://chatgpt.com/apps/demo-app/demo-app",
-            "isAccessible": true,
-            "isEnabled": true
-        }
-    ],
-    "nextCursor": null
-} }
-```
+MCP OAuth remains scoped to configured MCP servers:
 
-When `threadId` is provided, app feature gating (`Feature::Apps`) is evaluated using that thread's config snapshot. When omitted, the latest global config is used.
-
-`app/list` returns after both accessible apps and directory apps are loaded. Set `forceRefetch: true` to bypass app caches and fetch fresh data from sources. Cache entries are only replaced when those refetches succeed.
-
-The server also emits `app/list/updated` notifications whenever either source (accessible apps or directory apps) finishes loading. Each notification includes the latest merged app list.
-
-```json
-{
-  "method": "app/list/updated",
-  "params": {
-    "data": [
-      {
-        "id": "demo-app",
-        "name": "Demo App",
-        "description": "Example connector for documentation.",
-        "logoUrl": "https://example.com/demo-app.png",
-        "logoUrlDark": null,
-        "distributionChannel": null,
-        "branding": null,
-        "appMetadata": null,
-        "labels": null,
-        "installUrl": "https://chatgpt.com/apps/demo-app/demo-app",
-        "isAccessible": true,
-        "isEnabled": true
-      }
-    ]
-  }
-}
-```
-
-Invoke an app by inserting `$<app-slug>` in the text input. The slug is derived from the app name and lowercased with non-alphanumeric characters replaced by `-` (for example, "Demo App" becomes `$demo-app`). Add a `mention` input item (recommended) so the server uses the exact `app://<connector-id>` path rather than guessing by name. Plugins use the same `mention` item shape, but with `plugin://<plugin-name>@<marketplace-name>` paths from `plugin/list`.
-
-Example:
-
-```
-$demo-app Pull the latest updates from the team.
-```
-
-```json
-{
-  "method": "turn/start",
-  "id": 51,
-  "params": {
-    "threadId": "thread-1",
-    "input": [
-      {
-        "type": "text",
-        "text": "$demo-app Pull the latest updates from the team."
-      },
-      { "type": "mention", "name": "Demo App", "path": "app://demo-app" }
-    ]
-  }
-}
-```
-
-## Auth endpoints
-
-The JSON-RPC auth/account surface exposes request/response methods plus server-initiated notifications (no `id`). Use these to determine auth state, start or cancel logins, logout, and inspect ChatGPT rate limits.
-
-### Authentication modes
-
-Darwin-Code supports these authentication modes. The current mode is surfaced in `account/updated` (`authMode`), which also includes the current ChatGPT `planType` when available, and can be inferred from `account/read`.
-
-- **API key (`apiKey`)**: Caller supplies an OpenAI API key via `account/login/start` with `type: "apiKey"`. The API key is saved and used for API requests.
-- **ChatGPT managed (`chatgpt`)** (recommended): Darwin-Code owns the ChatGPT OAuth flow and refresh tokens. Start via `account/login/start` with `type: "chatgpt"` for the browser flow or `type: "chatgptDeviceCode"` for device code; Darwin-Code persists tokens to disk and refreshes them automatically.
-
-### API Overview
-
-- `account/read` — fetch current account info; optionally refresh tokens.
-- `account/login/start` — begin login (`apiKey`, `chatgpt`, `chatgptDeviceCode`).
-- `account/login/completed` (notify) — emitted when a login attempt finishes (success or error).
-- `account/login/cancel` — cancel a pending managed ChatGPT login by `loginId`.
-- `account/logout` — sign out; triggers `account/updated`.
-- `account/updated` (notify) — emitted whenever auth mode changes (`authMode`: `apikey`, `chatgpt`, or `null`) and includes the current ChatGPT `planType` when available.
-- `account/rateLimits/read` — fetch ChatGPT rate limits; updates arrive via `account/rateLimits/updated` (notify).
-- `account/rateLimits/updated` (notify) — emitted whenever a user's ChatGPT rate limits change.
-- `mcpServer/oauthLogin/completed` (notify) — emitted after a `mcpServer/oauth/login` flow finishes for a server; payload includes `{ name, success, error? }`.
-- `mcpServer/startupStatus/updated` (notify) — emitted when a configured MCP server's startup status changes for a loaded thread; payload includes `{ name, status, error }` where `status` is `starting`, `ready`, `failed`, or `cancelled`.
-
-### 1) Check auth state
-
-Request:
-
-```json
-{ "method": "account/read", "id": 1, "params": { "refreshToken": false } }
-```
-
-Response examples:
-
-```json
-{ "id": 1, "result": { "account": null, "requiresOpenaiAuth": false } } // No OpenAI auth needed (e.g., OSS/local models)
-{ "id": 1, "result": { "account": null, "requiresOpenaiAuth": true } }  // OpenAI auth required (typical for OpenAI-hosted models)
-{ "id": 1, "result": { "account": { "type": "apiKey" }, "requiresOpenaiAuth": true } }
-{ "id": 1, "result": { "account": { "type": "chatgpt", "email": "user@example.com", "planType": "pro" }, "requiresOpenaiAuth": true } }
-```
-
-Field notes:
-
-- `refreshToken` (bool): set `true` to force a token refresh.
-- `requiresOpenaiAuth` reflects the active provider; when `false`, Darwin-Code can run without OpenAI credentials.
-
-### 2) Log in with an API key
-
-1. Send:
-   ```json
-   {
-     "method": "account/login/start",
-     "id": 2,
-     "params": { "type": "apiKey", "apiKey": "sk-…" }
-   }
-   ```
-2. Expect:
-   ```json
-   { "id": 2, "result": { "type": "apiKey" } }
-   ```
-3. Notifications:
-   ```json
-   { "method": "account/login/completed", "params": { "loginId": null, "success": true, "error": null } }
-   { "method": "account/updated", "params": { "authMode": "apikey", "planType": null } }
-   ```
-
-### 3) Log in with ChatGPT (browser flow)
-
-1. Start:
-   ```json
-   { "method": "account/login/start", "id": 3, "params": { "type": "chatgpt" } }
-   { "id": 3, "result": { "type": "chatgpt", "loginId": "<uuid>", "authUrl": "https://chatgpt.com/…&redirect_uri=http%3A%2F%2Flocalhost%3A<port>%2Fauth%2Fcallback" } }
-   ```
-2. Open `authUrl` in a browser; the app-server hosts the local callback.
-3. Wait for notifications:
-   ```json
-   { "method": "account/login/completed", "params": { "loginId": "<uuid>", "success": true, "error": null } }
-   { "method": "account/updated", "params": { "authMode": "chatgpt", "planType": "plus" } }
-   ```
-
-### 4) Log in with ChatGPT (device code flow)
-
-1. Start:
-   ```json
-   { "method": "account/login/start", "id": 4, "params": { "type": "chatgptDeviceCode" } }
-   { "id": 4, "result": { "type": "chatgptDeviceCode", "loginId": "<uuid>", "verificationUrl": "https://auth.openai.com/darwin-code/device", "userCode": "ABCD-1234" } }
-   ```
-2. Show `verificationUrl` and `userCode` to the user; the frontend owns the UX.
-3. Wait for notifications:
-   ```json
-   { "method": "account/login/completed", "params": { "loginId": "<uuid>", "success": true, "error": null } }
-   { "method": "account/updated", "params": { "authMode": "chatgpt", "planType": "plus" } }
-   ```
-
-### 5) Cancel a ChatGPT login
-
-```json
-{ "method": "account/login/cancel", "id": 5, "params": { "loginId": "<uuid>" } }
-{ "method": "account/login/completed", "params": { "loginId": "<uuid>", "success": false, "error": "…" } }
-```
-
-### 6) Logout
-
-```json
-{ "method": "account/logout", "id": 6 }
-{ "id": 6, "result": {} }
-{ "method": "account/updated", "params": { "authMode": null, "planType": null } }
-```
-
-### 7) Rate limits (ChatGPT)
-
-```json
-{ "method": "account/rateLimits/read", "id": 7 }
-{ "id": 7, "result": { "rateLimits": { "primary": { "usedPercent": 25, "windowDurationMins": 15, "resetsAt": 1730947200 }, "secondary": null } } }
-{ "method": "account/rateLimits/updated", "params": { "rateLimits": { … } } }
-```
-
-Field notes:
-
-- `usedPercent` is current usage within the OpenAI quota window.
-- `windowDurationMins` is the quota window length.
-- `resetsAt` is a Unix timestamp (seconds) for the next reset.
+- `mcpServer/oauthLogin/completed` (notify) — emitted after an MCP server OAuth
+  flow finishes; payload includes `{ name, success, error? }`.
+- `mcpServer/startupStatus/updated` (notify) — emitted when a configured MCP
+  server's startup status changes for a loaded thread; payload includes
+  `{ name, status, error }` where `status` is `starting`, `ready`, `failed`, or
+  `cancelled`.
 
 ## Experimental API Opt-in
 

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub const CODEX_THREAD_ID_ENV_VAR: &str = "CODEX_THREAD_ID";
+pub const DARWIN_CODE_THREAD_ID_ENV_VAR: &str = "DARWIN_CODE_THREAD_ID";
 
 /// Construct a shell environment from the supplied process environment and
 /// shell-environment policy.
@@ -108,7 +109,10 @@ where
 
     // Step 6 - Populate the thread ID environment variable when provided.
     if let Some(thread_id) = thread_id {
-        env_map.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+        env_map.insert(
+            DARWIN_CODE_THREAD_ID_ENV_VAR.to_string(),
+            thread_id.to_string(),
+        );
     }
 
     env_map

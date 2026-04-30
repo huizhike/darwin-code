@@ -1,3 +1,3 @@
 pub fn main() -> ! {
-    codex_apply_patch::main()
+    darwin_code_apply_patch::main()
 }

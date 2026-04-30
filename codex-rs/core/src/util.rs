@@ -127,9 +127,9 @@ pub fn resume_command(thread_name: Option<&str>, thread_id: Option<ThreadId>) ->
         let needs_double_dash = target.starts_with('-');
         let escaped = shlex_join(&[target]);
         if needs_double_dash {
-            format!("darwin-code resume -- {escaped}")
+            format!("darwin_code resume -- {escaped}")
         } else {
-            format!("darwin-code resume {escaped}")
+            format!("darwin_code resume {escaped}")
         }
     })
 }

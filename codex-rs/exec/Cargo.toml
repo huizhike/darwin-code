@@ -21,20 +21,20 @@ path = "tests/all.rs"
 workspace = true
 
 [dependencies]
+darwin-code-client = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+codex-feedback = { workspace = true }
 darwin-code-arg0 = { workspace = true }
 darwin-code-app-server-client = { workspace = true }
 darwin-code-app-server-protocol = { workspace = true }
 darwin-code-core = { workspace = true }
 darwin-code-git-utils = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-model-provider-info = { workspace = true }
 darwin-code-otel = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-utils-absolute-path = { workspace = true }
 darwin-code-utils-cli = { workspace = true }
-darwin-code-utils-oss = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

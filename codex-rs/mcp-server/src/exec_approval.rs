@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_core::CodexThread;
-use codex_protocol::ThreadId;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::parse_command::ParsedCommand;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
 use rmcp::model::ErrorData;
 use rmcp::model::RequestId;
 use serde::Deserialize;
@@ -52,7 +52,7 @@ pub(crate) async fn handle_exec_approval_request(
     command: Vec<String>,
     cwd: PathBuf,
     outgoing: Arc<crate::outgoing_message::OutgoingMessageSender>,
-    codex: Arc<CodexThread>,
+    codex: Arc<DarwinCodeThread>,
     request_id: RequestId,
     tool_call_id: String,
     event_id: String,
@@ -113,7 +113,7 @@ async fn on_exec_approval_response(
     approval_id: String,
     event_id: String,
     receiver: tokio::sync::oneshot::Receiver<serde_json::Value>,
-    codex: Arc<CodexThread>,
+    codex: Arc<DarwinCodeThread>,
 ) {
     let response = receiver.await;
     let value = match response {

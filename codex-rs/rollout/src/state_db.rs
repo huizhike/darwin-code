@@ -6,13 +6,13 @@ use crate::list::ThreadSortKey;
 use crate::metadata;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-pub use codex_state::LogEntry;
-use codex_state::ThreadMetadataBuilder;
-use codex_utils_path::normalize_for_path_comparison;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionSource;
+pub use darwin_code_state::LogEntry;
+use darwin_code_state::ThreadMetadataBuilder;
+use darwin_code_utils_path::normalize_for_path_comparison;
 use serde_json::Value;
 use std::path::Path;
 use std::path::PathBuf;
@@ -20,12 +20,12 @@ use std::sync::Arc;
 use tracing::warn;
 
 /// Core-facing handle to the SQLite-backed state runtime.
-pub type StateDbHandle = Arc<codex_state::StateRuntime>;
+pub type StateDbHandle = Arc<darwin_code_state::StateRuntime>;
 
 /// Initialize the state runtime for thread state persistence and backfill checks.
 pub async fn init(config: &impl RolloutConfigView) -> Option<StateDbHandle> {
     let config = RolloutConfig::from_view(config);
-    let runtime = match codex_state::StateRuntime::init(
+    let runtime = match darwin_code_state::StateRuntime::init(
         config.sqlite_home.clone(),
         config.model_provider_id.clone(),
     )
@@ -50,7 +50,7 @@ pub async fn init(config: &impl RolloutConfigView) -> Option<StateDbHandle> {
             return None;
         }
     };
-    if backfill_state.status != codex_state::BackfillStatus::Complete {
+    if backfill_state.status != darwin_code_state::BackfillStatus::Complete {
         let runtime_for_backfill = runtime.clone();
         let config = config.clone();
         tokio::spawn(async move {
@@ -62,11 +62,11 @@ pub async fn init(config: &impl RolloutConfigView) -> Option<StateDbHandle> {
 
 /// Get the DB if the feature is enabled and the DB exists.
 pub async fn get_state_db(config: &impl RolloutConfigView) -> Option<StateDbHandle> {
-    let state_path = codex_state::state_db_path(config.sqlite_home());
+    let state_path = darwin_code_state::state_db_path(config.sqlite_home());
     if !tokio::fs::try_exists(&state_path).await.unwrap_or(false) {
         return None;
     }
-    let runtime = codex_state::StateRuntime::init(
+    let runtime = darwin_code_state::StateRuntime::init(
         config.sqlite_home().to_path_buf(),
         config.model_provider_id().to_string(),
     )
@@ -79,14 +79,16 @@ pub async fn get_state_db(config: &impl RolloutConfigView) -> Option<StateDbHand
 ///
 /// This is used for parity checks during the SQLite migration phase.
 pub async fn open_if_present(codex_home: &Path, default_provider: &str) -> Option<StateDbHandle> {
-    let db_path = codex_state::state_db_path(codex_home);
+    let db_path = darwin_code_state::state_db_path(codex_home);
     if !tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
         return None;
     }
-    let runtime =
-        codex_state::StateRuntime::init(codex_home.to_path_buf(), default_provider.to_string())
-            .await
-            .ok()?;
+    let runtime = darwin_code_state::StateRuntime::init(
+        codex_home.to_path_buf(),
+        default_provider.to_string(),
+    )
+    .await
+    .ok()?;
     require_backfill_complete(runtime, codex_home).await
 }
 
@@ -95,7 +97,7 @@ async fn require_backfill_complete(
     codex_home: &Path,
 ) -> Option<StateDbHandle> {
     match runtime.get_backfill_state().await {
-        Ok(state) if state.status == codex_state::BackfillStatus::Complete => Some(runtime),
+        Ok(state) if state.status == darwin_code_state::BackfillStatus::Complete => Some(runtime),
         Ok(state) => {
             warn!(
                 "state db backfill not complete at {} (status: {})",
@@ -114,12 +116,12 @@ async fn require_backfill_complete(
     }
 }
 
-fn cursor_to_anchor(cursor: Option<&Cursor>) -> Option<codex_state::Anchor> {
+fn cursor_to_anchor(cursor: Option<&Cursor>) -> Option<darwin_code_state::Anchor> {
     let cursor = cursor?;
     let millis = cursor.timestamp().unix_timestamp_nanos() / 1_000_000;
     let millis = i64::try_from(millis).ok()?;
     let ts = chrono::DateTime::<Utc>::from_timestamp_millis(millis)?;
-    Some(codex_state::Anchor { ts })
+    Some(darwin_code_state::Anchor { ts })
 }
 
 pub fn normalize_cwd_for_state_db(cwd: &Path) -> PathBuf {
@@ -129,7 +131,7 @@ pub fn normalize_cwd_for_state_db(cwd: &Path) -> PathBuf {
 /// List thread ids from SQLite for parity checks without rollout scanning.
 #[allow(clippy::too_many_arguments)]
 pub async fn list_thread_ids_db(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     codex_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
@@ -163,8 +165,8 @@ pub async fn list_thread_ids_db(
             page_size,
             anchor.as_ref(),
             match sort_key {
-                ThreadSortKey::CreatedAt => codex_state::SortKey::CreatedAt,
-                ThreadSortKey::UpdatedAt => codex_state::SortKey::UpdatedAt,
+                ThreadSortKey::CreatedAt => darwin_code_state::SortKey::CreatedAt,
+                ThreadSortKey::UpdatedAt => darwin_code_state::SortKey::UpdatedAt,
             },
             allowed_sources.as_slice(),
             model_providers.as_deref(),
@@ -183,7 +185,7 @@ pub async fn list_thread_ids_db(
 /// List thread metadata from SQLite without rollout directory traversal.
 #[allow(clippy::too_many_arguments)]
 pub async fn list_threads_db(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     codex_home: &Path,
     page_size: usize,
     cursor: Option<&Cursor>,
@@ -193,7 +195,7 @@ pub async fn list_threads_db(
     model_providers: Option<&[String]>,
     archived: bool,
     search_term: Option<&str>,
-) -> Option<codex_state::ThreadsPage> {
+) -> Option<darwin_code_state::ThreadsPage> {
     let ctx = context?;
     if ctx.codex_home() != codex_home {
         warn!(
@@ -216,18 +218,18 @@ pub async fn list_threads_db(
     match ctx
         .list_threads(
             page_size,
-            codex_state::ThreadFilterOptions {
+            darwin_code_state::ThreadFilterOptions {
                 archived_only: archived,
                 allowed_sources: allowed_sources.as_slice(),
                 model_providers: model_providers.as_deref(),
                 anchor: anchor.as_ref(),
                 sort_key: match sort_key {
-                    ThreadSortKey::CreatedAt => codex_state::SortKey::CreatedAt,
-                    ThreadSortKey::UpdatedAt => codex_state::SortKey::UpdatedAt,
+                    ThreadSortKey::CreatedAt => darwin_code_state::SortKey::CreatedAt,
+                    ThreadSortKey::UpdatedAt => darwin_code_state::SortKey::UpdatedAt,
                 },
                 sort_direction: match sort_direction {
-                    SortDirection::Asc => codex_state::SortDirection::Asc,
-                    SortDirection::Desc => codex_state::SortDirection::Desc,
+                    SortDirection::Asc => darwin_code_state::SortDirection::Asc,
+                    SortDirection::Desc => darwin_code_state::SortDirection::Desc,
                 },
                 search_term,
             },
@@ -264,7 +266,7 @@ pub async fn list_threads_db(
 
 /// Look up the rollout path for a thread id using SQLite.
 pub async fn find_rollout_path_by_id(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: ThreadId,
     archived_only: Option<bool>,
     stage: &str,
@@ -280,7 +282,7 @@ pub async fn find_rollout_path_by_id(
 
 /// Get dynamic tools for a thread id using SQLite.
 pub async fn get_dynamic_tools(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: ThreadId,
     stage: &str,
 ) -> Option<Vec<DynamicToolSpec>> {
@@ -296,7 +298,7 @@ pub async fn get_dynamic_tools(
 
 /// Persist dynamic tools for a thread id using SQLite, if none exist yet.
 pub async fn persist_dynamic_tools(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: ThreadId,
     tools: Option<&[DynamicToolSpec]>,
     stage: &str,
@@ -310,7 +312,7 @@ pub async fn persist_dynamic_tools(
 }
 
 pub async fn mark_thread_memory_mode_polluted(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: ThreadId,
     stage: &str,
 ) {
@@ -324,7 +326,7 @@ pub async fn mark_thread_memory_mode_polluted(
 
 /// Reconcile rollout items into SQLite, falling back to scanning the rollout file.
 pub async fn reconcile_rollout(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     rollout_path: &Path,
     default_provider: &str,
     builder: Option<&ThreadMetadataBuilder>,
@@ -410,7 +412,7 @@ pub async fn reconcile_rollout(
 
 /// Repair a thread's rollout path after filesystem fallback succeeds.
 pub async fn read_repair_rollout_path(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: Option<ThreadId>,
     archived_only: Option<bool>,
     rollout_path: &Path,
@@ -477,7 +479,7 @@ pub async fn read_repair_rollout_path(
 /// Apply rollout items incrementally to SQLite.
 #[allow(clippy::too_many_arguments)]
 pub async fn apply_rollout_items(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     rollout_path: &Path,
     _default_provider: &str,
     builder: Option<&ThreadMetadataBuilder>,
@@ -517,7 +519,7 @@ pub async fn apply_rollout_items(
 }
 
 pub async fn touch_thread_updated_at(
-    context: Option<&codex_state::StateRuntime>,
+    context: Option<&darwin_code_state::StateRuntime>,
     thread_id: Option<ThreadId>,
     updated_at: DateTime<Utc>,
     stage: &str,

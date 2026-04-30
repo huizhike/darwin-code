@@ -17,8 +17,8 @@ use darwin_code_protocol::protocol::SubAgentSource;
 use darwin_code_utils_template::Template;
 use tokio_util::sync::CancellationToken;
 
-use crate::darwin_code_delegate::run_darwin_code_thread_one_shot;
 use crate::config::Constrained;
+use crate::darwin_code_delegate::run_darwin_code_thread_one_shot;
 use crate::review_format::format_review_findings_block;
 use crate::review_format::render_review_output_text;
 use crate::session::session::Session;
@@ -64,12 +64,12 @@ impl SessionTask for ReviewTask {
         cancellation_token: CancellationToken,
     ) -> Option<String> {
         session.session.services.session_telemetry.counter(
-            "darwin-code.task.review",
+            "darwin_code.task.review",
             /*inc*/ 1,
             &[],
         );
 
-        // Start sub-darwin-code conversation and get the receiver for events.
+        // Start sub-darwin_code conversation and get the receiver for events.
         let output = match start_review_conversation(
             session.clone(),
             ctx.clone(),
@@ -122,7 +122,6 @@ async fn start_review_conversation(
     sub_agent_config.model = Some(model);
     (run_darwin_code_thread_one_shot(
         sub_agent_config,
-        session.auth_manager(),
         session.models_manager(),
         input,
         session.clone_session(),
@@ -251,6 +250,7 @@ pub(crate) async fn exit_review_mode(
                 content: vec![ContentItem::InputText { text: user_message }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }],
         )
         .await;
@@ -272,6 +272,7 @@ pub(crate) async fn exit_review_mode(
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             },
         )
         .await;

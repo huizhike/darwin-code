@@ -235,8 +235,12 @@ mod job {
                 );
                 (ownership_token, input_watermark)
             }
-            darwin_code_state::Phase2JobClaimOutcome::SkippedNotDirty => return Err("skipped_not_dirty"),
-            darwin_code_state::Phase2JobClaimOutcome::SkippedRunning => return Err("skipped_running"),
+            darwin_code_state::Phase2JobClaimOutcome::SkippedNotDirty => {
+                return Err("skipped_not_dirty");
+            }
+            darwin_code_state::Phase2JobClaimOutcome::SkippedRunning => {
+                return Err("skipped_running");
+            }
         };
 
         Ok(Claim { token, watermark })

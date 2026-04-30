@@ -2,7 +2,7 @@
 
 use std::sync::LazyLock;
 
-use codex_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SessionSource;
 
 pub(crate) mod config;
 pub(crate) mod list;
@@ -13,10 +13,10 @@ pub(crate) mod session_index;
 pub mod state_db;
 
 pub(crate) mod default_client {
-    pub use codex_login::default_client::*;
+    pub use darwin_code_client::*;
 }
 
-pub(crate) use codex_protocol::protocol;
+pub(crate) use darwin_code_protocol::protocol;
 
 pub const SESSIONS_SUBDIR: &str = "sessions";
 pub const ARCHIVED_SESSIONS_SUBDIR: &str = "archived_sessions";
@@ -25,14 +25,13 @@ pub static INTERACTIVE_SESSION_SOURCES: LazyLock<Vec<SessionSource>> = LazyLock:
         SessionSource::Cli,
         SessionSource::VSCode,
         SessionSource::Custom("atlas".to_string()),
-        SessionSource::Custom("chatgpt".to_string()),
     ]
 });
 
-pub use codex_protocol::protocol::SessionMeta;
 pub use config::Config;
 pub use config::RolloutConfig;
 pub use config::RolloutConfigView;
+pub use darwin_code_protocol::protocol::SessionMeta;
 pub use list::Cursor;
 pub use list::SortDirection;
 pub use list::ThreadItem;

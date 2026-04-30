@@ -20,7 +20,8 @@ pub(crate) trait EventProcessor {
     );
 
     /// Handle a single typed app-server notification emitted by the agent.
-    fn process_server_notification(&mut self, notification: ServerNotification) -> DarwinCodeStatus;
+    fn process_server_notification(&mut self, notification: ServerNotification)
+    -> DarwinCodeStatus;
 
     /// Handle a local exec warning that is not represented as an app-server notification.
     fn process_warning(&mut self, message: String) -> DarwinCodeStatus;

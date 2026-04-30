@@ -7,7 +7,7 @@ use crate::ToolSearchOutputTool;
 use crate::ToolSpec;
 use crate::default_namespace_description;
 use crate::mcp_tool_to_deferred_responses_api_tool;
-use codex_app_server_protocol::AppInfo;
+use darwin_code_app_server_protocol::AppInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;

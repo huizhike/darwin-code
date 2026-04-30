@@ -2,24 +2,17 @@ use super::*;
 use crate::ModelsManagerConfig;
 use base64::Engine as _;
 use chrono::Utc;
-use darwin_code_api::TransportError;
-use darwin_code_config::types::AuthCredentialsStoreMode;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_model_provider_info::WireApi;
-use darwin_code_protocol::config_types::ModelProviderAuthInfo;
-use darwin_code_protocol::openai_models::ModelsResponse;
-use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::mount_models_once;
+use darwin_code_api::TransportError;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::openai_models::ModelsResponse;
 use http::HeaderMap;
 use http::StatusCode;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
-use std::num::NonZeroU64;
 use std::sync::Arc;
 use std::sync::Mutex;
-use tempfile::TempDir;
 use tempfile::tempdir;
 use tracing::Event;
 use tracing::Subscriber;
@@ -89,8 +82,7 @@ fn provider_for(base_url: String) -> ModelProviderInfo {
     ModelProviderInfo {
         name: "mock".into(),
         base_url: Some(base_url),
-        env_key: None,
-        env_key_instructions: None,
+        api_key: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -103,101 +95,6 @@ fn provider_for(base_url: String) -> ModelProviderInfo {
         websocket_connect_timeout_ms: None,
         requires_openai_auth: false,
         supports_websockets: false,
-    }
-}
-
-struct ProviderAuthScript {
-    tempdir: TempDir,
-    command: String,
-    args: Vec<String>,
-}
-
-impl ProviderAuthScript {
-    fn new(tokens: &[&str]) -> std::io::Result<Self> {
-        let tempdir = tempfile::tempdir()?;
-        let tokens_file = tempdir.path().join("tokens.txt");
-        // `cmd.exe`'s `set /p` treats LF-only input as one line, so use CRLF on Windows.
-        let token_line_ending = if cfg!(windows) { "\r\n" } else { "\n" };
-        let mut token_file_contents = String::new();
-        for token in tokens {
-            token_file_contents.push_str(token);
-            token_file_contents.push_str(token_line_ending);
-        }
-        std::fs::write(&tokens_file, token_file_contents)?;
-
-        #[cfg(unix)]
-        let (command, args) = {
-            let script_path = tempdir.path().join("print-token.sh");
-            std::fs::write(
-                &script_path,
-                r#"#!/bin/sh
-first_line=$(sed -n '1p' tokens.txt)
-printf '%s\n' "$first_line"
-tail -n +2 tokens.txt > tokens.next
-mv tokens.next tokens.txt
-"#,
-            )?;
-            let mut permissions = std::fs::metadata(&script_path)?.permissions();
-            {
-                use std::os::unix::fs::PermissionsExt;
-                permissions.set_mode(0o755);
-            }
-            std::fs::set_permissions(&script_path, permissions)?;
-            ("./print-token.sh".to_string(), Vec::new())
-        };
-
-        #[cfg(windows)]
-        let (command, args) = {
-            let script_path = tempdir.path().join("print-token.cmd");
-            std::fs::write(
-                &script_path,
-                r#"@echo off
-setlocal EnableExtensions DisableDelayedExpansion
-set "first_line="
-<tokens.txt set /p "first_line="
-if not defined first_line exit /b 1
-setlocal EnableDelayedExpansion
-echo(!first_line!
-endlocal
-more +1 tokens.txt > tokens.next
-move /y tokens.next tokens.txt >nul
-"#,
-            )?;
-            (
-                "cmd.exe".to_string(),
-                vec![
-                    "/d".to_string(),
-                    "/s".to_string(),
-                    "/c".to_string(),
-                    ".\\print-token.cmd".to_string(),
-                ],
-            )
-        };
-
-        Ok(Self {
-            tempdir,
-            command,
-            args,
-        })
-    }
-
-    fn auth_config(&self) -> ModelProviderAuthInfo {
-        let timeout_ms = if cfg!(windows) {
-            // Process startup can be slow on loaded Windows CI workers.
-            10_000
-        } else {
-            2_000
-        };
-        ModelProviderAuthInfo {
-            command: self.command.clone(),
-            args: self.args.clone(),
-            timeout_ms: NonZeroU64::new(timeout_ms).unwrap(),
-            refresh_interval_ms: 60_000,
-            cwd: match AbsolutePathBuf::try_from(self.tempdir.path()) {
-                Ok(cwd) => cwd,
-                Err(err) => panic!("tempdir should be absolute: {err}"),
-            },
-        }
     }
 }
 
@@ -246,10 +143,8 @@ where
 async fn get_model_info_tracks_fallback_usage() {
     let darwin_code_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     );
@@ -279,10 +174,8 @@ async fn get_model_info_uses_custom_catalog() {
     let mut overlay = remote_model("gpt-overlay", "Overlay", /*priority*/ 0);
     overlay.supports_image_detail_original = true;
 
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         Some(ModelsResponse {
             models: vec![overlay],
         }),
@@ -307,10 +200,8 @@ async fn get_model_info_matches_namespaced_suffix() {
     let config = ModelsManagerConfig::default();
     let mut remote = remote_model("gpt-image", "Image", /*priority*/ 0);
     remote.supports_image_detail_original = true;
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         Some(ModelsResponse {
             models: vec![remote],
         }),
@@ -329,10 +220,8 @@ async fn get_model_info_matches_namespaced_suffix() {
 async fn get_model_info_rejects_multi_segment_namespace_suffix_matching() {
     let darwin_code_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     );
@@ -367,14 +256,9 @@ async fn refresh_available_models_sorts_by_priority() {
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let provider = provider_for(server.uri());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -405,8 +289,12 @@ async fn refresh_available_models_sorts_by_priority() {
 
 #[tokio::test]
 async fn refresh_available_models_uses_provider_auth_token() {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_MODELS_MANAGER_PROVIDER_TOKEN";
+    unsafe {
+        std::env::set_var(ENV_KEY, "provider-token");
+    }
+
     let server = MockServer::start().await;
-    let auth_script = ProviderAuthScript::new(&["provider-token"]).unwrap();
     let remote_models = vec![remote_model(
         "provider-model",
         "Provider",
@@ -428,16 +316,17 @@ async fn refresh_available_models_uses_provider_auth_token() {
         .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("unused"));
-    let provider = ModelProviderInfo {
-        auth: Some(auth_script.auth_config()),
-        ..provider_for(server.uri())
-    };
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
+    let mut provider = ModelProviderInfo::create_openai_compatible_provider(
+        "mock".to_string(),
+        server.uri(),
+        WireApi::Responses,
+        ENV_KEY.to_string(),
     );
+    provider.request_max_retries = Some(0);
+    provider.stream_max_retries = Some(0);
+    provider.stream_idle_timeout_ms = Some(5_000);
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::Online)
@@ -445,6 +334,9 @@ async fn refresh_available_models_uses_provider_auth_token() {
         .expect("refresh succeeds");
 
     assert_models_contain(&manager.get_remote_models().await, &remote_models);
+    unsafe {
+        std::env::remove_var(ENV_KEY);
+    }
 }
 
 #[tokio::test]
@@ -460,14 +352,9 @@ async fn refresh_available_models_uses_cache_when_fresh() {
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let provider = provider_for(server.uri());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -501,14 +388,9 @@ async fn refresh_available_models_refetches_when_cache_stale() {
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let provider = provider_for(server.uri());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -564,14 +446,9 @@ async fn refresh_available_models_refetches_when_version_mismatch() {
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let provider = provider_for(server.uri());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -631,14 +508,9 @@ async fn refresh_available_models_drops_removed_remote_models() {
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let provider = provider_for(server.uri());
-    let mut manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let mut manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
     manager.cache_manager.set_ttl(Duration::ZERO);
 
     manager
@@ -689,67 +561,50 @@ async fn refresh_available_models_drops_removed_remote_models() {
 }
 
 #[tokio::test]
-async fn refresh_available_models_skips_network_without_chatgpt_auth() {
+async fn refresh_available_models_fetches_standard_provider_models() {
     let server = MockServer::start().await;
-    let dynamic_slug = "dynamic-model-only-for-test-noauth";
+    let dynamic_slug = "dynamic-model-only-for-test-byok";
     let models_mock = mount_models_once(
         &server,
         ModelsResponse {
-            models: vec![remote_model(dynamic_slug, "No Auth", /*priority*/ 1)],
+            models: vec![remote_model(dynamic_slug, "BYOK", /*priority*/ 1)],
         },
     )
     .await;
 
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager = Arc::new(AuthManager::new(
-        darwin_code_home.path().to_path_buf(),
-        /*enable_darwin_code_api_key_env*/ false,
-        AuthCredentialsStoreMode::File,
-    ));
     let provider = provider_for(server.uri());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     manager
         .refresh_available_models(RefreshStrategy::Online)
         .await
-        .expect("refresh should no-op without chatgpt auth");
+        .expect("refresh succeeds with BYOK provider");
     let cached_remote = manager.get_remote_models().await;
     assert!(
-        !cached_remote
+        cached_remote
             .iter()
             .any(|candidate| candidate.slug == dynamic_slug),
-        "remote refresh should be skipped without chatgpt auth"
+        "BYOK providers may refresh via standard /models"
     );
     assert_eq!(
         models_mock.requests().len(),
-        0,
-        "no auth should avoid /models requests"
+        1,
+        "standard provider should fetch /models once"
     );
 }
 
 #[test]
-fn models_request_telemetry_emits_auth_env_feedback_tags_on_failure() {
+fn models_request_telemetry_emits_feedback_tags_on_failure() {
     let tags = Arc::new(Mutex::new(BTreeMap::new()));
     let _guard = tracing_subscriber::registry()
         .with(TagCollectorLayer { tags: tags.clone() })
         .set_default();
 
     let telemetry = ModelsRequestTelemetry {
-        auth_mode: Some(TelemetryAuthMode::Chatgpt.to_string()),
         auth_header_attached: true,
         auth_header_name: Some("authorization"),
-        auth_env: darwin_code_login::AuthEnvTelemetry {
-            openai_api_key_env_present: false,
-            darwin_code_api_key_env_present: false,
-            darwin_code_api_key_env_enabled: false,
-            provider_env_key_name: Some("configured".to_string()),
-            provider_env_key_present: Some(false),
-            refresh_token_url_override_present: false,
-        },
     };
     let mut headers = HeaderMap::new();
     headers.insert("x-request-id", "req-models-401".parse().unwrap());
@@ -782,10 +637,7 @@ fn models_request_telemetry_emits_auth_env_feedback_tags_on_failure() {
         tags.get("endpoint").map(String::as_str),
         Some("\"/models\"")
     );
-    assert_eq!(
-        tags.get("auth_mode").map(String::as_str),
-        Some("\"Chatgpt\"")
-    );
+    assert_eq!(tags.get("auth_mode").map(String::as_str), Some("\"\""));
     assert_eq!(
         tags.get("auth_request_id").map(String::as_str),
         Some("\"req-models-401\"")
@@ -798,47 +650,14 @@ fn models_request_telemetry_emits_auth_env_feedback_tags_on_failure() {
         tags.get("auth_error_code").map(String::as_str),
         Some("\"token_expired\"")
     );
-    assert_eq!(
-        tags.get("auth_env_openai_api_key_present")
-            .map(String::as_str),
-        Some("false")
-    );
-    assert_eq!(
-        tags.get("auth_env_darwin_code_api_key_present")
-            .map(String::as_str),
-        Some("false")
-    );
-    assert_eq!(
-        tags.get("auth_env_darwin_code_api_key_enabled")
-            .map(String::as_str),
-        Some("false")
-    );
-    assert_eq!(
-        tags.get("auth_env_provider_key_name").map(String::as_str),
-        Some("\"configured\"")
-    );
-    assert_eq!(
-        tags.get("auth_env_provider_key_present")
-            .map(String::as_str),
-        Some("\"false\"")
-    );
-    assert_eq!(
-        tags.get("auth_env_refresh_token_url_override_present")
-            .map(String::as_str),
-        Some("false")
-    );
 }
 
 #[test]
 fn build_available_models_picks_default_after_hiding_hidden_models() {
     let darwin_code_home = tempdir().expect("temp dir");
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let provider = provider_for("http://example.test".to_string());
-    let manager = ModelsManager::with_provider_for_tests(
-        darwin_code_home.path().to_path_buf(),
-        auth_manager,
-        provider,
-    );
+    let manager =
+        ModelsManager::with_provider_for_tests(darwin_code_home.path().to_path_buf(), provider);
 
     let hidden_model =
         remote_model_with_visibility("hidden", "Hidden", /*priority*/ 0, "hide");

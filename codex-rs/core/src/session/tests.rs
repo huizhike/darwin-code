@@ -16,9 +16,9 @@ use crate::skills::SkillRenderSideEffects;
 use crate::skills::render::SkillMetadataBudget;
 use crate::tools::format_exec_output_str;
 
+use crate::test_support::ByokTestAuth;
 use darwin_code_features::Feature;
 use darwin_code_features::Features;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::model_info;
@@ -56,13 +56,26 @@ use crate::tools::handlers::UnifiedExecHandler;
 use crate::tools::registry::ToolHandler;
 use crate::tools::router::ToolCallSource;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::PathBufExt;
+use core_test_support::context_snapshot;
+use core_test_support::context_snapshot::ContextSnapshotOptions;
+use core_test_support::context_snapshot::ContextSnapshotRenderMode;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::test_path_buf;
+use core_test_support::tracing::install_test_tracing;
+use core_test_support::wait_for_event;
 use darwin_code_app_server_protocol::AppInfo;
 use darwin_code_config::config_toml::ConfigToml;
 use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_config::permissions_toml::NetworkAccessConfig;
 use darwin_code_execpolicy::Decision;
 use darwin_code_execpolicy::NetworkRuleProtocol;
 use darwin_code_execpolicy::Policy;
-use darwin_code_network_proxy::NetworkProxyConfig;
 use darwin_code_otel::MetricsClient;
 use darwin_code_otel::MetricsConfig;
 use darwin_code_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
@@ -104,19 +117,6 @@ use darwin_code_protocol::protocol::TurnCompleteEvent;
 use darwin_code_protocol::protocol::TurnStartedEvent;
 use darwin_code_protocol::protocol::UserMessageEvent;
 use darwin_code_protocol::protocol::W3cTraceContext;
-use core_test_support::PathBufExt;
-use core_test_support::context_snapshot;
-use core_test_support::context_snapshot::ContextSnapshotOptions;
-use core_test_support::context_snapshot::ContextSnapshotRenderMode;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::test_path_buf;
-use core_test_support::tracing::install_test_tracing;
-use core_test_support::wait_for_event;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::trace::TraceId;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
@@ -154,6 +154,7 @@ fn user_message(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -166,14 +167,20 @@ fn assistant_message(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
 fn test_session_telemetry_without_metadata() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "darwin-code-core", env!("CARGO_PKG_VERSION"), exporter)
-            .with_runtime_reader(),
+        MetricsConfig::in_memory(
+            "test",
+            "darwin_code-core",
+            env!("CARGO_PKG_VERSION"),
+            exporter,
+        )
+        .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(
@@ -226,6 +233,7 @@ fn skill_message(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -321,11 +329,10 @@ async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted
 
 fn test_model_client_session() -> crate::client::ModelClientSession {
     crate::client::ModelClient::new(
-        /*auth_manager*/ None,
         ThreadId::try_from("00000000-0000-4000-8000-000000000001")
             .expect("test thread id should be valid"),
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None),
+        ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None, None),
         darwin_code_protocol::protocol::SessionSource::Exec,
         /*model_verbosity*/ None,
         /*enable_request_compression*/ false,
@@ -534,473 +541,6 @@ fn assistant_message_stream_parsers_seed_plan_parser_across_added_and_delta_boun
     assert!(tail.plan_segments.is_empty());
 }
 
-#[test]
-fn validated_network_policy_amendment_host_allows_normalized_match() {
-    let amendment = NetworkPolicyAmendment {
-        host: "ExAmPlE.Com.:443".to_string(),
-        action: NetworkPolicyRuleAction::Allow,
-    };
-    let context = NetworkApprovalContext {
-        host: "example.com".to_string(),
-        protocol: NetworkApprovalProtocol::Https,
-    };
-
-    let host = Session::validated_network_policy_amendment_host(&amendment, &context)
-        .expect("normalized hosts should match");
-
-    assert_eq!(host, "example.com");
-}
-
-#[test]
-fn validated_network_policy_amendment_host_rejects_mismatch() {
-    let amendment = NetworkPolicyAmendment {
-        host: "evil.example.com".to_string(),
-        action: NetworkPolicyRuleAction::Deny,
-    };
-    let context = NetworkApprovalContext {
-        host: "api.example.com".to_string(),
-        protocol: NetworkApprovalProtocol::Https,
-    };
-
-    let err = Session::validated_network_policy_amendment_host(&amendment, &context)
-        .expect_err("mismatched hosts should be rejected");
-
-    let message = err.to_string();
-    assert!(message.contains("does not match approved host"));
-}
-
-#[tokio::test]
-async fn start_managed_network_proxy_applies_execpolicy_network_rules() -> anyhow::Result<()> {
-    let spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        /*requirements*/ None,
-        &SandboxPolicy::new_workspace_write_policy(),
-    )?;
-    let mut exec_policy = Policy::empty();
-    exec_policy.add_network_rule(
-        "example.com",
-        NetworkRuleProtocol::Https,
-        Decision::Allow,
-        /*justification*/ None,
-    )?;
-
-    let (started_proxy, _) = Session::start_managed_network_proxy(
-        &spec,
-        &exec_policy,
-        &SandboxPolicy::new_workspace_write_policy(),
-        /*network_policy_decider*/ None,
-        /*blocked_request_observer*/ None,
-        /*managed_network_requirements_enabled*/ false,
-        crate::config::NetworkProxyAuditMetadata::default(),
-    )
-    .await?;
-
-    let current_cfg = started_proxy.proxy().current_cfg().await?;
-    assert_eq!(
-        current_cfg.network.allowed_domains(),
-        Some(vec!["example.com".to_string()])
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn start_managed_network_proxy_ignores_invalid_execpolicy_network_rules() -> anyhow::Result<()>
-{
-    let spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            domains: Some(NetworkDomainPermissionsToml {
-                entries: std::collections::BTreeMap::from([(
-                    "managed.example.com".to_string(),
-                    NetworkDomainPermissionToml::Allow,
-                )]),
-            }),
-            managed_allowed_domains_only: Some(true),
-            ..Default::default()
-        }),
-        &SandboxPolicy::new_workspace_write_policy(),
-    )?;
-    let mut exec_policy = Policy::empty();
-    exec_policy.add_network_rule(
-        "example.com",
-        NetworkRuleProtocol::Https,
-        Decision::Allow,
-        /*justification*/ None,
-    )?;
-
-    let (started_proxy, _) = Session::start_managed_network_proxy(
-        &spec,
-        &exec_policy,
-        &SandboxPolicy::new_workspace_write_policy(),
-        /*network_policy_decider*/ None,
-        /*blocked_request_observer*/ None,
-        /*managed_network_requirements_enabled*/ false,
-        crate::config::NetworkProxyAuditMetadata::default(),
-    )
-    .await?;
-
-    let current_cfg = started_proxy.proxy().current_cfg().await?;
-    assert_eq!(
-        current_cfg.network.allowed_domains(),
-        Some(vec!["managed.example.com".to_string()])
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn managed_network_proxy_decider_survives_full_access_start() -> anyhow::Result<()> {
-    let spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            enabled: Some(true),
-            ..Default::default()
-        }),
-        &SandboxPolicy::DangerFullAccess,
-    )?;
-    let exec_policy = Policy::empty();
-    let decider_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let network_policy_decider: Arc<dyn darwin_code_network_proxy::NetworkPolicyDecider> = Arc::new({
-        let decider_calls = Arc::clone(&decider_calls);
-        move |_request| {
-            decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            async { darwin_code_network_proxy::NetworkDecision::ask("not_allowed") }
-        }
-    });
-
-    let (started_proxy, _) = Session::start_managed_network_proxy(
-        &spec,
-        &exec_policy,
-        &SandboxPolicy::DangerFullAccess,
-        Some(network_policy_decider),
-        /*blocked_request_observer*/ None,
-        /*managed_network_requirements_enabled*/ true,
-        crate::config::NetworkProxyAuditMetadata::default(),
-    )
-    .await?;
-
-    let spec = spec.recompute_for_sandbox_policy(&SandboxPolicy::new_workspace_write_policy())?;
-    spec.apply_to_started_proxy(&started_proxy).await?;
-    let current_cfg = started_proxy.proxy().current_cfg().await?;
-    assert_eq!(current_cfg.network.allowed_domains(), None);
-
-    use tokio::io::AsyncReadExt as _;
-    use tokio::io::AsyncWriteExt as _;
-
-    let mut stream = tokio::net::TcpStream::connect(started_proxy.proxy().http_addr()).await?;
-    stream
-        .write_all(
-            b"GET http://example.com/ HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n",
-        )
-        .await?;
-    let mut buffer = [0_u8; 4096];
-    let bytes_read = tokio::time::timeout(StdDuration::from_secs(2), stream.read(&mut buffer))
-        .await
-        .expect("timed out waiting for proxy response")?;
-    let response = String::from_utf8_lossy(&buffer[..bytes_read]);
-
-    assert!(
-        response.starts_with("HTTP/1.1 403 Forbidden"),
-        "unexpected proxy response: {response}"
-    );
-    assert!(
-        response.contains("x-proxy-error: blocked-by-allowlist"),
-        "unexpected proxy response: {response}"
-    );
-    assert_eq!(
-        decider_calls.load(std::sync::atomic::Ordering::SeqCst),
-        1,
-        "unexpected proxy response: {response}"
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn new_turn_refreshes_managed_network_proxy_for_sandbox_change() -> anyhow::Result<()> {
-    let (mut session, _turn_context) = make_session_and_context().await;
-    let initial_policy = SandboxPolicy::new_workspace_write_policy();
-
-    let mut network_config = NetworkProxyConfig::default();
-    network_config
-        .network
-        .set_allowed_domains(vec!["evil.com".to_string()]);
-    let requirements = NetworkConstraints {
-        domains: Some(NetworkDomainPermissionsToml {
-            entries: std::collections::BTreeMap::from([(
-                "*.example.com".to_string(),
-                NetworkDomainPermissionToml::Allow,
-            )]),
-        }),
-        ..Default::default()
-    };
-    let spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        network_config,
-        Some(requirements),
-        &initial_policy,
-    )?;
-    let (started_proxy, _) = Session::start_managed_network_proxy(
-        &spec,
-        &Policy::empty(),
-        &initial_policy,
-        /*network_policy_decider*/ None,
-        /*blocked_request_observer*/ None,
-        /*managed_network_requirements_enabled*/ false,
-        crate::config::NetworkProxyAuditMetadata::default(),
-    )
-    .await?;
-    assert_eq!(
-        started_proxy
-            .proxy()
-            .current_cfg()
-            .await?
-            .network
-            .allowed_domains(),
-        Some(vec!["*.example.com".to_string(), "evil.com".to_string()])
-    );
-
-    {
-        let mut state = session.state.lock().await;
-        let mut config = (*state.session_configuration.original_config_do_not_use).clone();
-        config.permissions.network = Some(spec);
-        config.permissions.sandbox_policy =
-            darwin_code_config::Constrained::allow_any(initial_policy.clone());
-        state.session_configuration.original_config_do_not_use = Arc::new(config);
-        state.session_configuration.sandbox_policy =
-            darwin_code_config::Constrained::allow_any(initial_policy);
-    }
-    session.services.network_proxy = Some(started_proxy);
-
-    session
-        .new_turn_with_sub_id(
-            "sandbox-policy-change".to_string(),
-            SessionSettingsUpdate {
-                sandbox_policy: Some(SandboxPolicy::DangerFullAccess),
-                ..Default::default()
-            },
-        )
-        .await?;
-
-    let started_proxy = session
-        .services
-        .network_proxy
-        .as_ref()
-        .expect("managed network proxy should be present");
-    assert_eq!(
-        started_proxy
-            .proxy()
-            .current_cfg()
-            .await?
-            .network
-            .allowed_domains(),
-        Some(vec!["*.example.com".to_string()])
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn danger_full_access_turns_do_not_expose_managed_network_proxy() -> anyhow::Result<()> {
-    let network_spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            enabled: Some(true),
-            ..Default::default()
-        }),
-        &SandboxPolicy::DangerFullAccess,
-    )?;
-
-    let session = make_session_with_config(move |config| {
-        config.permissions.sandbox_policy =
-            darwin_code_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
-        config.permissions.network = Some(network_spec);
-    })
-    .await?;
-
-    let turn_context = session.new_default_turn().await;
-    assert!(turn_context.network.is_none());
-    Ok(())
-}
-
-#[tokio::test]
-async fn danger_full_access_tool_attempts_do_not_enforce_managed_network() -> anyhow::Result<()> {
-    #[derive(Default)]
-    struct ProbeToolRuntime {
-        enforce_managed_network: Vec<bool>,
-    }
-
-    impl crate::tools::sandboxing::Approvable<()> for ProbeToolRuntime {
-        type ApprovalKey = String;
-
-        fn approval_keys(&self, _req: &()) -> Vec<Self::ApprovalKey> {
-            vec!["probe".to_string()]
-        }
-
-        fn start_approval_async<'a>(
-            &'a mut self,
-            _req: &'a (),
-            _ctx: crate::tools::sandboxing::ApprovalCtx<'a>,
-        ) -> futures::future::BoxFuture<'a, ReviewDecision> {
-            Box::pin(async { ReviewDecision::Approved })
-        }
-    }
-
-    impl crate::tools::sandboxing::Sandboxable for ProbeToolRuntime {
-        fn sandbox_preference(&self) -> darwin_code_sandboxing::SandboxablePreference {
-            darwin_code_sandboxing::SandboxablePreference::Auto
-        }
-    }
-
-    impl crate::tools::sandboxing::ToolRuntime<(), ()> for ProbeToolRuntime {
-        async fn run(
-            &mut self,
-            _req: &(),
-            attempt: &crate::tools::sandboxing::SandboxAttempt<'_>,
-            _ctx: &crate::tools::sandboxing::ToolCtx,
-        ) -> Result<(), crate::tools::sandboxing::ToolError> {
-            self.enforce_managed_network
-                .push(attempt.enforce_managed_network);
-            Ok(())
-        }
-    }
-
-    let network_spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            enabled: Some(true),
-            ..Default::default()
-        }),
-        &SandboxPolicy::DangerFullAccess,
-    )?;
-
-    let session = make_session_with_config(move |config| {
-        config.permissions.sandbox_policy =
-            darwin_code_config::Constrained::allow_any(SandboxPolicy::DangerFullAccess);
-        config.permissions.network = Some(network_spec);
-
-        let layers = config
-            .config_layer_stack
-            .get_layers(
-                ConfigLayerStackOrdering::LowestPrecedenceFirst,
-                /*include_disabled*/ true,
-            )
-            .into_iter()
-            .cloned()
-            .collect();
-        let mut requirements = config.config_layer_stack.requirements().clone();
-        requirements.network = Some(Sourced::new(
-            NetworkConstraints {
-                enabled: Some(true),
-                ..Default::default()
-            },
-            RequirementSource::CloudRequirements,
-        ));
-        let mut requirements_toml = config.config_layer_stack.requirements_toml().clone();
-        requirements_toml.network = Some(crate::config_loader::NetworkRequirementsToml {
-            enabled: Some(true),
-            ..Default::default()
-        });
-        config.config_layer_stack = ConfigLayerStack::new(layers, requirements, requirements_toml)
-            .expect("rebuild config layer stack with network requirements");
-    })
-    .await?;
-
-    let turn = session.new_default_turn().await;
-    assert!(turn.network.is_none());
-
-    let mut orchestrator = crate::tools::orchestrator::ToolOrchestrator::new();
-    let mut tool = ProbeToolRuntime::default();
-    let tool_ctx = crate::tools::sandboxing::ToolCtx {
-        session: Arc::clone(&session),
-        turn: Arc::clone(&turn),
-        call_id: "probe-call".to_string(),
-        tool_name: "probe".to_string(),
-    };
-
-    orchestrator
-        .run(
-            &mut tool,
-            &(),
-            &tool_ctx,
-            turn.as_ref(),
-            AskForApproval::Never,
-        )
-        .await
-        .expect("probe runtime should succeed");
-
-    assert_eq!(tool.enforce_managed_network, vec![false]);
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn workspace_write_turns_continue_to_expose_managed_network_proxy() -> anyhow::Result<()> {
-    let sandbox_policy = SandboxPolicy::new_workspace_write_policy();
-    let network_spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            enabled: Some(true),
-            ..Default::default()
-        }),
-        &sandbox_policy,
-    )?;
-
-    let session = make_session_with_config(move |config| {
-        config.permissions.sandbox_policy = darwin_code_config::Constrained::allow_any(sandbox_policy);
-        config.permissions.network = Some(network_spec);
-    })
-    .await?;
-
-    let turn_context = session.new_default_turn().await;
-    assert!(turn_context.network.is_some());
-    Ok(())
-}
-
-#[tokio::test]
-async fn user_shell_commands_do_not_inherit_managed_network_proxy() -> anyhow::Result<()> {
-    let sandbox_policy = SandboxPolicy::new_workspace_write_policy();
-    let network_spec = crate::config::NetworkProxySpec::from_config_and_constraints(
-        NetworkProxyConfig::default(),
-        Some(NetworkConstraints {
-            enabled: Some(true),
-            ..Default::default()
-        }),
-        &sandbox_policy,
-    )?;
-
-    let (session, rx) = make_session_with_config_and_rx(move |config| {
-        config.permissions.sandbox_policy = darwin_code_config::Constrained::allow_any(sandbox_policy);
-        config.permissions.network = Some(network_spec);
-    })
-    .await?;
-
-    let turn_context = session.new_default_turn().await;
-    assert!(turn_context.network.is_some());
-
-    #[cfg(windows)]
-    let command = r#"$val = $env:HTTP_PROXY; if ([string]::IsNullOrEmpty($val)) { $val = 'not-set' } ; [System.Console]::Write($val)"#.to_string();
-    #[cfg(not(windows))]
-    let command = r#"sh -c "printf '%s' \"${HTTP_PROXY:-not-set}\"""#.to_string();
-
-    execute_user_shell_command(
-        Arc::clone(&session),
-        turn_context,
-        command,
-        CancellationToken::new(),
-        UserShellCommandMode::StandaloneTurn,
-    )
-    .await;
-
-    loop {
-        let event = rx.recv().await.expect("channel open");
-        if let EventMsg::ExecCommandEnd(event) = event.msg {
-            assert_eq!(event.exit_code, 0);
-            assert_eq!(event.stdout.trim(), "not-set");
-            break;
-        }
-    }
-
-    Ok(())
-}
-
 #[tokio::test]
 async fn get_base_instructions_no_user_content() {
     let prompt_with_apply_patch_instructions =
@@ -1061,7 +601,7 @@ async fn get_base_instructions_no_user_content() {
 async fn reload_user_config_layer_updates_effective_apps_config() {
     let (session, _turn_context) = make_session_and_context().await;
     let darwin_code_home = session.darwin_code_home().await;
-    std::fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
+    std::fs::create_dir_all(&darwin_code_home).expect("create darwin_code home");
     let config_toml_path = darwin_code_home.join(CONFIG_TOML_FILE);
     std::fs::write(
         &config_toml_path,
@@ -1225,6 +765,7 @@ async fn reconstruct_history_uses_replacement_history_verbatim() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let replacement_history = vec![
         summary_item.clone(),
@@ -1234,9 +775,10 @@ async fn reconstruct_history_uses_replacement_history_verbatim() {
             content: vec![ContentItem::InputText {
                 text: "stale developer instructions".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+                end_turn: None,
+                phase: None,
+                reasoning_content: None,
+            },
     ];
     let rollout_items = vec![RolloutItem::Compacted(CompactedItem {
         message: String::new(),
@@ -1466,6 +1008,9 @@ async fn record_initial_history_reconstructs_forked_transcript() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<()> {
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "dummy-test-key");
+    }
     let server = start_mock_server().await;
     mount_sse_once(
         &server,
@@ -1490,7 +1035,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
         .expect("rollout path");
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "fork seed".into(),
@@ -1500,12 +1045,15 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
     // Forking reads the persisted rollout JSONL, so force the completed source turn to disk
     // before snapshotting from it.
-    initial.darwin-code.ensure_rollout_materialized().await;
+    initial.darwin_code.ensure_rollout_materialized().await;
     initial
-        .darwin-code
+        .darwin_code
         .flush_rollout()
         .await
         .expect("source rollout should flush before fork");
@@ -1770,7 +1318,7 @@ async fn thread_rollback_fails_without_persisted_rollout_path() {
         "thread rollback requires a persisted rollout path"
     );
     assert_eq!(
-        error_event.darwin_code_error_info,
+        error_event.codex_error_info,
         Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
     assert_eq!(sess.clone_history().await.raw_items(), initial_context);
@@ -2108,7 +1656,7 @@ async fn thread_rollback_fails_when_turn_in_progress() {
 
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(
-        error_event.darwin_code_error_info,
+        error_event.codex_error_info,
         Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
 
@@ -2129,7 +1677,7 @@ async fn thread_rollback_fails_when_num_turns_is_zero() {
     let error_event = wait_for_thread_rollback_failed(&rx).await;
     assert_eq!(error_event.message, "num_turns must be >= 1");
     assert_eq!(
-        error_event.darwin_code_error_info,
+        error_event.codex_error_info,
         Some(DarwinCodeErrorInfo::ThreadRollbackFailed)
     );
 
@@ -2336,7 +1884,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
     assert_eq!(
         state.latest_rate_limits,
         Some(RateLimitSnapshot {
-            limit_id: Some("darwin-code".to_string()),
+            limit_id: Some("darwin_code".to_string()),
             limit_name: None,
             primary: update.primary,
             secondary: update.secondary,
@@ -2523,7 +2071,7 @@ async fn wait_for_thread_rollback_failed(rx: &async_channel::Receiver<Event>) ->
             .expect("event");
         match evt.msg {
             EventMsg::Error(payload)
-                if payload.darwin_code_error_info == Some(DarwinCodeErrorInfo::ThreadRollbackFailed) =>
+                if payload.codex_error_info == Some(DarwinCodeErrorInfo::ThreadRollbackFailed) =>
             {
                 return payload;
             }
@@ -2589,7 +2137,7 @@ fn session_telemetry(
         model_info.slug.as_str(),
         /*account_id*/ None,
         Some("test@test.com".to_string()),
-        Some(TelemetryAuthMode::Chatgpt),
+        Some(TelemetryAuthMode::ApiKey),
         "test_originator".to_string(),
         /*log_user_prompts*/ false,
         "test".to_string(),
@@ -2865,11 +2413,8 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
         .expect("test config should allow shell_zsh_fork");
     config.zsh_path = None;
     let config = Arc::new(config);
-
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
         config.darwin_code_home.to_path_buf(),
-        auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
@@ -2930,7 +2475,6 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
     let result = Session::new(
         session_configuration,
         Arc::clone(&config),
-        auth_manager,
         models_manager,
         Arc::new(ExecPolicyManager::default()),
         tx_event,
@@ -2966,10 +2510,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let conversation_id = ThreadId::default();
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
         config.darwin_code_home.to_path_buf(),
-        auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
@@ -3060,11 +2602,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         ),
         shell_zsh_path: None,
         main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
-        analytics_events_client: AnalyticsEventsClient::new(
-            Arc::clone(&auth_manager),
-            config.chatgpt_base_url.trim_end_matches('/').to_string(),
-            config.analytics_enabled,
-        ),
+        analytics_events_client: AnalyticsEventsClient::new(config.analytics_enabled),
         hooks: Hooks::new(HooksConfig {
             legacy_notify_argv: config.notify.clone(),
             ..HooksConfig::default()
@@ -3073,13 +2611,11 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         user_shell: Arc::new(default_user_shell()),
         agent_identity_manager: Arc::new(crate::agent_identity::AgentIdentityManager::new(
             config.as_ref(),
-            Arc::clone(&auth_manager),
             session_configuration.session_source.clone(),
         )),
         shell_snapshot_tx: watch::channel(None).0,
         show_raw_agent_reasoning: config.show_raw_agent_reasoning,
         exec_policy,
-        auth_manager: auth_manager.clone(),
         session_telemetry: session_telemetry.clone(),
         models_manager: Arc::clone(&models_manager),
         tool_approvals: Mutex::new(ApprovalStore::default()),
@@ -3089,14 +2625,12 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         mcp_manager,
         skills_watcher,
         agent_control,
-        network_proxy: None,
         network_approval: Arc::clone(&network_approval),
         state_db: None,
         thread_store: darwin_code_thread_store::LocalThreadStore::new(
             darwin_code_rollout::RolloutConfig::from_view(config.as_ref()),
         ),
         model_client: ModelClient::new(
-            Some(auth_manager.clone()),
             conversation_id,
             /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
             session_configuration.provider.clone(),
@@ -3132,7 +2666,6 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     );
     let turn_context = Session::make_turn_context(
         conversation_id,
-        Some(Arc::clone(&auth_manager)),
         &session_telemetry,
         session_configuration.provider.clone(),
         &session_configuration,
@@ -3156,7 +2689,6 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         agent_status: agent_status_tx,
         out_of_band_elicitation_paused: watch::channel(false).0,
         state: Mutex::new(state),
-        managed_network_proxy_refresh_lock: Mutex::new(()),
         features: config.features.clone(),
         pending_mcp_server_refresh_config: Mutex::new(None),
         conversation: Arc::new(RealtimeConversationManager::new()),
@@ -3187,10 +2719,8 @@ async fn make_session_with_config_and_rx(
     let mut config = build_test_config(darwin_code_home.path()).await;
     mutator(&mut config);
     let config = Arc::new(config);
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
         config.darwin_code_home.to_path_buf(),
-        auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
@@ -3252,7 +2782,6 @@ async fn make_session_with_config_and_rx(
     let session = Session::new(
         session_configuration,
         Arc::clone(&config),
-        auth_manager,
         models_manager,
         Arc::new(ExecPolicyManager::default()),
         tx_event,
@@ -3430,7 +2959,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
     let (tx_sub, rx_sub) = async_channel::bounded(1);
     let (_tx_event, rx_event) = async_channel::unbounded();
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
-    let darwin-code = Darwin-Code {
+    let darwin_code = DarwinCode {
         tx_sub,
         rx_event,
         agent_status,
@@ -3438,7 +2967,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
         session_loop_termination: completed_session_loop_termination(),
     };
 
-    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
+    let _trace_test_context = install_test_tracing("darwin_code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3453,7 +2982,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
     let expected_trace = async {
         let expected_trace =
             current_span_w3c_trace_context().expect("current span should have trace context");
-        darwin-code
+        darwin_code
             .submit_with_id(Submission {
                 id: "sub-1".into(),
                 op: Op::Interrupt,
@@ -3474,7 +3003,7 @@ async fn submit_with_id_captures_current_span_trace_context() {
 async fn new_default_turn_captures_current_span_trace_id() {
     let (session, _turn_context) = make_session_and_context().await;
 
-    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
+    let _trace_test_context = install_test_tracing("darwin_code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3509,7 +3038,7 @@ async fn new_default_turn_captures_current_span_trace_id() {
 
 #[test]
 fn submission_dispatch_span_prefers_submission_trace_context() {
-    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
+    let _trace_test_context = install_test_tracing("darwin_code-core-tests");
 
     let ambient_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000033-0000000000000044-01".into()),
@@ -3542,7 +3071,7 @@ fn submission_dispatch_span_prefers_submission_trace_context() {
 
 #[test]
 fn submission_dispatch_span_uses_debug_for_realtime_audio() {
-    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
+    let _trace_test_context = install_test_tracing("darwin_code-core-tests");
 
     let dispatch_span = submission_dispatch_span(&Submission {
         id: "sub-1".into(),
@@ -3609,7 +3138,9 @@ async fn user_turn_updates_approvals_reviewer() {
             }],
             cwd: config.cwd.to_path_buf(),
             approval_policy: config.permissions.approval_policy.value(),
-            approvals_reviewer: Some(darwin_code_config::types::ApprovalsReviewer::GuardianSubagent),
+            approvals_reviewer: Some(
+                darwin_code_config::types::ApprovalsReviewer::GuardianSubagent,
+            ),
             sandbox_policy: config.permissions.sandbox_policy.get().clone(),
             model: turn_context.model_info.slug.clone(),
             effort: config.model_reasoning_effort,
@@ -3660,7 +3191,7 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         }
     }
 
-    let _trace_test_context = install_test_tracing("darwin-code-core-tests");
+    let _trace_test_context = install_test_tracing("darwin_code-core-tests");
 
     let request_parent = W3cTraceContext {
         traceparent: Some("00-00000000000000000000000000000011-0000000000000022-01".into()),
@@ -3716,7 +3247,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .expect("turn task should capture the current span trace context");
     let submission_context =
         darwin_code_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
-    let task_context = darwin_code_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
+    let task_context =
+        darwin_code_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
 
     assert_eq!(
         task_context.span().span_context().trace_id(),
@@ -3739,7 +3271,7 @@ async fn shutdown_and_wait_allows_multiple_waiters() {
         assert_eq!(shutdown.op, Op::Shutdown);
         tokio::time::sleep(StdDuration::from_millis(50)).await;
     });
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event,
         agent_status,
@@ -3748,12 +3280,12 @@ async fn shutdown_and_wait_allows_multiple_waiters() {
     });
 
     let waiter_1 = {
-        let darwin-code = Arc::clone(&darwin-code);
-        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
+        let darwin_code = Arc::clone(&darwin_code);
+        tokio::spawn(async move { darwin_code.shutdown_and_wait().await })
     };
     let waiter_2 = {
-        let darwin-code = Arc::clone(&darwin-code);
-        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
+        let darwin_code = Arc::clone(&darwin_code);
+        tokio::spawn(async move { darwin_code.shutdown_and_wait().await })
     };
 
     waiter_1
@@ -3777,7 +3309,7 @@ async fn shutdown_and_wait_waits_when_shutdown_is_already_in_progress() {
     let session_loop_handle = tokio::spawn(async move {
         let _ = shutdown_complete_rx.await;
     });
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event,
         agent_status,
@@ -3786,8 +3318,8 @@ async fn shutdown_and_wait_waits_when_shutdown_is_already_in_progress() {
     });
 
     let waiter = {
-        let darwin-code = Arc::clone(&darwin-code);
-        tokio::spawn(async move { darwin-code.shutdown_and_wait().await })
+        let darwin_code = Arc::clone(&darwin_code);
+        tokio::spawn(async move { darwin_code.shutdown_and_wait().await })
     };
 
     tokio::time::sleep(StdDuration::from_millis(10)).await;
@@ -3815,7 +3347,7 @@ async fn shutdown_and_wait_shuts_down_cached_guardian_subagent() {
     let parent_session_loop_handle = tokio::spawn(async move {
         submission_loop(parent_session_for_loop, parent_config, parent_rx_sub).await;
     });
-    let parent_darwin_code = Darwin-Code {
+    let parent_darwin_code = DarwinCode {
         tx_sub: parent_tx_sub,
         rx_event: parent_rx_event,
         agent_status: parent_agent_status,
@@ -3838,7 +3370,7 @@ async fn shutdown_and_wait_shuts_down_cached_guardian_subagent() {
             .send(())
             .expect("child shutdown signal should be delivered");
     });
-    let child_darwin_code = Darwin-Code {
+    let child_darwin_code = DarwinCode {
         tx_sub: child_tx_sub,
         rx_event: child_rx_event,
         agent_status: child_agent_status,
@@ -3872,7 +3404,7 @@ async fn shutdown_and_wait_shuts_down_tracked_ephemeral_guardian_review() {
     let parent_session_loop_handle = tokio::spawn(async move {
         submission_loop(parent_session_for_loop, parent_config, parent_rx_sub).await;
     });
-    let parent_darwin_code = Darwin-Code {
+    let parent_darwin_code = DarwinCode {
         tx_sub: parent_tx_sub,
         rx_event: parent_rx_event,
         agent_status: parent_agent_status,
@@ -3895,7 +3427,7 @@ async fn shutdown_and_wait_shuts_down_tracked_ephemeral_guardian_review() {
             .send(())
             .expect("child shutdown signal should be delivered");
     });
-    let child_darwin_code = Darwin-Code {
+    let child_darwin_code = DarwinCode {
         tx_sub: child_tx_sub,
         rx_event: child_rx_event,
         agent_status: child_agent_status,
@@ -3929,10 +3461,8 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
     let config = build_test_config(darwin_code_home.path()).await;
     let config = Arc::new(config);
     let conversation_id = ThreadId::default();
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
         config.darwin_code_home.to_path_buf(),
-        auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
@@ -4023,11 +3553,7 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         ),
         shell_zsh_path: None,
         main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
-        analytics_events_client: AnalyticsEventsClient::new(
-            Arc::clone(&auth_manager),
-            config.chatgpt_base_url.trim_end_matches('/').to_string(),
-            config.analytics_enabled,
-        ),
+        analytics_events_client: AnalyticsEventsClient::new(config.analytics_enabled),
         hooks: Hooks::new(HooksConfig {
             legacy_notify_argv: config.notify.clone(),
             ..HooksConfig::default()
@@ -4036,13 +3562,11 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         user_shell: Arc::new(default_user_shell()),
         agent_identity_manager: Arc::new(crate::agent_identity::AgentIdentityManager::new(
             config.as_ref(),
-            Arc::clone(&auth_manager),
             session_configuration.session_source.clone(),
         )),
         shell_snapshot_tx: watch::channel(None).0,
         show_raw_agent_reasoning: config.show_raw_agent_reasoning,
         exec_policy,
-        auth_manager: Arc::clone(&auth_manager),
         session_telemetry: session_telemetry.clone(),
         models_manager: Arc::clone(&models_manager),
         tool_approvals: Mutex::new(ApprovalStore::default()),
@@ -4052,14 +3576,12 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         mcp_manager,
         skills_watcher,
         agent_control,
-        network_proxy: None,
         network_approval: Arc::clone(&network_approval),
         state_db: None,
         thread_store: darwin_code_thread_store::LocalThreadStore::new(
             darwin_code_rollout::RolloutConfig::from_view(config.as_ref()),
         ),
         model_client: ModelClient::new(
-            Some(Arc::clone(&auth_manager)),
             conversation_id,
             /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
             session_configuration.provider.clone(),
@@ -4095,7 +3617,6 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
     );
     let turn_context = Arc::new(Session::make_turn_context(
         conversation_id,
-        Some(Arc::clone(&auth_manager)),
         &session_telemetry,
         session_configuration.provider.clone(),
         &session_configuration,
@@ -4119,7 +3640,6 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         agent_status: agent_status_tx,
         out_of_band_elicitation_paused: watch::channel(false).0,
         state: Mutex::new(state),
-        managed_network_proxy_refresh_lock: Mutex::new(()),
         features: config.features.clone(),
         pending_mcp_server_refresh_config: Mutex::new(None),
         conversation: Arc::new(RealtimeConversationManager::new()),
@@ -4161,7 +3681,7 @@ async fn fail_agent_identity_registration_emits_error_without_shutdown() {
     match error_event.msg {
         EventMsg::Error(ErrorEvent {
             message,
-            darwin_code_error_info,
+            codex_error_info: darwin_code_error_info,
         }) => {
             assert_eq!(
                 message,
@@ -4298,7 +3818,7 @@ async fn build_settings_update_items_emits_environment_item_for_network_changes(
             }),
             ..Default::default()
         },
-        RequirementSource::CloudRequirements,
+        RequirementSource::ExternalRequirements,
     ));
     let layers = config
         .config_layer_stack
@@ -4877,6 +4397,7 @@ async fn record_context_updates_and_set_reference_context_item_reinjects_full_co
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     session
         .record_into_history(std::slice::from_ref(&compacted_summary), &turn_context)
@@ -5351,6 +4872,7 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     assert!(
         history.raw_items().iter().any(|item| item == &expected),
@@ -6035,6 +5557,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&user1),
@@ -6050,6 +5573,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&assistant1),
@@ -6077,6 +5601,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&user2),
@@ -6092,6 +5617,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&assistant2),
@@ -6119,6 +5645,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&user3),
@@ -6134,6 +5661,7 @@ async fn sample_rollout(
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     live_history.record_items(
         std::iter::once(&assistant3),
@@ -6318,8 +5846,8 @@ async fn session_start_hooks_only_load_from_trusted_project_layers() -> std::io:
     let darwin_code_home = temp.path().join("home");
     let project_root = temp.path().join("project");
     let nested = project_root.join("nested");
-    let root_dot_darwin_code = project_root.join(".darwin-code");
-    let nested_dot_darwin_code = nested.join(".darwin-code");
+    let root_dot_darwin_code = project_root.join(".darwin_code");
+    let nested_dot_darwin_code = nested.join(".darwin_code");
 
     std::fs::create_dir_all(&darwin_code_home)?;
     std::fs::create_dir_all(&nested_dot_darwin_code)?;
@@ -6335,9 +5863,10 @@ async fn session_start_hooks_only_load_from_trusted_project_layers() -> std::io:
         .await?;
 
     let preview = preview_session_start_hooks(&config).await?;
-    let expected_source_path = darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
-        nested_dot_darwin_code.join("hooks.json"),
-    )?;
+    let expected_source_path =
+        darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(
+            nested_dot_darwin_code.join("hooks.json"),
+        )?;
     assert_eq!(
         preview
             .iter()
@@ -6354,7 +5883,7 @@ async fn session_start_hooks_require_project_trust_without_config_toml() -> std:
     let temp = tempfile::tempdir()?;
     let project_root = temp.path().join("project");
     let nested = project_root.join("nested");
-    let dot_darwin_code = project_root.join(".darwin-code");
+    let dot_darwin_code = project_root.join(".darwin_code");
     std::fs::create_dir_all(&nested)?;
     std::fs::write(project_root.join(".git"), "gitdir: here")?;
     write_project_hooks(&dot_darwin_code)?;

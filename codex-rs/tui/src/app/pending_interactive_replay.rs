@@ -566,7 +566,9 @@ fn app_server_request_id_to_mcp_request_id(
     request_id: &AppServerRequestId,
 ) -> darwin_code_protocol::mcp::RequestId {
     match request_id {
-        AppServerRequestId::String(value) => darwin_code_protocol::mcp::RequestId::String(value.clone()),
+        AppServerRequestId::String(value) => {
+            darwin_code_protocol::mcp::RequestId::String(value.clone())
+        }
         AppServerRequestId::Integer(value) => darwin_code_protocol::mcp::RequestId::Integer(*value),
     }
 }

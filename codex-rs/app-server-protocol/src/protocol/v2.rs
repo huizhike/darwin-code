@@ -3,97 +3,92 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::RequestId;
-use crate::protocol::common::AuthMode;
-use codex_protocol::account::PlanType;
-use codex_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use codex_protocol::approvals::ExecPolicyAmendment as CoreExecPolicyAmendment;
-use codex_protocol::approvals::GuardianAssessmentAction as CoreGuardianAssessmentAction;
-use codex_protocol::approvals::GuardianAssessmentDecisionSource as CoreGuardianAssessmentDecisionSource;
-use codex_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
-use codex_protocol::approvals::NetworkApprovalContext as CoreNetworkApprovalContext;
-use codex_protocol::approvals::NetworkApprovalProtocol as CoreNetworkApprovalProtocol;
-use codex_protocol::approvals::NetworkPolicyAmendment as CoreNetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction as CoreNetworkPolicyRuleAction;
-use codex_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask as CoreCollaborationModeMask;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode as CoreSandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WebSearchToolConfig;
-use codex_protocol::items::AgentMessageContent as CoreAgentMessageContent;
-use codex_protocol::items::TurnItem as CoreTurnItem;
-use codex_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
-use codex_protocol::mcp::Resource as McpResource;
-pub use codex_protocol::mcp::ResourceContent as McpResourceContent;
-use codex_protocol::mcp::ResourceTemplate as McpResourceTemplate;
-use codex_protocol::mcp::Tool as McpTool;
-use codex_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
-use codex_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
-use codex_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
-use codex_protocol::models::PermissionProfile as CorePermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::parse_command::ParsedCommand as CoreParsedCommand;
-use codex_protocol::plan_tool::PlanItemArg as CorePlanItemArg;
-use codex_protocol::plan_tool::StepStatus as CorePlanStepStatus;
-use codex_protocol::protocol::AgentStatus as CoreAgentStatus;
-use codex_protocol::protocol::AskForApproval as CoreAskForApproval;
-use codex_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
-use codex_protocol::protocol::CreditsSnapshot as CoreCreditsSnapshot;
-use codex_protocol::protocol::ExecCommandSource as CoreExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
-use codex_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
-use codex_protocol::protocol::GuardianRiskLevel as CoreGuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization as CoreGuardianUserAuthorization;
-use codex_protocol::protocol::HookEventName as CoreHookEventName;
-use codex_protocol::protocol::HookExecutionMode as CoreHookExecutionMode;
-use codex_protocol::protocol::HookHandlerType as CoreHookHandlerType;
-use codex_protocol::protocol::HookOutputEntry as CoreHookOutputEntry;
-use codex_protocol::protocol::HookOutputEntryKind as CoreHookOutputEntryKind;
-use codex_protocol::protocol::HookRunStatus as CoreHookRunStatus;
-use codex_protocol::protocol::HookRunSummary as CoreHookRunSummary;
-use codex_protocol::protocol::HookScope as CoreHookScope;
-use codex_protocol::protocol::HookSource as CoreHookSource;
-use codex_protocol::protocol::ModelRerouteReason as CoreModelRerouteReason;
-use codex_protocol::protocol::NetworkAccess as CoreNetworkAccess;
-use codex_protocol::protocol::NonSteerableTurnKind as CoreNonSteerableTurnKind;
-use codex_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
-use codex_protocol::protocol::RateLimitReachedType as CoreRateLimitReachedType;
-use codex_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow as CoreRateLimitWindow;
-use codex_protocol::protocol::ReadOnlyAccess as CoreReadOnlyAccess;
-use codex_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
-use codex_protocol::protocol::ReviewDecision as CoreReviewDecision;
-use codex_protocol::protocol::SessionSource as CoreSessionSource;
-use codex_protocol::protocol::SkillDependencies as CoreSkillDependencies;
-use codex_protocol::protocol::SkillInterface as CoreSkillInterface;
-use codex_protocol::protocol::SkillMetadata as CoreSkillMetadata;
-use codex_protocol::protocol::SkillScope as CoreSkillScope;
-use codex_protocol::protocol::SkillToolDependency as CoreSkillToolDependency;
-use codex_protocol::protocol::SubAgentSource as CoreSubAgentSource;
-use codex_protocol::protocol::TokenUsage as CoreTokenUsage;
-use codex_protocol::protocol::TokenUsageInfo as CoreTokenUsageInfo;
-use codex_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use codex_protocol::user_input::ByteRange as CoreByteRange;
-use codex_protocol::user_input::TextElement as CoreTextElement;
-use codex_protocol::user_input::UserInput as CoreUserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use codex_experimental_api_macros::ExperimentalApi;
+use darwin_code_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
+use darwin_code_protocol::approvals::ExecPolicyAmendment as CoreExecPolicyAmendment;
+use darwin_code_protocol::approvals::GuardianAssessmentAction as CoreGuardianAssessmentAction;
+use darwin_code_protocol::approvals::GuardianAssessmentDecisionSource as CoreGuardianAssessmentDecisionSource;
+use darwin_code_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
+use darwin_code_protocol::approvals::NetworkApprovalContext as CoreNetworkApprovalContext;
+use darwin_code_protocol::approvals::NetworkApprovalProtocol as CoreNetworkApprovalProtocol;
+use darwin_code_protocol::approvals::NetworkPolicyAmendment as CoreNetworkPolicyAmendment;
+use darwin_code_protocol::approvals::NetworkPolicyRuleAction as CoreNetworkPolicyRuleAction;
+use darwin_code_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::CollaborationModeMask as CoreCollaborationModeMask;
+use darwin_code_protocol::config_types::ForcedLoginMethod;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::SandboxMode as CoreSandboxMode;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::Verbosity;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WebSearchToolConfig;
+use darwin_code_protocol::items::AgentMessageContent as CoreAgentMessageContent;
+use darwin_code_protocol::items::TurnItem as CoreTurnItem;
+use darwin_code_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
+use darwin_code_protocol::mcp::Resource as McpResource;
+pub use darwin_code_protocol::mcp::ResourceContent as McpResourceContent;
+use darwin_code_protocol::mcp::ResourceTemplate as McpResourceTemplate;
+use darwin_code_protocol::mcp::Tool as McpTool;
+use darwin_code_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
+use darwin_code_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
+use darwin_code_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::models::NetworkPermissions as CoreNetworkPermissions;
+use darwin_code_protocol::models::PermissionProfile as CorePermissionProfile;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::default_input_modalities;
+use darwin_code_protocol::parse_command::ParsedCommand as CoreParsedCommand;
+use darwin_code_protocol::plan_tool::PlanItemArg as CorePlanItemArg;
+use darwin_code_protocol::plan_tool::StepStatus as CorePlanStepStatus;
+use darwin_code_protocol::protocol::AgentStatus as CoreAgentStatus;
+use darwin_code_protocol::protocol::AskForApproval as CoreAskForApproval;
+use darwin_code_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
+use darwin_code_protocol::protocol::ExecCommandSource as CoreExecCommandSource;
+use darwin_code_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
+use darwin_code_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
+use darwin_code_protocol::protocol::GuardianRiskLevel as CoreGuardianRiskLevel;
+use darwin_code_protocol::protocol::GuardianUserAuthorization as CoreGuardianUserAuthorization;
+use darwin_code_protocol::protocol::HookEventName as CoreHookEventName;
+use darwin_code_protocol::protocol::HookExecutionMode as CoreHookExecutionMode;
+use darwin_code_protocol::protocol::HookHandlerType as CoreHookHandlerType;
+use darwin_code_protocol::protocol::HookOutputEntry as CoreHookOutputEntry;
+use darwin_code_protocol::protocol::HookOutputEntryKind as CoreHookOutputEntryKind;
+use darwin_code_protocol::protocol::HookRunStatus as CoreHookRunStatus;
+use darwin_code_protocol::protocol::HookRunSummary as CoreHookRunSummary;
+use darwin_code_protocol::protocol::HookScope as CoreHookScope;
+use darwin_code_protocol::protocol::HookSource as CoreHookSource;
+use darwin_code_protocol::protocol::ModelRerouteReason as CoreModelRerouteReason;
+use darwin_code_protocol::protocol::NetworkAccess as CoreNetworkAccess;
+use darwin_code_protocol::protocol::NonSteerableTurnKind as CoreNonSteerableTurnKind;
+use darwin_code_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
+use darwin_code_protocol::protocol::ReadOnlyAccess as CoreReadOnlyAccess;
+use darwin_code_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
+use darwin_code_protocol::protocol::RealtimeConversationVersion;
+use darwin_code_protocol::protocol::RealtimeOutputModality;
+use darwin_code_protocol::protocol::RealtimeVoice;
+use darwin_code_protocol::protocol::RealtimeVoicesList;
+use darwin_code_protocol::protocol::ReviewDecision as CoreReviewDecision;
+use darwin_code_protocol::protocol::SessionSource as CoreSessionSource;
+use darwin_code_protocol::protocol::SkillDependencies as CoreSkillDependencies;
+use darwin_code_protocol::protocol::SkillInterface as CoreSkillInterface;
+use darwin_code_protocol::protocol::SkillMetadata as CoreSkillMetadata;
+use darwin_code_protocol::protocol::SkillScope as CoreSkillScope;
+use darwin_code_protocol::protocol::SkillToolDependency as CoreSkillToolDependency;
+use darwin_code_protocol::protocol::SubAgentSource as CoreSubAgentSource;
+use darwin_code_protocol::protocol::TokenUsage as CoreTokenUsage;
+use darwin_code_protocol::protocol::TokenUsageInfo as CoreTokenUsageInfo;
+use darwin_code_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use darwin_code_protocol::user_input::ByteRange as CoreByteRange;
+use darwin_code_protocol::user_input::TextElement as CoreTextElement;
+use darwin_code_protocol::user_input::UserInput as CoreUserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -189,6 +184,8 @@ pub enum CodexErrorInfo {
     },
     Other,
 }
+
+pub type DarwinCodeErrorInfo = CodexErrorInfo;
 
 impl From<CoreCodexErrorInfo> for CodexErrorInfo {
     fn from(value: CoreCodexErrorInfo) -> Self {
@@ -359,13 +356,13 @@ impl From<CoreSandboxMode> for SandboxMode {
 }
 
 v2_enum_from_core!(
-    pub enum ReviewDelivery from codex_protocol::protocol::ReviewDelivery {
+    pub enum ReviewDelivery from darwin_code_protocol::protocol::ReviewDelivery {
         Inline, Detached
     }
 );
 
 v2_enum_from_core!(
-    pub enum McpAuthStatus from codex_protocol::protocol::McpAuthStatus {
+    pub enum McpAuthStatus from darwin_code_protocol::protocol::McpAuthStatus {
         Unsupported,
         NotLoggedIn,
         BearerToken,
@@ -666,7 +663,6 @@ pub struct ProfileV2 {
     pub model_verbosity: Option<Verbosity>,
     pub web_search: Option<WebSearchMode>,
     pub tools: Option<ToolsV2>,
-    pub chatgpt_base_url: Option<String>,
     #[serde(default, flatten)]
     pub additional: HashMap<String, JsonValue>,
 }
@@ -765,7 +761,6 @@ pub struct Config {
     pub approvals_reviewer: Option<ApprovalsReviewer>,
     pub sandbox_mode: Option<SandboxMode>,
     pub sandbox_workspace_write: Option<SandboxWorkspaceWrite>,
-    pub forced_chatgpt_workspace_id: Option<String>,
     pub forced_login_method: Option<ForcedLoginMethod>,
     pub web_search: Option<WebSearchMode>,
     pub tools: Option<ToolsV2>,
@@ -877,80 +872,6 @@ pub struct ConfigReadResponse {
     pub origins: HashMap<String, ConfigLayerMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layers: Option<Vec<ConfigLayer>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct ConfigRequirements {
-    #[experimental(nested)]
-    pub allowed_approval_policies: Option<Vec<AskForApproval>>,
-    #[experimental("configRequirements/read.allowedApprovalsReviewers")]
-    pub allowed_approvals_reviewers: Option<Vec<ApprovalsReviewer>>,
-    pub allowed_sandbox_modes: Option<Vec<SandboxMode>>,
-    pub allowed_web_search_modes: Option<Vec<WebSearchMode>>,
-    pub feature_requirements: Option<BTreeMap<String, bool>>,
-    pub enforce_residency: Option<ResidencyRequirement>,
-    #[experimental("configRequirements/read.network")]
-    pub network: Option<NetworkRequirements>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct NetworkRequirements {
-    pub enabled: Option<bool>,
-    pub http_port: Option<u16>,
-    pub socks_port: Option<u16>,
-    pub allow_upstream_proxy: Option<bool>,
-    pub dangerously_allow_non_loopback_proxy: Option<bool>,
-    pub dangerously_allow_all_unix_sockets: Option<bool>,
-    /// Canonical network permission map for `experimental_network`.
-    pub domains: Option<BTreeMap<String, NetworkDomainPermission>>,
-    /// When true, only managed allowlist entries are respected while managed
-    /// network enforcement is active.
-    pub managed_allowed_domains_only: Option<bool>,
-    /// Legacy compatibility view derived from `domains`.
-    pub allowed_domains: Option<Vec<String>>,
-    /// Legacy compatibility view derived from `domains`.
-    pub denied_domains: Option<Vec<String>>,
-    /// Canonical unix socket permission map for `experimental_network`.
-    pub unix_sockets: Option<BTreeMap<String, NetworkUnixSocketPermission>>,
-    /// Legacy compatibility view derived from `unix_sockets`.
-    pub allow_unix_sockets: Option<Vec<String>>,
-    pub allow_local_binding: Option<bool>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "lowercase")]
-#[ts(export_to = "v2/")]
-pub enum NetworkDomainPermission {
-    Allow,
-    Deny,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "lowercase")]
-#[ts(export_to = "v2/")]
-pub enum NetworkUnixSocketPermission {
-    Allow,
-    None,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub enum ResidencyRequirement {
-    Us,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct ConfigRequirementsReadResponse {
-    /// Null if no requirements are configured (e.g. no requirements.toml/MDM entries).
-    #[experimental(nested)]
-    pub requirements: Option<ConfigRequirements>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, JsonSchema, TS)]
@@ -1379,20 +1300,20 @@ pub enum SandboxPolicy {
 }
 
 impl SandboxPolicy {
-    pub fn to_core(&self) -> codex_protocol::protocol::SandboxPolicy {
+    pub fn to_core(&self) -> darwin_code_protocol::protocol::SandboxPolicy {
         match self {
             SandboxPolicy::DangerFullAccess => {
-                codex_protocol::protocol::SandboxPolicy::DangerFullAccess
+                darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess
             }
             SandboxPolicy::ReadOnly {
                 access,
                 network_access,
-            } => codex_protocol::protocol::SandboxPolicy::ReadOnly {
+            } => darwin_code_protocol::protocol::SandboxPolicy::ReadOnly {
                 access: access.to_core(),
                 network_access: *network_access,
             },
             SandboxPolicy::ExternalSandbox { network_access } => {
-                codex_protocol::protocol::SandboxPolicy::ExternalSandbox {
+                darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox {
                     network_access: match network_access {
                         NetworkAccess::Restricted => CoreNetworkAccess::Restricted,
                         NetworkAccess::Enabled => CoreNetworkAccess::Enabled,
@@ -1405,7 +1326,7 @@ impl SandboxPolicy {
                 network_access,
                 exclude_tmpdir_env_var,
                 exclude_slash_tmp,
-            } => codex_protocol::protocol::SandboxPolicy::WorkspaceWrite {
+            } => darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots: writable_roots.clone(),
                 read_only_access: read_only_access.to_core(),
                 network_access: *network_access,
@@ -1416,20 +1337,20 @@ impl SandboxPolicy {
     }
 }
 
-impl From<codex_protocol::protocol::SandboxPolicy> for SandboxPolicy {
-    fn from(value: codex_protocol::protocol::SandboxPolicy) -> Self {
+impl From<darwin_code_protocol::protocol::SandboxPolicy> for SandboxPolicy {
+    fn from(value: darwin_code_protocol::protocol::SandboxPolicy) -> Self {
         match value {
-            codex_protocol::protocol::SandboxPolicy::DangerFullAccess => {
+            darwin_code_protocol::protocol::SandboxPolicy::DangerFullAccess => {
                 SandboxPolicy::DangerFullAccess
             }
-            codex_protocol::protocol::SandboxPolicy::ReadOnly {
+            darwin_code_protocol::protocol::SandboxPolicy::ReadOnly {
                 access,
                 network_access,
             } => SandboxPolicy::ReadOnly {
                 access: ReadOnlyAccess::from(access),
                 network_access,
             },
-            codex_protocol::protocol::SandboxPolicy::ExternalSandbox { network_access } => {
+            darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox { network_access } => {
                 SandboxPolicy::ExternalSandbox {
                     network_access: match network_access {
                         CoreNetworkAccess::Restricted => NetworkAccess::Restricted,
@@ -1437,7 +1358,7 @@ impl From<codex_protocol::protocol::SandboxPolicy> for SandboxPolicy {
                     },
                 }
             }
-            codex_protocol::protocol::SandboxPolicy::WorkspaceWrite {
+            darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots,
                 read_only_access,
                 network_access,
@@ -1630,183 +1551,6 @@ impl CommandAction {
             CoreParsedCommand::Unknown { cmd } => CommandAction::Unknown { command: cmd },
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
-#[ts(tag = "type")]
-#[ts(export_to = "v2/")]
-pub enum Account {
-    #[serde(rename = "apiKey", rename_all = "camelCase")]
-    #[ts(rename = "apiKey", rename_all = "camelCase")]
-    ApiKey {},
-
-    #[serde(rename = "chatgpt", rename_all = "camelCase")]
-    #[ts(rename = "chatgpt", rename_all = "camelCase")]
-    Chatgpt { email: String, plan_type: PlanType },
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
-#[serde(tag = "type")]
-#[ts(tag = "type")]
-#[ts(export_to = "v2/")]
-pub enum LoginAccountParams {
-    #[serde(rename = "apiKey", rename_all = "camelCase")]
-    #[ts(rename = "apiKey", rename_all = "camelCase")]
-    ApiKey {
-        #[serde(rename = "apiKey")]
-        #[ts(rename = "apiKey")]
-        api_key: String,
-    },
-    #[serde(rename = "chatgpt")]
-    #[ts(rename = "chatgpt")]
-    Chatgpt,
-    #[serde(rename = "chatgptDeviceCode")]
-    #[ts(rename = "chatgptDeviceCode")]
-    ChatgptDeviceCode,
-    /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
-    /// The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.
-    #[experimental("account/login/start.chatgptAuthTokens")]
-    #[serde(rename = "chatgptAuthTokens", rename_all = "camelCase")]
-    #[ts(rename = "chatgptAuthTokens", rename_all = "camelCase")]
-    ChatgptAuthTokens {
-        /// Access token (JWT) supplied by the client.
-        /// This token is used for backend API requests and email extraction.
-        access_token: String,
-        /// Workspace/account identifier supplied by the client.
-        chatgpt_account_id: String,
-        /// Optional plan type supplied by the client.
-        ///
-        /// When `null`, Codex attempts to derive the plan type from access-token
-        /// claims. If unavailable, the plan defaults to `unknown`.
-        #[ts(optional = nullable)]
-        chatgpt_plan_type: Option<String>,
-    },
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(tag = "type", rename_all = "camelCase")]
-#[ts(tag = "type")]
-#[ts(export_to = "v2/")]
-pub enum LoginAccountResponse {
-    #[serde(rename = "apiKey", rename_all = "camelCase")]
-    #[ts(rename = "apiKey", rename_all = "camelCase")]
-    ApiKey {},
-    #[serde(rename = "chatgpt", rename_all = "camelCase")]
-    #[ts(rename = "chatgpt", rename_all = "camelCase")]
-    Chatgpt {
-        // Use plain String for identifiers to avoid TS/JSON Schema quirks around uuid-specific types.
-        // Convert to/from UUIDs at the application layer as needed.
-        login_id: String,
-        /// URL the client should open in a browser to initiate the OAuth flow.
-        auth_url: String,
-    },
-    #[serde(rename = "chatgptDeviceCode", rename_all = "camelCase")]
-    #[ts(rename = "chatgptDeviceCode", rename_all = "camelCase")]
-    ChatgptDeviceCode {
-        // Use plain String for identifiers to avoid TS/JSON Schema quirks around uuid-specific types.
-        // Convert to/from UUIDs at the application layer as needed.
-        login_id: String,
-        /// URL the client should open in a browser to complete device code authorization.
-        verification_url: String,
-        /// One-time code the user must enter after signing in.
-        user_code: String,
-    },
-    #[serde(rename = "chatgptAuthTokens", rename_all = "camelCase")]
-    #[ts(rename = "chatgptAuthTokens", rename_all = "camelCase")]
-    ChatgptAuthTokens {},
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct CancelLoginAccountParams {
-    pub login_id: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub enum CancelLoginAccountStatus {
-    Canceled,
-    NotFound,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct CancelLoginAccountResponse {
-    pub status: CancelLoginAccountStatus,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct LogoutAccountResponse {}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub enum ChatgptAuthTokensRefreshReason {
-    /// Codex attempted a backend request and received `401 Unauthorized`.
-    Unauthorized,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct ChatgptAuthTokensRefreshParams {
-    pub reason: ChatgptAuthTokensRefreshReason,
-    /// Workspace/account identifier that Codex was previously using.
-    ///
-    /// Clients that manage multiple accounts/workspaces can use this as a hint
-    /// to refresh the token for the correct workspace.
-    ///
-    /// This may be `null` when the prior auth state did not include a workspace
-    /// identifier (`chatgpt_account_id`).
-    #[ts(optional = nullable)]
-    pub previous_account_id: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct ChatgptAuthTokensRefreshResponse {
-    pub access_token: String,
-    pub chatgpt_account_id: String,
-    pub chatgpt_plan_type: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct GetAccountRateLimitsResponse {
-    /// Backward-compatible single-bucket view; mirrors the historical payload.
-    pub rate_limits: RateLimitSnapshot,
-    /// Multi-bucket view keyed by metered `limit_id` (for example, `codex`).
-    pub rate_limits_by_limit_id: Option<HashMap<String, RateLimitSnapshot>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct GetAccountParams {
-    /// When `true`, requests a proactive token refresh before returning.
-    ///
-    /// In managed auth mode this triggers the normal refresh-token flow. In
-    /// external auth mode this flag is ignored. Clients should refresh tokens
-    /// themselves and call `account/login/start` with `chatgptAuthTokens`.
-    #[serde(default)]
-    pub refresh_token: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct GetAccountResponse {
-    pub account: Option<Account>,
-    pub requires_openai_auth: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema, TS)]
@@ -3119,10 +2863,10 @@ impl ThreadMemoryMode {
         }
     }
 
-    pub fn to_core(self) -> codex_protocol::protocol::ThreadMemoryMode {
+    pub fn to_core(self) -> darwin_code_protocol::protocol::ThreadMemoryMode {
         match self {
-            Self::Enabled => codex_protocol::protocol::ThreadMemoryMode::Enabled,
-            Self::Disabled => codex_protocol::protocol::ThreadMemoryMode::Disabled,
+            Self::Enabled => darwin_code_protocol::protocol::ThreadMemoryMode::Enabled,
+            Self::Disabled => darwin_code_protocol::protocol::ThreadMemoryMode::Disabled,
         }
     }
 }
@@ -3885,14 +3629,6 @@ pub struct Thread {
     /// For all other responses and notifications returning a Thread,
     /// the turns field will be an empty list.
     pub turns: Vec<Turn>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct AccountUpdatedNotification {
-    pub auth_mode: Option<AuthMode>,
-    pub plan_type: Option<PlanType>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -5116,19 +4852,19 @@ pub enum WebSearchAction {
     Other,
 }
 
-impl From<codex_protocol::models::WebSearchAction> for WebSearchAction {
-    fn from(value: codex_protocol::models::WebSearchAction) -> Self {
+impl From<darwin_code_protocol::models::WebSearchAction> for WebSearchAction {
+    fn from(value: darwin_code_protocol::models::WebSearchAction) -> Self {
         match value {
-            codex_protocol::models::WebSearchAction::Search { query, queries } => {
+            darwin_code_protocol::models::WebSearchAction::Search { query, queries } => {
                 WebSearchAction::Search { query, queries }
             }
-            codex_protocol::models::WebSearchAction::OpenPage { url } => {
+            darwin_code_protocol::models::WebSearchAction::OpenPage { url } => {
                 WebSearchAction::OpenPage { url }
             }
-            codex_protocol::models::WebSearchAction::FindInPage { url, pattern } => {
+            darwin_code_protocol::models::WebSearchAction::FindInPage { url, pattern } => {
                 WebSearchAction::FindInPage { url, pattern }
             }
-            codex_protocol::models::WebSearchAction::Other => WebSearchAction::Other,
+            darwin_code_protocol::models::WebSearchAction::Other => WebSearchAction::Other,
         }
     }
 }
@@ -5191,8 +4927,8 @@ impl From<CoreTurnItem> for ThreadItem {
     }
 }
 
-impl From<codex_protocol::items::HookPromptFragment> for HookPromptFragment {
-    fn from(value: codex_protocol::items::HookPromptFragment) -> Self {
+impl From<darwin_code_protocol::items::HookPromptFragment> for HookPromptFragment {
+    fn from(value: darwin_code_protocol::items::HookPromptFragment) -> Self {
         Self {
             text: value.text,
             hook_run_id: value.hook_run_id,
@@ -5951,11 +5687,11 @@ pub enum McpServerElicitationAction {
 }
 
 impl McpServerElicitationAction {
-    pub fn to_core(self) -> codex_protocol::approvals::ElicitationAction {
+    pub fn to_core(self) -> darwin_code_protocol::approvals::ElicitationAction {
         match self {
-            Self::Accept => codex_protocol::approvals::ElicitationAction::Accept,
-            Self::Decline => codex_protocol::approvals::ElicitationAction::Decline,
-            Self::Cancel => codex_protocol::approvals::ElicitationAction::Cancel,
+            Self::Accept => darwin_code_protocol::approvals::ElicitationAction::Accept,
+            Self::Decline => darwin_code_protocol::approvals::ElicitationAction::Decline,
+            Self::Cancel => darwin_code_protocol::approvals::ElicitationAction::Cancel,
         }
     }
 }
@@ -6466,7 +6202,7 @@ pub enum DynamicToolCallOutputContentItem {
 }
 
 impl From<DynamicToolCallOutputContentItem>
-    for codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem
+    for darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem
 {
     fn from(item: DynamicToolCallOutputContentItem) -> Self {
         match item {
@@ -6527,144 +6263,6 @@ pub struct ToolRequestUserInputAnswer {
 /// EXPERIMENTAL. Response payload mapping question ids to answers.
 pub struct ToolRequestUserInputResponse {
     pub answers: HashMap<String, ToolRequestUserInputAnswer>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct AccountRateLimitsUpdatedNotification {
-    pub rate_limits: RateLimitSnapshot,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct RateLimitSnapshot {
-    pub limit_id: Option<String>,
-    pub limit_name: Option<String>,
-    pub primary: Option<RateLimitWindow>,
-    pub secondary: Option<RateLimitWindow>,
-    pub credits: Option<CreditsSnapshot>,
-    pub plan_type: Option<PlanType>,
-    pub rate_limit_reached_type: Option<RateLimitReachedType>,
-}
-
-impl From<CoreRateLimitSnapshot> for RateLimitSnapshot {
-    fn from(value: CoreRateLimitSnapshot) -> Self {
-        Self {
-            limit_id: value.limit_id,
-            limit_name: value.limit_name,
-            primary: value.primary.map(RateLimitWindow::from),
-            secondary: value.secondary.map(RateLimitWindow::from),
-            credits: value.credits.map(CreditsSnapshot::from),
-            plan_type: value.plan_type,
-            rate_limit_reached_type: value
-                .rate_limit_reached_type
-                .map(RateLimitReachedType::from),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export_to = "v2/", rename_all = "snake_case")]
-pub enum RateLimitReachedType {
-    RateLimitReached,
-    WorkspaceOwnerCreditsDepleted,
-    WorkspaceMemberCreditsDepleted,
-    WorkspaceOwnerUsageLimitReached,
-    WorkspaceMemberUsageLimitReached,
-}
-
-impl From<CoreRateLimitReachedType> for RateLimitReachedType {
-    fn from(value: CoreRateLimitReachedType) -> Self {
-        match value {
-            CoreRateLimitReachedType::RateLimitReached => Self::RateLimitReached,
-            CoreRateLimitReachedType::WorkspaceOwnerCreditsDepleted => {
-                Self::WorkspaceOwnerCreditsDepleted
-            }
-            CoreRateLimitReachedType::WorkspaceMemberCreditsDepleted => {
-                Self::WorkspaceMemberCreditsDepleted
-            }
-            CoreRateLimitReachedType::WorkspaceOwnerUsageLimitReached => {
-                Self::WorkspaceOwnerUsageLimitReached
-            }
-            CoreRateLimitReachedType::WorkspaceMemberUsageLimitReached => {
-                Self::WorkspaceMemberUsageLimitReached
-            }
-        }
-    }
-}
-
-impl From<RateLimitReachedType> for CoreRateLimitReachedType {
-    fn from(value: RateLimitReachedType) -> Self {
-        match value {
-            RateLimitReachedType::RateLimitReached => Self::RateLimitReached,
-            RateLimitReachedType::WorkspaceOwnerCreditsDepleted => {
-                Self::WorkspaceOwnerCreditsDepleted
-            }
-            RateLimitReachedType::WorkspaceMemberCreditsDepleted => {
-                Self::WorkspaceMemberCreditsDepleted
-            }
-            RateLimitReachedType::WorkspaceOwnerUsageLimitReached => {
-                Self::WorkspaceOwnerUsageLimitReached
-            }
-            RateLimitReachedType::WorkspaceMemberUsageLimitReached => {
-                Self::WorkspaceMemberUsageLimitReached
-            }
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct RateLimitWindow {
-    pub used_percent: i32,
-    #[ts(type = "number | null")]
-    pub window_duration_mins: Option<i64>,
-    #[ts(type = "number | null")]
-    pub resets_at: Option<i64>,
-}
-
-impl From<CoreRateLimitWindow> for RateLimitWindow {
-    fn from(value: CoreRateLimitWindow) -> Self {
-        Self {
-            used_percent: value.used_percent.round() as i32,
-            window_duration_mins: value.window_minutes,
-            resets_at: value.resets_at,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct CreditsSnapshot {
-    pub has_credits: bool,
-    pub unlimited: bool,
-    pub balance: Option<String>,
-}
-
-impl From<CoreCreditsSnapshot> for CreditsSnapshot {
-    fn from(value: CoreCreditsSnapshot) -> Self {
-        Self {
-            has_credits: value.has_credits,
-            unlimited: value.unlimited,
-            balance: value.balance,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export_to = "v2/")]
-pub struct AccountLoginCompletedNotification {
-    // Use plain String for identifiers to avoid TS/JSON Schema quirks around uuid-specific types.
-    // Convert to/from UUIDs at the application layer as needed.
-    pub login_id: Option<String>,
-    pub success: bool,
-    pub error: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -6737,18 +6335,18 @@ pub struct ConfigWarningNotification {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::items::AgentMessageContent;
-    use codex_protocol::items::AgentMessageItem;
-    use codex_protocol::items::ReasoningItem;
-    use codex_protocol::items::TurnItem;
-    use codex_protocol::items::UserMessageItem;
-    use codex_protocol::items::WebSearchItem;
-    use codex_protocol::models::WebSearchAction as CoreWebSearchAction;
-    use codex_protocol::protocol::NetworkAccess as CoreNetworkAccess;
-    use codex_protocol::protocol::ReadOnlyAccess as CoreReadOnlyAccess;
-    use codex_protocol::user_input::UserInput as CoreUserInput;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_protocol::items::AgentMessageContent;
+    use darwin_code_protocol::items::AgentMessageItem;
+    use darwin_code_protocol::items::ReasoningItem;
+    use darwin_code_protocol::items::TurnItem;
+    use darwin_code_protocol::items::UserMessageItem;
+    use darwin_code_protocol::items::WebSearchItem;
+    use darwin_code_protocol::models::WebSearchAction as CoreWebSearchAction;
+    use darwin_code_protocol::protocol::NetworkAccess as CoreNetworkAccess;
+    use darwin_code_protocol::protocol::ReadOnlyAccess as CoreReadOnlyAccess;
+    use darwin_code_protocol::user_input::UserInput as CoreUserInput;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -7532,7 +7130,7 @@ mod tests {
         let core_policy = v2_policy.to_core();
         assert_eq!(
             core_policy,
-            codex_protocol::protocol::SandboxPolicy::ExternalSandbox {
+            darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox {
                 network_access: CoreNetworkAccess::Enabled,
             }
         );
@@ -7555,7 +7153,7 @@ mod tests {
         let core_policy = v2_policy.to_core();
         assert_eq!(
             core_policy,
-            codex_protocol::protocol::SandboxPolicy::ReadOnly {
+            darwin_code_protocol::protocol::SandboxPolicy::ReadOnly {
                 access: CoreReadOnlyAccess::Restricted {
                     include_platform_defaults: false,
                     readable_roots: vec![readable_root],
@@ -7657,7 +7255,6 @@ mod tests {
             model_verbosity: None,
             web_search: None,
             tools: None,
-            chatgpt_base_url: None,
             additional: HashMap::new(),
         });
 
@@ -7682,7 +7279,6 @@ mod tests {
             approvals_reviewer: None,
             sandbox_mode: None,
             sandbox_workspace_write: None,
-            forced_chatgpt_workspace_id: None,
             forced_login_method: None,
             web_search: None,
             tools: None,
@@ -7715,7 +7311,6 @@ mod tests {
             approvals_reviewer: Some(ApprovalsReviewer::GuardianSubagent),
             sandbox_mode: None,
             sandbox_workspace_write: None,
-            forced_chatgpt_workspace_id: None,
             forced_login_method: None,
             web_search: None,
             tools: None,
@@ -7748,7 +7343,6 @@ mod tests {
             approvals_reviewer: None,
             sandbox_mode: None,
             sandbox_workspace_write: None,
-            forced_chatgpt_workspace_id: None,
             forced_login_method: None,
             web_search: None,
             tools: None,
@@ -7772,7 +7366,6 @@ mod tests {
                     model_verbosity: None,
                     web_search: None,
                     tools: None,
-                    chatgpt_base_url: None,
                     additional: HashMap::new(),
                 },
             )]),
@@ -7803,7 +7396,6 @@ mod tests {
             approvals_reviewer: None,
             sandbox_mode: None,
             sandbox_workspace_write: None,
-            forced_chatgpt_workspace_id: None,
             forced_login_method: None,
             web_search: None,
             tools: None,
@@ -7821,7 +7413,6 @@ mod tests {
                     model_verbosity: None,
                     web_search: None,
                     tools: None,
-                    chatgpt_base_url: None,
                     additional: HashMap::new(),
                 },
             )]),
@@ -7838,28 +7429,6 @@ mod tests {
         });
 
         assert_eq!(reason, Some("config/read.approvalsReviewer"));
-    }
-
-    #[test]
-    fn config_requirements_granular_allowed_approval_policy_is_marked_experimental() {
-        let reason =
-            crate::experimental_api::ExperimentalApi::experimental_reason(&ConfigRequirements {
-                allowed_approval_policies: Some(vec![AskForApproval::Granular {
-                    sandbox_approval: true,
-                    rules: true,
-                    skill_approval: false,
-                    request_permissions: false,
-                    mcp_elicitations: false,
-                }]),
-                allowed_approvals_reviewers: None,
-                allowed_sandbox_modes: None,
-                allowed_web_search_modes: None,
-                feature_requirements: None,
-                enforce_residency: None,
-                network: None,
-            });
-
-        assert_eq!(reason, Some("askForApproval.granular"));
     }
 
     #[test]
@@ -8198,7 +7767,7 @@ mod tests {
         let core_policy = v2_policy.to_core();
         assert_eq!(
             core_policy,
-            codex_protocol::protocol::SandboxPolicy::WorkspaceWrite {
+            darwin_code_protocol::protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots: vec![],
                 read_only_access: CoreReadOnlyAccess::Restricted {
                     include_platform_defaults: false,
@@ -8293,94 +7862,6 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&action).expect("serialize guardian review action"),
             value
-        );
-    }
-
-    #[test]
-    fn network_requirements_deserializes_legacy_fields() {
-        let requirements: NetworkRequirements = serde_json::from_value(json!({
-            "allowedDomains": ["api.openai.com"],
-            "deniedDomains": ["blocked.example.com"],
-            "allowUnixSockets": ["/tmp/proxy.sock"]
-        }))
-        .expect("legacy network requirements should deserialize");
-
-        assert_eq!(
-            requirements,
-            NetworkRequirements {
-                enabled: None,
-                http_port: None,
-                socks_port: None,
-                allow_upstream_proxy: None,
-                dangerously_allow_non_loopback_proxy: None,
-                dangerously_allow_all_unix_sockets: None,
-                domains: None,
-                managed_allowed_domains_only: None,
-                allowed_domains: Some(vec!["api.openai.com".to_string()]),
-                denied_domains: Some(vec!["blocked.example.com".to_string()]),
-                unix_sockets: None,
-                allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
-                allow_local_binding: None,
-            }
-        );
-    }
-
-    #[test]
-    fn network_requirements_serializes_canonical_and_legacy_fields() {
-        let requirements = NetworkRequirements {
-            enabled: Some(true),
-            http_port: Some(8080),
-            socks_port: Some(1080),
-            allow_upstream_proxy: Some(false),
-            dangerously_allow_non_loopback_proxy: Some(false),
-            dangerously_allow_all_unix_sockets: Some(true),
-            domains: Some(BTreeMap::from([
-                ("api.openai.com".to_string(), NetworkDomainPermission::Allow),
-                (
-                    "blocked.example.com".to_string(),
-                    NetworkDomainPermission::Deny,
-                ),
-            ])),
-            managed_allowed_domains_only: Some(true),
-            allowed_domains: Some(vec!["api.openai.com".to_string()]),
-            denied_domains: Some(vec!["blocked.example.com".to_string()]),
-            unix_sockets: Some(BTreeMap::from([
-                (
-                    "/tmp/proxy.sock".to_string(),
-                    NetworkUnixSocketPermission::Allow,
-                ),
-                (
-                    "/tmp/ignored.sock".to_string(),
-                    NetworkUnixSocketPermission::None,
-                ),
-            ])),
-            allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
-            allow_local_binding: Some(true),
-        };
-
-        assert_eq!(
-            serde_json::to_value(requirements).expect("network requirements should serialize"),
-            json!({
-                "enabled": true,
-                "httpPort": 8080,
-                "socksPort": 1080,
-                "allowUpstreamProxy": false,
-                "dangerouslyAllowNonLoopbackProxy": false,
-                "dangerouslyAllowAllUnixSockets": true,
-                "domains": {
-                    "api.openai.com": "allow",
-                    "blocked.example.com": "deny"
-                },
-                "managedAllowedDomainsOnly": true,
-                "allowedDomains": ["api.openai.com"],
-                "deniedDomains": ["blocked.example.com"],
-                "unixSockets": {
-                    "/tmp/ignored.sock": "none",
-                    "/tmp/proxy.sock": "allow"
-                },
-                "allowUnixSockets": ["/tmp/proxy.sock"],
-                "allowLocalBinding": true
-            })
         );
     }
 

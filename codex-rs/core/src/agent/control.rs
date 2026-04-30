@@ -256,7 +256,7 @@ impl AgentControl {
             let client_metadata = match state.get_thread(*parent_thread_id).await {
                 Ok(parent_thread) => {
                     parent_thread
-                        .darwin-code
+                        .darwin_code
                         .session
                         .app_server_client_metadata()
                         .await
@@ -273,11 +273,11 @@ impl AgentControl {
                     }
                 }
             };
-            let thread_config = new_thread.thread.darwin-code.thread_config_snapshot().await;
+            let thread_config = new_thread.thread.darwin_code.thread_config_snapshot().await;
             emit_subagent_session_started(
                 &new_thread
                     .thread
-                    .darwin-code
+                    .darwin_code
                     .session
                     .services
                     .analytics_events_client,
@@ -358,11 +358,11 @@ impl AgentControl {
             // `record_conversation_items` only queues rollout writes asynchronously.
             // Flush/materialize the live parent before snapshotting JSONL for a fork.
             parent_thread
-                .darwin-code
+                .darwin_code
                 .session
                 .ensure_rollout_materialized()
                 .await;
-            parent_thread.darwin-code.session.flush_rollout().await?;
+            parent_thread.darwin_code.session.flush_rollout().await?;
         }
 
         let rollout_path = parent_thread
@@ -525,18 +525,20 @@ impl AgentControl {
         let inherited_exec_policy = self
             .inherited_exec_policy_for_source(&state, Some(&session_source), &config)
             .await;
-        let rollout_path =
-            match find_thread_path_by_id_str(config.darwin_code_home.as_path(), &thread_id.to_string())
-                .await?
-            {
-                Some(rollout_path) => rollout_path,
-                None => find_archived_thread_path_by_id_str(
-                    config.darwin_code_home.as_path(),
-                    &thread_id.to_string(),
-                )
-                .await?
-                .ok_or_else(|| DarwinCodeErr::ThreadNotFound(thread_id))?,
-            };
+        let rollout_path = match find_thread_path_by_id_str(
+            config.darwin_code_home.as_path(),
+            &thread_id.to_string(),
+        )
+        .await?
+        {
+            Some(rollout_path) => rollout_path,
+            None => find_archived_thread_path_by_id_str(
+                config.darwin_code_home.as_path(),
+                &thread_id.to_string(),
+            )
+            .await?
+            .ok_or_else(|| DarwinCodeErr::ThreadNotFound(thread_id))?,
+        };
 
         let resumed_thread = state
             .resume_thread_from_rollout_with_source(
@@ -662,8 +664,12 @@ impl AgentControl {
     pub(crate) async fn shutdown_live_agent(&self, agent_id: ThreadId) -> DarwinCodeResult<String> {
         let state = self.upgrade()?;
         let result = if let Ok(thread) = state.get_thread(agent_id).await {
-            thread.darwin-code.session.ensure_rollout_materialized().await;
-            thread.darwin-code.session.flush_rollout().await?;
+            thread
+                .darwin_code
+                .session
+                .ensure_rollout_materialized()
+                .await;
+            thread.darwin_code.session.flush_rollout().await?;
             if matches!(thread.agent_status().await, AgentStatus::Shutdown) {
                 Ok(String::new())
             } else {
@@ -698,7 +704,9 @@ impl AgentControl {
         let result = self.shutdown_live_agent(agent_id).await;
         for descendant_id in descendant_ids {
             match self.shutdown_live_agent(descendant_id).await {
-                Ok(_) | Err(DarwinCodeErr::ThreadNotFound(_)) | Err(DarwinCodeErr::InternalAgentDied) => {}
+                Ok(_)
+                | Err(DarwinCodeErr::ThreadNotFound(_))
+                | Err(DarwinCodeErr::InternalAgentDied) => {}
                 Err(err) => return Err(err),
             }
         }
@@ -1011,9 +1019,9 @@ impl AgentControl {
     }
 
     fn upgrade(&self) -> DarwinCodeResult<Arc<ThreadManagerState>> {
-        self.manager
-            .upgrade()
-            .ok_or_else(|| DarwinCodeErr::UnsupportedOperation("thread manager dropped".to_string()))
+        self.manager.upgrade().ok_or_else(|| {
+            DarwinCodeErr::UnsupportedOperation("thread manager dropped".to_string())
+        })
     }
 
     async fn inherited_shell_snapshot_for_source(
@@ -1029,7 +1037,11 @@ impl AgentControl {
         };
 
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
-        parent_thread.darwin-code.session.user_shell().shell_snapshot()
+        parent_thread
+            .darwin_code
+            .session
+            .user_shell()
+            .shell_snapshot()
     }
 
     async fn inherited_exec_policy_for_source(
@@ -1046,13 +1058,13 @@ impl AgentControl {
         };
 
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
-        let parent_config = parent_thread.darwin-code.session.get_config().await;
+        let parent_config = parent_thread.darwin_code.session.get_config().await;
         if !crate::exec_policy::child_uses_parent_exec_policy(&parent_config, child_config) {
             return None;
         }
 
         Some(Arc::clone(
-            &parent_thread.darwin-code.session.services.exec_policy,
+            &parent_thread.darwin_code.session.services.exec_policy,
         ))
     }
 

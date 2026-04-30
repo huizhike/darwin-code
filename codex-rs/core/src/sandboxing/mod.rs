@@ -2,7 +2,7 @@
 Module: sandboxing
 
 Core-owned adapter types for exec/runtime plumbing. Policy selection and
-command transformation live in the darwin-code-sandboxing crate; this module keeps
+command transformation live in the darwin_code-sandboxing crate; this module keeps
 the exec-only metadata and translates transformed sandbox commands back into
 ExecRequest for execution.
 */
@@ -15,13 +15,13 @@ use crate::exec::execute_exec_request;
 #[cfg(target_os = "macos")]
 use crate::spawn::DARWIN_CODE_SANDBOX_ENV_VAR;
 use crate::spawn::DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use darwin_code_network_proxy::NetworkProxy;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use darwin_code_protocol::exec_output::ExecToolCallOutput;
 pub use darwin_code_protocol::models::SandboxPermissions;
 use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
 use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_sandboxing::SandboxExecRequest;
 use darwin_code_sandboxing::SandboxType;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
@@ -45,7 +45,7 @@ pub struct ExecRequest {
     pub cwd: AbsolutePathBuf,
     pub env: HashMap<String, String>,
     pub(crate) exec_server_env_config: Option<ExecServerEnvConfig>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<NetworkAccessRuntime>,
     pub expiration: ExecExpiration,
     pub capture_policy: ExecCapturePolicy,
     pub sandbox: SandboxType,
@@ -64,7 +64,7 @@ impl ExecRequest {
         command: Vec<String>,
         cwd: AbsolutePathBuf,
         env: HashMap<String, String>,
-        network: Option<NetworkProxy>,
+        network: Option<NetworkAccessRuntime>,
         expiration: ExecExpiration,
         capture_policy: ExecCapturePolicy,
         sandbox: SandboxType,
@@ -123,7 +123,10 @@ impl ExecRequest {
         }
         #[cfg(target_os = "macos")]
         if sandbox == SandboxType::MacosSeatbelt {
-            env.insert(DARWIN_CODE_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+            env.insert(
+                DARWIN_CODE_SANDBOX_ENV_VAR.to_string(),
+                "seatbelt".to_string(),
+            );
         }
         Self {
             command,

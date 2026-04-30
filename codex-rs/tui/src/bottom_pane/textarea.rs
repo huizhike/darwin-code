@@ -11,12 +11,12 @@
 //! recent killed span.
 
 use crate::key_hint::is_altgr;
-use darwin_code_protocol::user_input::ByteRange;
-use darwin_code_protocol::user_input::TextElement as UserTextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use darwin_code_protocol::user_input::ByteRange;
+use darwin_code_protocol::user_input::TextElement as UserTextElement;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;

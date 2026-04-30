@@ -1,3 +1,9 @@
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::sse;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
 use darwin_code_core::ForkSnapshot;
 use darwin_code_core::NewThread;
 use darwin_code_core::parse_turn_item;
@@ -7,12 +13,6 @@ use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::RolloutItem;
 use darwin_code_protocol::protocol::RolloutLine;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::sse;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
@@ -40,13 +40,13 @@ async fn fork_thread_twice_drops_to_first_message() {
 
     let mut builder = test_darwin_code();
     let test = builder.build(&server).await.expect("create conversation");
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let thread_manager = test.thread_manager.clone();
     let config_for_fork = test.config.clone();
 
     // Send three user messages; wait for three completed turns.
     for text in ["first", "second", "third"] {
-        darwin-code
+        darwin_code
             .submit(Op::UserInput {
                 items: vec![UserInput::Text {
                     text: text.to_string(),
@@ -57,11 +57,11 @@ async fn fork_thread_twice_drops_to_first_message() {
             })
             .await
             .unwrap();
-        let _ = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        let _ = wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
     }
 
     // Request history from the base conversation to obtain rollout path.
-    let base_path = darwin-code.rollout_path().expect("rollout path");
+    let base_path = darwin_code.rollout_path().expect("rollout path");
 
     // GetHistory flushes before returning the path; no wait needed.
 

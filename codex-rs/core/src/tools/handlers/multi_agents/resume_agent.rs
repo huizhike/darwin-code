@@ -108,7 +108,7 @@ impl ToolHandler for Handler {
             return Err(err);
         }
         turn.session_telemetry
-            .counter("darwin-code.multi_agent.resume", /*inc*/ 1, &[]);
+            .counter("darwin_code.multi_agent.resume", /*inc*/ 1, &[]);
 
         Ok(ResumeAgentResult { status })
     }

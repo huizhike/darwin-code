@@ -4,7 +4,6 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::plugins::PluginsManager;
 use darwin_code_config::McpServerConfig;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_mcp::ToolPluginProvenance;
 use darwin_code_mcp::configured_mcp_servers;
 use darwin_code_mcp::effective_mcp_servers;
@@ -25,13 +24,9 @@ impl McpManager {
         configured_mcp_servers(&mcp_config)
     }
 
-    pub async fn effective_servers(
-        &self,
-        config: &Config,
-        auth: Option<&DarwinCodeAuth>,
-    ) -> HashMap<String, McpServerConfig> {
+    pub async fn effective_servers(&self, config: &Config) -> HashMap<String, McpServerConfig> {
         let mcp_config = config.to_mcp_config(self.plugins_manager.as_ref()).await;
-        effective_mcp_servers(&mcp_config, auth)
+        effective_mcp_servers(&mcp_config)
     }
 
     pub async fn tool_plugin_provenance(&self, config: &Config) -> ToolPluginProvenance {

@@ -1,19 +1,19 @@
 use crate::can_request_original_image_detail;
-use codex_features::Feature;
-use codex_features::Features;
-use codex_protocol::config_types::WebSearchConfig;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::openai_models::ApplyPatchToolType;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::WebSearchToolType;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_features::Feature;
+use darwin_code_features::Features;
+use darwin_code_protocol::config_types::WebSearchConfig;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::openai_models::ApplyPatchToolType;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelPreset;
+use darwin_code_protocol::openai_models::WebSearchToolType;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -155,7 +155,7 @@ impl ToolsConfig {
             && features.enabled(Feature::Plugins);
         let include_original_image_detail = can_request_original_image_detail(model_info);
         // API-key auth bypasses Codex backend entitlement/tool normalization, so
-        // callers must confirm ChatGPT auth before exposing the built-in tool.
+        // callers must confirm provider access before exposing the built-in tool.
         let include_image_gen_tool = *image_generation_tool_auth_allowed
             && features.enabled(Feature::ImageGeneration)
             && supports_image_generation(model_info);
@@ -177,7 +177,7 @@ impl ToolsConfig {
         } else if features.enabled(Feature::ShellZshFork) {
             ConfigShellToolType::ShellCommand
         } else if features.enabled(Feature::UnifiedExec) && unified_exec_allowed {
-            if codex_utils_pty::conpty_supported() {
+            if darwin_code_utils_pty::conpty_supported() {
                 ConfigShellToolType::UnifiedExec
             } else {
                 ConfigShellToolType::ShellCommand

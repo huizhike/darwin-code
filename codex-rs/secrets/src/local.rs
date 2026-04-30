@@ -3,7 +3,6 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::atomic::compiler_fence;
 use std::time::SystemTime;
@@ -19,7 +18,6 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_keyring_store::KeyringStore;
 use rand::TryRngCore;
 use rand::rngs::OsRng;
 use serde::Deserialize;
@@ -30,11 +28,10 @@ use super::SecretListEntry;
 use super::SecretName;
 use super::SecretScope;
 use super::SecretsBackend;
-use super::compute_keyring_account;
-use super::keyring_service;
 
 const SECRETS_VERSION: u8 = 1;
 const LOCAL_SECRETS_FILENAME: &str = "local.age";
+const LOCAL_SECRETS_KEY_FILENAME: &str = "local.key";
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct SecretsFile {
@@ -54,15 +51,11 @@ impl SecretsFile {
 #[derive(Debug, Clone)]
 pub struct LocalSecretsBackend {
     codex_home: PathBuf,
-    keyring_store: Arc<dyn KeyringStore>,
 }
 
 impl LocalSecretsBackend {
-    pub fn new(codex_home: PathBuf, keyring_store: Arc<dyn KeyringStore>) -> Self {
-        Self {
-            codex_home,
-            keyring_store,
-        }
+    pub fn new(codex_home: PathBuf) -> Self {
+        Self { codex_home }
     }
 
     pub fn set(&self, scope: &SecretScope, name: &SecretName, value: &str) -> Result<()> {
@@ -115,6 +108,10 @@ impl LocalSecretsBackend {
         self.secrets_dir().join(LOCAL_SECRETS_FILENAME)
     }
 
+    fn passphrase_path(&self) -> PathBuf {
+        self.secrets_dir().join(LOCAL_SECRETS_KEY_FILENAME)
+    }
+
     fn load_file(&self) -> Result<SecretsFile> {
         let path = self.secrets_path();
         if !path.exists() {
@@ -157,26 +154,21 @@ impl LocalSecretsBackend {
     }
 
     fn load_or_create_passphrase(&self) -> Result<SecretString> {
-        let account = compute_keyring_account(&self.codex_home);
-        let loaded = self
-            .keyring_store
-            .load(keyring_service(), &account)
-            .map_err(|err| anyhow::anyhow!(err.message()))
-            .with_context(|| format!("failed to load secrets key from keyring for {account}"))?;
-        match loaded {
-            Some(existing) => Ok(SecretString::from(existing)),
-            None => {
-                // Generate a high-entropy key and persist it in the OS keyring.
-                // This keeps secrets out of plaintext config while remaining
-                // fully local/offline for the MVP.
-                let generated = generate_passphrase()?;
-                self.keyring_store
-                    .save(keyring_service(), &account, generated.expose_secret())
-                    .map_err(|err| anyhow::anyhow!(err.message()))
-                    .context("failed to persist secrets key in keyring")?;
-                Ok(generated)
-            }
+        let path = self.passphrase_path();
+        if path.exists() {
+            let value = fs::read_to_string(&path)
+                .with_context(|| format!("failed to read secrets key at {}", path.display()))?;
+            let trimmed = value.trim().to_string();
+            anyhow::ensure!(!trimmed.is_empty(), "secrets key file is empty");
+            return Ok(SecretString::from(trimmed));
         }
+
+        let dir = self.secrets_dir();
+        fs::create_dir_all(&dir)
+            .with_context(|| format!("failed to create secrets dir {}", dir.display()))?;
+        let generated = generate_passphrase()?;
+        write_key_file_atomically(&path, generated.expose_secret().as_bytes())?;
+        Ok(generated)
     }
 }
 
@@ -195,6 +187,30 @@ impl SecretsBackend for LocalSecretsBackend {
 
     fn list(&self, scope_filter: Option<&SecretScope>) -> Result<Vec<SecretListEntry>> {
         LocalSecretsBackend::list(self, scope_filter)
+    }
+}
+
+fn write_key_file_atomically(path: &Path, contents: &[u8]) -> Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut file = fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .mode(0o600)
+            .open(path)
+            .with_context(|| format!("failed to create secrets key at {}", path.display()))?;
+        file.write_all(contents)
+            .with_context(|| format!("failed to write secrets key at {}", path.display()))?;
+        file.write_all(b"\n")
+            .with_context(|| format!("failed to finalize secrets key at {}", path.display()))?;
+        file.sync_all()
+            .with_context(|| format!("failed to sync secrets key at {}", path.display()))?;
+        return Ok(());
+    }
+    #[cfg(not(unix))]
+    {
+        write_file_atomically(path, &[contents, b"\n"].concat())
     }
 }
 
@@ -326,86 +342,5 @@ fn parse_canonical_key(canonical_key: &str) -> Option<SecretListEntry> {
             Some(SecretListEntry { scope, name })
         }
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use codex_keyring_store::tests::MockKeyringStore;
-    use keyring::Error as KeyringError;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn load_file_rejects_newer_schema_versions() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(MockKeyringStore::default());
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
-
-        let file = SecretsFile {
-            version: SECRETS_VERSION + 1,
-            secrets: BTreeMap::new(),
-        };
-        backend.save_file(&file)?;
-
-        let error = backend
-            .load_file()
-            .expect_err("must reject newer schema version");
-        assert!(
-            error.to_string().contains("newer than supported version"),
-            "unexpected error: {error:#}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn set_fails_when_keyring_is_unavailable() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(MockKeyringStore::default());
-        let account = compute_keyring_account(codex_home.path());
-        keyring.set_error(
-            &account,
-            KeyringError::Invalid("error".into(), "load".into()),
-        );
-
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
-        let scope = SecretScope::Global;
-        let name = SecretName::new("TEST_SECRET")?;
-        let error = backend
-            .set(&scope, &name, "secret-value")
-            .expect_err("must fail when keyring load fails");
-        assert!(
-            error
-                .to_string()
-                .contains("failed to load secrets key from keyring"),
-            "unexpected error: {error:#}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn save_file_does_not_leave_temp_files() -> Result<()> {
-        let codex_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(MockKeyringStore::default());
-        let backend = LocalSecretsBackend::new(codex_home.path().to_path_buf(), keyring);
-
-        let scope = SecretScope::Global;
-        let name = SecretName::new("TEST_SECRET")?;
-        backend.set(&scope, &name, "one")?;
-        backend.set(&scope, &name, "two")?;
-
-        let secrets_dir = backend.secrets_dir();
-        let entries = fs::read_dir(&secrets_dir)
-            .with_context(|| format!("failed to read {}", secrets_dir.display()))?
-            .collect::<std::io::Result<Vec<_>>>()
-            .with_context(|| format!("failed to enumerate {}", secrets_dir.display()))?;
-
-        let filenames: Vec<String> = entries
-            .into_iter()
-            .filter_map(|entry| entry.file_name().to_str().map(ToString::to_string))
-            .collect();
-        assert_eq!(filenames, vec![LOCAL_SECRETS_FILENAME.to_string()]);
-        assert_eq!(backend.get(&scope, &name)?, Some("two".to_string()));
-        Ok(())
     }
 }

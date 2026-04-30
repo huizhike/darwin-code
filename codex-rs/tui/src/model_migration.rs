@@ -82,7 +82,7 @@ pub(crate) fn migration_copy_for_models(
     }
 
     let heading_text = Span::from(format!(
-        "Darwin-Code just got an upgrade. Introducing {target_display_name}."
+        "DarwinCode just got an upgrade. Introducing {target_display_name}."
     ))
     .bold();
     let description_line: Line<'static>;
@@ -341,7 +341,7 @@ impl ModelMigrationScreen {
     fn render_menu(&self, column: &mut ColumnRenderable) {
         column.push(Line::from(""));
         column.push(
-            Paragraph::new("Choose how you'd like Darwin-Code to proceed.")
+            Paragraph::new("Choose how you'd like DarwinCode to proceed.")
                 .wrap(Wrap { trim: false })
                 .inset(Insets::tlbr(
                     /*top*/ 0, /*left*/ 2, /*bottom*/ 0, /*right*/ 0,
@@ -464,7 +464,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-5",
                 "gpt-5.1",
-                Some("https://www.darwin-code.com/models/gpt-5.1".to_string()),
+                Some("https://www.darwin_code.com/models/gpt-5.1".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-5.1".to_string(),
@@ -491,7 +491,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-5-darwin-code",
                 "gpt-5.1-darwin-code-max",
-                Some("https://www.darwin-code.com/models/gpt-5.1-darwin-code-max".to_string()),
+                Some("https://www.darwin_code.com/models/gpt-5.1-darwin-code-max".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-5.1-darwin-code-max".to_string(),
@@ -504,7 +504,10 @@ mod tests {
             frame.render_widget_ref(&screen, frame.area());
         }
         terminal.flush().expect("flush");
-        assert_snapshot!("model_migration_prompt_gpt5_darwin_code", terminal.backend());
+        assert_snapshot!(
+            "model_migration_prompt_gpt5_darwin_code",
+            terminal.backend()
+        );
     }
 
     #[test]
@@ -518,11 +521,11 @@ mod tests {
             migration_copy_for_models(
                 "gpt-5-darwin-code-mini",
                 "gpt-5.1-darwin-code-mini",
-                Some("https://www.darwin-code.com/models/gpt-5.1-darwin-code-mini".to_string()),
+                Some("https://www.darwin_code.com/models/gpt-5.1-darwin-code-mini".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-5.1-darwin-code-mini".to_string(),
-                Some("Optimized for darwin-code. Cheaper, faster, but less capable.".to_string()),
+                Some("Optimized for darwin_code. Cheaper, faster, but less capable.".to_string()),
                 /*can_opt_out*/ false,
             ),
         );
@@ -531,7 +534,10 @@ mod tests {
             frame.render_widget_ref(&screen, frame.area());
         }
         terminal.flush().expect("flush");
-        assert_snapshot!("model_migration_prompt_gpt5_darwin_code_mini", terminal.backend());
+        assert_snapshot!(
+            "model_migration_prompt_gpt5_darwin_code_mini",
+            terminal.backend()
+        );
     }
 
     #[test]
@@ -541,7 +547,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-old",
                 "gpt-new",
-                Some("https://www.darwin-code.com/models/gpt-new".to_string()),
+                Some("https://www.darwin_code.com/models/gpt-new".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-new".to_string(),
@@ -570,7 +576,7 @@ mod tests {
             migration_copy_for_models(
                 "gpt-old",
                 "gpt-new",
-                Some("https://www.darwin-code.com/models/gpt-new".to_string()),
+                Some("https://www.darwin_code.com/models/gpt-new".to_string()),
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-new".to_string(),

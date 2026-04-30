@@ -1,6 +1,4 @@
 use anyhow::Result;
-use darwin_code_features::Feature;
-use darwin_code_protocol::config_types::ServiceTier;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -10,6 +8,8 @@ use core_test_support::responses::start_websocket_server;
 use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::ServiceTier;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::time::Duration;
@@ -183,12 +183,14 @@ async fn websocket_v2_test_darwin_code_shell_chain() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_darwin_code().with_windows_cmd_shell().with_config(|config| {
-        config
-            .features
-            .enable(Feature::ResponsesWebsocketsV2)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_darwin_code()
+        .with_windows_cmd_shell()
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::ResponsesWebsocketsV2)
+                .expect("test config should allow feature update");
+        });
 
     let test = builder.build_with_websocket_server(&server).await?;
     test.submit_turn_with_policy(

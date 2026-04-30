@@ -1,8 +1,8 @@
 use crate::config::Config;
+use darwin_code_client::originator;
 use darwin_code_config::types::OtelExporterKind as Kind;
 use darwin_code_config::types::OtelHttpProtocol as Protocol;
 use darwin_code_features::Feature;
-use darwin_code_login::default_client::originator;
 use darwin_code_otel::OtelExporter;
 use darwin_code_otel::OtelHttpProtocol;
 use darwin_code_otel::OtelProvider;
@@ -83,7 +83,7 @@ pub fn build_provider(
     OtelProvider::from(&OtelSettings {
         service_name: service_name.to_string(),
         service_version: service_version.to_string(),
-        darwin_code_home: config.darwin_code_home.to_path_buf(),
+        codex_home: config.darwin_code_home.to_path_buf(),
         environment: config.otel.environment.to_string(),
         exporter,
         trace_exporter,

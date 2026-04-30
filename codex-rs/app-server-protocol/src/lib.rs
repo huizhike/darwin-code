@@ -23,8 +23,6 @@ pub use protocol::v1::ConversationGitInfo;
 pub use protocol::v1::ConversationSummary;
 pub use protocol::v1::ExecCommandApprovalParams;
 pub use protocol::v1::ExecCommandApprovalResponse;
-pub use protocol::v1::GetAuthStatusParams;
-pub use protocol::v1::GetAuthStatusResponse;
 pub use protocol::v1::GetConversationSummaryParams;
 pub use protocol::v1::GetConversationSummaryResponse;
 pub use protocol::v1::GitDiffToRemoteParams;

@@ -7,13 +7,13 @@ use std::time::SystemTime;
 
 use chrono::DateTime;
 use chrono::Utc;
-use codex_git_utils::GitSha;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout::ThreadItem;
+use darwin_code_git_utils::GitSha;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_rollout::ThreadItem;
 
 use crate::StoredThread;
 use crate::ThreadStoreError;

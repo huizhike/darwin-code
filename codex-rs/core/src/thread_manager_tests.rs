@@ -3,6 +3,9 @@ use crate::config::test_config;
 use crate::rollout::RolloutRecorder;
 use crate::session::tests::make_session_and_context;
 use crate::tasks::interrupted_turn_history_marker;
+use core_test_support::PathBufExt;
+use core_test_support::PathExt;
+use core_test_support::responses::mount_models_once;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_models_manager::manager::RefreshStrategy;
 use darwin_code_protocol::models::ContentItem;
@@ -12,9 +15,6 @@ use darwin_code_protocol::openai_models::ModelsResponse;
 use darwin_code_protocol::protocol::AgentMessageEvent;
 use darwin_code_protocol::protocol::TurnStartedEvent;
 use darwin_code_protocol::protocol::UserMessageEvent;
-use core_test_support::PathBufExt;
-use core_test_support::PathExt;
-use core_test_support::responses::mount_models_once;
 use pretty_assertions::assert_eq;
 use std::time::Duration;
 use tempfile::tempdir;
@@ -29,6 +29,7 @@ fn user_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 fn assistant_msg(text: &str) -> ResponseItem {
@@ -40,6 +41,7 @@ fn assistant_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -238,12 +240,12 @@ async fn ignores_session_prefix_messages_when_truncating() {
 async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.darwin_code_home = temp_dir.path().join("darwin-code-home").abs();
+    config.darwin_code_home = temp_dir.path().join("darwin_code-home").abs();
     config.cwd = config.darwin_code_home.abs();
-    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin-code home");
+    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin_code home");
 
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -275,26 +277,25 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
 
 #[tokio::test]
 async fn new_uses_configured_openai_provider_for_model_refresh() {
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "dummy-test-key");
+    }
     let server = MockServer::start().await;
     let models_mock = mount_models_once(&server, ModelsResponse { models: vec![] }).await;
 
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.darwin_code_home = temp_dir.path().join("darwin-code-home").abs();
+    config.darwin_code_home = temp_dir.path().join("darwin_code-home").abs();
     config.cwd = config.darwin_code_home.abs();
-    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin-code home");
+    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin_code home");
     config.model_catalog = None;
     config
         .model_providers
         .get_mut("openai")
         .expect("openai provider should exist")
         .base_url = Some(server.uri());
-
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let manager = ThreadManager::new(
         &config,
-        auth_manager,
         SessionSource::Exec,
         CollaborationModesConfig::default(),
         Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -423,15 +424,11 @@ fn mixed_response_and_legacy_user_event_history_is_mid_turn() {
 async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_history() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.darwin_code_home = temp_dir.path().join("darwin-code-home").abs();
+    config.darwin_code_home = temp_dir.path().join("darwin_code-home").abs();
     config.cwd = config.darwin_code_home.abs();
-    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin-code home");
-
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
+    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin_code home");
     let manager = ThreadManager::new(
         &config,
-        auth_manager.clone(),
         SessionSource::Exec,
         CollaborationModesConfig::default(),
         Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -447,7 +444,6 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
                 RolloutItem::ResponseItem(user_msg("hello")),
                 RolloutItem::ResponseItem(assistant_msg("partial")),
             ]),
-            auth_manager,
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )
@@ -526,15 +522,11 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
 async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.darwin_code_home = temp_dir.path().join("darwin-code-home").abs();
+    config.darwin_code_home = temp_dir.path().join("darwin_code-home").abs();
     config.cwd = config.darwin_code_home.abs();
-    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin-code home");
-
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
+    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin_code home");
     let manager = ThreadManager::new(
         &config,
-        auth_manager.clone(),
         SessionSource::Exec,
         CollaborationModesConfig::default(),
         Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -556,7 +548,6 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
                 RolloutItem::ResponseItem(user_msg("hello")),
                 RolloutItem::ResponseItem(assistant_msg("partial")),
             ]),
-            auth_manager,
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )
@@ -619,15 +610,11 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
 async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_source() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
-    config.darwin_code_home = temp_dir.path().join("darwin-code-home").abs();
+    config.darwin_code_home = temp_dir.path().join("darwin_code-home").abs();
     config.cwd = config.darwin_code_home.abs();
-    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin-code home");
-
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
+    std::fs::create_dir_all(&config.darwin_code_home).expect("create darwin_code home");
     let manager = ThreadManager::new(
         &config,
-        auth_manager.clone(),
         SessionSource::Exec,
         CollaborationModesConfig::default(),
         Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -643,7 +630,6 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
                 RolloutItem::ResponseItem(user_msg("hello")),
                 RolloutItem::ResponseItem(assistant_msg("partial")),
             ]),
-            auth_manager,
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )

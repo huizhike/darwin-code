@@ -1,11 +1,12 @@
 use assert_cmd::Command as AssertCommand;
-use darwin_code_git_utils::collect_git_info;
-use darwin_code_login::DARWIN_CODE_API_KEY_ENV_VAR;
-use darwin_code_protocol::protocol::GitInfo;
-use darwin_code_utils_cargo_bin::find_resource;
+use core_test_support::DARWIN_CODE_API_KEY_ENV_VAR;
 use core_test_support::fs_wait;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use core_test_support::write_default_byok_test_config;
+use darwin_code_git_utils::collect_git_info;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_utils_cargo_bin::find_resource;
 use std::time::Duration;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -19,6 +20,12 @@ fn repo_root() -> std::path::PathBuf {
 fn cli_responses_fixture() -> std::path::PathBuf {
     #[expect(clippy::expect_used)]
     find_resource!("tests/cli_responses_fixture.sse").expect("failed to resolve fixture path")
+}
+
+fn byok_provider_override(id: &str, name: &str, base_url: &str) -> String {
+    format!(
+        "providers.{id}={{ family = \"openai-compatible\", name = \"{name}\", base_url = \"{base_url}\", api_key = \"test-direct-api-key\" }}"
+    )
 }
 
 /// Tests streaming the Responses API through the CLI using a mock server.
@@ -36,11 +43,8 @@ async fn responses_mode_stream_cli() {
     let resp_mock = responses::mount_sse_once(&server, sse).await;
 
     let home = TempDir::new().unwrap();
-    let provider_override = format!(
-        "model_providers.mock={{ name = \"mock\", base_url = \"{}/v1\", env_key = \"PATH\", wire_api = \"responses\" }}",
-        server.uri()
-    );
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    let provider_override = byok_provider_override("mock", "mock", &format!("{}/v1", server.uri()));
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.timeout(Duration::from_secs(30));
     cmd.arg("exec")
@@ -89,9 +93,9 @@ async fn responses_mode_stream_cli() {
     // assert!(page.items[0].created_at.is_some(), "missing created_at");
 }
 
-/// Ensures `openai_base_url` config override routes built-in openai provider requests.
+/// Ensures BYOK provider config routes built-in openai provider requests.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
+async fn responses_mode_stream_cli_supports_byok_provider_base_url_config_override() {
     skip_if_no_network!();
 
     let server = MockServer::start().await;
@@ -104,13 +108,17 @@ async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
     let resp_mock = responses::mount_sse_once(&server, sse).await;
 
     let home = TempDir::new().unwrap();
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.timeout(Duration::from_secs(30));
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg(format!("openai_base_url=\"{}/v1\"", server.uri()))
+        .arg(byok_provider_override(
+            "openai",
+            "OpenAI",
+            &format!("{}/v1", server.uri()),
+        ))
         .arg("-C")
         .arg(&repo_root)
         .arg("hello?");
@@ -149,15 +157,12 @@ async fn exec_cli_applies_model_instructions_file() {
     let custom_path_str = custom_path.to_string_lossy().replace('\\', "/");
 
     // Build a provider override that points at the mock server and instructs
-    // Darwin-Code to use the Responses API with the dummy env var.
-    let provider_override = format!(
-        "model_providers.mock={{ name = \"mock\", base_url = \"{}/v1\", env_key = \"PATH\", wire_api = \"responses\" }}",
-        server.uri()
-    );
+    // DarwinCode to use the Responses API with the dummy env var.
+    let provider_override = byok_provider_override("mock", "mock", &format!("{}/v1", server.uri()));
 
     let home = TempDir::new().unwrap();
     let repo_root = repo_root();
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -194,7 +199,7 @@ async fn exec_cli_applies_model_instructions_file() {
     );
 }
 
-/// Verify that `darwin-code exec --profile ...` preserves the active profile when it
+/// Verify that `darwin_code exec --profile ...` preserves the active profile when it
 /// starts the in-process app-server thread, so profile-scoped
 /// `model_instructions_file` is applied to the outbound request.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -214,20 +219,20 @@ async fn exec_cli_profile_applies_model_instructions_file() {
     std::fs::write(&custom_path, marker).unwrap();
     let custom_path_str = custom_path.to_string_lossy().replace('\\', "/");
 
-    let provider_override = format!(
-        "model_providers.mock={{ name = \"mock\", base_url = \"{}/v1\", env_key = \"PATH\", wire_api = \"responses\" }}",
-        server.uri()
-    );
+    let provider_override = byok_provider_override("mock", "mock", &format!("{}/v1", server.uri()));
 
     let home = TempDir::new().unwrap();
     std::fs::write(
         home.path().join("config.toml"),
-        format!("[profiles.default]\nmodel_instructions_file = \"{custom_path_str}\"\n",),
+        format!(
+            "{}\n[profiles.default]\nmodel_instructions_file = \"{custom_path_str}\"\n",
+            byok_provider_override("openai", "OpenAI", "https://api.openai.com/v1")
+        ),
     )
     .unwrap();
 
     let repo_root = repo_root();
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -265,7 +270,7 @@ async fn exec_cli_profile_applies_model_instructions_file() {
 /// Tests streaming responses through the CLI using a local SSE fixture file.
 /// This test:
 /// 1. Uses a pre-recorded SSE response fixture instead of a live server
-/// 2. Configures darwin-code to read from this fixture via DARWIN_CODE_RS_SSE_FIXTURE env var
+/// 2. Configures darwin_code to read from this fixture via DARWIN_CODE_RS_SSE_FIXTURE env var
 /// 3. Sends a "hello?" prompt and verifies the response
 /// 4. Ensures the fixture content is correctly streamed through the CLI
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -276,12 +281,17 @@ async fn responses_api_stream_cli() {
     let repo_root = repo_root();
 
     let home = TempDir::new().unwrap();
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    write_default_byok_test_config(home.path());
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg(byok_provider_override(
+            "openai",
+            "OpenAI",
+            "http://unused.local",
+        ))
         .arg("-C")
         .arg(&repo_root)
         .arg("hello?");
@@ -303,6 +313,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
 
     // 1. Temp home so we read/write isolated session files.
     let home = TempDir::new()?;
+    write_default_byok_test_config(home.path());
 
     // 2. Unique marker we'll look for in the session log.
     let marker = format!("integration-test-{}", Uuid::new_v4());
@@ -312,13 +323,17 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     let fixture = cli_responses_fixture();
     let repo_root = repo_root();
 
-    // 4. Run the darwin-code CLI and invoke `exec`, which is what records a session.
-    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    // 4. Run the darwin_code CLI and invoke `exec`, which is what records a session.
+    let bin = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd = AssertCommand::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg(byok_provider_override(
+            "openai",
+            "OpenAI",
+            "http://unused.local",
+        ))
         .arg("-C")
         .arg(&repo_root)
         .arg(&prompt);
@@ -329,7 +344,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     let output = cmd.output().unwrap();
     assert!(
         output.status.success(),
-        "darwin-code-cli exec failed: {}",
+        "darwin_code-cli exec failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -434,12 +449,16 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     // Second run: resume should update the existing file.
     let marker2 = format!("integration-resume-{}", Uuid::new_v4());
     let prompt2 = format!("echo {marker2}");
-    let bin2 = darwin_code_utils_cargo_bin::cargo_bin("darwin-code").unwrap();
+    let bin2 = darwin_code_utils_cargo_bin::cargo_bin("darwin_code").unwrap();
     let mut cmd2 = AssertCommand::new(bin2);
     cmd2.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg(byok_provider_override(
+            "openai",
+            "OpenAI",
+            "http://unused.local",
+        ))
         .arg("-C")
         .arg(&repo_root)
         .arg(&prompt2)
@@ -450,7 +469,10 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
         .env("DARWIN_CODE_RS_SSE_FIXTURE", &fixture);
 
     let output2 = cmd2.output().unwrap();
-    assert!(output2.status.success(), "resume darwin-code-cli run failed");
+    assert!(
+        output2.status.success(),
+        "resume darwin_code-cli run failed"
+    );
 
     // Find the new session file containing the resumed marker.
     let marker2_clone = marker2.clone();

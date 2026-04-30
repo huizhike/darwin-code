@@ -2,10 +2,10 @@ use crate::auth::SharedAuthProvider;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use codex_client::HttpTransport;
-use codex_client::RequestTelemetry;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelsResponse;
+use darwin_code_client::HttpTransport;
+use darwin_code_client::RequestTelemetry;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::ModelsResponse;
 use http::HeaderMap;
 use http::Method;
 use http::header::ETAG;
@@ -32,7 +32,7 @@ impl<T: HttpTransport> ModelsClient<T> {
         "models"
     }
 
-    fn append_client_version_query(req: &mut codex_client::Request, client_version: &str) {
+    fn append_client_version_query(req: &mut darwin_code_client::Request, client_version: &str) {
         let separator = if req.url.contains('?') { '&' } else { '?' };
         req.url = format!("{}{}client_version={client_version}", req.url, separator);
     }
@@ -79,10 +79,10 @@ mod tests {
     use crate::auth::AuthProvider;
     use crate::provider::RetryConfig;
     use async_trait::async_trait;
-    use codex_client::Request;
-    use codex_client::Response;
-    use codex_client::StreamResponse;
-    use codex_client::TransportError;
+    use darwin_code_client::Request;
+    use darwin_code_client::Response;
+    use darwin_code_client::StreamResponse;
+    use darwin_code_client::TransportError;
     use http::HeaderMap;
     use http::StatusCode;
     use pretty_assertions::assert_eq;

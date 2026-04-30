@@ -38,7 +38,6 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 use darwin_code_exec::AgentMessageItem;
-use darwin_code_exec::DarwinCodeStatus;
 use darwin_code_exec::CollabAgentState;
 use darwin_code_exec::CollabAgentStatus;
 use darwin_code_exec::CollabTool;
@@ -47,6 +46,7 @@ use darwin_code_exec::CollabToolCallStatus;
 use darwin_code_exec::CollectedThreadEvents;
 use darwin_code_exec::CommandExecutionItem;
 use darwin_code_exec::CommandExecutionStatus;
+use darwin_code_exec::DarwinCodeStatus;
 use darwin_code_exec::ErrorItem;
 use darwin_code_exec::EventProcessorWithJsonOutput;
 use darwin_code_exec::ExecThreadItem;
@@ -109,7 +109,7 @@ fn session_configured_produces_thread_started_event() {
             .expect("thread id should parse"),
         forked_from_id: None,
         thread_name: None,
-        model: "darwin-code-mini-latest".to_string(),
+        model: "darwin_code-mini-latest".to_string(),
         model_provider_id: "test-provider".to_string(),
         service_tier: None,
         approval_policy: AskForApproval::Never,
@@ -120,7 +120,7 @@ fn session_configured_produces_thread_started_event() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: None,
     };
 
@@ -1484,7 +1484,7 @@ fn failed_turn_clears_stale_final_message() {
                 error: Some(TurnError {
                     message: "turn failed".to_string(),
                     additional_details: None,
-                    darwin_code_error_info: None,
+                    codex_error_info: None,
                 }),
                 started_at: None,
                 completed_at: None,
@@ -1538,7 +1538,7 @@ fn turn_failure_prefers_structured_error_message() {
     let error = processor.collect_thread_events(ServerNotification::Error(ErrorNotification {
         error: TurnError {
             message: "backend failed".to_string(),
-            darwin_code_error_info: None,
+            codex_error_info: None,
             additional_details: Some("request id abc".to_string()),
         },
         will_retry: false,

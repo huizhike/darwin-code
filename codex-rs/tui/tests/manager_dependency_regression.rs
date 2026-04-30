@@ -28,9 +28,9 @@ fn tui_runtime_source_does_not_depend_on_manager_escape_hatches() {
         .unwrap_or_else(|| panic!("source file has no parent: {}", src_file.display()));
     let sources = rust_sources_under(src_dir);
     let forbidden = [
-        "AuthManager",
+        concat!("Auth", "Manager"),
         "ThreadManager",
-        "auth_manager(",
+        concat!("auth", "_manager("),
         "thread_manager(",
     ];
 

@@ -1,7 +1,4 @@
 use anyhow::Result;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
@@ -9,6 +6,9 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -39,7 +39,7 @@ async fn quota_exceeded_emits_single_error_event() -> Result<()> {
 
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "quota?".into(),
@@ -54,7 +54,7 @@ async fn quota_exceeded_emits_single_error_event() -> Result<()> {
     let mut error_events = 0;
 
     loop {
-        let event = wait_for_event(&test.darwin-code, |_| true).await;
+        let event = wait_for_event(&test.darwin_code, |_| true).await;
 
         match event {
             EventMsg::Error(err) => {
@@ -69,7 +69,10 @@ async fn quota_exceeded_emits_single_error_event() -> Result<()> {
         }
     }
 
-    assert_eq!(error_events, 1, "expected exactly one Darwin-Code:Error event");
+    assert_eq!(
+        error_events, 1,
+        "expected exactly one DarwinCode:Error event"
+    );
 
     Ok(())
 }

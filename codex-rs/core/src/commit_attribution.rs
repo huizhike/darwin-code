@@ -1,4 +1,4 @@
-const DEFAULT_ATTRIBUTION_VALUE: &str = "Darwin-Code <noreply@openai.com>";
+const DEFAULT_ATTRIBUTION_VALUE: &str = "DarwinCode <noreply@openai.com>";
 
 fn build_commit_message_trailer(config_attribution: Option<&str>) -> Option<String> {
     let value = resolve_attribution_value(config_attribution)?;

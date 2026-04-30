@@ -39,7 +39,7 @@ Most callers want the effective config plus metadata:
 
 ```rust
 use darwin_code_core::config_loader::{
-    CloudRequirementsLoader, LoaderOverrides, load_config_layers_state,
+    LoaderOverrides, load_config_layers_state,
 };
 use darwin_code_exec_server::LOCAL_FS;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
@@ -53,7 +53,6 @@ let layers = load_config_layers_state(
     Some(cwd),
     &cli_overrides,
     LoaderOverrides::default(),
-    CloudRequirementsLoader::default(),
 ).await?;
 
 let effective = layers.effective_config();

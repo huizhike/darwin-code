@@ -2,6 +2,9 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use codex_analytics::HookRunFact;
+use codex_analytics::TrackEventsContext;
+use codex_analytics::build_track_events_context;
 use darwin_code_hooks::PermissionRequestDecision;
 use darwin_code_hooks::PermissionRequestOutcome;
 use darwin_code_hooks::PermissionRequestRequest;
@@ -499,7 +502,9 @@ mod tests {
             messages
                 .iter()
                 .map(|message| match message {
-                    darwin_code_protocol::models::ResponseItem::Message { role, content, .. } => {
+                    darwin_code_protocol::models::ResponseItem::Message {
+                        role, content, ..
+                    } => {
                         let text = content
                             .iter()
                             .map(|item| match item {

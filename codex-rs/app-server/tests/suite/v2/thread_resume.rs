@@ -1,5 +1,4 @@
 use anyhow::Result;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::create_apply_patch_sse_response;
 use app_test_support::create_fake_rollout_with_text_elements;
@@ -11,7 +10,6 @@ use app_test_support::create_shell_command_sse_response;
 use app_test_support::rollout_path;
 use app_test_support::test_absolute_path;
 use app_test_support::to_response;
-use app_test_support::write_chatgpt_auth;
 use chrono::Utc;
 use darwin_code_app_server_protocol::AskForApproval;
 use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
@@ -41,8 +39,6 @@ use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnStatus;
 use darwin_code_app_server_protocol::UserInput;
-use darwin_code_config::types::AuthCredentialsStoreMode;
-use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::config_types::Personality;
 use darwin_code_protocol::models::ContentItem;
@@ -72,22 +68,16 @@ use std::process::Command;
 use tempfile::TempDir;
 use tokio::time::timeout;
 use uuid::Uuid;
-use wiremock::Mock;
 use wiremock::MockServer;
-use wiremock::ResponseTemplate;
-use wiremock::matchers::method;
-use wiremock::matchers::path;
 
-use super::analytics::assert_basic_thread_initialized_event;
+use super::analytics::assert_no_analytics_payload;
 use super::analytics::enable_analytics_capture;
-use super::analytics::thread_initialized_event;
-use super::analytics::wait_for_analytics_payload;
 
 #[cfg(windows)]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-const DARWIN_CODE_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are Darwin-Code, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
+const DARWIN_CODE_5_2_INSTRUCTIONS_TEMPLATE_DEFAULT: &str = "You are DarwinCode, a coding agent based on GPT-5. You and the user share the same workspace and collaborate to achieve the user's goals.";
 
 async fn wait_for_responses_request_count(
     server: &wiremock::MockServer,
@@ -167,13 +157,12 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
+async fn thread_resume_drops_hosted_thread_initialized_analytics_in_byok_runtime() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
     let darwin_code_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(
+    create_config_toml_with_base_url(
         darwin_code_home.path(),
-        &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
@@ -203,11 +192,9 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let _ = to_response::<ThreadResumeResponse>(resume_resp)?;
 
-    let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
-    let event = thread_initialized_event(&payload)?;
-    assert_basic_thread_initialized_event(event, &thread.id, "gpt-5.2-darwin-code", "resumed");
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
     Ok(())
 }
 
@@ -642,7 +629,7 @@ stream_max_retries = 0
         forked_from_id: None,
         timestamp: "2025-01-05T12:00:00Z".to_string(),
         cwd: repo_path.clone(),
-        originator: "darwin-code".to_string(),
+        originator: "darwin_code".to_string(),
         cli_version: "0.0.0".to_string(),
         source: RolloutSessionSource::Cli,
         agent_path: None,
@@ -1748,99 +1735,6 @@ async fn thread_resume_fails_when_required_mcp_server_fails_to_initialize() -> R
 }
 
 #[tokio::test]
-async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/wham/config/requirements"))
-        .respond_with(
-            ResponseTemplate::new(401)
-                .insert_header("content-type", "text/html")
-                .set_body_string("<html>nope</html>"),
-        )
-        .mount(&server)
-        .await;
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
-            "error": { "code": "refresh_token_invalidated" }
-        })))
-        .mount(&server)
-        .await;
-
-    let darwin_code_home = TempDir::new()?;
-    let model_server = create_mock_responses_server_repeating_assistant("Done").await;
-    let chatgpt_base_url = format!("{}/backend-api", server.uri());
-    create_config_toml_with_chatgpt_base_url(
-        darwin_code_home.path(),
-        &model_server.uri(),
-        &chatgpt_base_url,
-        /*general_analytics_enabled*/ false,
-    )?;
-    write_chatgpt_auth(
-        darwin_code_home.path(),
-        ChatGptAuthFixture::new("chatgpt-token")
-            .refresh_token("stale-refresh-token")
-            .plan_type("business")
-            .chatgpt_user_id("user-123")
-            .chatgpt_account_id("account-123")
-            .account_id("account-123"),
-        AuthCredentialsStoreMode::File,
-    )?;
-    let conversation_id = create_fake_rollout_with_text_elements(
-        darwin_code_home.path(),
-        "2025-01-05T12-00-00",
-        "2025-01-05T12:00:00Z",
-        "Saved user message",
-        Vec::new(),
-        Some("mock_provider"),
-        /*git_info*/ None,
-    )?;
-    let refresh_token_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
-        darwin_code_home.path(),
-        &[
-            ("OPENAI_API_KEY", None),
-            (
-                REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
-                Some(refresh_token_url.as_str()),
-            ),
-        ],
-    )
-    .await?;
-    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-
-    let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
-            ..Default::default()
-        })
-        .await?;
-    let err: JSONRPCError = timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_error_message(RequestId::Integer(resume_id)),
-    )
-    .await??;
-
-    assert!(
-        err.error.message.contains("failed to load configuration"),
-        "unexpected error message: {}",
-        err.error.message
-    );
-    assert_eq!(
-        err.error.data,
-        Some(json!({
-            "reason": "cloudRequirements",
-            "errorCode": "Auth",
-            "action": "relogin",
-            "statusCode": 401,
-            "detail": "Your access token could not be refreshed because your refresh token was revoked. Please log out and sign in again.",
-        }))
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
 async fn thread_resume_prefers_path_over_thread_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let darwin_code_home = TempDir::new()?;
@@ -2166,10 +2060,9 @@ stream_max_retries = 0
     )
 }
 
-fn create_config_toml_with_chatgpt_base_url(
+fn create_config_toml_with_base_url(
     darwin_code_home: &std::path::Path,
     server_uri: &str,
-    chatgpt_base_url: &str,
     general_analytics_enabled: bool,
 ) -> std::io::Result<()> {
     let general_analytics_toml = if general_analytics_enabled {
@@ -2185,8 +2078,6 @@ fn create_config_toml_with_chatgpt_base_url(
 model = "gpt-5.2-darwin-code"
 approval_policy = "never"
 sandbox_mode = "read-only"
-chatgpt_base_url = "{chatgpt_base_url}"
-
 model_provider = "mock_provider"
 
 [features]
@@ -2230,7 +2121,7 @@ request_max_retries = 0
 stream_max_retries = 0
 
 [mcp_servers.required_broken]
-command = "darwin-code-definitely-not-a-real-binary"
+command = "darwin_code-definitely-not-a-real-binary"
 required = true
 "#
         ),

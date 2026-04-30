@@ -127,7 +127,9 @@ where
                 source.display()
             )));
         }
-        if find_marketplace_root_by_name(darwin_code_home, &install_root, &marketplace_name)?.is_some() {
+        if find_marketplace_root_by_name(darwin_code_home, &install_root, &marketplace_name)?
+            .is_some()
+        {
             return Err(MarketplaceAddError::InvalidRequest(format!(
                 "marketplace '{marketplace_name}' is already added from a different source; remove it before adding {}",
                 source.display()
@@ -250,7 +252,11 @@ mod tests {
                 .is_file()
         );
 
-        let config = fs::read_to_string(darwin_code_home.path().join(darwin_code_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(
+            darwin_code_home
+                .path()
+                .join(darwin_code_config::CONFIG_TOML_FILE),
+        )?;
         assert!(config.contains("[marketplaces.debug]"));
         assert!(config.contains("source_type = \"git\""));
         assert!(config.contains("source = \"https://github.com/owner/repo.git\""));
@@ -289,7 +295,11 @@ mod tests {
                 .exists()
         );
 
-        let config = fs::read_to_string(darwin_code_home.path().join(darwin_code_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(
+            darwin_code_home
+                .path()
+                .join(darwin_code_config::CONFIG_TOML_FILE),
+        )?;
         let config: toml::Value = toml::from_str(&config)?;
         assert_eq!(
             config["marketplaces"]["debug"]["source_type"].as_str(),
@@ -346,11 +356,12 @@ mod tests {
             ref_name: None,
             sparse_paths: Vec::new(),
         };
-        let first_result = add_marketplace_sync_with_cloner(darwin_code_home.path(), request.clone(), {
-            |_url, _ref_name, _sparse_paths, _destination| {
-                panic!("git cloner should not be called for local marketplace sources")
-            }
-        })?;
+        let first_result =
+            add_marketplace_sync_with_cloner(darwin_code_home.path(), request.clone(), {
+                |_url, _ref_name, _sparse_paths, _destination| {
+                    panic!("git cloner should not be called for local marketplace sources")
+                }
+            })?;
         let second_result = add_marketplace_sync_with_cloner(darwin_code_home.path(), request, {
             |_url, _ref_name, _sparse_paths, _destination| {
                 panic!("git cloner should not be called for local marketplace sources")
@@ -366,7 +377,7 @@ mod tests {
 
     fn write_marketplace_source(source: &Path, marker: &str) -> std::io::Result<()> {
         fs::create_dir_all(source.join(".agents/plugins"))?;
-        fs::create_dir_all(source.join("plugins/sample/.darwin-code-plugin"))?;
+        fs::create_dir_all(source.join("plugins/sample/.codex-plugin"))?;
         fs::write(
             source.join(".agents/plugins/marketplace.json"),
             r#"{
@@ -383,7 +394,7 @@ mod tests {
 }"#,
         )?;
         fs::write(
-            source.join("plugins/sample/.darwin-code-plugin/plugin.json"),
+            source.join("plugins/sample/.codex-plugin/plugin.json"),
             r#"{"name":"sample"}"#,
         )?;
         fs::write(source.join("plugins/sample/marker.txt"), marker)?;

@@ -15,12 +15,10 @@ axum = { workspace = true, default-features = false, features = [
 ] }
 darwin-code-client = { workspace = true }
 darwin-code-config = { workspace = true }
-darwin-code-keyring-store = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-utils-pty = { workspace = true }
 darwin-code-utils-home-dir = { workspace = true }
 futures = { workspace = true, default-features = false, features = ["std"] }
-keyring = { workspace = true, features = ["crypto-rust"] }
 oauth2 = "5"
 reqwest = { version = "0.12", default-features = false, features = [
     "json",
@@ -63,14 +61,3 @@ darwin-code-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
-[target.'cfg(target_os = "linux")'.dependencies]
-keyring = { workspace = true, features = ["linux-native-async-persistent"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-keyring = { workspace = true, features = ["apple-native"] }
-
-[target.'cfg(target_os = "windows")'.dependencies]
-keyring = { workspace = true, features = ["windows-native"] }
-
-[target.'cfg(any(target_os = "freebsd", target_os = "openbsd"))'.dependencies]
-keyring = { workspace = true, features = ["sync-secret-service"] }

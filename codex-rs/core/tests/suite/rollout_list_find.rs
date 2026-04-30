@@ -4,6 +4,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use chrono::Utc;
+use core_test_support::write_default_byok_test_config;
 use darwin_code_core::EventPersistenceMode;
 use darwin_code_core::RolloutRecorder;
 use darwin_code_core::RolloutRecorderParams;
@@ -22,7 +23,11 @@ use uuid::Uuid;
 
 /// Create <subdir>/YYYY/MM/DD and write a minimal rollout file containing the
 /// provided conversation id in the SessionMeta line. Returns the absolute path.
-fn write_minimal_rollout_with_id_in_subdir(darwin_code_home: &Path, subdir: &str, id: Uuid) -> PathBuf {
+fn write_minimal_rollout_with_id_in_subdir(
+    darwin_code_home: &Path,
+    subdir: &str,
+    id: Uuid,
+) -> PathBuf {
     let sessions = darwin_code_home.join(subdir).join("2024/01/01");
     std::fs::create_dir_all(&sessions).unwrap();
 
@@ -56,7 +61,11 @@ fn write_minimal_rollout_with_id(darwin_code_home: &Path, id: Uuid) -> PathBuf {
     write_minimal_rollout_with_id_in_subdir(darwin_code_home, "sessions", id)
 }
 
-async fn upsert_thread_metadata(darwin_code_home: &Path, thread_id: ThreadId, rollout_path: PathBuf) {
+async fn upsert_thread_metadata(
+    darwin_code_home: &Path,
+    thread_id: ThreadId,
+    rollout_path: PathBuf,
+) {
     let runtime = StateRuntime::init(darwin_code_home.to_path_buf(), "test-provider".to_string())
         .await
         .unwrap();
@@ -91,9 +100,9 @@ async fn find_locates_rollout_file_by_id() {
 #[tokio::test]
 async fn find_handles_gitignore_covering_darwin_code_home_directory() {
     let repo = TempDir::new().unwrap();
-    let darwin_code_home = repo.path().join(".darwin-code");
+    let darwin_code_home = repo.path().join(".darwin_code");
     std::fs::create_dir_all(&darwin_code_home).unwrap();
-    std::fs::write(repo.path().join(".gitignore"), ".darwin-code/**\n").unwrap();
+    std::fs::write(repo.path().join(".gitignore"), ".darwin_code/**\n").unwrap();
     let id = Uuid::new_v4();
     let expected = write_minimal_rollout_with_id(&darwin_code_home, id);
 
@@ -161,6 +170,7 @@ async fn find_ignores_granular_gitignore_rules() {
 async fn find_locates_rollout_file_written_by_recorder() -> std::io::Result<()> {
     // Ensures the name-based finder locates a rollout produced by the real recorder.
     let home = TempDir::new().unwrap();
+    write_default_byok_test_config(home.path());
     let config = ConfigBuilder::default()
         .darwin_code_home(home.path().to_path_buf())
         .build()

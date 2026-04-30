@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// Generate the JSON Schema for `config.toml` and write it to `config.schema.json`.
 #[derive(Parser)]
-#[command(name = "darwin-code-write-config-schema")]
+#[command(name = "darwin_code-write-config-schema")]
 struct Args {
     #[arg(short, long, value_name = "PATH")]
     out: Option<PathBuf>,

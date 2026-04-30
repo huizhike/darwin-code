@@ -9,20 +9,20 @@ use crate::exec_approval::handle_exec_approval_request;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotificationMeta;
 use crate::patch_approval::handle_patch_approval_request;
-use codex_core::CodexThread;
-use codex_core::NewThread;
-use codex_core::ThreadManager;
-use codex_core::config::Config as CodexConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::user_input::UserInput;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::NewThread;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::config::Config as CodexConfig;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::AgentMessageEvent;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::Submission;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::user_input::UserInput;
 use rmcp::model::CallToolResult;
 use rmcp::model::Content;
 use rmcp::model::RequestId;
@@ -144,7 +144,7 @@ pub async fn run_codex_tool_session(
 
 pub async fn run_codex_tool_session_reply(
     thread_id: ThreadId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DarwinCodeThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     prompt: String,
@@ -193,7 +193,7 @@ pub async fn run_codex_tool_session_reply(
 
 async fn run_codex_tool_session_inner(
     thread_id: ThreadId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DarwinCodeThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,

@@ -57,9 +57,9 @@ fn shell_payload_command(payload: &ToolPayload) -> Option<String> {
         ToolPayload::Function { arguments } => parse_arguments::<ShellToolCallParams>(arguments)
             .ok()
             .map(|params| darwin_code_shell_command::parse_command::shlex_join(&params.command)),
-        ToolPayload::LocalShell { params } => Some(darwin_code_shell_command::parse_command::shlex_join(
-            &params.command,
-        )),
+        ToolPayload::LocalShell { params } => Some(
+            darwin_code_shell_command::parse_command::shlex_join(&params.command),
+        ),
         _ => None,
     }
 }
@@ -242,7 +242,9 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: darwin_code_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: darwin_code_shell_command::parse_command::shlex_join(
+                        &params.command,
+                    ),
                     additional_permissions: params.additional_permissions.clone(),
                     prefix_rule,
                     session,
@@ -260,7 +262,9 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: darwin_code_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: darwin_code_shell_command::parse_command::shlex_join(
+                        &params.command,
+                    ),
                     additional_permissions: None,
                     prefix_rule: None,
                     session,
@@ -573,7 +577,9 @@ impl ShellHandler {
         let content = emitter.finish(event_ctx, out).await?;
         Ok(FunctionToolOutput {
             body: vec![
-                darwin_code_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
+                darwin_code_protocol::models::FunctionCallOutputContentItem::InputText {
+                    text: content,
+                },
             ],
             success: Some(true),
             post_tool_use_response,

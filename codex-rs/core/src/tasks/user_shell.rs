@@ -99,7 +99,7 @@ pub(crate) async fn execute_user_shell_command(
     session
         .services
         .session_telemetry
-        .counter("darwin-code.task.user_shell", /*inc*/ 1, &[]);
+        .counter("darwin_code.task.user_shell", /*inc*/ 1, &[]);
 
     if mode == UserShellCommandMode::StandaloneTurn {
         // Auxiliary mode runs within an existing active turn. That turn already

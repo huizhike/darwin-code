@@ -10,7 +10,6 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::state::SessionServices;
 use crate::tools::network_approval::NetworkApprovalSpec;
-use darwin_code_network_proxy::NetworkProxy;
 use darwin_code_protocol::approvals::ExecPolicyAmendment;
 use darwin_code_protocol::approvals::NetworkApprovalContext;
 use darwin_code_protocol::error::DarwinCodeErr;
@@ -21,6 +20,7 @@ use darwin_code_protocol::protocol::AskForApproval;
 use darwin_code_protocol::protocol::ReviewDecision;
 #[cfg(test)]
 use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_sandboxing::SandboxCommand;
 use darwin_code_sandboxing::SandboxManager;
 use darwin_code_sandboxing::SandboxTransformError;
@@ -97,7 +97,7 @@ where
     let decision = fetch().await;
 
     services.session_telemetry.counter(
-        "darwin-code.approval.requested",
+        "darwin_code.approval.requested",
         /*inc*/ 1,
         &[
             ("tool", tool_name),
@@ -147,7 +147,7 @@ pub(crate) enum ExecApprovalRequirement {
         /// greenlit by policy).
         bypass_sandbox: bool,
         /// Proposed execpolicy amendment to skip future approvals for similar commands
-        /// Only applies if the command fails to run in sandbox and darwin-code prompts the user to run outside the sandbox.
+        /// Only applies if the command fails to run in sandbox and darwin_code prompts the user to run outside the sandbox.
         proposed_execpolicy_amendment: Option<ExecPolicyAmendment>,
     },
     /// Approval required for this tool call.
@@ -321,7 +321,7 @@ pub(crate) struct ToolCtx {
 #[derive(Debug)]
 pub(crate) enum ToolError {
     Rejected(String),
-    Darwin-Code(DarwinCodeErr),
+    DarwinCode(DarwinCodeErr),
 }
 
 pub(crate) trait ToolRuntime<Req, Out>: Approvable<Req> + Sandboxable {
@@ -342,10 +342,10 @@ pub(crate) struct SandboxAttempt<'a> {
     pub policy: &'a darwin_code_protocol::protocol::SandboxPolicy,
     pub file_system_policy: &'a FileSystemSandboxPolicy,
     pub network_policy: NetworkSandboxPolicy,
-    pub enforce_managed_network: bool,
+    pub enforce_network_policy: bool,
     pub(crate) manager: &'a SandboxManager,
     pub(crate) sandbox_cwd: &'a AbsolutePathBuf,
-    pub darwin_code_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
+    pub codex_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
     pub use_legacy_landlock: bool,
     pub windows_sandbox_level: darwin_code_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
@@ -356,7 +356,7 @@ impl<'a> SandboxAttempt<'a> {
         &self,
         command: SandboxCommand,
         options: ExecOptions,
-        network: Option<&NetworkProxy>,
+        network: Option<&NetworkAccessRuntime>,
     ) -> Result<crate::sandboxing::ExecRequest, SandboxTransformError> {
         self.manager
             .transform(SandboxTransformRequest {
@@ -365,11 +365,11 @@ impl<'a> SandboxAttempt<'a> {
                 file_system_policy: self.file_system_policy,
                 network_policy: self.network_policy,
                 sandbox: self.sandbox,
-                enforce_managed_network: self.enforce_managed_network,
+                enforce_network_policy: self.enforce_network_policy,
                 network,
                 sandbox_policy_cwd: self.sandbox_cwd,
-                darwin_code_linux_sandbox_exe: self
-                    .darwin_code_linux_sandbox_exe
+                codex_linux_sandbox_exe: self
+                    .codex_linux_sandbox_exe
                     .map(std::path::PathBuf::as_path),
                 use_legacy_landlock: self.use_legacy_landlock,
                 windows_sandbox_level: self.windows_sandbox_level,

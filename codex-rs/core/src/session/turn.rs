@@ -57,6 +57,12 @@ use crate::turn_timing::record_turn_ttft_metric;
 use crate::unavailable_tool::collect_unavailable_called_tools;
 use crate::util::backoff;
 use crate::util::error_or_panic;
+use codex_analytics::AppInvocation;
+use codex_analytics::CompactionPhase;
+use codex_analytics::CompactionReason;
+use codex_analytics::InvocationType;
+use codex_analytics::TurnResolvedConfigFact;
+use codex_analytics::build_track_events_context;
 use darwin_code_async_utils::OrCancelExt;
 use darwin_code_features::Feature;
 use darwin_code_hooks::HookEvent;
@@ -131,8 +137,7 @@ pub(crate) async fn run_turn(
         return None;
     }
 
-    let model_info = turn_context.model_info.clone();
-    let auto_compact_limit = model_info.auto_compact_token_limit().unwrap_or(i64::MAX);
+    let auto_compact_limit = turn_context.auto_compact_token_limit().unwrap_or(i64::MAX);
     let mut prewarmed_client_session = prewarmed_client_session;
     // TODO(ccunningham): Pre-turn compaction runs before context updates and the
     // new user message are recorded. Estimate pending incoming items (context
@@ -326,9 +331,9 @@ pub(crate) async fn run_turn(
             turn_context.as_ref(),
             EventMsg::Error(ErrorEvent {
                 message: format!(
-                    "Agent task registration failed. Please try again; Darwin-Code will attempt to register the task again on the next turn: {error}"
+                    "Agent task registration failed. Please try again; DarwinCode will attempt to register the task again on the next turn: {error}"
                 ),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                codex_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         )
         .await;
@@ -351,7 +356,7 @@ pub(crate) async fn run_turn(
         .await;
     let mut last_agent_message: Option<String> = None;
     let mut stop_hook_active = false;
-    // Although from the perspective of darwin-code.rs, TurnDiffTracker has the lifecycle of a Task which contains
+    // Although from the perspective of darwin_code.rs, TurnDiffTracker has the lifecycle of a Task which contains
     // many turns, from the perspective of the user, it is a single turn.
     let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
     let mut server_model_warning_emitted_for_turn = false;
@@ -518,10 +523,12 @@ pub(crate) async fn run_turn(
                     for run in sess.hooks().preview_stop(&stop_request) {
                         sess.send_event(
                             &turn_context,
-                            EventMsg::HookStarted(darwin_code_protocol::protocol::HookStartedEvent {
-                                turn_id: Some(turn_context.sub_id.clone()),
-                                run,
-                            }),
+                            EventMsg::HookStarted(
+                                darwin_code_protocol::protocol::HookStartedEvent {
+                                    turn_id: Some(turn_context.sub_id.clone()),
+                                    run,
+                                },
+                            ),
                         )
                         .await;
                     }
@@ -604,7 +611,7 @@ pub(crate) async fn run_turn(
                             &turn_context,
                             EventMsg::Error(ErrorEvent {
                                 message,
-                                darwin_code_error_info: None,
+                                codex_error_info: None,
                             }),
                         )
                         .await;
@@ -632,7 +639,7 @@ pub(crate) async fn run_turn(
                 let event = EventMsg::Error(ErrorEvent {
                     message: "Invalid image in your last message. Please remove it and try again."
                         .to_string(),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                    codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
                 });
                 sess.send_event(&turn_context, event).await;
                 break;
@@ -708,10 +715,7 @@ async fn run_pre_sampling_compact(
     )
     .await?;
     let total_usage_tokens = sess.get_total_token_usage().await;
-    let auto_compact_limit = turn_context
-        .model_info
-        .auto_compact_token_limit()
-        .unwrap_or(i64::MAX);
+    let auto_compact_limit = turn_context.auto_compact_token_limit().unwrap_or(i64::MAX);
     // Compact if the total usage tokens are greater than the auto compact limit
     if total_usage_tokens >= auto_compact_limit {
         run_auto_compact(
@@ -753,10 +757,7 @@ async fn maybe_run_previous_model_inline_compact(
     let Some(new_context_window) = turn_context.model_context_window() else {
         return Ok(false);
     };
-    let new_auto_compact_limit = turn_context
-        .model_info
-        .auto_compact_token_limit()
-        .unwrap_or(i64::MAX);
+    let new_auto_compact_limit = turn_context.auto_compact_token_limit().unwrap_or(i64::MAX);
     let should_run = total_usage_tokens > new_auto_compact_limit
         && previous_model_turn_context.model_info.slug != turn_context.model_info.slug
         && old_context_window > new_context_window;
@@ -1129,7 +1130,7 @@ pub(crate) async fn built_tools(
         .or_cancel(cancellation_token)
         .await?;
     drop(mcp_connection_manager);
-    let loaded_plugins = sess
+    let _loaded_plugins = sess
         .services
         .plugins_manager
         .plugins_for_config(&turn_context.config)
@@ -1154,12 +1155,11 @@ pub(crate) async fn built_tools(
     } else {
         None
     };
-    let auth = sess.services.auth_manager.auth().await;
     let discoverable_tools = if apps_enabled && turn_context.tools_config.tool_suggest {
         if let Some(accessible_connectors) = accessible_connectors_with_enabled_state.as_ref() {
             match connectors::list_tool_suggest_discoverable_tools_with_auth(
                 &turn_context.config,
-                auth.as_ref(),
+                None,
                 accessible_connectors.as_slice(),
             )
             .await
@@ -1822,7 +1822,7 @@ async fn try_run_sampling_request(
         approval_policy = turn_context.approval_policy.value(),
         sandbox_policy = turn_context.sandbox_policy.get(),
         effort = turn_context.reasoning_effort,
-        auth_mode = sess.services.auth_manager.auth_mode(),
+        auth_mode = Option::<String>::None,
         features = sess.features.enabled_features(),
     );
     let mut stream = client_session
@@ -1868,7 +1868,9 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(darwin_code_async_utils::CancelErr::Cancelled) => break Err(DarwinCodeErr::TurnAborted),
+            Err(darwin_code_async_utils::CancelErr::Cancelled) => {
+                break Err(DarwinCodeErr::TurnAborted);
+            }
         };
 
         let event = match event {

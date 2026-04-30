@@ -31,9 +31,7 @@ pub(super) async fn spawn_review_thread(
             .list_models(RefreshStrategy::OnlineIfUncached)
             .await,
         features: &review_features,
-        image_generation_tool_auth_allowed: image_generation_tool_auth_allowed(Some(
-            sess.services.auth_manager.as_ref(),
-        )),
+        image_generation_tool_auth_allowed: image_generation_tool_auth_allowed(),
         web_search_mode: Some(review_web_search_mode),
         session_source: parent_turn_context.session_source.clone(),
         sandbox_policy: parent_turn_context.sandbox_policy.get(),
@@ -56,7 +54,6 @@ pub(super) async fn spawn_review_thread(
 
     let review_prompt = resolved.prompt.clone();
     let provider = parent_turn_context.provider.clone();
-    let auth_manager = parent_turn_context.auth_manager.clone();
     let model_info = review_model_info.clone();
 
     // Build per‑turn client with the requested model/family.
@@ -77,7 +74,6 @@ pub(super) async fn spawn_review_thread(
         .session_telemetry
         .clone()
         .with_model(model.as_str(), review_model_info.slug.as_str());
-    let auth_manager_for_context = auth_manager.clone();
     let provider_for_context = provider.clone();
     let session_telemetry_for_context = session_telemetry.clone();
     let reasoning_effort = per_turn_config.model_reasoning_effort;
@@ -102,7 +98,6 @@ pub(super) async fn spawn_review_thread(
         trace_id: current_span_trace_id(),
         realtime_active: parent_turn_context.realtime_active,
         config: per_turn_config,
-        auth_manager: auth_manager_for_context,
         model_info: model_info.clone(),
         session_telemetry: session_telemetry_for_context,
         provider: provider_for_context,
@@ -131,7 +126,7 @@ pub(super) async fn spawn_review_thread(
         cwd: parent_turn_context.cwd.clone(),
         final_output_json_schema: None,
         darwin_code_self_exe: parent_turn_context.darwin_code_self_exe.clone(),
-        darwin_code_linux_sandbox_exe: parent_turn_context.darwin_code_linux_sandbox_exe.clone(),
+        codex_linux_sandbox_exe: parent_turn_context.codex_linux_sandbox_exe.clone(),
         tool_call_gate: Arc::new(ReadinessFlag::new()),
         js_repl: Arc::clone(&sess.js_repl),
         dynamic_tools: parent_turn_context.dynamic_tools.clone(),

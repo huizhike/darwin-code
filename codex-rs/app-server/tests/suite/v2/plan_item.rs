@@ -4,6 +4,8 @@ use anyhow::bail;
 use app_test_support::McpProcess;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server_protocol::ItemCompletedNotification;
 use darwin_code_app_server_protocol::ItemStartedNotification;
 use darwin_code_app_server_protocol::JSONRPCMessage;
@@ -23,8 +25,6 @@ use darwin_code_features::Feature;
 use darwin_code_protocol::config_types::CollaborationMode;
 use darwin_code_protocol::config_types::ModeKind;
 use darwin_code_protocol::config_types::Settings;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -127,7 +127,9 @@ async fn plan_mode_without_proposed_plan_does_not_emit_plan_item() -> Result<()>
     Ok(())
 }
 
-async fn start_plan_mode_turn(mcp: &mut McpProcess) -> Result<darwin_code_app_server_protocol::Turn> {
+async fn start_plan_mode_turn(
+    mcp: &mut McpProcess,
+) -> Result<darwin_code_app_server_protocol::Turn> {
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
             model: Some("mock-model".to_string()),

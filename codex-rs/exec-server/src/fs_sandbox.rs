@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::ReadOnlyAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxExecRequest;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxablePreference;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_preserving_symlinks;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::SandboxCommand;
+use darwin_code_sandboxing::SandboxExecRequest;
+use darwin_code_sandboxing::SandboxManager;
+use darwin_code_sandboxing::SandboxTransformRequest;
+use darwin_code_sandboxing::SandboxablePreference;
+use darwin_code_sandboxing::policy_transforms::merge_permission_profiles;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::canonicalize_preserving_symlinks;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -88,7 +88,7 @@ impl FileSystemSandboxRunner {
             network_policy,
             SandboxablePreference::Auto,
             sandbox_context.windows_sandbox_level,
-            /*has_managed_network_requirements*/ false,
+            /*has_network_requirements*/ false,
         );
         let command = SandboxCommand {
             program: helper.as_path().as_os_str().to_owned(),
@@ -107,7 +107,7 @@ impl FileSystemSandboxRunner {
                 file_system_policy,
                 network_policy,
                 sandbox,
-                enforce_managed_network: false,
+                enforce_network_policy: false,
                 network: None,
                 sandbox_policy_cwd: cwd.as_path(),
                 codex_linux_sandbox_exe: self.runtime_paths.codex_linux_sandbox_exe.as_deref(),
@@ -362,14 +362,14 @@ mod tests {
     use std::collections::HashMap;
     use std::ffi::OsString;
 
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_protocol::protocol::ReadOnlyAccess;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::models::FileSystemPermissions;
+    use darwin_code_protocol::models::NetworkPermissions;
+    use darwin_code_protocol::models::PermissionProfile;
+    use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+    use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+    use darwin_code_protocol::protocol::ReadOnlyAccess;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     use crate::ExecServerRuntimePaths;
@@ -442,7 +442,7 @@ mod tests {
             .expect("absolute temp dir");
         let sandbox_policy = SandboxPolicy::new_workspace_write_policy();
         let file_system_policy =
-            codex_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+            darwin_code_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(
                 &sandbox_policy,
                 cwd.as_path(),
             );
@@ -464,7 +464,7 @@ mod tests {
             .expect("absolute temp dir");
         let sandbox_policy = SandboxPolicy::new_workspace_write_policy();
         let file_system_policy =
-            codex_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+            darwin_code_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(
                 &sandbox_policy,
                 cwd.as_path(),
             );

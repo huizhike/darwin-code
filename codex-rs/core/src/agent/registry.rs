@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-/// This structure is used to add some limits on the multi-agent capabilities for Darwin-Code. In
+/// This structure is used to add some limits on the multi-agent capabilities for DarwinCode. In
 /// the current implementation, it limits:
 /// * Total number of sub-agents (i.e. threads) per user session
 ///
@@ -222,7 +222,7 @@ impl AgentRegistry {
                 active_agents.nickname_reset_count += 1;
                 if let Some(metrics) = darwin_code_otel::global() {
                     let _ = metrics.counter(
-                        "darwin-code.multi_agent.nickname_pool_reset",
+                        "darwin_code.multi_agent.nickname_pool_reset",
                         /*inc*/ 1,
                         &[],
                     );

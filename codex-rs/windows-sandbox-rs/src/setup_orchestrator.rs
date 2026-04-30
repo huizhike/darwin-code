@@ -871,8 +871,8 @@ mod tests {
     use super::proxy_ports_from_env;
     use crate::helper_materialization::helper_bin_dir;
     use crate::policy::SandboxPolicy;
-    use codex_protocol::protocol::ReadOnlyAccess;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::protocol::ReadOnlyAccess;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::collections::HashSet;

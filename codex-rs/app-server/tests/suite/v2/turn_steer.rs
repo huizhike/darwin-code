@@ -6,7 +6,7 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
+use app_test_support::write_mock_responses_config_toml_with_base_url;
 use darwin_code_app_server::INPUT_TOO_LARGE_ERROR_CODE;
 use darwin_code_app_server::INVALID_PARAMS_ERROR_CODE;
 use darwin_code_app_server_protocol::JSONRPCError;
@@ -24,8 +24,8 @@ use darwin_code_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use tempfile::TempDir;
 use tokio::time::timeout;
 
+use super::analytics::assert_no_analytics_payload;
 use super::analytics::enable_analytics_capture;
-use super::analytics::wait_for_analytics_event;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
@@ -36,7 +36,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
     std::fs::create_dir(&darwin_code_home)?;
 
     let server = create_mock_responses_server_sequence(vec![]).await;
-    write_mock_responses_config_toml_with_chatgpt_base_url(
+    write_mock_responses_config_toml_with_base_url(
         &darwin_code_home,
         &server.uri(),
         &server.uri(),
@@ -77,20 +77,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
     .await??;
     assert_eq!(steer_err.error.code, -32600);
 
-    let event =
-        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "darwin_code_turn_steer_event").await?;
-    assert_eq!(event["event_params"]["thread_id"], thread.id);
-    assert_eq!(event["event_params"]["result"], "rejected");
-    assert_eq!(event["event_params"]["num_input_images"], 0);
-    assert_eq!(
-        event["event_params"]["expected_turn_id"],
-        "turn-does-not-exist"
-    );
-    assert_eq!(
-        event["event_params"]["accepted_turn_id"],
-        serde_json::Value::Null
-    );
-    assert_eq!(event["event_params"]["rejection_reason"], "no_active_turn");
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
 
     Ok(())
 }
@@ -120,7 +107,7 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
             "call_sleep",
         )?])
         .await;
-    write_mock_responses_config_toml_with_chatgpt_base_url(
+    write_mock_responses_config_toml_with_base_url(
         &darwin_code_home,
         &server.uri(),
         &server.uri(),
@@ -229,7 +216,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
             "call_sleep",
         )?])
         .await;
-    write_mock_responses_config_toml_with_chatgpt_base_url(
+    write_mock_responses_config_toml_with_base_url(
         &darwin_code_home,
         &server.uri(),
         &server.uri(),
@@ -295,17 +282,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
     let steer: TurnSteerResponse = to_response::<TurnSteerResponse>(steer_resp)?;
     assert_eq!(steer.turn_id, turn.id);
 
-    let event =
-        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "darwin_code_turn_steer_event").await?;
-    assert_eq!(event["event_params"]["thread_id"], thread.id);
-    assert_eq!(event["event_params"]["result"], "accepted");
-    assert_eq!(event["event_params"]["num_input_images"], 0);
-    assert_eq!(event["event_params"]["expected_turn_id"], turn.id);
-    assert_eq!(event["event_params"]["accepted_turn_id"], turn.id);
-    assert_eq!(
-        event["event_params"]["rejection_reason"],
-        serde_json::Value::Null
-    );
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
 
     mcp.interrupt_turn_and_wait_for_aborted(thread.id, steer.turn_id, DEFAULT_READ_TIMEOUT)
         .await?;

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::os::fd::RawFd;
 use std::path::PathBuf;
 
-use codex_protocol::approvals::EscalationPermissions;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::approvals::EscalationPermissions;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 

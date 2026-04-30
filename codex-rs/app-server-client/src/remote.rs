@@ -21,22 +21,22 @@ use crate::SHUTDOWN_TIMEOUT;
 use crate::TypedRequestError;
 use crate::request_method_name;
 use crate::server_notification_requires_delivery;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result as JsonRpcResult;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::ClientNotification;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::InitializeCapabilities;
+use darwin_code_app_server_protocol::InitializeParams;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCRequest;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::Result as JsonRpcResult;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use serde::de::DeserializeOwned;
@@ -614,12 +614,14 @@ impl RemoteAppServerClient {
             .is_ok()
             && let Ok(command_result) = timeout(SHUTDOWN_TIMEOUT, response_rx).await
         {
-            command_result.map_err(|_| {
-                IoError::new(
-                    ErrorKind::BrokenPipe,
-                    "remote app-server shutdown channel is closed",
-                )
-            })??;
+            // The remote peer may close the websocket after answering the last
+            // request but before this explicit shutdown command is processed.
+            // In that case the worker exits and drops the shutdown response
+            // channel; the client is already disconnected, so shutdown remains
+            // complete.
+            if let Ok(close_result) = command_result {
+                close_result?;
+            }
         }
 
         if let Err(_elapsed) = timeout(SHUTDOWN_TIMEOUT, &mut worker_handle).await {
@@ -954,7 +956,7 @@ mod tests {
     fn event_requires_delivery_marks_transcript_and_disconnect_events() {
         assert!(event_requires_delivery(
             &AppServerEvent::ServerNotification(ServerNotification::AgentMessageDelta(
-                codex_app_server_protocol::AgentMessageDeltaNotification {
+                darwin_code_app_server_protocol::AgentMessageDeltaNotification {
                     thread_id: "thread".to_string(),
                     turn_id: "turn".to_string(),
                     item_id: "item".to_string(),
@@ -964,10 +966,10 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &AppServerEvent::ServerNotification(ServerNotification::ItemCompleted(
-                codex_app_server_protocol::ItemCompletedNotification {
+                darwin_code_app_server_protocol::ItemCompletedNotification {
                     thread_id: "thread".to_string(),
                     turn_id: "turn".to_string(),
-                    item: codex_app_server_protocol::ThreadItem::Plan {
+                    item: darwin_code_app_server_protocol::ThreadItem::Plan {
                         id: "item".to_string(),
                         text: "step".to_string(),
                     },

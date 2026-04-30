@@ -8,16 +8,34 @@ use sqlx::SqlitePool;
 use tempfile::TempDir;
 
 fn darwin_code_command(darwin_code_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?);
+    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?);
     cmd.env("DARWIN_CODE_HOME", darwin_code_home);
     Ok(cmd)
+}
+
+fn write_byok_test_config(darwin_code_home: &Path) -> Result<()> {
+    std::fs::write(
+        darwin_code_home.join("config.toml"),
+        r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#,
+    )?;
+    Ok(())
 }
 
 #[tokio::test]
 async fn debug_clear_memories_resets_state_and_removes_memory_dir() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
-    let runtime =
-        StateRuntime::init(darwin_code_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    write_byok_test_config(darwin_code_home.path())?;
+    let runtime = StateRuntime::init(
+        darwin_code_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     drop(runtime);
 
     let thread_id = "00000000-0000-0000-0000-000000000123";

@@ -4,6 +4,7 @@ use crate::shell::ShellType;
 use crate::test_support::construct_model_info_offline;
 use crate::tools::ToolRouter;
 use crate::tools::router::ToolRouterParams;
+use core_test_support::assert_regex_match;
 use darwin_code_app_server_protocol::AppInfo;
 use darwin_code_features::Feature;
 use darwin_code_features::Features;
@@ -34,7 +35,6 @@ use darwin_code_tools::ZshForkConfig;
 use darwin_code_tools::mcp_call_tool_result_output_schema;
 use darwin_code_tools::mcp_tool_to_deferred_responses_api_tool;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::assert_regex_match;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -100,7 +100,7 @@ fn discoverable_connector(id: &str, name: &str, description: &str) -> Discoverab
         branding: None,
         app_metadata: None,
         labels: None,
-        install_url: Some(format!("https://chatgpt.com/apps/{slug}/{id}")),
+        install_url: Some(format!("https://apps.darwin-code.local/apps/{slug}/{id}")),
         is_accessible: false,
         is_enabled: true,
         plugin_display_names: Vec::new(),
@@ -706,22 +706,23 @@ async fn shell_zsh_fork_prefers_shell_command_over_unified_exec() {
             .with_unified_exec_shell_mode_for_session(
                 tool_user_shell_type(&user_shell),
                 Some(&PathBuf::from(if cfg!(windows) {
-                    r"C:\opt\darwin-code\zsh"
+                    r"C:\opt\darwin_code\zsh"
                 } else {
-                    "/opt/darwin-code/zsh"
+                    "/opt/darwin_code/zsh"
                 })),
                 Some(&PathBuf::from(if cfg!(windows) {
-                    r"C:\opt\darwin-code\darwin-code-execve-wrapper"
+                    r"C:\opt\darwin_code\darwin_code-execve-wrapper"
                 } else {
-                    "/opt/darwin-code/darwin-code-execve-wrapper"
+                    "/opt/darwin_code/darwin_code-execve-wrapper"
                 })),
             )
             .unified_exec_shell_mode,
         if cfg!(unix) {
             UnifiedExecShellMode::ZshFork(ZshForkConfig {
-                shell_zsh_path: AbsolutePathBuf::from_absolute_path("/opt/darwin-code/zsh").unwrap(),
+                shell_zsh_path: AbsolutePathBuf::from_absolute_path("/opt/darwin_code/zsh")
+                    .unwrap(),
                 main_execve_wrapper_exe: AbsolutePathBuf::from_absolute_path(
-                    "/opt/darwin-code/darwin-code-execve-wrapper",
+                    "/opt/darwin_code/darwin_code-execve-wrapper",
                 )
                 .unwrap(),
             })
@@ -1078,7 +1079,9 @@ async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
         "mcp__darwin_code_apps__calendar",
         "_create_event"
     )));
-    assert!(!registry.has_handler(&ToolName::plain("mcp__darwin_code_apps__calendar_create_event")));
+    assert!(!registry.has_handler(&ToolName::plain(
+        "mcp__darwin_code_apps__calendar_create_event"
+    )));
 }
 
 #[tokio::test]

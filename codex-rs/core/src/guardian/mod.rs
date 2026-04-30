@@ -7,7 +7,7 @@
 //! 2. Ask a dedicated guardian review session to assess the exact planned
 //!    action and return strict JSON.
 //!    The guardian clones the parent config, so it inherits any managed
-//!    network proxy / allowlist that the parent turn already had.
+//!    network permission allowlist that the parent turn already had.
 //! 3. Fail closed on timeout, execution failure, or malformed output.
 //! 4. Apply the guardian's explicit allow/deny outcome.
 
@@ -34,7 +34,7 @@ pub(crate) use review::review_approval_request_with_cancel;
 pub(crate) use review::routes_approval_to_guardian;
 pub(crate) use review_session::GuardianReviewSessionManager;
 
-const GUARDIAN_PREFERRED_MODEL: &str = "darwin-code-auto-review";
+const GUARDIAN_PREFERRED_MODEL: &str = "darwin_code-auto-review";
 pub(crate) const GUARDIAN_REVIEW_TIMEOUT: Duration = Duration::from_secs(90);
 pub(crate) const GUARDIAN_REVIEWER_NAME: &str = "guardian";
 const GUARDIAN_MAX_MESSAGE_TRANSCRIPT_TOKENS: usize = 10_000;

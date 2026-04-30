@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use darwin_code_client::is_first_party_originator;
+use darwin_code_client::originator;
 use darwin_code_config::ConfigEditsBuilder;
 use darwin_code_config::McpServerConfig;
 use darwin_code_config::McpServerTransportConfig;
 use darwin_code_config::load_global_mcp_servers;
-use darwin_code_login::default_client::is_first_party_originator;
-use darwin_code_login::default_client::originator;
 use darwin_code_protocol::request_user_input::RequestUserInputArgs;
 use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
 use darwin_code_protocol::request_user_input::RequestUserInputQuestionOption;
@@ -194,12 +194,7 @@ pub(crate) async fn maybe_install_mcp_dependencies(
 
     // Refresh from the effective merged MCP map (global + repo + managed) and
     // overlay the updated global servers so we don't drop repo-scoped servers.
-    let auth = sess.services.auth_manager.auth().await;
-    let mut refresh_servers = sess
-        .services
-        .mcp_manager
-        .effective_servers(config, auth.as_ref())
-        .await;
+    let mut refresh_servers = sess.services.mcp_manager.effective_servers(config).await;
     for (name, server_config) in &servers {
         refresh_servers
             .entry(name.clone())

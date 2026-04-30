@@ -6,13 +6,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use darwin_code_config::config_toml::ProjectConfig;
-use darwin_code_protocol::config_types::TrustLevel;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::mount_sse_sequence;
@@ -20,6 +13,13 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use tokio::time::timeout;
 
 fn enable_trusted_project(config: &mut darwin_code_core::config::Config) {
@@ -46,7 +46,7 @@ fn contains_skill_body(request: &ResponsesRequest, skill_body: &str) -> bool {
 
 async fn submit_skill_turn(test: &TestDarwinCode, skill_path: PathBuf, prompt: &str) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![
                 UserInput::Text {
@@ -72,7 +72,7 @@ async fn submit_skill_turn(test: &TestDarwinCode, skill_path: PathBuf, prompt: &
         })
         .await?;
 
-    wait_for_event(test.darwin-code.as_ref(), |event| {
+    wait_for_event(test.darwin_code.as_ref(), |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -102,7 +102,8 @@ async fn live_skills_reload_refreshes_skill_cache_after_skill_change() -> Result
         });
     let test = builder.build(&server).await?;
 
-    let skill_path = dunce::canonicalize(test.darwin_code_home_path().join("skills/demo/SKILL.md"))?;
+    let skill_path =
+        dunce::canonicalize(test.darwin_code_home_path().join("skills/demo/SKILL.md"))?;
 
     submit_skill_turn(&test, skill_path.clone(), "please use $demo").await?;
     let first_request = responses
@@ -119,7 +120,7 @@ async fn live_skills_reload_refreshes_skill_cache_after_skill_change() -> Result
 
     let saw_skills_update = timeout(Duration::from_secs(5), async {
         loop {
-            match test.darwin-code.next_event().await {
+            match test.darwin_code.next_event().await {
                 Ok(event) => {
                     if matches!(event.msg, EventMsg::SkillsUpdateAvailable) {
                         break;

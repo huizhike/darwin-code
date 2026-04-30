@@ -3,13 +3,13 @@ use super::load_config_layers_state;
 use crate::config::ConfigBuilder;
 use crate::config::ConfigOverrides;
 use crate::config::ConstraintError;
-use crate::config_loader::CloudRequirementsLoadError;
-use crate::config_loader::CloudRequirementsLoader;
 use crate::config_loader::ConfigLayerEntry;
 use crate::config_loader::ConfigLoadError;
 use crate::config_loader::ConfigRequirements;
 use crate::config_loader::ConfigRequirementsToml;
 use crate::config_loader::ConfigRequirementsWithSources;
+use crate::config_loader::ExternalRequirementsLoadError;
+use crate::config_loader::ExternalRequirementsLoader;
 use crate::config_loader::FilesystemDenyReadPattern;
 use crate::config_loader::RequirementSource;
 use crate::config_loader::load_requirements_toml;
@@ -99,7 +99,7 @@ async fn returns_config_error_for_invalid_user_config_toml() {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await
     .expect_err("expected error");
@@ -127,7 +127,7 @@ async fn returns_config_error_for_invalid_managed_config_toml() {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await
     .expect_err("expected error");
@@ -169,8 +169,9 @@ fn schema_error_points_to_feature_value() {
     std::fs::write(&config_path, contents).expect("write config");
 
     let _guard = darwin_code_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
-    let error = darwin_code_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
-        .expect("schema error");
+    let error =
+        darwin_code_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+            .expect("schema error");
 
     let value_line = contents.lines().nth(1).expect("value line");
     let value_column = value_line.find("\"true\"").expect("value") + 1;
@@ -212,7 +213,7 @@ extra = true
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await
     .expect("load config");
@@ -245,7 +246,7 @@ async fn returns_empty_when_all_layers_missing() {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await
     .expect("load layers");
@@ -338,7 +339,7 @@ flag = false
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await
     .expect("load config");
@@ -440,7 +441,7 @@ allowed_sandbox_modes = ["read-only"]
         Some(AbsolutePathBuf::try_from(tmp.path())?),
         &[] as &[(String, TomlValue)],
         loader_overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -502,7 +503,7 @@ allowed_approval_policies = ["never"]
         Some(AbsolutePathBuf::try_from(tmp.path())?),
         &[] as &[(String, TomlValue)],
         loader_overrides,
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -621,7 +622,7 @@ personality = true
 
 #[cfg(target_os = "macos")]
 #[tokio::test]
-async fn cloud_requirements_take_precedence_over_mdm_requirements() -> anyhow::Result<()> {
+async fn external_requirements_take_precedence_over_mdm_requirements() -> anyhow::Result<()> {
     use base64::Engine;
 
     let tmp = tempdir()?;
@@ -640,7 +641,7 @@ allowed_approval_policies = ["on-request"]
         Some(AbsolutePathBuf::try_from(tmp.path())?),
         &[] as &[(String, TomlValue)],
         loader_overrides,
-        CloudRequirementsLoader::new(async {
+        ExternalRequirementsLoader::new(async {
             Ok(Some(ConfigRequirementsToml {
                 allowed_approval_policies: Some(vec![AskForApproval::Never]),
                 allowed_approvals_reviewers: None,
@@ -672,7 +673,7 @@ allowed_approval_policies = ["on-request"]
             field_name: "approval_policy",
             candidate: "OnRequest".into(),
             allowed: "[Never]".into(),
-            requirement_source: RequirementSource::CloudRequirements,
+            requirement_source: RequirementSource::ExternalRequirements,
         })
     );
 
@@ -680,7 +681,7 @@ allowed_approval_policies = ["on-request"]
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn cloud_requirements_are_not_overwritten_by_system_requirements() -> anyhow::Result<()> {
+async fn external_requirements_are_not_overwritten_by_system_requirements() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     let requirements_file = tmp.path().join("requirements.toml");
     tokio::fs::write(
@@ -693,7 +694,7 @@ allowed_approval_policies = ["on-request"]
 
     let mut config_requirements_toml = ConfigRequirementsWithSources::default();
     config_requirements_toml.merge_unset_fields(
-        RequirementSource::CloudRequirements,
+        RequirementSource::ExternalRequirements,
         ConfigRequirementsToml {
             allowed_approval_policies: Some(vec![AskForApproval::Never]),
             allowed_approvals_reviewers: None,
@@ -728,7 +729,7 @@ allowed_approval_policies = ["on-request"]
             .allowed_approval_policies
             .as_ref()
             .map(|sourced| sourced.source.clone()),
-        Some(RequirementSource::CloudRequirements)
+        Some(RequirementSource::ExternalRequirements)
     );
 
     Ok(())
@@ -844,7 +845,7 @@ deny_read = ["./sensitive/**/*.txt"]
 }
 
 #[tokio::test]
-async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> {
+async fn load_config_layers_includes_external_requirements() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&darwin_code_home).await?;
@@ -865,7 +866,8 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
         guardian_policy_config: None,
     };
     let expected = requirements.clone();
-    let cloud_requirements = CloudRequirementsLoader::new(async move { Ok(Some(requirements)) });
+    let external_requirements =
+        ExternalRequirementsLoader::new(async move { Ok(Some(requirements)) });
 
     let layers = load_config_layers_state(
         LOCAL_FS.as_ref(),
@@ -873,7 +875,7 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        cloud_requirements,
+        external_requirements,
     )
     .await?;
 
@@ -890,7 +892,7 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
             field_name: "approval_policy",
             candidate: "OnRequest".into(),
             allowed: "[Never]".into(),
-            requirement_source: RequirementSource::CloudRequirements,
+            requirement_source: RequirementSource::ExternalRequirements,
         })
     );
 
@@ -898,7 +900,7 @@ async fn load_config_layers_includes_cloud_requirements() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
-async fn load_config_layers_fails_when_cloud_requirements_loader_fails() -> anyhow::Result<()> {
+async fn load_config_layers_fails_when_external_requirements_loader_fails() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&darwin_code_home).await?;
@@ -910,19 +912,19 @@ async fn load_config_layers_fails_when_cloud_requirements_loader_fails() -> anyh
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::new(async {
-            Err(CloudRequirementsLoadError::new(
-                darwin_code_config::CloudRequirementsLoadErrorCode::RequestFailed,
+        ExternalRequirementsLoader::new(async {
+            Err(ExternalRequirementsLoadError::new(
+                darwin_code_config::ExternalRequirementsLoadErrorCode::RequestFailed,
                 /*status_code*/ None,
-                "cloud requirements failed",
+                "external requirements failed",
             ))
         }),
     )
     .await
-    .expect_err("cloud requirements failure should fail closed");
+    .expect_err("external requirements failure should fail closed");
 
     assert_eq!(err.kind(), std::io::ErrorKind::Other);
-    assert!(err.to_string().contains("cloud requirements failed"));
+    assert!(err.to_string().contains("external requirements failed"));
 
     Ok(())
 }
@@ -932,17 +934,17 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
-    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     tokio::fs::write(
-        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"root\"\n",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
+        nested.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
@@ -963,7 +965,7 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -971,15 +973,18 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            super::ConfigLayerSource::Project { dot_darwin_code_folder } => Some(dot_darwin_code_folder),
+            super::ConfigLayerSource::Project { dot_codex_folder } => Some(dot_codex_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".darwin-code").as_path());
+    assert_eq!(
+        project_layers[0].as_path(),
+        nested.join(".darwin_code").as_path()
+    );
     assert_eq!(
         project_layers[1].as_path(),
-        project_root.join(".darwin-code").as_path()
+        project_root.join(".darwin_code").as_path()
     );
 
     let config = layers.effective_config();
@@ -992,13 +997,13 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn project_paths_resolve_relative_to_dot_darwin_code_and_override_in_order() -> std::io::Result<()>
-{
+async fn project_paths_resolve_relative_to_dot_darwin_code_and_override_in_order()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin_code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     let root_cfg = r#"
@@ -1007,15 +1012,23 @@ model_instructions_file = "root.txt"
     let nested_cfg = r#"
 model_instructions_file = "child.txt"
 "#;
-    tokio::fs::write(project_root.join(".darwin-code").join(CONFIG_TOML_FILE), root_cfg).await?;
-    tokio::fs::write(nested.join(".darwin-code").join(CONFIG_TOML_FILE), nested_cfg).await?;
     tokio::fs::write(
-        project_root.join(".darwin-code").join("root.txt"),
+        project_root.join(".darwin_code").join(CONFIG_TOML_FILE),
+        root_cfg,
+    )
+    .await?;
+    tokio::fs::write(
+        nested.join(".darwin_code").join(CONFIG_TOML_FILE),
+        nested_cfg,
+    )
+    .await?;
+    tokio::fs::write(
+        project_root.join(".darwin_code").join("root.txt"),
         "root instructions",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".darwin-code").join("child.txt"),
+        nested.join(".darwin_code").join("child.txt"),
         "child instructions",
     )
     .await?;
@@ -1084,12 +1097,13 @@ async fn cli_override_model_instructions_file_sets_base_instructions() -> std::i
 }
 
 #[tokio::test]
-async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml() -> std::io::Result<()> {
+async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
     tokio::fs::create_dir_all(&nested).await?;
-    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     let darwin_code_home = tmp.path().join("home");
@@ -1108,7 +1122,7 @@ async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml(
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1120,7 +1134,9 @@ async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml(
     assert_eq!(
         vec![&ConfigLayerEntry {
             name: super::ConfigLayerSource::Project {
-                dot_darwin_code_folder: AbsolutePathBuf::from_absolute_path(project_root.join(".darwin-code"))?,
+                dot_codex_folder: AbsolutePathBuf::from_absolute_path(
+                    project_root.join(".darwin_code")
+                )?,
             },
             config: TomlValue::Table(toml::map::Map::new()),
             raw_toml: None,
@@ -1137,7 +1153,7 @@ async fn project_layer_is_added_when_dot_darwin_code_exists_without_config_toml(
 async fn darwin_code_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::Result<()> {
     let tmp = tempdir()?;
     let home_dir = tmp.path().join("home");
-    let darwin_code_home = home_dir.join(".darwin-code");
+    let darwin_code_home = home_dir.join(".darwin_code");
     tokio::fs::create_dir_all(&darwin_code_home).await?;
     tokio::fs::write(darwin_code_home.join(CONFIG_TOML_FILE), "foo = \"user\"\n").await?;
 
@@ -1148,7 +1164,7 @@ async fn darwin_code_home_is_not_loaded_as_project_layer_from_home_dir() -> std:
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1175,12 +1191,16 @@ async fn darwin_code_home_within_project_tree_is_not_double_loaded() -> std::io:
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let project_dot_darwin_code = project_root.join(".darwin-code");
-    let nested_dot_darwin_code = nested.join(".darwin-code");
+    let project_dot_darwin_code = project_root.join(".darwin_code");
+    let nested_dot_darwin_code = nested.join(".darwin_code");
 
     tokio::fs::create_dir_all(&nested_dot_darwin_code).await?;
     tokio::fs::create_dir_all(project_root.join(".git")).await?;
-    tokio::fs::write(nested_dot_darwin_code.join(CONFIG_TOML_FILE), "foo = \"child\"\n").await?;
+    tokio::fs::write(
+        nested_dot_darwin_code.join(CONFIG_TOML_FILE),
+        "foo = \"child\"\n",
+    )
+    .await?;
 
     tokio::fs::create_dir_all(&project_dot_darwin_code).await?;
     make_config_for_test(
@@ -1205,7 +1225,7 @@ async fn darwin_code_home_within_project_tree_is_not_double_loaded() -> std::io:
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1222,7 +1242,7 @@ async fn darwin_code_home_within_project_tree_is_not_double_loaded() -> std::io:
     assert_eq!(
         vec![&ConfigLayerEntry {
             name: super::ConfigLayerSource::Project {
-                dot_darwin_code_folder: AbsolutePathBuf::from_absolute_path(&nested_dot_darwin_code)?,
+                dot_codex_folder: AbsolutePathBuf::from_absolute_path(&nested_dot_darwin_code)?,
             },
             config: child_config.clone(),
             raw_toml: None,
@@ -1244,9 +1264,9 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
     tokio::fs::write(
-        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
+        nested.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
@@ -1276,7 +1296,7 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
         Some(cwd.clone()),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
     let project_layers_untrusted: Vec<_> = layers_untrusted
@@ -1315,7 +1335,7 @@ async fn project_layers_disabled_when_untrusted_or_unknown() -> std::io::Result<
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
     let project_layers_unknown: Vec<_> = layers_unknown
@@ -1349,10 +1369,10 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let alias_root = tmp.path().join("project_alias");
-    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
     tokio::fs::write(
-        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"project\"\n",
     )
     .await?;
@@ -1381,7 +1401,7 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
         Some(AbsolutePathBuf::from_absolute_path(&project_root)?),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1409,7 +1429,7 @@ async fn cli_override_can_update_project_local_mcp_server_when_project_is_truste
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let dot_darwin_code = project_root.join(".darwin-code");
+    let dot_darwin_code = project_root.join(".darwin_code");
     let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&nested).await?;
     tokio::fs::create_dir_all(&dot_darwin_code).await?;
@@ -1458,7 +1478,7 @@ async fn cli_override_for_disabled_project_local_mcp_server_returns_invalid_tran
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    let dot_darwin_code = project_root.join(".darwin-code");
+    let dot_darwin_code = project_root.join(".darwin_code");
     let darwin_code_home = tmp.path().join("home");
     tokio::fs::create_dir_all(&nested).await?;
     tokio::fs::create_dir_all(&dot_darwin_code).await?;
@@ -1499,9 +1519,9 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
-    tokio::fs::write(nested.join(".darwin-code").join(CONFIG_TOML_FILE), "foo =").await?;
+    tokio::fs::write(nested.join(".darwin_code").join(CONFIG_TOML_FILE), "foo =").await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
     let cases = [
@@ -1534,7 +1554,7 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
-            CloudRequirementsLoader::default(),
+            ExternalRequirementsLoader::default(),
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -1573,7 +1593,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".git"), "gitdir: here").await?;
 
     let cwd = AbsolutePathBuf::from_absolute_path(&nested)?;
@@ -1602,7 +1622,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
-            CloudRequirementsLoader::default(),
+            ExternalRequirementsLoader::default(),
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -1662,7 +1682,7 @@ async fn cli_overrides_with_relative_paths_do_not_break_trust_check() -> std::io
         Some(cwd),
         &cli_overrides,
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1674,16 +1694,16 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
-    tokio::fs::create_dir_all(project_root.join(".darwin-code")).await?;
-    tokio::fs::create_dir_all(nested.join(".darwin-code")).await?;
+    tokio::fs::create_dir_all(project_root.join(".darwin_code")).await?;
+    tokio::fs::create_dir_all(nested.join(".darwin_code")).await?;
     tokio::fs::write(project_root.join(".hg"), "hg").await?;
     tokio::fs::write(
-        project_root.join(".darwin-code").join(CONFIG_TOML_FILE),
+        project_root.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"root\"\n",
     )
     .await?;
     tokio::fs::write(
-        nested.join(".darwin-code").join(CONFIG_TOML_FILE),
+        nested.join(".darwin_code").join(CONFIG_TOML_FILE),
         "foo = \"child\"\n",
     )
     .await?;
@@ -1705,7 +1725,7 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        CloudRequirementsLoader::default(),
+        ExternalRequirementsLoader::default(),
     )
     .await?;
 
@@ -1713,15 +1733,18 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            super::ConfigLayerSource::Project { dot_darwin_code_folder } => Some(dot_darwin_code_folder),
+            super::ConfigLayerSource::Project { dot_codex_folder } => Some(dot_codex_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".darwin-code").as_path());
+    assert_eq!(
+        project_layers[0].as_path(),
+        nested.join(".darwin_code").as_path()
+    );
     assert_eq!(
         project_layers[1].as_path(),
-        project_root.join(".darwin-code").as_path()
+        project_root.join(".darwin_code").as_path()
     );
 
     let merged = layers.effective_config();
@@ -1766,14 +1789,14 @@ mod requirements_exec_policy_tests {
         panic!("rule should match so heuristic should not be called");
     }
 
-    fn config_stack_for_dot_darwin_code_folder_with_requirements(
-        dot_darwin_code_folder: &Path,
+    fn config_stack_for_dot_codex_folder_with_requirements(
+        dot_codex_folder: &Path,
         requirements: ConfigRequirements,
     ) -> ConfigLayerStack {
-        let dot_darwin_code_folder = AbsolutePathBuf::from_absolute_path(dot_darwin_code_folder)
-            .expect("absolute dot_darwin_code_folder");
+        let dot_codex_folder = AbsolutePathBuf::from_absolute_path(dot_codex_folder)
+            .expect("absolute dot_codex_folder");
         let layer = ConfigLayerEntry::new(
-            ConfigLayerSource::Project { dot_darwin_code_folder },
+            ConfigLayerSource::Project { dot_codex_folder },
             TomlValue::Table(Default::default()),
         );
         ConfigLayerStack::new(vec![layer], requirements, ConfigRequirementsToml::default())
@@ -1987,7 +2010,7 @@ prefix_rules = []
             "#,
         );
         let config_stack =
-            config_stack_for_dot_darwin_code_folder_with_requirements(temp_dir.path(), requirements);
+            config_stack_for_dot_codex_folder_with_requirements(temp_dir.path(), requirements);
 
         let policy = load_exec_policy(&config_stack).await?;
 
@@ -2026,7 +2049,7 @@ prefix_rules = []
             "#,
         );
         let config_stack =
-            config_stack_for_dot_darwin_code_folder_with_requirements(temp_dir.path(), requirements);
+            config_stack_for_dot_codex_folder_with_requirements(temp_dir.path(), requirements);
 
         let policy = load_exec_policy(&config_stack).await?;
 

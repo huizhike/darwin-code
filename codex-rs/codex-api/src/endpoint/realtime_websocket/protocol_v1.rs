@@ -2,9 +2,9 @@ use crate::endpoint::realtime_websocket::protocol_common::parse_error_event;
 use crate::endpoint::realtime_websocket::protocol_common::parse_realtime_payload;
 use crate::endpoint::realtime_websocket::protocol_common::parse_session_updated_event;
 use crate::endpoint::realtime_websocket::protocol_common::parse_transcript_delta_event;
-use codex_protocol::protocol::RealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeHandoffRequested;
+use darwin_code_protocol::protocol::RealtimeAudioFrame;
+use darwin_code_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeHandoffRequested;
 use serde_json::Value;
 use tracing::debug;
 

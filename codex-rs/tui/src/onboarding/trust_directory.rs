@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
 use crate::legacy_core::config::set_project_trust_level;
-use darwin_code_protocol::config_types::TrustLevel;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
+use darwin_code_protocol::config_types::TrustLevel;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -148,7 +148,9 @@ impl StepStateProvider for TrustDirectoryWidget {
 impl TrustDirectoryWidget {
     fn handle_trust(&mut self) {
         let target = self.trust_target.clone();
-        if let Err(e) = set_project_trust_level(&self.darwin_code_home, &target, TrustLevel::Trusted) {
+        if let Err(e) =
+            set_project_trust_level(&self.darwin_code_home, &target, TrustLevel::Trusted)
+        {
             tracing::error!("Failed to set project trusted: {e:?}");
             self.error = Some(format!("Failed to set trust for {}: {e}", target.display()));
         }

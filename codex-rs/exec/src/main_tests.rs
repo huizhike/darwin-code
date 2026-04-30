@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 fn top_cli_parses_resume_prompt_after_config_flag() {
     const PROMPT: &str = "echo resume-with-global-flags-after-subcommand";
     let cli = TopCli::parse_from([
-        "darwin-code-exec",
+        "darwin_code-exec",
         "resume",
         "--last",
         "--json",

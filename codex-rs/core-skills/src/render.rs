@@ -1,12 +1,12 @@
 use crate::model::SkillMetadata;
-use codex_otel::SessionTelemetry;
-use codex_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
-use codex_otel::THREAD_SKILLS_TRUNCATED_METRIC;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_output_truncation::approx_token_count;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_otel::THREAD_SKILLS_ENABLED_TOTAL_METRIC;
+use darwin_code_otel::THREAD_SKILLS_KEPT_TOTAL_METRIC;
+use darwin_code_otel::THREAD_SKILLS_TRUNCATED_METRIC;
+use darwin_code_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
+use darwin_code_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use darwin_code_protocol::protocol::SkillScope;
+use darwin_code_utils_output_truncation::approx_token_count;
 
 const DEFAULT_SKILL_METADATA_CHAR_BUDGET: usize = 8_000;
 const SKILL_METADATA_CONTEXT_WINDOW_PERCENT: usize = 2;
@@ -221,8 +221,8 @@ fn render_skill_line(skill: &SkillMetadata) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     fn make_skill(name: &str, scope: SkillScope) -> SkillMetadata {

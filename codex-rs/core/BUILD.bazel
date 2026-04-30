@@ -57,7 +57,6 @@ darwin_code_rust_crate(
         "//darwin-code-rs/linux-sandbox:darwin-code-linux-sandbox",
         "//darwin-code-rs/rmcp-client:test_stdio_server",
         "//darwin-code-rs/rmcp-client:test_streamable_http_server",
-        "//darwin-code-rs/responses-api-proxy:darwin-code-responses-api-proxy",
         "//darwin-code-rs/cli:darwin-code",
     ],
 )

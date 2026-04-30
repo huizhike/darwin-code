@@ -195,7 +195,7 @@ async fn steer_rejection_queues_review_follow_up_before_existing_queued_messages
         id: "steer-rejected-1".into(),
         msg: EventMsg::Error(ErrorEvent {
             message: "cannot steer a review turn".to_string(),
-            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+            codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Review,
             }),
         }),
@@ -204,7 +204,7 @@ async fn steer_rejection_queues_review_follow_up_before_existing_queued_messages
         id: "steer-rejected-2".into(),
         msg: EventMsg::Error(ErrorEvent {
             message: "cannot steer a review turn".to_string(),
-            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+            codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Review,
             }),
         }),
@@ -1269,7 +1269,7 @@ async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
     chat.show_review_custom_prompt();
 
     // Verify child view is on top.
-    let header = render_bottom_first_row(&chat, /*width*/ 60);
+    let header = render_bottom_popup(&chat, /*width*/ 60);
     assert!(
         header.contains("Custom review instructions"),
         "expected custom prompt view header: {header:?}"
@@ -1277,7 +1277,7 @@ async fn review_custom_prompt_escape_navigates_back_then_dismisses() {
 
     // Esc once: child view closes, parent (review presets) remains.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-    let header = render_bottom_first_row(&chat, /*width*/ 60);
+    let header = render_bottom_popup(&chat, /*width*/ 60);
     assert!(
         header.contains("Select a review preset"),
         "expected to return to parent review popup: {header:?}"
@@ -1305,7 +1305,7 @@ async fn review_branch_picker_escape_navigates_back_then_dismisses() {
     chat.show_review_branch_picker(&cwd).await;
 
     // Verify child view header.
-    let header = render_bottom_first_row(&chat, /*width*/ 60);
+    let header = render_bottom_popup(&chat, /*width*/ 60);
     assert!(
         header.contains("Select a base branch"),
         "expected branch picker header: {header:?}"
@@ -1313,7 +1313,7 @@ async fn review_branch_picker_escape_navigates_back_then_dismisses() {
 
     // Esc once: child view closes, parent remains.
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-    let header = render_bottom_first_row(&chat, /*width*/ 60);
+    let header = render_bottom_popup(&chat, /*width*/ 60);
     assert!(
         header.contains("Select a review preset"),
         "expected to return to parent review popup: {header:?}"
@@ -1445,7 +1445,7 @@ async fn review_queues_user_messages_snapshot() {
         id: "steer-rejected".into(),
         msg: EventMsg::Error(ErrorEvent {
             message: "cannot steer a review turn".to_string(),
-            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+            codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Review,
             }),
         }),

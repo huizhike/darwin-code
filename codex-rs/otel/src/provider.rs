@@ -437,18 +437,18 @@ mod tests {
 
     #[test]
     fn log_export_target_excludes_trace_safe_events() {
-        assert!(is_log_export_target("codex_otel.log_only"));
-        assert!(is_log_export_target("codex_otel.network_proxy"));
-        assert!(!is_log_export_target("codex_otel.trace_safe"));
-        assert!(!is_log_export_target("codex_otel.trace_safe.debug"));
+        assert!(is_log_export_target("darwin_code_otel.log_only"));
+        assert!(is_log_export_target("darwin_code_otel.network_access"));
+        assert!(!is_log_export_target("darwin_code_otel.trace_safe"));
+        assert!(!is_log_export_target("darwin_code_otel.trace_safe.debug"));
     }
 
     #[test]
     fn trace_export_target_only_includes_trace_safe_prefix() {
-        assert!(is_trace_safe_target("codex_otel.trace_safe"));
-        assert!(is_trace_safe_target("codex_otel.trace_safe.summary"));
-        assert!(!is_trace_safe_target("codex_otel.log_only"));
-        assert!(!is_trace_safe_target("codex_otel.network_proxy"));
+        assert!(is_trace_safe_target("darwin_code_otel.trace_safe"));
+        assert!(is_trace_safe_target("darwin_code_otel.trace_safe.summary"));
+        assert!(!is_trace_safe_target("darwin_code_otel.log_only"));
+        assert!(!is_trace_safe_target("darwin_code_otel.network_access"));
     }
 
     fn test_otel_settings() -> OtelSettings {

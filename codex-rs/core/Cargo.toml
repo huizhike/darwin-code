@@ -25,10 +25,16 @@ base64 = { workspace = true }
 bm25 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
+codex-analytics = { workspace = true }
+codex-connectors = { workspace = true }
+codex-feedback = { workspace = true }
+codex-plugin = { workspace = true }
+codex-response-debug-context = { workspace = true }
 darwin-code-api = { workspace = true }
 darwin-code-app-server-protocol = { workspace = true }
 darwin-code-apply-patch = { workspace = true }
 darwin-code-async-utils = { workspace = true }
+darwin-code-client = { workspace = true }
 darwin-code-code-mode = { workspace = true }
 darwin-code-config = { workspace = true }
 darwin-code-core-plugins = { workspace = true }
@@ -36,7 +42,6 @@ darwin-code-core-skills = { workspace = true }
 crypto_box = { workspace = true }
 darwin-code-exec-server = { workspace = true }
 darwin-code-features = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-mcp = { workspace = true }
 darwin-code-model-provider-info = { workspace = true }
 darwin-code-models-manager = { workspace = true }
@@ -46,7 +51,6 @@ darwin-code-execpolicy = { workspace = true }
 darwin-code-git-utils = { workspace = true }
 darwin-code-hooks = { workspace = true }
 darwin-code-instructions = { workspace = true }
-darwin-code-network-proxy = { workspace = true }
 darwin-code-otel = { workspace = true }
 darwin-code-model-provider = { workspace = true }
 darwin-code-protocol = { workspace = true }

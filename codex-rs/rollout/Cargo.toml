@@ -18,7 +18,7 @@ async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 darwin-code-file-search = { workspace = true }
 darwin-code-git-utils = { workspace = true }
-darwin-code-login = { workspace = true }
+darwin-code-client = { workspace = true }
 darwin-code-otel = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-state = { workspace = true }

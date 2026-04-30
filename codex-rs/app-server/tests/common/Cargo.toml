@@ -15,10 +15,10 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
 darwin-code-app-server-protocol = { workspace = true }
+darwin-code-client = { workspace = true }
 darwin-code-config = { workspace = true }
 darwin-code-core = { workspace = true }
 darwin-code-features = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-models-manager = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-utils-cargo-bin = { workspace = true }

@@ -238,10 +238,12 @@ impl ToolRuntime<ApplyPatchRequest, ExecToolCallOutput> for ApplyPatchRuntime {
             timed_out: false,
         };
         if result.is_err() && is_likely_sandbox_denied(attempt.sandbox, &output) {
-            return Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied {
-                output: Box::new(output),
-                network_policy_decision: None,
-            })));
+            return Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(
+                SandboxErr::Denied {
+                    output: Box::new(output),
+                    network_policy_decision: None,
+                },
+            )));
         }
         Ok(output)
     }

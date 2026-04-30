@@ -12,7 +12,7 @@ use std::time::Instant;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_client::build_reqwest_client_with_custom_ca;
+use darwin_code_client::build_reqwest_client_with_custom_ca;
 use futures::FutureExt;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -75,7 +75,7 @@ use crate::stdio_server_launcher::StdioServerLauncher;
 use crate::stdio_server_launcher::StdioServerTransport;
 use crate::utils::apply_default_headers;
 use crate::utils::build_default_headers;
-use codex_config::types::OAuthCredentialsStoreMode;
+use darwin_code_config::types::OAuthCredentialsStoreMode;
 
 const EVENT_STREAM_MIME_TYPE: &str = "text/event-stream";
 const JSON_MIME_TYPE: &str = "application/json";

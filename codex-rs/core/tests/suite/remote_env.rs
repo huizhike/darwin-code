@@ -1,5 +1,9 @@
 use anyhow::Context;
 use anyhow::Result;
+use core_test_support::PathBufExt;
+use core_test_support::get_remote_test_env;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::test_env;
 use darwin_code_exec_server::CopyOptions;
 use darwin_code_exec_server::CreateDirectoryOptions;
 use darwin_code_exec_server::FileSystemSandboxContext;
@@ -7,10 +11,6 @@ use darwin_code_exec_server::RemoveOptions;
 use darwin_code_protocol::protocol::ReadOnlyAccess;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathBufExt;
-use core_test_support::get_remote_test_env;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::test_env;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::process::Command;
@@ -124,7 +124,10 @@ async fn remote_test_env_sandboxed_read_allows_readable_root() -> Result<()> {
     let test_env = test_env().await?;
     let file_system = test_env.environment().get_filesystem();
 
-    let allowed_dir = PathBuf::from(format!("/tmp/darwin-code-remote-readable-{}", std::process::id()));
+    let allowed_dir = PathBuf::from(format!(
+        "/tmp/darwin_code-remote-readable-{}",
+        std::process::id()
+    ));
     let file_path = allowed_dir.join("note.txt");
     file_system
         .create_directory(
@@ -171,7 +174,10 @@ async fn remote_test_env_sandboxed_read_rejects_symlink_parent_dotdot_escape() -
     let test_env = test_env().await?;
     let file_system = test_env.environment().get_filesystem();
 
-    let root = PathBuf::from(format!("/tmp/darwin-code-remote-dotdot-{}", std::process::id()));
+    let root = PathBuf::from(format!(
+        "/tmp/darwin_code-remote-dotdot-{}",
+        std::process::id()
+    ));
     let allowed_dir = root.join("allowed");
     let outside_dir = root.join("outside");
     let secret_path = root.join("secret.txt");
@@ -206,7 +212,7 @@ async fn remote_test_env_remove_removes_symlink_not_target() -> Result<()> {
     let file_system = test_env.environment().get_filesystem();
 
     let root = PathBuf::from(format!(
-        "/tmp/darwin-code-remote-remove-link-{}",
+        "/tmp/darwin_code-remote-remove-link-{}",
         std::process::id()
     ));
     let allowed_dir = root.join("allowed");
@@ -273,7 +279,7 @@ async fn remote_test_env_copy_preserves_symlink_source() -> Result<()> {
     let file_system = test_env.environment().get_filesystem();
 
     let root = PathBuf::from(format!(
-        "/tmp/darwin-code-remote-copy-link-{}",
+        "/tmp/darwin_code-remote-copy-link-{}",
         std::process::id()
     ));
     let allowed_dir = root.join("allowed");
@@ -341,7 +347,7 @@ fn remote_test_file_path() -> PathBuf {
         Err(_) => 0,
     };
     PathBuf::from(format!(
-        "/tmp/darwin-code-remote-test-env-{}-{nanos}.txt",
+        "/tmp/darwin_code-remote-test-env-{}-{nanos}.txt",
         std::process::id()
     ))
 }

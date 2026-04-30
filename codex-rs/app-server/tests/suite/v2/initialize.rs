@@ -3,6 +3,7 @@ use app_test_support::McpProcess;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
+use core_test_support::fs_wait;
 use darwin_code_app_server_protocol::ClientInfo;
 use darwin_code_app_server_protocol::InitializeCapabilities;
 use darwin_code_app_server_protocol::InitializeResponse;
@@ -16,7 +17,6 @@ use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::UserInput as V2UserInput;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_cargo_bin::cargo_bin;
-use core_test_support::fs_wait;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::path::Path;
@@ -31,7 +31,8 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let darwin_code_home = TempDir::new()?;
-    let expected_darwin_code_home = AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
+    let expected_darwin_code_home =
+        AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
     create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
 
@@ -39,7 +40,7 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
             name: "darwin_code_vscode".to_string(),
-            title: Some("Darwin-Code VS Code Extension".to_string()),
+            title: Some("DarwinCode VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -50,7 +51,7 @@ async fn initialize_uses_client_info_name_as_originator() -> Result<()> {
     };
     let InitializeResponse {
         user_agent,
-        darwin_code_home: response_darwin_code_home,
+        codex_home: response_darwin_code_home,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;
@@ -67,7 +68,8 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     let responses = Vec::new();
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let darwin_code_home = TempDir::new()?;
-    let expected_darwin_code_home = AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
+    let expected_darwin_code_home =
+        AbsolutePathBuf::try_from(darwin_code_home.path().canonicalize()?)?;
     create_config_toml(darwin_code_home.path(), &server.uri(), "never")?;
     let mut mcp = McpProcess::new_with_env(
         darwin_code_home.path(),
@@ -82,7 +84,7 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
             name: "darwin_code_vscode".to_string(),
-            title: Some("Darwin-Code VS Code Extension".to_string()),
+            title: Some("DarwinCode VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -93,7 +95,7 @@ async fn initialize_respects_originator_override_env_var() -> Result<()> {
     };
     let InitializeResponse {
         user_agent,
-        darwin_code_home: response_darwin_code_home,
+        codex_home: response_darwin_code_home,
         platform_family,
         platform_os,
     } = to_response::<InitializeResponse>(response)?;
@@ -153,7 +155,7 @@ async fn initialize_opt_out_notification_methods_filters_notifications() -> Resu
         mcp.initialize_with_capabilities(
             ClientInfo {
                 name: "darwin_code_vscode".to_string(),
-                title: Some("Darwin-Code VS Code Extension".to_string()),
+                title: Some("DarwinCode VS Code Extension".to_string()),
                 version: "0.1.0".to_string(),
             },
             Some(InitializeCapabilities {
@@ -209,7 +211,7 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let darwin_code_home = TempDir::new()?;
     let notify_file = darwin_code_home.path().join("notify.json");
-    let notify_capture = cargo_bin("darwin-code-app-server-test-notify-capture")?;
+    let notify_capture = cargo_bin("darwin_code-app-server-test-notify-capture")?;
     let notify_capture = notify_capture
         .to_str()
         .expect("notify capture path should be valid UTF-8");

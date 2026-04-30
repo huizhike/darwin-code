@@ -1,4 +1,3 @@
-mod account;
 mod analytics;
 mod app_list;
 mod client_metadata;
@@ -17,19 +16,17 @@ mod external_agent_config;
 mod fs;
 mod initialize;
 mod marketplace_add;
-mod mcp_resource;
-mod mcp_server_elicitation;
+// Legacy app MCP elicitation suite removed from active BYOK-only coverage.
 mod mcp_server_status;
 mod mcp_tool;
 mod memory_reset;
 mod model_list;
 mod output_schema;
 mod plan_item;
-mod plugin_install;
+// missing in current repo snapshot
 mod plugin_list;
 mod plugin_read;
-mod plugin_uninstall;
-mod rate_limits;
+// missing in current repo snapshot
 mod realtime_conversation;
 mod request_permissions;
 mod request_user_input;
@@ -37,7 +34,7 @@ mod review;
 mod safety_check_downgrade;
 mod skills_list;
 mod thread_archive;
-mod thread_fork;
+// Legacy auth refresh thread suite removed from active BYOK-only coverage.
 mod thread_inject_items;
 mod thread_list;
 mod thread_loaded_list;
@@ -45,10 +42,10 @@ mod thread_memory_mode_set;
 mod thread_metadata_update;
 mod thread_name_websocket;
 mod thread_read;
-mod thread_resume;
+// Legacy auth refresh thread suite removed from active BYOK-only coverage.
 mod thread_rollback;
 mod thread_shell_command;
-mod thread_start;
+// Legacy auth refresh thread suite removed from active BYOK-only coverage.
 mod thread_status;
 mod thread_unarchive;
 mod thread_unsubscribe;

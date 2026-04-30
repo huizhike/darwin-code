@@ -17,7 +17,7 @@ use core_test_support::test_darwin_code::test_darwin_code;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
-const TURN_STATE_HEADER: &str = "x-darwin-code-turn-state";
+const TURN_STATE_HEADER: &str = "x-darwin_code-turn-state";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn responses_turn_state_persists_within_turn_and_resets_after() -> Result<()> {
@@ -74,11 +74,11 @@ async fn responses_turn_state_persists_within_turn_and_resets_after() -> Result<
             .map(str::to_string)
     };
 
-    let first_turn_id = parse_turn_id(requests[0].header("x-darwin-code-turn-metadata"))
+    let first_turn_id = parse_turn_id(requests[0].header("x-darwin_code-turn-metadata"))
         .expect("first request should include turn metadata turn_id");
-    let second_turn_id = parse_turn_id(requests[1].header("x-darwin-code-turn-metadata"))
+    let second_turn_id = parse_turn_id(requests[1].header("x-darwin_code-turn-metadata"))
         .expect("follow-up request should include turn metadata turn_id");
-    let third_turn_id = parse_turn_id(requests[2].header("x-darwin-code-turn-metadata"))
+    let third_turn_id = parse_turn_id(requests[2].header("x-darwin_code-turn-metadata"))
         .expect("new turn request should include turn metadata turn_id");
 
     assert_eq!(first_turn_id, second_turn_id);

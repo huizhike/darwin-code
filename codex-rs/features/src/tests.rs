@@ -7,8 +7,8 @@ use crate::FeaturesToml;
 use crate::Stage;
 use crate::feature_for_key;
 use crate::unstable_features_warning_event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::WarningEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::WarningEvent;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use toml::Table;
@@ -160,9 +160,9 @@ fn unavailable_dummy_tools_is_under_development_and_disabled_by_default() {
 }
 
 #[test]
-fn general_analytics_is_stable_and_enabled_by_default() {
+fn general_analytics_is_stable_and_disabled_by_default() {
     assert_eq!(Feature::GeneralAnalytics.stage(), Stage::Stable);
-    assert_eq!(Feature::GeneralAnalytics.default_enabled(), true);
+    assert_eq!(Feature::GeneralAnalytics.default_enabled(), false);
 }
 
 #[test]
@@ -275,13 +275,12 @@ fn enable_fanout_normalization_enables_multi_agent_one_way() {
 }
 
 #[test]
-fn apps_require_feature_flag_and_chatgpt_auth() {
+fn apps_require_feature_flag_only_in_byok_mode() {
     let mut features = Features::with_defaults();
-    assert!(!features.apps_enabled_for_auth(/*has_chatgpt_auth*/ false));
+    assert!(!features.apps_enabled());
 
     features.enable(Feature::Apps);
-    assert!(!features.apps_enabled_for_auth(/*has_chatgpt_auth*/ false));
-    assert!(features.apps_enabled_for_auth(/*has_chatgpt_auth*/ true));
+    assert!(features.apps_enabled());
 }
 
 #[test]
@@ -303,16 +302,15 @@ fn from_sources_applies_base_profile_and_overrides() {
     let features = Features::from_sources(
         FeatureConfigSource {
             features: Some(&base_features),
-            ..Default::default()
+            include_apply_patch_tool: None,
         },
         FeatureConfigSource {
             features: Some(&profile_features),
             include_apply_patch_tool: Some(true),
-            ..Default::default()
         },
         FeatureOverrides {
+            include_apply_patch_tool: None,
             web_search_request: Some(false),
-            ..Default::default()
         },
     );
 

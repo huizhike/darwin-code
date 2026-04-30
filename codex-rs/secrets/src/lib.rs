@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_git_utils::get_git_repo_root;
-use codex_keyring_store::DefaultKeyringStore;
-use codex_keyring_store::KeyringStore;
+use darwin_code_git_utils::get_git_repo_root;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -18,8 +16,6 @@ mod sanitizer;
 
 pub use local::LocalSecretsBackend;
 pub use sanitizer::redact_secrets;
-
-const KEYRING_SERVICE: &str = "codex";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SecretName(String);
@@ -101,23 +97,7 @@ pub struct SecretsManager {
 impl SecretsManager {
     pub fn new(codex_home: PathBuf, backend_kind: SecretsBackendKind) -> Self {
         let backend: Arc<dyn SecretsBackend> = match backend_kind {
-            SecretsBackendKind::Local => {
-                let keyring_store: Arc<dyn KeyringStore> = Arc::new(DefaultKeyringStore);
-                Arc::new(LocalSecretsBackend::new(codex_home, keyring_store))
-            }
-        };
-        Self { backend }
-    }
-
-    pub fn new_with_keyring_store(
-        codex_home: PathBuf,
-        backend_kind: SecretsBackendKind,
-        keyring_store: Arc<dyn KeyringStore>,
-    ) -> Self {
-        let backend: Arc<dyn SecretsBackend> = match backend_kind {
-            SecretsBackendKind::Local => {
-                Arc::new(LocalSecretsBackend::new(codex_home, keyring_store))
-            }
+            SecretsBackendKind::Local => Arc::new(LocalSecretsBackend::new(codex_home)),
         };
         Self { backend }
     }
@@ -162,28 +142,9 @@ pub fn environment_id_from_cwd(cwd: &Path) -> String {
     format!("cwd-{short}")
 }
 
-pub(crate) fn compute_keyring_account(codex_home: &Path) -> String {
-    let canonical = codex_home
-        .canonicalize()
-        .unwrap_or_else(|_| codex_home.to_path_buf())
-        .to_string_lossy()
-        .into_owned();
-    let mut hasher = Sha256::new();
-    hasher.update(canonical.as_bytes());
-    let digest = hasher.finalize();
-    let hex = format!("{digest:x}");
-    let short = hex.get(..16).unwrap_or(hex.as_str());
-    format!("secrets|{short}")
-}
-
-pub(crate) fn keyring_service() -> &'static str {
-    KEYRING_SERVICE
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_keyring_store::tests::MockKeyringStore;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -207,12 +168,8 @@ mod tests {
     #[test]
     fn manager_round_trips_local_backend() -> Result<()> {
         let codex_home = tempfile::tempdir().expect("tempdir");
-        let keyring = Arc::new(MockKeyringStore::default());
-        let manager = SecretsManager::new_with_keyring_store(
-            codex_home.path().to_path_buf(),
-            SecretsBackendKind::Local,
-            keyring,
-        );
+        let manager =
+            SecretsManager::new(codex_home.path().to_path_buf(), SecretsBackendKind::Local);
         let scope = SecretScope::Global;
         let name = SecretName::new("GITHUB_TOKEN")?;
 

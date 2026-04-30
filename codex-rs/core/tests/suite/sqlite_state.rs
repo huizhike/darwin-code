@@ -1,4 +1,17 @@
 use anyhow::Result;
+use core_test_support::responses;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::ev_web_search_call_done;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::stdio_server_bin;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
+use core_test_support::wait_for_event_match;
 use darwin_code_config::types::McpServerConfig;
 use darwin_code_config::types::McpServerTransportConfig;
 use darwin_code_features::Feature;
@@ -15,19 +28,6 @@ use darwin_code_protocol::protocol::SessionMetaLine;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::protocol::UserMessageEvent;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::responses;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_function_call;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::ev_web_search_call_done;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::stdio_server_bin;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashMap;
@@ -48,7 +48,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
     let test = builder.build(&server).await?;
 
     let thread_id = test.session_configured.session_id;
-    let rollout_path = test.darwin-code.rollout_path().expect("rollout path");
+    let rollout_path = test.darwin_code.rollout_path().expect("rollout path");
     let db_path = darwin_code_state::state_db_path(test.config.sqlite_home.as_path());
 
     for _ in 0..100 {
@@ -58,7 +58,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
 
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
     assert!(
         !rollout_path.exists(),
         "fresh thread rollout should not be materialized before first user message"
@@ -195,7 +195,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
 
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
 
     let mut metadata = None;
     for _ in 0..40 {
@@ -257,7 +257,7 @@ async fn user_messages_persist_in_state_db() -> Result<()> {
     test.submit_turn("hello from sqlite").await?;
     test.submit_turn("another message").await?;
 
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
     let thread_id = test.session_configured.session_id;
 
     let mut metadata = None;
@@ -300,7 +300,7 @@ async fn web_search_marks_thread_memory_mode_polluted_when_configured() -> Resul
         config.memories.disable_on_external_context = true;
     });
     let test = builder.build(&server).await?;
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
     let thread_id = test.session_configured.session_id;
 
     test.submit_turn("search the web").await?;
@@ -392,10 +392,10 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
             .expect("test mcp servers should accept any configuration");
     });
     let test = builder.build(&server).await?;
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
     let thread_id = test.session_configured.session_id;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp echo tool".to_string(),
@@ -414,11 +414,11 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::McpToolCallEnd(_))
     })
     .await;
-    wait_for_event_match(&test.darwin-code, |event| match event {
+    wait_for_event_match(&test.darwin_code, |event| match event {
         EventMsg::Error(err) => Some(Err(anyhow::anyhow!(err.message.clone()))),
         EventMsg::TurnComplete(_) => Some(Ok(())),
         _ => None,
@@ -468,7 +468,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
             .expect("test config should allow feature update");
     });
     let test = builder.build(&server).await?;
-    let db = test.darwin-code.state_db().expect("state db enabled");
+    let db = test.darwin_code.state_db().expect("state db enabled");
     let expected_thread_id = test.session_configured.session_id.to_string();
 
     test.submit_turn("run a shell command").await?;

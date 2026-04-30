@@ -22,9 +22,9 @@ use std::thread::spawn;
 use std::time::Duration;
 
 #[cfg(unix)]
-use codex_utils_pty::process_group::kill_process_group;
+use darwin_code_utils_pty::process_group::kill_process_group;
 #[cfg(unix)]
-use codex_utils_pty::process_group::terminate_process_group;
+use darwin_code_utils_pty::process_group::terminate_process_group;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use rmcp::service::RoleClient;

@@ -12,7 +12,7 @@ fn blank_attribution_disables_trailer_prompt() {
 fn default_attribution_uses_darwin_code_trailer() {
     assert_eq!(
         build_commit_message_trailer(/*config_attribution*/ None).as_deref(),
-        Some("Co-authored-by: Darwin-Code <noreply@openai.com>")
+        Some("Co-authored-by: DarwinCode <noreply@openai.com>")
     );
 }
 
@@ -20,7 +20,7 @@ fn default_attribution_uses_darwin_code_trailer() {
 fn resolve_value_handles_default_custom_and_blank() {
     assert_eq!(
         resolve_attribution_value(/*config_attribution*/ None),
-        Some("Darwin-Code <noreply@openai.com>".to_string())
+        Some("DarwinCode <noreply@openai.com>".to_string())
     );
     assert_eq!(
         resolve_attribution_value(Some("MyAgent <me@example.com>")),

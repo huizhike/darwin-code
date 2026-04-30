@@ -204,7 +204,7 @@ impl ToolHandler for Handler {
         let _ = result?;
         let role_tag = role_name.unwrap_or(DEFAULT_ROLE_NAME);
         turn.session_telemetry.counter(
-            "darwin-code.multi_agent.spawn",
+            "darwin_code.multi_agent.spawn",
             /*inc*/ 1,
             &[("role", role_tag)],
         );

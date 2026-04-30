@@ -1,5 +1,15 @@
 #![allow(clippy::unwrap_used)]
 
+use core_test_support::TempDirExt;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
 use darwin_code_apply_patch::APPLY_PATCH_TOOL_INSTRUCTIONS;
 use darwin_code_core::shell::Shell;
 use darwin_code_core::shell::default_user_shell;
@@ -16,16 +26,6 @@ use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::TempDirExt;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
@@ -112,7 +112,7 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
     .await;
 
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         thread_manager,
         ..
@@ -144,7 +144,7 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
         .await
         .base_instructions;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -154,9 +154,9 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -166,7 +166,7 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let mut expected_tools_names = if cfg!(windows) {
         vec!["shell_command"]
@@ -226,7 +226,7 @@ async fn gpt_5_tools_without_apply_patch_append_apply_patch_instructions() -> an
     )
     .await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config
@@ -242,7 +242,7 @@ async fn gpt_5_tools_without_apply_patch_append_apply_patch_instructions() -> an
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -253,8 +253,8 @@ async fn gpt_5_tools_without_apply_patch_append_apply_patch_instructions() -> an
         })
         .await?;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-    darwin-code
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -265,7 +265,7 @@ async fn gpt_5_tools_without_apply_patch_append_apply_patch_instructions() -> an
         })
         .await?;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let body0 = req1.single_request().body_json();
     let instructions0 = body0["instructions"]
@@ -306,7 +306,11 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
     )
     .await;
 
-    let TestDarwinCode { darwin-code, config, .. } = test_darwin_code()
+    let TestDarwinCode {
+        darwin_code,
+        config,
+        ..
+    } = test_darwin_code()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config
@@ -317,7 +321,7 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
         .build(&server)
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -327,9 +331,9 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -339,7 +343,7 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let body1 = req1.single_request().body_json();
     let input1 = body1["input"].as_array().expect("input array");
@@ -399,7 +403,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
     )
     .await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config
@@ -411,7 +415,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
         .await?;
 
     // First turn
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -421,7 +425,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let writable = TempDir::new().unwrap();
     let new_policy = SandboxPolicy::WorkspaceWrite {
@@ -431,7 +435,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
-    darwin-code
+    darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -448,7 +452,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
         .await?;
 
     // Second turn after overrides
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -458,7 +462,7 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request1 = req1.single_request();
     let request2 = req2.single_request();
@@ -504,7 +508,7 @@ async fn override_before_first_turn_emits_environment_context() -> anyhow::Resul
     )
     .await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code().build(&server).await?;
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code().build(&server).await?;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Default,
@@ -515,7 +519,7 @@ async fn override_before_first_turn_emits_environment_context() -> anyhow::Resul
         },
     };
 
-    darwin-code
+    darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -531,7 +535,7 @@ async fn override_before_first_turn_emits_environment_context() -> anyhow::Resul
         })
         .await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first message".into(),
@@ -542,7 +546,7 @@ async fn override_before_first_turn_emits_environment_context() -> anyhow::Resul
         })
         .await?;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let body = req.single_request().body_json();
     assert_eq!(body["model"].as_str(), Some("gpt-5.1"));
@@ -671,7 +675,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() -> anyhow::Res
     )
     .await;
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config
@@ -683,7 +687,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() -> anyhow::Res
         .await?;
 
     // First turn
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -693,7 +697,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() -> anyhow::Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Second turn using per-turn overrides via UserTurn
     let new_cwd = TempDir::new().unwrap();
@@ -705,7 +709,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() -> anyhow::Res
         exclude_tmpdir_env_var: true,
         exclude_slash_tmp: true,
     };
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -724,7 +728,7 @@ async fn per_turn_overrides_keep_cached_prefix_and_key_constant() -> anyhow::Res
             personality: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request1 = req1.single_request();
     let request2 = req2.single_request();
@@ -796,7 +800,7 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() -> a
     .await;
 
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -818,7 +822,7 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() -> a
     let default_effort = config.model_reasoning_effort;
     let default_summary = config.model_reasoning_summary;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -837,9 +841,9 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() -> a
             personality: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -858,7 +862,7 @@ async fn send_user_turn_with_no_changes_does_not_send_environment_context() -> a
             personality: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request1 = req1.single_request();
     let request2 = req2.single_request();
@@ -922,7 +926,7 @@ async fn send_user_turn_with_changes_sends_environment_context() -> anyhow::Resu
     )
     .await;
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         config,
         session_configured,
         ..
@@ -944,7 +948,7 @@ async fn send_user_turn_with_changes_sends_environment_context() -> anyhow::Resu
     let default_effort = config.model_reasoning_effort;
     let default_summary = config.model_reasoning_summary;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -963,9 +967,9 @@ async fn send_user_turn_with_changes_sends_environment_context() -> anyhow::Resu
             personality: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -984,7 +988,7 @@ async fn send_user_turn_with_changes_sends_environment_context() -> anyhow::Resu
             personality: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request1 = req1.single_request();
     let request2 = req2.single_request();

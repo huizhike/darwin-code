@@ -1,10 +1,4 @@
 use anyhow::Result;
-use darwin_code_model_provider_info::WireApi;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -14,6 +8,12 @@ use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use tokio::time::Duration;
 use tokio::time::timeout;
@@ -142,13 +142,13 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
         }
     });
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         session_configured,
         cwd,
         ..
     } = builder.build(&server).await?;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -170,7 +170,7 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
 
     let mut stream_error_messages = Vec::new();
     loop {
-        let event = timeout(Duration::from_secs(10), darwin-code.next_event())
+        let event = timeout(Duration::from_secs(10), darwin_code.next_event())
             .await
             .expect("timeout waiting for event")
             .expect("event stream ended unexpectedly")

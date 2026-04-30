@@ -2,8 +2,8 @@ use crate::app::app_server_requests::ResolvedAppServerRequest;
 use crate::bottom_pane::ApprovalRequest;
 use crate::bottom_pane::McpServerElicitationFormRequest;
 use crate::render::renderable::Renderable;
-use darwin_code_protocol::request_user_input::RequestUserInputEvent;
 use crossterm::event::KeyEvent;
+use darwin_code_protocol::request_user_input::RequestUserInputEvent;
 
 use super::CancellationEvent;
 

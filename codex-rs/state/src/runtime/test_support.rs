@@ -3,13 +3,13 @@ use chrono::DateTime;
 #[cfg(test)]
 use chrono::Utc;
 #[cfg(test)]
-use codex_protocol::ThreadId;
+use darwin_code_protocol::ThreadId;
 #[cfg(test)]
-use codex_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 #[cfg(test)]
-use codex_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::AskForApproval;
 #[cfg(test)]
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
 #[cfg(test)]
 use std::path::Path;
 #[cfg(test)]

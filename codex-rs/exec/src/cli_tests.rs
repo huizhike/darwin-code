@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 fn resume_parses_prompt_after_global_flags() {
     const PROMPT: &str = "echo resume-with-global-flags-after-subcommand";
     let cli = Cli::parse_from([
-        "darwin-code-exec",
+        "darwin_code-exec",
         "resume",
         "--last",
         "--json",
@@ -35,7 +35,7 @@ fn resume_parses_prompt_after_global_flags() {
 fn resume_accepts_output_last_message_flag_after_subcommand() {
     const PROMPT: &str = "echo resume-with-output-file";
     let cli = Cli::parse_from([
-        "darwin-code-exec",
+        "darwin_code-exec",
         "resume",
         "session-123",
         "-o",

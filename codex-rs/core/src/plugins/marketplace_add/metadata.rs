@@ -301,7 +301,8 @@ mod tests {
             path: source_root.clone(),
         };
         let install_metadata = MarketplaceInstallMetadata::from_source(&source, &[]);
-        record_added_marketplace_entry(darwin_code_home.path(), "debug", &install_metadata).unwrap();
+        record_added_marketplace_entry(darwin_code_home.path(), "debug", &install_metadata)
+            .unwrap();
 
         let root = installed_marketplace_root_for_source(
             darwin_code_home.path(),

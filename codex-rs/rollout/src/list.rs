@@ -19,13 +19,13 @@ use super::ARCHIVED_SESSIONS_SUBDIR;
 use super::SESSIONS_SUBDIR;
 use crate::protocol::EventMsg;
 use crate::state_db;
-use codex_file_search as file_search;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
+use darwin_code_file_search as file_search;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::USER_MESSAGE_BEGIN;
 
 /// Returned page of thread (thread) summaries.
 #[derive(Debug, Default, PartialEq)]
@@ -295,8 +295,8 @@ impl<'de> serde::Deserialize<'de> for Cursor {
     }
 }
 
-impl From<codex_state::Anchor> for Cursor {
-    fn from(anchor: codex_state::Anchor) -> Self {
+impl From<darwin_code_state::Anchor> for Cursor {
+    fn from(anchor: darwin_code_state::Anchor) -> Self {
         let ts = anchor
             .ts
             .timestamp_nanos_opt()

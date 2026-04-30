@@ -23,13 +23,13 @@ use crate::engine::dispatcher;
 use crate::engine::output_parser;
 use crate::schema::PermissionRequestCommandInput;
 use crate::schema::PermissionRequestToolInput;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookOutputEntry;
-use codex_protocol::protocol::HookOutputEntryKind;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::HookCompletedEvent;
+use darwin_code_protocol::protocol::HookEventName;
+use darwin_code_protocol::protocol::HookOutputEntry;
+use darwin_code_protocol::protocol::HookOutputEntryKind;
+use darwin_code_protocol::protocol::HookRunStatus;
+use darwin_code_protocol::protocol::HookRunSummary;
 
 #[derive(Debug, Clone)]
 pub struct PermissionRequestRequest {

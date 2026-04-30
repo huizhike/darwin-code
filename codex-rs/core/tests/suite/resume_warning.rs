@@ -1,7 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use core::time::Duration;
+use core_test_support::ByokTestAuth;
+use core_test_support::load_default_config_for_test;
+use core_test_support::wait_for_event;
 use darwin_code_core::NewThread;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::config_types::ModeKind;
 use darwin_code_protocol::config_types::ReasoningSummary;
@@ -14,9 +17,6 @@ use darwin_code_protocol::protocol::TurnContextItem;
 use darwin_code_protocol::protocol::TurnStartedEvent;
 use darwin_code_protocol::protocol::UserMessageEvent;
 use darwin_code_protocol::protocol::WarningEvent;
-use core::time::Duration;
-use core_test_support::load_default_config_for_test;
-use core_test_support::wait_for_event;
 use tempfile::TempDir;
 
 fn resume_history(
@@ -91,11 +91,9 @@ async fn emits_warning_when_resumed_model_differs() {
     let initial_history = resume_history(&config, "previous-model", &rollout_path);
 
     let thread_manager = darwin_code_core::test_support::thread_manager_with_models_provider(
-        DarwinCodeAuth::from_api_key("test"),
+        ByokTestAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
-    let auth_manager =
-        darwin_code_core::test_support::auth_manager_from_auth(DarwinCodeAuth::from_api_key("test"));
 
     // Act: resume the conversation.
     let NewThread {
@@ -105,7 +103,6 @@ async fn emits_warning_when_resumed_model_differs() {
         .resume_thread_with_history(
             config,
             initial_history,
-            auth_manager,
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )

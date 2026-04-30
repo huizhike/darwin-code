@@ -45,7 +45,7 @@ impl InstallContext {
         managed_by_npm: bool,
         managed_by_bun: bool,
     ) -> Self {
-        let codex_home = codex_utils_home_dir::find_codex_home().ok();
+        let codex_home = darwin_code_utils_home_dir::find_codex_home().ok();
         Self::from_exe_with_codex_home(
             is_macos,
             current_exe,

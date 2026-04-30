@@ -1,5 +1,6 @@
 #![cfg(target_os = "macos")]
 
+use core_test_support::PathExt;
 use darwin_code_core::exec::ExecCapturePolicy;
 use darwin_code_core::exec::ExecParams;
 use darwin_code_core::exec::process_exec_tool_call;
@@ -13,7 +14,6 @@ use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_sandboxing::SandboxType;
 use darwin_code_sandboxing::get_platform_sandbox;
-use core_test_support::PathExt;
 use std::collections::HashMap;
 use tempfile::TempDir;
 

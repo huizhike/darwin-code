@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use codex_rollout::RolloutConfig;
+use darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR;
+use darwin_code_rollout::RolloutConfig;
 use uuid::Uuid;
 
 pub(super) fn test_config(codex_home: &Path) -> RolloutConfig {

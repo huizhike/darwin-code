@@ -1,5 +1,6 @@
 use crate::bespoke_event_handling::apply_bespoke_event_handling;
 use crate::bespoke_event_handling::maybe_emit_hook_prompt_item_completed;
+use crate::byok_connectors as connectors;
 use crate::command_exec::CommandExecManager;
 use crate::command_exec::StartCommandExecParams;
 use crate::config_api::apply_runtime_feature_enablement;
@@ -22,21 +23,18 @@ use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use darwin_code_app_server_protocol::Account;
-use darwin_code_app_server_protocol::AccountLoginCompletedNotification;
-use darwin_code_app_server_protocol::AccountUpdatedNotification;
+use codex_analytics::AnalyticsEventsClient;
+use codex_analytics::AnalyticsJsonRpcError;
+use codex_analytics::InputError;
+use codex_analytics::TurnSteerRequestError;
+use codex_feedback::CodexFeedback as DarwinCodeFeedback;
+use codex_feedback::FeedbackUploadOptions;
 use darwin_code_app_server_protocol::AppInfo;
 use darwin_code_app_server_protocol::AppsListParams;
 use darwin_code_app_server_protocol::AppsListResponse;
 use darwin_code_app_server_protocol::AskForApproval;
-use darwin_code_app_server_protocol::AuthMode;
-use darwin_code_app_server_protocol::AuthMode as CoreAuthMode;
-use darwin_code_app_server_protocol::CancelLoginAccountParams;
-use darwin_code_app_server_protocol::CancelLoginAccountResponse;
-use darwin_code_app_server_protocol::CancelLoginAccountStatus;
 use darwin_code_app_server_protocol::ClientRequest;
 use darwin_code_app_server_protocol::ClientResponse;
-use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::CollaborationModeListParams;
 use darwin_code_app_server_protocol::CollaborationModeListResponse;
 use darwin_code_app_server_protocol::CommandExecParams;
@@ -45,6 +43,7 @@ use darwin_code_app_server_protocol::CommandExecTerminateParams;
 use darwin_code_app_server_protocol::CommandExecWriteParams;
 use darwin_code_app_server_protocol::ConversationGitInfo;
 use darwin_code_app_server_protocol::ConversationSummary;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::DynamicToolSpec as ApiDynamicToolSpec;
 use darwin_code_app_server_protocol::ExperimentalFeature as ApiExperimentalFeature;
 use darwin_code_app_server_protocol::ExperimentalFeatureListParams;
@@ -60,11 +59,6 @@ use darwin_code_app_server_protocol::FuzzyFileSearchSessionStopParams;
 use darwin_code_app_server_protocol::FuzzyFileSearchSessionStopResponse;
 use darwin_code_app_server_protocol::FuzzyFileSearchSessionUpdateParams;
 use darwin_code_app_server_protocol::FuzzyFileSearchSessionUpdateResponse;
-use darwin_code_app_server_protocol::GetAccountParams;
-use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
-use darwin_code_app_server_protocol::GetAccountResponse;
-use darwin_code_app_server_protocol::GetAuthStatusParams;
-use darwin_code_app_server_protocol::GetAuthStatusResponse;
 use darwin_code_app_server_protocol::GetConversationSummaryParams;
 use darwin_code_app_server_protocol::GetConversationSummaryResponse;
 use darwin_code_app_server_protocol::GitDiffToRemoteResponse;
@@ -72,10 +66,6 @@ use darwin_code_app_server_protocol::GitInfo as ApiGitInfo;
 use darwin_code_app_server_protocol::JSONRPCErrorError;
 use darwin_code_app_server_protocol::ListMcpServerStatusParams;
 use darwin_code_app_server_protocol::ListMcpServerStatusResponse;
-use darwin_code_app_server_protocol::LoginAccountParams;
-use darwin_code_app_server_protocol::LoginAccountResponse;
-use darwin_code_app_server_protocol::LoginApiKeyParams;
-use darwin_code_app_server_protocol::LogoutAccountResponse;
 use darwin_code_app_server_protocol::MarketplaceAddParams;
 use darwin_code_app_server_protocol::MarketplaceAddResponse;
 use darwin_code_app_server_protocol::MarketplaceInterface;
@@ -199,7 +189,6 @@ use darwin_code_app_server_protocol::WindowsSandboxSetupStartParams;
 use darwin_code_app_server_protocol::WindowsSandboxSetupStartResponse;
 use darwin_code_app_server_protocol::build_turns_from_rollout_items;
 use darwin_code_arg0::Arg0DispatchPaths;
-use darwin_code_backend_client::Client as BackendClient;
 use darwin_code_config::types::McpServerTransportConfig;
 use darwin_code_core::DarwinCodeThread;
 use darwin_code_core::ForkSnapshot;
@@ -213,12 +202,11 @@ use darwin_code_core::append_thread_name;
 use darwin_code_core::clear_memory_roots_contents;
 use darwin_code_core::config::Config;
 use darwin_code_core::config::ConfigOverrides;
-use darwin_code_core::config::NetworkProxyAuditMetadata;
 use darwin_code_core::config::edit::ConfigEdit;
 use darwin_code_core::config::edit::ConfigEditsBuilder;
-use darwin_code_core::config_loader::CloudRequirementsLoadError;
-use darwin_code_core::config_loader::CloudRequirementsLoadErrorCode;
-use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::ExternalRequirementsLoadError;
+use darwin_code_core::config_loader::ExternalRequirementsLoadErrorCode;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
 use darwin_code_core::config_loader::load_config_layers_state;
 use darwin_code_core::config_loader::project_trust_key;
@@ -255,17 +243,6 @@ use darwin_code_features::Feature;
 use darwin_code_features::Stage;
 use darwin_code_git_utils::git_diff_to_remote;
 use darwin_code_git_utils::resolve_root_git_project_for_trust;
-use darwin_code_login::AuthManager;
-use darwin_code_login::CLIENT_ID;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_login::ServerOptions as LoginServerOptions;
-use darwin_code_login::ShutdownHandle;
-use darwin_code_login::auth::login_with_chatgpt_auth_tokens;
-use darwin_code_login::complete_device_code_login;
-use darwin_code_login::default_client::set_default_client_residency_requirement;
-use darwin_code_login::login_with_api_key;
-use darwin_code_login::request_device_code;
-use darwin_code_login::run_login_server;
 use darwin_code_mcp::McpServerStatusSnapshot;
 use darwin_code_mcp::McpSnapshotDetail;
 use darwin_code_mcp::collect_mcp_server_status_snapshot_with_detail;
@@ -275,7 +252,6 @@ use darwin_code_mcp::resolve_oauth_scopes;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::config_types::CollaborationMode;
-use darwin_code_protocol::config_types::ForcedLoginMethod;
 use darwin_code_protocol::config_types::Personality;
 use darwin_code_protocol::config_types::TrustLevel;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
@@ -295,7 +271,6 @@ use darwin_code_protocol::protocol::InitialHistory;
 use darwin_code_protocol::protocol::McpAuthStatus as CoreMcpAuthStatus;
 use darwin_code_protocol::protocol::McpServerRefreshConfig;
 use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::RateLimitSnapshot as CoreRateLimitSnapshot;
 use darwin_code_protocol::protocol::RealtimeVoicesList;
 use darwin_code_protocol::protocol::ReviewDelivery as CoreReviewDelivery;
 use darwin_code_protocol::protocol::ReviewRequest;
@@ -352,14 +327,17 @@ use tracing::Instrument;
 use tracing::error;
 use tracing::info;
 use tracing::warn;
-use uuid::Uuid;
 
 #[cfg(test)]
 use darwin_code_app_server_protocol::ServerRequest;
 
+#[path = "codex_message_processor/apps_list_helpers.rs"]
 mod apps_list_helpers;
+#[path = "codex_message_processor/plugin_app_helpers.rs"]
 mod plugin_app_helpers;
+#[path = "codex_message_processor/plugin_mcp_oauth.rs"]
 mod plugin_mcp_oauth;
+#[path = "codex_message_processor/token_usage_replay.rs"]
 mod token_usage_replay;
 
 use crate::filters::compute_source_filters;
@@ -385,46 +363,8 @@ struct ThreadListFilters {
     search_term: Option<String>,
 }
 
-// Duration before a browser ChatGPT login attempt is abandoned.
-const LOGIN_CHATGPT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
-const LOGIN_ISSUER_OVERRIDE_ENV_VAR: &str = "DARWIN_CODE_APP_SERVER_LOGIN_ISSUER";
 const APP_LIST_LOAD_TIMEOUT: Duration = Duration::from_secs(90);
 const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60);
-
-enum ActiveLogin {
-    Browser {
-        shutdown_handle: ShutdownHandle,
-        login_id: Uuid,
-    },
-    DeviceCode {
-        cancel: CancellationToken,
-        login_id: Uuid,
-    },
-}
-
-impl ActiveLogin {
-    fn login_id(&self) -> Uuid {
-        match self {
-            ActiveLogin::Browser { login_id, .. } | ActiveLogin::DeviceCode { login_id, .. } => {
-                *login_id
-            }
-        }
-    }
-
-    fn cancel(&self) {
-        match self {
-            ActiveLogin::Browser {
-                shutdown_handle, ..
-            } => shutdown_handle.shutdown(),
-            ActiveLogin::DeviceCode { cancel, .. } => cancel.cancel(),
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-enum CancelLoginError {
-    NotFound,
-}
 
 enum AppListLoadResult {
     Accessible(Result<Vec<AppInfo>, String>),
@@ -442,15 +382,8 @@ enum ThreadReadViewError {
     Internal(String),
 }
 
-impl Drop for ActiveLogin {
-    fn drop(&mut self) {
-        self.cancel();
-    }
-}
-
-/// Handles JSON-RPC messages for Darwin-Code threads (and legacy conversation APIs).
+/// Handles JSON-RPC messages for DarwinCode threads (and legacy conversation APIs).
 pub(crate) struct DarwinCodeMessageProcessor {
-    auth_manager: Arc<AuthManager>,
     thread_manager: Arc<ThreadManager>,
     outgoing: Arc<OutgoingMessageSender>,
     analytics_events_client: AnalyticsEventsClient,
@@ -459,8 +392,7 @@ pub(crate) struct DarwinCodeMessageProcessor {
     thread_store: LocalThreadStore,
     cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
-    cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
-    active_login: Arc<Mutex<Option<ActiveLogin>>>,
+    external_requirements: Arc<RwLock<ExternalRequirementsLoader>>,
     pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
     thread_state_manager: ThreadStateManager,
     thread_watch_manager: ThreadWatchManager,
@@ -497,13 +429,6 @@ struct ListenerTaskContext {
 enum EnsureConversationListenerResult {
     Attached,
     ConnectionClosed,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RefreshTokenRequestOutcome {
-    NotAttemptedOrSucceeded,
-    FailedTransiently,
-    FailedPermanently,
 }
 
 struct UnloadingState {
@@ -611,7 +536,6 @@ impl UnloadingState {
 }
 
 pub(crate) struct DarwinCodeMessageProcessorArgs {
-    pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) thread_manager: Arc<ThreadManager>,
     pub(crate) outgoing: Arc<OutgoingMessageSender>,
     pub(crate) analytics_events_client: AnalyticsEventsClient,
@@ -619,7 +543,7 @@ pub(crate) struct DarwinCodeMessageProcessorArgs {
     pub(crate) config: Arc<Config>,
     pub(crate) cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     pub(crate) runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
-    pub(crate) cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
+    pub(crate) external_requirements: Arc<RwLock<ExternalRequirementsLoader>>,
     pub(crate) feedback: DarwinCodeFeedback,
     pub(crate) log_db: Option<LogDbLayer>,
 }
@@ -638,14 +562,6 @@ impl DarwinCodeMessageProcessor {
     fn clear_plugin_related_caches(&self) {
         self.thread_manager.plugins_manager().clear_cache();
         self.thread_manager.skills_manager().clear_cache();
-    }
-
-    fn current_account_updated_notification(&self) -> AccountUpdatedNotification {
-        let auth = self.auth_manager.auth_cached();
-        AccountUpdatedNotification {
-            auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
-            plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
-        }
     }
 
     fn track_error_response(
@@ -689,7 +605,6 @@ impl DarwinCodeMessageProcessor {
     }
     pub fn new(args: DarwinCodeMessageProcessorArgs) -> Self {
         let DarwinCodeMessageProcessorArgs {
-            auth_manager,
             thread_manager,
             outgoing,
             analytics_events_client,
@@ -697,22 +612,22 @@ impl DarwinCodeMessageProcessor {
             config,
             cli_overrides,
             runtime_feature_enablement,
-            cloud_requirements,
+            external_requirements,
             feedback,
             log_db,
         } = args;
         Self {
-            auth_manager,
             thread_manager,
             outgoing: outgoing.clone(),
             analytics_events_client,
             arg0_paths,
-            thread_store: LocalThreadStore::new(darwin_code_rollout::RolloutConfig::from_view(&config)),
+            thread_store: LocalThreadStore::new(darwin_code_rollout::RolloutConfig::from_view(
+                &config,
+            )),
             config,
             cli_overrides,
             runtime_feature_enablement,
-            cloud_requirements,
-            active_login: Arc::new(Mutex::new(None)),
+            external_requirements,
             pending_thread_unloads: Arc::new(Mutex::new(HashSet::new())),
             thread_state_manager: ThreadStateManager::new(),
             thread_watch_manager: ThreadWatchManager::new_with_outgoing(outgoing),
@@ -729,11 +644,11 @@ impl DarwinCodeMessageProcessor {
         &self,
         fallback_cwd: Option<PathBuf>,
     ) -> Result<Config, JSONRPCErrorError> {
-        let cloud_requirements = self.current_cloud_requirements();
+        let external_requirements = self.current_external_requirements();
         let mut config = darwin_code_core::config::ConfigBuilder::default()
             .cli_overrides(self.current_cli_overrides())
             .fallback_cwd(fallback_cwd)
-            .cloud_requirements(cloud_requirements)
+            .external_requirements(external_requirements)
             .build()
             .await
             .map_err(|err| JSONRPCErrorError {
@@ -742,14 +657,14 @@ impl DarwinCodeMessageProcessor {
                 data: None,
             })?;
         apply_runtime_feature_enablement(&mut config, &self.current_runtime_feature_enablement());
-        config.darwin_code_self_exe = self.arg0_paths.darwin_code_self_exe.clone();
-        config.darwin_code_linux_sandbox_exe = self.arg0_paths.darwin_code_linux_sandbox_exe.clone();
+        config.darwin_code_self_exe = self.arg0_paths.codex_self_exe.clone();
+        config.codex_linux_sandbox_exe = self.arg0_paths.darwin_code_linux_sandbox_exe.clone();
         config.main_execve_wrapper_exe = self.arg0_paths.main_execve_wrapper_exe.clone();
         Ok(config)
     }
 
-    fn current_cloud_requirements(&self) -> CloudRequirementsLoader {
-        self.cloud_requirements
+    fn current_external_requirements(&self) -> ExternalRequirementsLoader {
+        self.external_requirements
             .read()
             .map(|guard| guard.clone())
             .unwrap_or_default()
@@ -1090,30 +1005,9 @@ impl DarwinCodeMessageProcessor {
                 self.windows_sandbox_setup_start(to_connection_request_id(request_id), params)
                     .await;
             }
-            ClientRequest::LoginAccount { request_id, params } => {
-                self.login_v2(to_connection_request_id(request_id), params)
-                    .await;
-            }
-            ClientRequest::LogoutAccount {
-                request_id,
-                params: _,
-            } => {
-                self.logout_v2(to_connection_request_id(request_id)).await;
-            }
-            ClientRequest::CancelLoginAccount { request_id, params } => {
-                self.cancel_login_v2(to_connection_request_id(request_id), params)
-                    .await;
-            }
-            ClientRequest::GetAccount { request_id, params } => {
-                self.get_account(to_connection_request_id(request_id), params)
-                    .await;
-            }
+
             ClientRequest::GitDiffToRemote { request_id, params } => {
                 self.git_diff_to_origin(to_connection_request_id(request_id), params.cwd)
-                    .await;
-            }
-            ClientRequest::GetAuthStatus { request_id, params } => {
-                self.get_auth_status(to_connection_request_id(request_id), params)
                     .await;
             }
             ClientRequest::FuzzyFileSearch { request_id, params } => {
@@ -1165,801 +1059,19 @@ impl DarwinCodeMessageProcessor {
             | ClientRequest::FsUnwatch { .. } => {
                 warn!("Filesystem request reached DarwinCodeMessageProcessor unexpectedly");
             }
-            ClientRequest::ConfigRequirementsRead { .. } => {
-                warn!("ConfigRequirementsRead request reached DarwinCodeMessageProcessor unexpectedly");
-            }
+
             ClientRequest::ExternalAgentConfigDetect { .. }
             | ClientRequest::ExternalAgentConfigImport { .. } => {
-                warn!("ExternalAgentConfig request reached DarwinCodeMessageProcessor unexpectedly");
+                warn!(
+                    "ExternalAgentConfig request reached DarwinCodeMessageProcessor unexpectedly"
+                );
             }
-            ClientRequest::GetAccountRateLimits {
-                request_id,
-                params: _,
-            } => {
-                self.get_account_rate_limits(to_connection_request_id(request_id))
-                    .await;
-            }
+
             ClientRequest::FeedbackUpload { request_id, params } => {
                 self.upload_feedback(to_connection_request_id(request_id), params)
                     .await;
             }
         }
-    }
-
-    async fn login_v2(&self, request_id: ConnectionRequestId, params: LoginAccountParams) {
-        match params {
-            LoginAccountParams::ApiKey { api_key } => {
-                self.login_api_key_v2(request_id, LoginApiKeyParams { api_key })
-                    .await;
-            }
-            LoginAccountParams::Chatgpt => {
-                self.login_chatgpt_v2(request_id).await;
-            }
-            LoginAccountParams::ChatgptDeviceCode => {
-                self.login_chatgpt_device_code_v2(request_id).await;
-            }
-            LoginAccountParams::ChatgptAuthTokens {
-                access_token,
-                chatgpt_account_id,
-                chatgpt_plan_type,
-            } => {
-                self.login_chatgpt_auth_tokens(
-                    request_id,
-                    access_token,
-                    chatgpt_account_id,
-                    chatgpt_plan_type,
-                )
-                .await;
-            }
-        }
-    }
-
-    fn external_auth_active_error(&self) -> JSONRPCErrorError {
-        JSONRPCErrorError {
-            code: INVALID_REQUEST_ERROR_CODE,
-            message: "External auth is active. Use account/login/start (chatgptAuthTokens) to update it or account/logout to clear it."
-                .to_string(),
-            data: None,
-        }
-    }
-
-    async fn login_api_key_common(
-        &self,
-        params: &LoginApiKeyParams,
-    ) -> std::result::Result<(), JSONRPCErrorError> {
-        if self.auth_manager.is_external_chatgpt_auth_active() {
-            return Err(self.external_auth_active_error());
-        }
-
-        if matches!(
-            self.config.forced_login_method,
-            Some(ForcedLoginMethod::Chatgpt)
-        ) {
-            return Err(JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "API key login is disabled. Use ChatGPT login instead.".to_string(),
-                data: None,
-            });
-        }
-
-        // Cancel any active login attempt.
-        {
-            let mut guard = self.active_login.lock().await;
-            if let Some(active) = guard.take() {
-                drop(active);
-            }
-        }
-
-        match login_with_api_key(
-            &self.config.darwin_code_home,
-            &params.api_key,
-            self.config.cli_auth_credentials_store_mode,
-        ) {
-            Ok(()) => {
-                self.auth_manager.reload();
-                Ok(())
-            }
-            Err(err) => Err(JSONRPCErrorError {
-                code: INTERNAL_ERROR_CODE,
-                message: format!("failed to save api key: {err}"),
-                data: None,
-            }),
-        }
-    }
-
-    async fn login_api_key_v2(&self, request_id: ConnectionRequestId, params: LoginApiKeyParams) {
-        match self.login_api_key_common(&params).await {
-            Ok(()) => {
-                let response = darwin_code_app_server_protocol::LoginAccountResponse::ApiKey {};
-                self.outgoing.send_response(request_id, response).await;
-
-                let payload_login_completed = AccountLoginCompletedNotification {
-                    login_id: None,
-                    success: true,
-                    error: None,
-                };
-                self.outgoing
-                    .send_server_notification(ServerNotification::AccountLoginCompleted(
-                        payload_login_completed,
-                    ))
-                    .await;
-
-                self.outgoing
-                    .send_server_notification(ServerNotification::AccountUpdated(
-                        self.current_account_updated_notification(),
-                    ))
-                    .await;
-            }
-            Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
-    }
-
-    // Build options for a ChatGPT login attempt; performs validation.
-    async fn login_chatgpt_common(
-        &self,
-    ) -> std::result::Result<LoginServerOptions, JSONRPCErrorError> {
-        let config = self.config.as_ref();
-
-        if self.auth_manager.is_external_chatgpt_auth_active() {
-            return Err(self.external_auth_active_error());
-        }
-
-        if matches!(config.forced_login_method, Some(ForcedLoginMethod::Api)) {
-            return Err(JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "ChatGPT login is disabled. Use API key login instead.".to_string(),
-                data: None,
-            });
-        }
-
-        let opts = LoginServerOptions {
-            open_browser: false,
-            ..LoginServerOptions::new(
-                config.darwin_code_home.to_path_buf(),
-                CLIENT_ID.to_string(),
-                config.forced_chatgpt_workspace_id.clone(),
-                config.cli_auth_credentials_store_mode,
-            )
-        };
-        #[cfg(debug_assertions)]
-        let opts = {
-            let mut opts = opts;
-            if let Ok(issuer) = std::env::var(LOGIN_ISSUER_OVERRIDE_ENV_VAR)
-                && !issuer.trim().is_empty()
-            {
-                opts.issuer = issuer;
-            }
-            opts
-        };
-
-        Ok(opts)
-    }
-
-    fn login_chatgpt_device_code_start_error(err: IoError) -> JSONRPCErrorError {
-        let is_not_found = err.kind() == std::io::ErrorKind::NotFound;
-        JSONRPCErrorError {
-            code: if is_not_found {
-                INVALID_REQUEST_ERROR_CODE
-            } else {
-                INTERNAL_ERROR_CODE
-            },
-            message: if is_not_found {
-                err.to_string()
-            } else {
-                format!("failed to request device code: {err}")
-            },
-            data: None,
-        }
-    }
-
-    async fn login_chatgpt_v2(&self, request_id: ConnectionRequestId) {
-        match self.login_chatgpt_common().await {
-            Ok(opts) => match run_login_server(opts) {
-                Ok(server) => {
-                    let login_id = Uuid::new_v4();
-                    let shutdown_handle = server.cancel_handle();
-
-                    // Replace active login if present.
-                    {
-                        let mut guard = self.active_login.lock().await;
-                        if let Some(existing) = guard.take() {
-                            drop(existing);
-                        }
-                        *guard = Some(ActiveLogin::Browser {
-                            shutdown_handle: shutdown_handle.clone(),
-                            login_id,
-                        });
-                    }
-
-                    // Spawn background task to monitor completion.
-                    let outgoing_clone = self.outgoing.clone();
-                    let active_login = self.active_login.clone();
-                    let auth_manager = self.auth_manager.clone();
-                    let cloud_requirements = self.cloud_requirements.clone();
-                    let chatgpt_base_url = self.config.chatgpt_base_url.clone();
-                    let darwin_code_home = self.config.darwin_code_home.to_path_buf();
-                    let cli_overrides = self.current_cli_overrides();
-                    let auth_url = server.auth_url.clone();
-                    tokio::spawn(async move {
-                        let (success, error_msg) = match tokio::time::timeout(
-                            LOGIN_CHATGPT_TIMEOUT,
-                            server.block_until_done(),
-                        )
-                        .await
-                        {
-                            Ok(Ok(())) => (true, None),
-                            Ok(Err(err)) => (false, Some(format!("Login server error: {err}"))),
-                            Err(_elapsed) => {
-                                shutdown_handle.shutdown();
-                                (false, Some("Login timed out".to_string()))
-                            }
-                        };
-
-                        let payload_v2 = AccountLoginCompletedNotification {
-                            login_id: Some(login_id.to_string()),
-                            success,
-                            error: error_msg,
-                        };
-                        outgoing_clone
-                            .send_server_notification(ServerNotification::AccountLoginCompleted(
-                                payload_v2,
-                            ))
-                            .await;
-
-                        if success {
-                            auth_manager.reload();
-                            replace_cloud_requirements_loader(
-                                cloud_requirements.as_ref(),
-                                auth_manager.clone(),
-                                chatgpt_base_url,
-                                darwin_code_home,
-                            );
-                            sync_default_client_residency_requirement(
-                                &cli_overrides,
-                                cloud_requirements.as_ref(),
-                            )
-                            .await;
-
-                            // Notify clients with the actual current auth mode.
-                            let auth = auth_manager.auth_cached();
-                            let payload_v2 = AccountUpdatedNotification {
-                                auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
-                                plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
-                            };
-                            outgoing_clone
-                                .send_server_notification(ServerNotification::AccountUpdated(
-                                    payload_v2,
-                                ))
-                                .await;
-                        }
-
-                        // Clear the active login if it matches this attempt. It may have been replaced or cancelled.
-                        let mut guard = active_login.lock().await;
-                        if guard.as_ref().map(ActiveLogin::login_id) == Some(login_id) {
-                            *guard = None;
-                        }
-                    });
-
-                    let response = darwin_code_app_server_protocol::LoginAccountResponse::Chatgpt {
-                        login_id: login_id.to_string(),
-                        auth_url,
-                    };
-                    self.outgoing.send_response(request_id, response).await;
-                }
-                Err(err) => {
-                    let error = JSONRPCErrorError {
-                        code: INTERNAL_ERROR_CODE,
-                        message: format!("failed to start login server: {err}"),
-                        data: None,
-                    };
-                    self.outgoing.send_error(request_id, error).await;
-                }
-            },
-            Err(err) => {
-                self.outgoing.send_error(request_id, err).await;
-            }
-        }
-    }
-
-    async fn login_chatgpt_device_code_v2(&self, request_id: ConnectionRequestId) {
-        match self.login_chatgpt_common().await {
-            Ok(opts) => match request_device_code(&opts).await {
-                Ok(device_code) => {
-                    let login_id = Uuid::new_v4();
-                    let cancel = CancellationToken::new();
-
-                    {
-                        let mut guard = self.active_login.lock().await;
-                        if let Some(existing) = guard.take() {
-                            drop(existing);
-                        }
-                        *guard = Some(ActiveLogin::DeviceCode {
-                            cancel: cancel.clone(),
-                            login_id,
-                        });
-                    }
-
-                    let verification_url = device_code.verification_url.clone();
-                    let user_code = device_code.user_code.clone();
-                    let response =
-                        darwin_code_app_server_protocol::LoginAccountResponse::ChatgptDeviceCode {
-                            login_id: login_id.to_string(),
-                            verification_url,
-                            user_code,
-                        };
-                    self.outgoing.send_response(request_id, response).await;
-
-                    let outgoing_clone = self.outgoing.clone();
-                    let active_login = self.active_login.clone();
-                    let auth_manager = self.auth_manager.clone();
-                    let cloud_requirements = self.cloud_requirements.clone();
-                    let chatgpt_base_url = self.config.chatgpt_base_url.clone();
-                    let darwin_code_home = self.config.darwin_code_home.to_path_buf();
-                    let cli_overrides = self.current_cli_overrides();
-                    tokio::spawn(async move {
-                        let (success, error_msg) = tokio::select! {
-                            _ = cancel.cancelled() => {
-                                (false, Some("Login was not completed".to_string()))
-                            }
-                            r = complete_device_code_login(opts, device_code) => {
-                                match r {
-                                    Ok(()) => (true, None),
-                                    Err(err) => (false, Some(err.to_string())),
-                                }
-                            }
-                        };
-
-                        let payload_v2 = AccountLoginCompletedNotification {
-                            login_id: Some(login_id.to_string()),
-                            success,
-                            error: error_msg,
-                        };
-                        outgoing_clone
-                            .send_server_notification(ServerNotification::AccountLoginCompleted(
-                                payload_v2,
-                            ))
-                            .await;
-
-                        if success {
-                            auth_manager.reload();
-                            replace_cloud_requirements_loader(
-                                cloud_requirements.as_ref(),
-                                auth_manager.clone(),
-                                chatgpt_base_url,
-                                darwin_code_home,
-                            );
-                            sync_default_client_residency_requirement(
-                                &cli_overrides,
-                                cloud_requirements.as_ref(),
-                            )
-                            .await;
-
-                            let auth = auth_manager.auth_cached();
-                            let payload_v2 = AccountUpdatedNotification {
-                                auth_mode: auth.as_ref().map(DarwinCodeAuth::api_auth_mode),
-                                plan_type: auth.as_ref().and_then(DarwinCodeAuth::account_plan_type),
-                            };
-                            outgoing_clone
-                                .send_server_notification(ServerNotification::AccountUpdated(
-                                    payload_v2,
-                                ))
-                                .await;
-                        }
-
-                        let mut guard = active_login.lock().await;
-                        if guard.as_ref().map(ActiveLogin::login_id) == Some(login_id) {
-                            *guard = None;
-                        }
-                    });
-                }
-                Err(err) => {
-                    let error = Self::login_chatgpt_device_code_start_error(err);
-                    self.outgoing.send_error(request_id, error).await;
-                }
-            },
-            Err(err) => {
-                self.outgoing.send_error(request_id, err).await;
-            }
-        }
-    }
-
-    async fn cancel_login_chatgpt_common(
-        &self,
-        login_id: Uuid,
-    ) -> std::result::Result<(), CancelLoginError> {
-        let mut guard = self.active_login.lock().await;
-        if guard.as_ref().map(ActiveLogin::login_id) == Some(login_id) {
-            if let Some(active) = guard.take() {
-                drop(active);
-            }
-            Ok(())
-        } else {
-            Err(CancelLoginError::NotFound)
-        }
-    }
-
-    async fn cancel_login_v2(
-        &self,
-        request_id: ConnectionRequestId,
-        params: CancelLoginAccountParams,
-    ) {
-        let login_id = params.login_id;
-        match Uuid::parse_str(&login_id) {
-            Ok(uuid) => {
-                let status = match self.cancel_login_chatgpt_common(uuid).await {
-                    Ok(()) => CancelLoginAccountStatus::Canceled,
-                    Err(CancelLoginError::NotFound) => CancelLoginAccountStatus::NotFound,
-                };
-                let response = CancelLoginAccountResponse { status };
-                self.outgoing.send_response(request_id, response).await;
-            }
-            Err(_) => {
-                let error = JSONRPCErrorError {
-                    code: INVALID_REQUEST_ERROR_CODE,
-                    message: format!("invalid login id: {login_id}"),
-                    data: None,
-                };
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
-    }
-
-    async fn login_chatgpt_auth_tokens(
-        &self,
-        request_id: ConnectionRequestId,
-        access_token: String,
-        chatgpt_account_id: String,
-        chatgpt_plan_type: Option<String>,
-    ) {
-        if matches!(
-            self.config.forced_login_method,
-            Some(ForcedLoginMethod::Api)
-        ) {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "External ChatGPT auth is disabled. Use API key login instead."
-                    .to_string(),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        }
-
-        // Cancel any active login attempt to avoid persisting managed auth state.
-        {
-            let mut guard = self.active_login.lock().await;
-            if let Some(active) = guard.take() {
-                drop(active);
-            }
-        }
-
-        if let Some(expected_workspace) = self.config.forced_chatgpt_workspace_id.as_deref()
-            && chatgpt_account_id != expected_workspace
-        {
-            let error = JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: format!(
-                    "External auth must use workspace {expected_workspace}, but received {chatgpt_account_id:?}."
-                ),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        }
-
-        if let Err(err) = login_with_chatgpt_auth_tokens(
-            &self.config.darwin_code_home,
-            &access_token,
-            &chatgpt_account_id,
-            chatgpt_plan_type.as_deref(),
-        ) {
-            let error = JSONRPCErrorError {
-                code: INTERNAL_ERROR_CODE,
-                message: format!("failed to set external auth: {err}"),
-                data: None,
-            };
-            self.outgoing.send_error(request_id, error).await;
-            return;
-        }
-        self.auth_manager.reload();
-        replace_cloud_requirements_loader(
-            self.cloud_requirements.as_ref(),
-            self.auth_manager.clone(),
-            self.config.chatgpt_base_url.clone(),
-            self.config.darwin_code_home.to_path_buf(),
-        );
-        let cli_overrides = self.current_cli_overrides();
-        sync_default_client_residency_requirement(&cli_overrides, self.cloud_requirements.as_ref())
-            .await;
-
-        self.outgoing
-            .send_response(request_id, LoginAccountResponse::ChatgptAuthTokens {})
-            .await;
-
-        let payload_login_completed = AccountLoginCompletedNotification {
-            login_id: None,
-            success: true,
-            error: None,
-        };
-        self.outgoing
-            .send_server_notification(ServerNotification::AccountLoginCompleted(
-                payload_login_completed,
-            ))
-            .await;
-
-        self.outgoing
-            .send_server_notification(ServerNotification::AccountUpdated(
-                self.current_account_updated_notification(),
-            ))
-            .await;
-    }
-
-    async fn logout_common(&self) -> std::result::Result<Option<AuthMode>, JSONRPCErrorError> {
-        // Cancel any active login attempt.
-        {
-            let mut guard = self.active_login.lock().await;
-            if let Some(active) = guard.take() {
-                drop(active);
-            }
-        }
-
-        match self.auth_manager.logout_with_revoke().await {
-            Ok(_) => {}
-            Err(err) => {
-                return Err(JSONRPCErrorError {
-                    code: INTERNAL_ERROR_CODE,
-                    message: format!("logout failed: {err}"),
-                    data: None,
-                });
-            }
-        }
-
-        // Reflect the current auth method after logout (likely None).
-        Ok(self
-            .auth_manager
-            .auth_cached()
-            .as_ref()
-            .map(DarwinCodeAuth::api_auth_mode))
-    }
-
-    async fn logout_v2(&self, request_id: ConnectionRequestId) {
-        match self.logout_common().await {
-            Ok(current_auth_method) => {
-                self.outgoing
-                    .send_response(request_id, LogoutAccountResponse {})
-                    .await;
-
-                let payload_v2 = AccountUpdatedNotification {
-                    auth_mode: current_auth_method,
-                    plan_type: None,
-                };
-                self.outgoing
-                    .send_server_notification(ServerNotification::AccountUpdated(payload_v2))
-                    .await;
-            }
-            Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
-    }
-
-    async fn refresh_token_if_requested(&self, do_refresh: bool) -> RefreshTokenRequestOutcome {
-        if self.auth_manager.is_external_chatgpt_auth_active() {
-            return RefreshTokenRequestOutcome::NotAttemptedOrSucceeded;
-        }
-        if do_refresh && let Err(err) = self.auth_manager.refresh_token().await {
-            let failed_reason = err.failed_reason();
-            if failed_reason.is_none() {
-                tracing::warn!("failed to refresh token while getting account: {err}");
-                return RefreshTokenRequestOutcome::FailedTransiently;
-            }
-            return RefreshTokenRequestOutcome::FailedPermanently;
-        }
-        RefreshTokenRequestOutcome::NotAttemptedOrSucceeded
-    }
-
-    async fn get_auth_status(&self, request_id: ConnectionRequestId, params: GetAuthStatusParams) {
-        let include_token = params.include_token.unwrap_or(false);
-        let do_refresh = params.refresh_token.unwrap_or(false);
-
-        self.refresh_token_if_requested(do_refresh).await;
-
-        // Determine whether auth is required based on the active model provider.
-        // If a custom provider is configured with `requires_openai_auth == false`,
-        // then no auth step is required; otherwise, default to requiring auth.
-        let requires_openai_auth = self.config.model_provider.requires_openai_auth;
-
-        let response = if !requires_openai_auth {
-            GetAuthStatusResponse {
-                auth_method: None,
-                auth_token: None,
-                requires_openai_auth: Some(false),
-            }
-        } else {
-            let auth = if do_refresh {
-                self.auth_manager.auth_cached()
-            } else {
-                self.auth_manager.auth().await
-            };
-            match auth {
-                Some(auth) => {
-                    let permanent_refresh_failure =
-                        self.auth_manager.refresh_failure_for_auth(&auth).is_some();
-                    let auth_mode = auth.api_auth_mode();
-                    let (reported_auth_method, token_opt) =
-                        if include_token && permanent_refresh_failure {
-                            (Some(auth_mode), None)
-                        } else {
-                            match auth.get_token() {
-                                Ok(token) if !token.is_empty() => {
-                                    let tok = if include_token { Some(token) } else { None };
-                                    (Some(auth_mode), tok)
-                                }
-                                Ok(_) => (None, None),
-                                Err(err) => {
-                                    tracing::warn!("failed to get token for auth status: {err}");
-                                    (None, None)
-                                }
-                            }
-                        };
-                    GetAuthStatusResponse {
-                        auth_method: reported_auth_method,
-                        auth_token: token_opt,
-                        requires_openai_auth: Some(true),
-                    }
-                }
-                None => GetAuthStatusResponse {
-                    auth_method: None,
-                    auth_token: None,
-                    requires_openai_auth: Some(true),
-                },
-            }
-        };
-
-        self.outgoing.send_response(request_id, response).await;
-    }
-
-    async fn get_account(&self, request_id: ConnectionRequestId, params: GetAccountParams) {
-        let do_refresh = params.refresh_token;
-
-        self.refresh_token_if_requested(do_refresh).await;
-
-        // Whether auth is required for the active model provider.
-        let requires_openai_auth = self.config.model_provider.requires_openai_auth;
-
-        if !requires_openai_auth {
-            let response = GetAccountResponse {
-                account: None,
-                requires_openai_auth,
-            };
-            self.outgoing.send_response(request_id, response).await;
-            return;
-        }
-
-        let account = match self.auth_manager.auth_cached() {
-            Some(auth) => match auth.auth_mode() {
-                CoreAuthMode::ApiKey => Some(Account::ApiKey {}),
-                CoreAuthMode::Chatgpt | CoreAuthMode::ChatgptAuthTokens => {
-                    let email = auth.get_account_email();
-                    let plan_type = auth.account_plan_type();
-
-                    match (email, plan_type) {
-                        (Some(email), Some(plan_type)) => {
-                            Some(Account::Chatgpt { email, plan_type })
-                        }
-                        _ => {
-                            let error = JSONRPCErrorError {
-                                code: INVALID_REQUEST_ERROR_CODE,
-                                message:
-                                    "email and plan type are required for chatgpt authentication"
-                                        .to_string(),
-                                data: None,
-                            };
-                            self.outgoing.send_error(request_id, error).await;
-                            return;
-                        }
-                    }
-                }
-            },
-            None => None,
-        };
-
-        let response = GetAccountResponse {
-            account,
-            requires_openai_auth,
-        };
-        self.outgoing.send_response(request_id, response).await;
-    }
-
-    async fn get_account_rate_limits(&self, request_id: ConnectionRequestId) {
-        match self.fetch_account_rate_limits().await {
-            Ok((rate_limits, rate_limits_by_limit_id)) => {
-                let response = GetAccountRateLimitsResponse {
-                    rate_limits: rate_limits.into(),
-                    rate_limits_by_limit_id: Some(
-                        rate_limits_by_limit_id
-                            .into_iter()
-                            .map(|(limit_id, snapshot)| (limit_id, snapshot.into()))
-                            .collect(),
-                    ),
-                };
-                self.outgoing.send_response(request_id, response).await;
-            }
-            Err(error) => {
-                self.outgoing.send_error(request_id, error).await;
-            }
-        }
-    }
-
-    async fn fetch_account_rate_limits(
-        &self,
-    ) -> Result<
-        (
-            CoreRateLimitSnapshot,
-            HashMap<String, CoreRateLimitSnapshot>,
-        ),
-        JSONRPCErrorError,
-    > {
-        let Some(auth) = self.auth_manager.auth().await else {
-            return Err(JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "darwin-code account authentication required to read rate limits".to_string(),
-                data: None,
-            });
-        };
-
-        if !auth.is_chatgpt_auth() {
-            return Err(JSONRPCErrorError {
-                code: INVALID_REQUEST_ERROR_CODE,
-                message: "chatgpt authentication required to read rate limits".to_string(),
-                data: None,
-            });
-        }
-
-        let client = BackendClient::from_auth(self.config.chatgpt_base_url.clone(), &auth)
-            .map_err(|err| JSONRPCErrorError {
-                code: INTERNAL_ERROR_CODE,
-                message: format!("failed to construct backend client: {err}"),
-                data: None,
-            })?;
-
-        let snapshots = client
-            .get_rate_limits_many()
-            .await
-            .map_err(|err| JSONRPCErrorError {
-                code: INTERNAL_ERROR_CODE,
-                message: format!("failed to fetch darwin-code rate limits: {err}"),
-                data: None,
-            })?;
-        if snapshots.is_empty() {
-            return Err(JSONRPCErrorError {
-                code: INTERNAL_ERROR_CODE,
-                message: "failed to fetch darwin-code rate limits: no snapshots returned".to_string(),
-                data: None,
-            });
-        }
-
-        let rate_limits_by_limit_id: HashMap<String, CoreRateLimitSnapshot> = snapshots
-            .iter()
-            .cloned()
-            .map(|snapshot| {
-                let limit_id = snapshot
-                    .limit_id
-                    .clone()
-                    .unwrap_or_else(|| "darwin-code".to_string());
-                (limit_id, snapshot)
-            })
-            .collect();
-
-        let primary = snapshots
-            .iter()
-            .find(|snapshot| snapshot.limit_id.as_deref() == Some("darwin-code"))
-            .cloned()
-            .unwrap_or_else(|| snapshots[0].clone());
-
-        Ok((primary, rate_limits_by_limit_id))
     }
 
     async fn exec_one_off_command(
@@ -2062,32 +1174,6 @@ impl DarwinCodeMessageProcessor {
             },
             None => None,
         };
-        let managed_network_requirements_enabled =
-            self.config.managed_network_requirements_enabled();
-        let started_network_proxy = match self.config.permissions.network.as_ref() {
-            Some(spec) => match spec
-                .start_proxy(
-                    self.config.permissions.sandbox_policy.get(),
-                    /*policy_decider*/ None,
-                    /*blocked_request_observer*/ None,
-                    managed_network_requirements_enabled,
-                    NetworkProxyAuditMetadata::default(),
-                )
-                .await
-            {
-                Ok(started) => Some(started),
-                Err(err) => {
-                    let error = JSONRPCErrorError {
-                        code: INTERNAL_ERROR_CODE,
-                        message: format!("failed to start managed network proxy: {err}"),
-                        data: None,
-                    };
-                    self.outgoing.send_error(request, error).await;
-                    return;
-                }
-            },
-            None => None,
-        };
         let windows_sandbox_level = WindowsSandboxLevel::from_config(&self.config);
         let output_bytes_cap = if disable_output_cap {
             None
@@ -2114,9 +1200,7 @@ impl DarwinCodeMessageProcessor {
             expiration,
             capture_policy,
             env,
-            network: started_network_proxy
-                .as_ref()
-                .map(darwin_code_core::config::StartedNetworkProxy::proxy),
+            network: None,
             sandbox_permissions: SandboxPermissions::UseDefault,
             windows_sandbox_level,
             windows_sandbox_private_desktop: self
@@ -2161,7 +1245,6 @@ impl DarwinCodeMessageProcessor {
         let darwin_code_linux_sandbox_exe = self.arg0_paths.darwin_code_linux_sandbox_exe.clone();
         let outgoing = self.outgoing.clone();
         let request_for_task = request.clone();
-        let started_network_proxy_for_task = started_network_proxy;
         let use_legacy_landlock = self.config.features.use_legacy_landlock();
         let size = match size.map(crate::command_exec::terminal_size_from_protocol) {
             Some(Ok(size)) => Some(size),
@@ -2189,7 +1272,6 @@ impl DarwinCodeMessageProcessor {
                         request_id: request_for_task,
                         process_id,
                         exec_request,
-                        started_network_proxy: started_network_proxy_for_task,
                         tty,
                         stream_stdin,
                         stream_stdout_stderr,
@@ -2298,7 +1380,7 @@ impl DarwinCodeMessageProcessor {
             personality,
         );
         typesafe_overrides.ephemeral = ephemeral;
-        let cloud_requirements = self.current_cloud_requirements();
+        let external_requirements = self.current_external_requirements();
         let cli_overrides = self.current_cli_overrides();
         let listener_task_context = ListenerTaskContext {
             thread_manager: Arc::clone(&self.thread_manager),
@@ -2318,7 +1400,7 @@ impl DarwinCodeMessageProcessor {
                 listener_task_context,
                 cli_overrides,
                 runtime_feature_enablement,
-                cloud_requirements,
+                external_requirements,
                 request_id,
                 app_server_client_name,
                 app_server_client_version,
@@ -2348,10 +1430,7 @@ impl DarwinCodeMessageProcessor {
     }
 
     pub(crate) async fn cancel_active_login(&self) {
-        let mut guard = self.active_login.lock().await;
-        if let Some(active_login) = guard.take() {
-            drop(active_login);
-        }
+        // BYOK-only DarwinCode has no long-running account-login flow to cancel.
     }
 
     pub(crate) async fn clear_all_thread_listeners(&self) {
@@ -2394,7 +1473,7 @@ impl DarwinCodeMessageProcessor {
         listener_task_context: ListenerTaskContext,
         cli_overrides: Vec<(String, TomlValue)>,
         runtime_feature_enablement: BTreeMap<String, bool>,
-        cloud_requirements: CloudRequirementsLoader,
+        external_requirements: ExternalRequirementsLoader,
         request_id: ConnectionRequestId,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
@@ -2412,7 +1491,7 @@ impl DarwinCodeMessageProcessor {
             &cli_overrides,
             config_overrides.clone(),
             typesafe_overrides.clone(),
-            &cloud_requirements,
+            &external_requirements,
             &listener_task_context.darwin_code_home,
             &runtime_feature_enablement,
         )
@@ -2493,7 +1572,7 @@ impl DarwinCodeMessageProcessor {
                 cli_overrides_for_reload,
                 config_overrides,
                 typesafe_overrides,
-                &cloud_requirements,
+                &external_requirements,
                 &listener_task_context.darwin_code_home,
                 &runtime_feature_enablement,
             )
@@ -2547,8 +1626,12 @@ impl DarwinCodeMessageProcessor {
                 match session_start_source
                     .unwrap_or(darwin_code_app_server_protocol::ThreadStartSource::Startup)
                 {
-                    darwin_code_app_server_protocol::ThreadStartSource::Startup => InitialHistory::New,
-                    darwin_code_app_server_protocol::ThreadStartSource::Clear => InitialHistory::Cleared,
+                    darwin_code_app_server_protocol::ThreadStartSource::Startup => {
+                        InitialHistory::New
+                    }
+                    darwin_code_app_server_protocol::ThreadStartSource::Clear => {
+                        InitialHistory::Cleared
+                    }
                 },
                 core_dynamic_tools,
                 persist_extended_history,
@@ -2718,7 +1801,7 @@ impl DarwinCodeMessageProcessor {
             approvals_reviewer: approvals_reviewer
                 .map(darwin_code_app_server_protocol::ApprovalsReviewer::to_core),
             sandbox_mode: sandbox.map(SandboxMode::to_core),
-            darwin_code_linux_sandbox_exe: self.arg0_paths.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: self.arg0_paths.darwin_code_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: self.arg0_paths.main_execve_wrapper_exe.clone(),
             base_instructions,
             developer_instructions,
@@ -2890,7 +1973,8 @@ impl DarwinCodeMessageProcessor {
         }
 
         let rollout_path =
-            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string()).await
+            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string())
+                .await
             {
                 Ok(Some(path)) => Some(path),
                 Ok(None) => None,
@@ -2920,7 +2004,8 @@ impl DarwinCodeMessageProcessor {
                 .await;
             return;
         }
-        if let Err(err) = append_thread_name(&self.config.darwin_code_home, thread_id, &name).await {
+        if let Err(err) = append_thread_name(&self.config.darwin_code_home, thread_id, &name).await
+        {
             self.send_internal_error(request_id, format!("failed to index thread name: {err}"))
                 .await;
             return;
@@ -2983,6 +2068,18 @@ impl DarwinCodeMessageProcessor {
                 .await;
                 return;
             }
+            if let Some(state_db_ctx) = open_state_db_for_direct_thread_lookup(&self.config).await
+                && let Err(err) = state_db_ctx
+                    .set_thread_memory_mode(thread_id, mode.as_str())
+                    .await
+            {
+                warn!(
+                    %err,
+                    %thread_id,
+                    mode = mode.as_str(),
+                    "failed to update state db thread memory mode after active thread update"
+                );
+            }
 
             self.outgoing
                 .send_response(request_id, ThreadMemoryModeSetResponse {})
@@ -2991,7 +2088,8 @@ impl DarwinCodeMessageProcessor {
         }
 
         let rollout_path =
-            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string()).await
+            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_id.to_string())
+                .await
             {
                 Ok(Some(path)) => Some(path),
                 Ok(None) => None,
@@ -3354,33 +2452,35 @@ impl DarwinCodeMessageProcessor {
             return Ok(());
         }
 
-        let rollout_path =
-            match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_uuid.to_string())
-                .await
+        let rollout_path = match find_thread_path_by_id_str(
+            &self.config.darwin_code_home,
+            &thread_uuid.to_string(),
+        )
+        .await
+        {
+            Ok(Some(path)) => path,
+            Ok(None) => match find_archived_thread_path_by_id_str(
+                &self.config.darwin_code_home,
+                &thread_uuid.to_string(),
+            )
+            .await
             {
                 Ok(Some(path)) => path,
-                Ok(None) => match find_archived_thread_path_by_id_str(
-                    &self.config.darwin_code_home,
-                    &thread_uuid.to_string(),
-                )
-                .await
-                {
-                    Ok(Some(path)) => path,
-                    Ok(None) => {
-                        return Err(invalid_request(format!("thread not found: {thread_uuid}")));
-                    }
-                    Err(err) => {
-                        return Err(internal_error(format!(
-                            "failed to locate archived thread id {thread_uuid}: {err}"
-                        )));
-                    }
-                },
+                Ok(None) => {
+                    return Err(invalid_request(format!("thread not found: {thread_uuid}")));
+                }
                 Err(err) => {
                     return Err(internal_error(format!(
-                        "failed to locate thread id {thread_uuid}: {err}"
+                        "failed to locate archived thread id {thread_uuid}: {err}"
                     )));
                 }
-            };
+            },
+            Err(err) => {
+                return Err(internal_error(format!(
+                    "failed to locate thread id {thread_uuid}: {err}"
+                )));
+            }
+        };
 
         reconcile_rollout(
             Some(state_db_ctx),
@@ -3862,7 +2962,10 @@ impl DarwinCodeMessageProcessor {
         Ok(thread)
     }
 
-    async fn load_live_thread_for_read(&self, thread_id: ThreadId) -> Option<Arc<DarwinCodeThread>> {
+    async fn load_live_thread_for_read(
+        &self,
+        thread_id: ThreadId,
+    ) -> Option<Arc<DarwinCodeThread>> {
         self.thread_manager.get_thread(thread_id).await.ok()
     }
 
@@ -3996,36 +3099,38 @@ impl DarwinCodeMessageProcessor {
             .resolve_rollout_path(thread_uuid, state_db_ctx.as_ref())
             .await;
         if rollout_path.is_none() {
-            rollout_path =
-                match find_thread_path_by_id_str(&self.config.darwin_code_home, &thread_uuid.to_string())
-                    .await
+            rollout_path = match find_thread_path_by_id_str(
+                &self.config.darwin_code_home,
+                &thread_uuid.to_string(),
+            )
+            .await
+            {
+                Ok(Some(path)) => Some(path),
+                Ok(None) => match find_archived_thread_path_by_id_str(
+                    &self.config.darwin_code_home,
+                    &thread_uuid.to_string(),
+                )
+                .await
                 {
-                    Ok(Some(path)) => Some(path),
-                    Ok(None) => match find_archived_thread_path_by_id_str(
-                        &self.config.darwin_code_home,
-                        &thread_uuid.to_string(),
-                    )
-                    .await
-                    {
-                        Ok(path) => path,
-                        Err(err) => {
-                            self.send_invalid_request_error(
-                                request_id,
-                                format!("failed to locate archived thread id {thread_uuid}: {err}"),
-                            )
-                            .await;
-                            return;
-                        }
-                    },
+                    Ok(path) => path,
                     Err(err) => {
                         self.send_invalid_request_error(
                             request_id,
-                            format!("failed to locate thread id {thread_uuid}: {err}"),
+                            format!("failed to locate archived thread id {thread_uuid}: {err}"),
                         )
                         .await;
                         return;
                     }
-                };
+                },
+                Err(err) => {
+                    self.send_invalid_request_error(
+                        request_id,
+                        format!("failed to locate thread id {thread_uuid}: {err}"),
+                    )
+                    .await;
+                    return;
+                }
+            };
         }
 
         if rollout_path.is_none() {
@@ -4265,7 +3370,7 @@ impl DarwinCodeMessageProcessor {
             .await;
 
         // Derive a Config using the same logic as new conversation, honoring overrides if provided.
-        let cloud_requirements = self.current_cloud_requirements();
+        let external_requirements = self.current_external_requirements();
         let cli_overrides = self.current_cli_overrides();
         let runtime_feature_enablement = self.current_runtime_feature_enablement();
         let config = match derive_config_for_cwd(
@@ -4273,7 +3378,7 @@ impl DarwinCodeMessageProcessor {
             request_overrides,
             typesafe_overrides,
             history_cwd,
-            &cloud_requirements,
+            &external_requirements,
             &self.config.darwin_code_home,
             &runtime_feature_enablement,
         )
@@ -4296,7 +3401,6 @@ impl DarwinCodeMessageProcessor {
             .resume_thread_with_history(
                 config,
                 thread_history,
-                self.auth_manager.clone(),
                 persist_extended_history,
                 self.request_trace_context(&request_id).await,
             )
@@ -4845,7 +3949,7 @@ impl DarwinCodeMessageProcessor {
         );
         typesafe_overrides.ephemeral = ephemeral.then_some(true);
         // Derive a Config using the same logic as new conversation, honoring overrides if provided.
-        let cloud_requirements = self.current_cloud_requirements();
+        let external_requirements = self.current_external_requirements();
         let cli_overrides = self.current_cli_overrides();
         let runtime_feature_enablement = self.current_runtime_feature_enablement();
         let config = match derive_config_for_cwd(
@@ -4853,7 +3957,7 @@ impl DarwinCodeMessageProcessor {
             request_overrides,
             typesafe_overrides,
             history_cwd,
-            &cloud_requirements,
+            &external_requirements,
             &self.config.darwin_code_home,
             &runtime_feature_enablement,
         )
@@ -5089,7 +4193,10 @@ impl DarwinCodeMessageProcessor {
         let path = match params {
             GetConversationSummaryParams::RolloutPath { rollout_path } => {
                 if rollout_path.is_relative() {
-                    self.config.darwin_code_home.join(&rollout_path).to_path_buf()
+                    self.config
+                        .darwin_code_home
+                        .join(&rollout_path)
+                        .to_path_buf()
                 } else {
                     rollout_path
                 }
@@ -5638,11 +4745,8 @@ impl DarwinCodeMessageProcessor {
         let mcp_config = config
             .to_mcp_config(self.thread_manager.plugins_manager().as_ref())
             .await;
-        let auth = self.auth_manager.auth().await;
-
         tokio::spawn(async move {
-            Self::list_mcp_server_status_task(outgoing, request, params, config, mcp_config, auth)
-                .await;
+            Self::list_mcp_server_status_task(outgoing, request, params, config, mcp_config).await;
         });
     }
 
@@ -5652,7 +4756,6 @@ impl DarwinCodeMessageProcessor {
         params: ListMcpServerStatusParams,
         config: Config,
         mcp_config: darwin_code_mcp::McpConfig,
-        auth: Option<DarwinCodeAuth>,
     ) {
         let detail = match params.detail.unwrap_or(McpServerStatusDetail::Full) {
             McpServerStatusDetail::Full => McpSnapshotDetail::Full,
@@ -5661,13 +4764,12 @@ impl DarwinCodeMessageProcessor {
 
         let snapshot = collect_mcp_server_status_snapshot_with_detail(
             &mcp_config,
-            auth.as_ref(),
             request_id.request_id.to_string(),
             detail,
         )
         .await;
 
-        let effective_servers = effective_mcp_servers(&mcp_config, auth.as_ref());
+        let effective_servers = effective_mcp_servers(&mcp_config);
         let McpServerStatusSnapshot {
             tools_by_server,
             resources,
@@ -6066,11 +5168,7 @@ impl DarwinCodeMessageProcessor {
                 .set_enabled(Feature::Apps, thread.enabled(Feature::Apps));
         }
 
-        let auth = self.auth_manager.auth().await;
-        if !config
-            .features
-            .apps_enabled_for_auth(auth.as_ref().is_some_and(DarwinCodeAuth::is_chatgpt_auth))
-        {
+        if !config.features.apps_enabled() {
             self.outgoing
                 .send_response(
                     request_id,
@@ -6368,7 +5466,7 @@ impl DarwinCodeMessageProcessor {
                 Some(cwd_abs.clone()),
                 &cli_overrides,
                 LoaderOverrides::default(),
-                CloudRequirementsLoader::default(),
+                ExternalRequirementsLoader::default(),
             )
             .await
             {
@@ -6432,8 +5530,6 @@ impl DarwinCodeMessageProcessor {
                 return;
             }
         };
-        let auth = self.auth_manager.auth().await;
-
         let config_for_marketplace_listing = config.clone();
         let plugins_manager_for_marketplace_listing = plugins_manager.clone();
         let (data, marketplace_load_errors) = match tokio::task::spawn_blocking(move || {
@@ -6474,10 +5570,12 @@ impl DarwinCodeMessageProcessor {
                 outcome
                     .errors
                     .into_iter()
-                    .map(|err| darwin_code_app_server_protocol::MarketplaceLoadErrorInfo {
-                        marketplace_path: err.path,
-                        message: err.message,
-                    })
+                    .map(
+                        |err| darwin_code_app_server_protocol::MarketplaceLoadErrorInfo {
+                            marketplace_path: err.path,
+                            message: err.message,
+                        },
+                    )
                     .collect(),
             ))
         })
@@ -6504,7 +5602,7 @@ impl DarwinCodeMessageProcessor {
             .any(|marketplace| marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME)
         {
             match plugins_manager
-                .featured_plugin_ids_for_config(&config, auth.as_ref())
+                .featured_plugin_ids_for_config(&config, Option::<&()>::None)
                 .await
             {
                 Ok(featured_plugin_ids) => featured_plugin_ids,
@@ -6799,11 +5897,8 @@ impl DarwinCodeMessageProcessor {
                 }
 
                 let plugin_apps = load_plugin_apps(result.installed_path.as_path()).await;
-                let auth = self.auth_manager.auth().await;
-                let apps_needing_auth = if plugin_apps.is_empty()
-                    || !config.features.apps_enabled_for_auth(
-                        auth.as_ref().is_some_and(DarwinCodeAuth::is_chatgpt_auth),
-                    ) {
+                let apps_needing_auth = if plugin_apps.is_empty() || !config.features.apps_enabled()
+                {
                     Vec::new()
                 } else {
                     let (all_connectors_result, accessible_connectors_result) = tokio::join!(
@@ -6827,9 +5922,9 @@ impl DarwinCodeMessageProcessor {
                     };
                     let all_connectors =
                         connectors::connectors_for_plugin_apps(all_connectors, &plugin_apps);
-                    let (accessible_connectors, darwin_code_apps_ready) =
+                    let (accessible_connectors, codex_apps_ready) =
                         match accessible_connectors_result {
-                            Ok(status) => (status.connectors, status.darwin_code_apps_ready),
+                            Ok(status) => (status.connectors, status.codex_apps_ready),
                             Err(err) => {
                                 warn!(
                                     plugin = result.plugin_id.as_key(),
@@ -6845,7 +5940,7 @@ impl DarwinCodeMessageProcessor {
                                 )
                             }
                         };
-                    if !darwin_code_apps_ready {
+                    if !codex_apps_ready {
                         warn!(
                             plugin = result.plugin_id.as_key(),
                             "darwin_code_apps MCP not ready after plugin install; skipping appsNeedingAuth check"
@@ -6856,7 +5951,7 @@ impl DarwinCodeMessageProcessor {
                         &all_connectors,
                         &accessible_connectors,
                         &plugin_apps,
-                        darwin_code_apps_ready,
+                        codex_apps_ready,
                     )
                 };
 
@@ -7267,7 +6362,7 @@ impl DarwinCodeMessageProcessor {
                         };
                         let error = TurnError {
                             message: message.clone(),
-                            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+                            codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                                 turn_kind: turn_kind.into(),
                             }),
                             additional_details: None,
@@ -8321,13 +7416,6 @@ impl DarwinCodeMessageProcessor {
             None => None,
         };
 
-        if let Some(chatgpt_user_id) = self
-            .auth_manager
-            .auth_cached()
-            .and_then(|auth| auth.get_chatgpt_user_id())
-        {
-            tracing::info!(target: "feedback_tags", chatgpt_user_id);
-        }
         let snapshot = self.feedback.snapshot(conversation_id);
         let thread_id = snapshot.thread_id.clone();
         let (feedback_thread_ids, sqlite_feedback_logs, state_db_ctx) = if include_logs {
@@ -8488,7 +7576,7 @@ impl DarwinCodeMessageProcessor {
             WindowsSandboxSetupMode::Unelevated => CoreWindowsSandboxSetupMode::Unelevated,
         };
         let config = Arc::clone(&self.config);
-        let cloud_requirements = self.current_cloud_requirements();
+        let external_requirements = self.current_external_requirements();
         let command_cwd = params
             .cwd
             .map(PathBuf::from)
@@ -8507,7 +7595,7 @@ impl DarwinCodeMessageProcessor {
                     ..Default::default()
                 },
                 Some(command_cwd.clone()),
-                &cloud_requirements,
+                &external_requirements,
                 &config.darwin_code_home,
                 &runtime_feature_enablement,
             )
@@ -8523,7 +7611,8 @@ impl DarwinCodeMessageProcessor {
                         darwin_code_home: config.darwin_code_home.to_path_buf(),
                         active_profile: config.active_profile.clone(),
                     };
-                    darwin_code_core::windows_sandbox::run_windows_sandbox_setup(setup_request).await
+                    darwin_code_core::windows_sandbox::run_windows_sandbox_setup(setup_request)
+                        .await
                 }
                 Err(err) => Err(err.into()),
             };
@@ -9048,14 +8137,16 @@ fn skills_to_info(
                         tools: dependencies
                             .tools
                             .into_iter()
-                            .map(|tool| darwin_code_app_server_protocol::SkillToolDependency {
-                                r#type: tool.r#type,
-                                value: tool.value,
-                                description: tool.description,
-                                transport: tool.transport,
-                                command: tool.command,
-                                url: tool.url,
-                            })
+                            .map(
+                                |tool| darwin_code_app_server_protocol::SkillToolDependency {
+                                    r#type: tool.r#type,
+                                    value: tool.value,
+                                    description: tool.description,
+                                    transport: tool.transport,
+                                    command: tool.command,
+                                    url: tool.url,
+                                },
+                            )
                             .collect(),
                     }
                 }),
@@ -9144,12 +8235,14 @@ fn errors_to_info(
         .collect()
 }
 
-fn cloud_requirements_load_error(err: &std::io::Error) -> Option<&CloudRequirementsLoadError> {
+fn external_requirements_load_error(
+    err: &std::io::Error,
+) -> Option<&ExternalRequirementsLoadError> {
     let mut current: Option<&(dyn std::error::Error + 'static)> = err
         .get_ref()
         .map(|source| source as &(dyn std::error::Error + 'static));
     while let Some(source) = current {
-        if let Some(cloud_error) = source.downcast_ref::<CloudRequirementsLoadError>() {
+        if let Some(cloud_error) = source.downcast_ref::<ExternalRequirementsLoadError>() {
             return Some(cloud_error);
         }
         current = source.source();
@@ -9158,16 +8251,16 @@ fn cloud_requirements_load_error(err: &std::io::Error) -> Option<&CloudRequireme
 }
 
 fn config_load_error(err: &std::io::Error) -> JSONRPCErrorError {
-    let data = cloud_requirements_load_error(err).map(|cloud_error| {
+    let data = external_requirements_load_error(err).map(|external_error| {
         let mut data = serde_json::json!({
-            "reason": "cloudRequirements",
-            "errorCode": format!("{:?}", cloud_error.code()),
-            "detail": cloud_error.to_string(),
+            "reason": "externalRequirements",
+            "errorCode": format!("{:?}", external_error.code()),
+            "detail": external_error.to_string(),
         });
-        if let Some(status_code) = cloud_error.status_code() {
+        if let Some(status_code) = external_error.status_code() {
             data["statusCode"] = serde_json::json!(status_code);
         }
-        if cloud_error.code() == CloudRequirementsLoadErrorCode::Auth {
+        if external_error.code() == ExternalRequirementsLoadErrorCode::Auth {
             data["action"] = serde_json::json!("relogin");
         }
         data
@@ -9209,42 +8302,6 @@ fn validate_dynamic_tools(tools: &[ApiDynamicToolSpec]) -> Result<(), String> {
     Ok(())
 }
 
-fn replace_cloud_requirements_loader(
-    cloud_requirements: &RwLock<CloudRequirementsLoader>,
-    auth_manager: Arc<AuthManager>,
-    chatgpt_base_url: String,
-    darwin_code_home: PathBuf,
-) {
-    let loader = cloud_requirements_loader(auth_manager, chatgpt_base_url, darwin_code_home);
-    if let Ok(mut guard) = cloud_requirements.write() {
-        *guard = loader;
-    } else {
-        warn!("failed to update cloud requirements loader");
-    }
-}
-
-async fn sync_default_client_residency_requirement(
-    cli_overrides: &[(String, TomlValue)],
-    cloud_requirements: &RwLock<CloudRequirementsLoader>,
-) {
-    let loader = cloud_requirements
-        .read()
-        .map(|guard| guard.clone())
-        .unwrap_or_default();
-    match darwin_code_core::config::ConfigBuilder::default()
-        .cli_overrides(cli_overrides.to_vec())
-        .cloud_requirements(loader)
-        .build()
-        .await
-    {
-        Ok(config) => set_default_client_residency_requirement(config.enforce_residency.value()),
-        Err(err) => warn!(
-            error = %err,
-            "failed to sync default client residency requirement after auth refresh"
-        ),
-    }
-}
-
 /// Derive the effective [`Config`] by layering three override sources.
 ///
 /// Precedence (lowest to highest):
@@ -9259,7 +8316,7 @@ async fn derive_config_from_params(
     cli_overrides: &[(String, TomlValue)],
     request_overrides: Option<HashMap<String, serde_json::Value>>,
     typesafe_overrides: ConfigOverrides,
-    cloud_requirements: &CloudRequirementsLoader,
+    external_requirements: &ExternalRequirementsLoader,
     darwin_code_home: &Path,
     runtime_feature_enablement: &BTreeMap<String, bool>,
 ) -> std::io::Result<Config> {
@@ -9278,7 +8335,7 @@ async fn derive_config_from_params(
         .darwin_code_home(darwin_code_home.to_path_buf())
         .cli_overrides(merged_cli_overrides)
         .harness_overrides(typesafe_overrides)
-        .cloud_requirements(cloud_requirements.clone())
+        .external_requirements(external_requirements.clone())
         .build()
         .await?;
     apply_runtime_feature_enablement(&mut config, runtime_feature_enablement);
@@ -9290,7 +8347,7 @@ async fn derive_config_for_cwd(
     request_overrides: Option<HashMap<String, serde_json::Value>>,
     typesafe_overrides: ConfigOverrides,
     cwd: Option<PathBuf>,
-    cloud_requirements: &CloudRequirementsLoader,
+    external_requirements: &ExternalRequirementsLoader,
     darwin_code_home: &Path,
     runtime_feature_enablement: &BTreeMap<String, bool>,
 ) -> std::io::Result<Config> {
@@ -9310,7 +8367,7 @@ async fn derive_config_for_cwd(
         .cli_overrides(merged_cli_overrides)
         .harness_overrides(typesafe_overrides)
         .fallback_cwd(cwd)
-        .cloud_requirements(cloud_requirements.clone())
+        .external_requirements(external_requirements.clone())
         .build()
         .await?;
     apply_runtime_feature_enablement(&mut config, runtime_feature_enablement);
@@ -9389,7 +8446,8 @@ async fn thread_titles_by_ids(
         }
     }
     if names.len() < thread_ids.len()
-        && let Ok(legacy_names) = find_thread_names_by_ids(&config.darwin_code_home, thread_ids).await
+        && let Ok(legacy_names) =
+            find_thread_names_by_ids(&config.darwin_code_home, thread_ids).await
     {
         for (thread_id, title) in legacy_names {
             names.entry(thread_id).or_insert(title);
@@ -9444,7 +8502,10 @@ fn thread_from_stored_thread(
     thread: StoredThread,
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
-) -> (Thread, Option<darwin_code_thread_store::StoredThreadHistory>) {
+) -> (
+    Thread,
+    Option<darwin_code_thread_store::StoredThreadHistory>,
+) {
     let path = thread.rollout_path;
     let git_info = thread.git_info.map(|info| ApiGitInfo {
         sha: info.commit_hash.map(|sha| sha.0),
@@ -9814,7 +8875,9 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
         .iter()
         .find_map(|item| match item {
             RolloutItem::ResponseItem(item) => match darwin_code_core::parse_turn_item(item) {
-                Some(darwin_code_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+                Some(darwin_code_protocol::items::TurnItem::UserMessage(user)) => {
+                    Some(user.message())
+                }
                 _ => None,
             },
             _ => None,
@@ -10238,9 +9301,9 @@ mod tests {
     }
 
     #[test]
-    fn config_load_error_marks_cloud_requirements_failures_for_relogin() {
-        let err = std::io::Error::other(CloudRequirementsLoadError::new(
-            CloudRequirementsLoadErrorCode::Auth,
+    fn config_load_error_marks_external_requirements_failures_for_relogin() {
+        let err = std::io::Error::other(ExternalRequirementsLoadError::new(
+            ExternalRequirementsLoadErrorCode::Auth,
             Some(401),
             "Your authentication session could not be refreshed automatically. Please log out and sign in again.",
         ));
@@ -10250,7 +9313,7 @@ mod tests {
         assert_eq!(
             error.data,
             Some(json!({
-                "reason": "cloudRequirements",
+                "reason": "externalRequirements",
                 "errorCode": "Auth",
                 "action": "relogin",
                 "statusCode": 401,
@@ -10265,7 +9328,7 @@ mod tests {
     }
 
     #[test]
-    fn config_load_error_leaves_non_cloud_requirements_failures_unmarked() {
+    fn config_load_error_leaves_non_external_requirements_failures_unmarked() {
         let err = std::io::Error::other("required MCP servers failed to initialize");
 
         let error = config_load_error(&err);
@@ -10279,9 +9342,9 @@ mod tests {
     }
 
     #[test]
-    fn config_load_error_marks_non_auth_cloud_requirements_failures_without_relogin() {
-        let err = std::io::Error::other(CloudRequirementsLoadError::new(
-            CloudRequirementsLoadErrorCode::RequestFailed,
+    fn config_load_error_marks_non_auth_external_requirements_failures_without_relogin() {
+        let err = std::io::Error::other(ExternalRequirementsLoadError::new(
+            ExternalRequirementsLoadErrorCode::RequestFailed,
             /*status_code*/ None,
             "failed to load your workspace-managed config",
         ));
@@ -10291,7 +9354,7 @@ mod tests {
         assert_eq!(
             error.data,
             Some(json!({
-                "reason": "cloudRequirements",
+                "reason": "externalRequirements",
                 "errorCode": "RequestFailed",
                 "detail": "failed to load your workspace-managed config",
             }))
@@ -10418,7 +9481,10 @@ mod tests {
             &persisted_metadata,
         );
 
-        assert_eq!(typesafe_overrides.model, Some("gpt-5.2-darwin-code".to_string()));
+        assert_eq!(
+            typesafe_overrides.model,
+            Some("gpt-5.2-darwin-code".to_string())
+        );
         assert_eq!(
             request_overrides,
             Some(HashMap::from([(
@@ -10537,7 +9603,7 @@ mod tests {
                 "id": conversation_id.to_string(),
                 "timestamp": timestamp,
                 "cwd": "/",
-                "originator": "darwin-code",
+                "originator": "darwin_code",
                 "cli_version": "0.0.0",
                 "model_provider": "test-provider"
             }),

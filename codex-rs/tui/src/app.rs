@@ -4,7 +4,6 @@ use crate::app_command::AppCommandView;
 use crate::app_event::AppEvent;
 use crate::app_event::ExitMode;
 use crate::app_event::FeedbackCategory;
-use crate::app_event::RateLimitRefreshOrigin;
 use crate::app_event::RealtimeAudioDeviceKind;
 #[cfg(target_os = "windows")]
 use crate::app_event::WindowsSandboxEnableMode;
@@ -13,7 +12,6 @@ use crate::app_server_approval_conversions::network_approval_context_to_core;
 use crate::app_server_session::AppServerSession;
 use crate::app_server_session::AppServerStartedThread;
 use crate::app_server_session::ThreadSessionState;
-use crate::app_server_session::app_server_rate_limit_snapshots_to_core;
 use crate::bottom_pane::ApprovalRequest;
 use crate::bottom_pane::FeedbackAudience;
 use crate::bottom_pane::McpServerElicitationFormRequest;
@@ -75,15 +73,19 @@ use darwin_code_ansi_escape::ansi_escape_line;
 use darwin_code_app_server_client::AppServerRequestHandle;
 use darwin_code_app_server_client::TypedRequestError;
 
-type FeedbackClient = ();
+type FeedbackClient = codex_feedback::CodexFeedback;
+use color_eyre::eyre::Result;
+use color_eyre::eyre::WrapErr;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
 use darwin_code_app_server_protocol::ClientRequest;
-use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::ConfigLayerSource;
 use darwin_code_app_server_protocol::ConfigValueWriteParams;
 use darwin_code_app_server_protocol::ConfigWriteResponse;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::FeedbackUploadParams;
 use darwin_code_app_server_protocol::FeedbackUploadResponse;
-use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
 use darwin_code_app_server_protocol::ListMcpServerStatusParams;
 use darwin_code_app_server_protocol::ListMcpServerStatusResponse;
 use darwin_code_app_server_protocol::McpServerStatus;
@@ -134,18 +136,12 @@ use darwin_code_protocol::protocol::ListSkillsResponseEvent;
 #[cfg(test)]
 use darwin_code_protocol::protocol::McpAuthStatus;
 use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::RateLimitSnapshot;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::protocol::SkillErrorInfo;
 use darwin_code_protocol::protocol::TokenUsage;
 use darwin_code_terminal_detection::user_agent;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use color_eyre::eyre::Result;
-use color_eyre::eyre::WrapErr;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
@@ -413,13 +409,15 @@ fn list_skills_response_to_core(response: SkillsListResponse) -> ListSkillsRespo
                                 tools: dependencies
                                     .tools
                                     .into_iter()
-                                    .map(|tool| darwin_code_protocol::protocol::SkillToolDependency {
-                                        r#type: tool.r#type,
-                                        value: tool.value,
-                                        description: tool.description,
-                                        transport: tool.transport,
-                                        command: tool.command,
-                                        url: tool.url,
+                                    .map(|tool| {
+                                        darwin_code_protocol::protocol::SkillToolDependency {
+                                            r#type: tool.r#type,
+                                            value: tool.value,
+                                            description: tool.description,
+                                            transport: tool.transport,
+                                            command: tool.command,
+                                            url: tool.url,
+                                        }
                                     })
                                     .collect(),
                             }
@@ -483,14 +481,14 @@ fn emit_project_config_warnings(app_event_tx: &AppEventSender, config: &Config) 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_darwin_code_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_darwin_code_folder.as_path().display().to_string(),
+            dot_codex_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -792,7 +790,7 @@ fn migration_prompt_hidden(config: &Config, migration_config_key: &str) -> bool 
     match migration_config_key {
         HIDE_GPT_5_1_DARWIN_CODE_MAX_MIGRATION_PROMPT_CONFIG => config
             .notices
-            .hide_gpt_5_1_darwin_code_max_migration_prompt
+            .hide_gpt_5_1_codex_max_migration_prompt
             .unwrap_or(false),
         HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG => {
             config.notices.hide_gpt5_1_migration_prompt.unwrap_or(false)
@@ -1084,7 +1082,7 @@ fn active_turn_not_steerable_turn_error(error: &TypedRequestError) -> Option<App
     };
     let turn_error: AppServerTurnError = serde_json::from_value(source.data.clone()?).ok()?;
     matches!(
-        turn_error.darwin_code_error_info,
+        turn_error.codex_error_info,
         Some(AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. })
     )
     .then_some(turn_error)
@@ -1134,7 +1132,7 @@ impl App {
             app_event_tx: self.app_event_tx.clone(),
             initial_user_message,
             enhanced_keys_supported: self.enhanced_keys_supported,
-            has_chatgpt_account: self.chat_widget.has_chatgpt_account(),
+            has_account_backed_features: self.chat_widget.has_account_backed_features(),
             model_catalog: self.model_catalog.clone(),
             feedback: self.feedback.clone(),
             is_first_run: false,
@@ -2057,29 +2055,6 @@ impl App {
             app_event_tx.send(AppEvent::McpInventoryLoaded { result });
         });
     }
-
-    /// Spawns a background task to fetch account rate limits and deliver the
-    /// result as a `RateLimitsLoaded` event.
-    ///
-    /// The `origin` is forwarded to the completion handler so it can distinguish
-    /// a startup prefetch (which only updates cached snapshots and schedules a
-    /// frame) from a `/status`-triggered refresh (which must finalize the
-    /// corresponding status card).
-    fn refresh_rate_limits(
-        &mut self,
-        app_server: &AppServerSession,
-        origin: RateLimitRefreshOrigin,
-    ) {
-        let request_handle = app_server.request_handle();
-        let app_event_tx = self.app_event_tx.clone();
-        tokio::spawn(async move {
-            let result = fetch_account_rate_limits(request_handle)
-                .await
-                .map_err(|err| err.to_string());
-            app_event_tx.send(AppEvent::RateLimitsLoaded { origin, result });
-        });
-    }
-
     /// Starts the initial skills refresh without delaying the first interactive frame.
     ///
     /// Startup only needs skill metadata to populate skill mentions and the skills UI; the prompt can be
@@ -3306,7 +3281,7 @@ impl App {
                 reasoning_effort: self.chat_widget.current_reasoning_effort(),
                 history_log_id: 0,
                 history_entry_count: 0,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: thread.path.clone(),
             });
         session.thread_id = thread_id;
@@ -3948,19 +3923,17 @@ impl App {
             },
         ));
         let feedback_audience = bootstrap.feedback_audience;
-        let auth_mode = bootstrap.auth_mode;
-        let has_chatgpt_account = bootstrap.has_chatgpt_account;
-        let requires_openai_auth = bootstrap.requires_openai_auth;
-        let status_account_display = bootstrap.status_account_display.clone();
-        let initial_plan_type = bootstrap.plan_type;
+        let has_account_backed_features = false;
+        let status_account_display = None;
+        let initial_plan_type = None;
         let session_telemetry = SessionTelemetry::new(
             ThreadId::new(),
             model.as_str(),
             model.as_str(),
             /*account_id*/ None,
-            bootstrap.account_email.clone(),
-            auth_mode,
-            darwin_code_login::default_client::originator().value,
+            /*account_email*/ None,
+            /*auth_mode*/ None,
+            darwin_code_client::originator().value,
             config.otel.log_user_prompt,
             user_agent(),
             SessionSource::Cli,
@@ -3970,7 +3943,7 @@ impl App {
             .as_ref()
             .is_some_and(|cmd| !cmd.is_empty())
         {
-            session_telemetry.counter("darwin-code.status_line", /*inc*/ 1, &[]);
+            session_telemetry.counter("darwin_code.status_line", /*inc*/ 1, &[]);
         }
 
         let status_line_invalid_items_warned = Arc::new(AtomicBool::new(false));
@@ -3996,7 +3969,7 @@ impl App {
                         Vec::new(),
                     ),
                     enhanced_keys_supported,
-                    has_chatgpt_account,
+                    has_account_backed_features,
                     model_catalog: model_catalog.clone(),
                     feedback: feedback.clone(),
                     is_first_run,
@@ -4030,7 +4003,7 @@ impl App {
                         Vec::new(),
                     ),
                     enhanced_keys_supported,
-                    has_chatgpt_account,
+                    has_account_backed_features,
                     model_catalog: model_catalog.clone(),
                     feedback: feedback.clone(),
                     is_first_run,
@@ -4047,7 +4020,7 @@ impl App {
             }
             SessionSelection::Fork(target_session) => {
                 session_telemetry.counter(
-                    "darwin-code.thread.fork",
+                    "darwin_code.thread.fork",
                     /*inc*/ 1,
                     &[("source", "cli_subcommand")],
                 );
@@ -4069,7 +4042,7 @@ impl App {
                         Vec::new(),
                     ),
                     enhanced_keys_supported,
-                    has_chatgpt_account,
+                    has_account_backed_features,
                     model_catalog: model_catalog.clone(),
                     feedback: feedback.clone(),
                     is_first_run,
@@ -4173,11 +4146,6 @@ impl App {
 
         tui.frame_requester().schedule_frame();
         app.refresh_startup_skills(&app_server);
-        // Kick off a non-blocking rate-limit prefetch so the first `/status`
-        // already has data, without delaying the initial frame render.
-        if requires_openai_auth && has_chatgpt_account {
-            app.refresh_rate_limits(&app_server, RateLimitRefreshOrigin::StartupPrefetch);
-        }
 
         let mut listen_for_app_server_events = true;
         let mut waiting_for_initial_session_configured = wait_for_initial_session_configured;
@@ -4579,7 +4547,7 @@ impl App {
             }
             AppEvent::ForkCurrentSession => {
                 self.session_telemetry.counter(
-                    "darwin-code.thread.fork",
+                    "darwin_code.thread.fork",
                     /*inc*/ 1,
                     &[("source", "slash_command")],
                 );
@@ -4697,18 +4665,6 @@ impl App {
             AppEvent::Exit(mode) => {
                 return Ok(self.handle_exit_mode(app_server, mode).await);
             }
-            AppEvent::Logout => match app_server.logout_account().await {
-                Ok(()) => {
-                    return Ok(self
-                        .handle_exit_mode(app_server, ExitMode::ShutdownFirst)
-                        .await);
-                }
-                Err(err) => {
-                    tracing::error!("failed to logout: {err}");
-                    self.chat_widget
-                        .add_error_message(format!("Logout failed: {err}"));
-                }
-            },
             AppEvent::FatalExitRequest(message) => {
                 return Ok(AppRunControl::Exit(ExitReason::Fatal(message)));
             }
@@ -4931,32 +4887,6 @@ impl App {
             AppEvent::FileSearchResult { query, matches } => {
                 self.chat_widget.apply_file_search_result(query, matches);
             }
-            AppEvent::RefreshRateLimits { origin } => {
-                self.refresh_rate_limits(app_server, origin);
-            }
-            AppEvent::RateLimitsLoaded { origin, result } => match result {
-                Ok(snapshots) => {
-                    for snapshot in snapshots {
-                        self.chat_widget.on_rate_limit_snapshot(Some(snapshot));
-                    }
-                    match origin {
-                        RateLimitRefreshOrigin::StartupPrefetch => {
-                            tui.frame_requester().schedule_frame();
-                        }
-                        RateLimitRefreshOrigin::StatusCommand { request_id } => {
-                            self.chat_widget
-                                .finish_status_rate_limit_refresh(request_id);
-                        }
-                    }
-                }
-                Err(err) => {
-                    tracing::warn!("account/rateLimits/read failed during TUI refresh: {err}");
-                    if let RateLimitRefreshOrigin::StatusCommand { request_id } = origin {
-                        self.chat_widget
-                            .finish_status_rate_limit_refresh(request_id);
-                    }
-                }
-            },
             AppEvent::ConnectorsLoaded { result, is_final } => {
                 self.chat_widget.on_connectors_loaded(result, is_final);
             }
@@ -5050,14 +4980,14 @@ impl App {
             }
             AppEvent::OpenWindowsSandboxFallbackPrompt { preset } => {
                 self.session_telemetry.counter(
-                    "darwin-code.windows_sandbox.fallback_prompt_shown",
+                    "darwin_code.windows_sandbox.fallback_prompt_shown",
                     /*inc*/ 1,
                     &[],
                 );
                 self.chat_widget.clear_windows_sandbox_setup_status();
                 if let Some(started_at) = self.windows_sandbox.setup_started_at.take() {
                     self.session_telemetry.record_duration(
-                        "darwin-code.windows_sandbox.elevated_setup_duration_ms",
+                        "darwin_code.windows_sandbox.elevated_setup_duration_ms",
                         started_at.elapsed(),
                         &[("result", "failure")],
                     );
@@ -5102,7 +5032,7 @@ impl App {
                         let event = match result {
                             Ok(()) => {
                                 session_telemetry.counter(
-                                    "darwin-code.windows_sandbox.elevated_setup_success",
+                                    "darwin_code.windows_sandbox.elevated_setup_success",
                                     /*inc*/ 1,
                                     &[],
                                 );
@@ -5175,7 +5105,7 @@ impl App {
                             )
                         {
                             session_telemetry.counter(
-                                "darwin-code.windows_sandbox.legacy_setup_preflight_failed",
+                                "darwin_code.windows_sandbox.legacy_setup_preflight_failed",
                                 /*inc*/ 1,
                                 &[],
                             );
@@ -5258,7 +5188,7 @@ impl App {
                     self.chat_widget.clear_windows_sandbox_setup_status();
                     if let Some(started_at) = self.windows_sandbox.setup_started_at.take() {
                         self.session_telemetry.record_duration(
-                            "darwin-code.windows_sandbox.elevated_setup_duration_ms",
+                            "darwin_code.windows_sandbox.elevated_setup_duration_ms",
                             started_at.elapsed(),
                             &[("result", "success")],
                         );
@@ -5344,7 +5274,7 @@ impl App {
                                     Line::from(vec!["• ".dim(), "Sandbox ready".into()]),
                                     Line::from(vec![
                                         "  ".into(),
-                                        "Darwin-Code can now safely edit files and execute commands in your computer"
+                                        "DarwinCode can now safely edit files and execute commands in your computer"
                                             .dark_gray(),
                                     ]),
                                 ]);
@@ -6269,7 +6199,7 @@ impl App {
         model: &str,
         reasoning_effort: Option<ReasoningEffortConfig>,
     ) -> Option<&'static str> {
-        (!model.starts_with("darwin-code-auto-")).then(|| Self::reasoning_label(reasoning_effort))
+        (!model.starts_with("darwin_code-auto-")).then(|| Self::reasoning_label(reasoning_effort))
     }
 
     pub(crate) fn token_usage(&self) -> darwin_code_protocol::protocol::TokenUsage {
@@ -6295,8 +6225,10 @@ impl App {
 
     fn restore_runtime_theme_from_config(&self) {
         if let Some(name) = self.config.tui_theme.as_deref()
-            && let Some(theme) =
-                crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.darwin_code_home))
+            && let Some(theme) = crate::render::highlight::resolve_theme_by_name(
+                name,
+                Some(&self.config.darwin_code_home),
+            )
         {
             crate::render::highlight::set_syntax_theme(theme);
             return;
@@ -6325,7 +6257,7 @@ impl App {
             Err(external_editor::EditorError::MissingEditor) => {
                 self.chat_widget
                     .add_to_history(history_cell::new_error_event(
-                    "Cannot open external editor: set $VISUAL or $EDITOR before starting Darwin-Code."
+                    "Cannot open external editor: set $VISUAL or $EDITOR before starting DarwinCode."
                         .to_string(),
                 ));
                 self.reset_external_editor_state(tui);
@@ -6590,21 +6522,6 @@ async fn fetch_all_mcp_server_statuses(
     Ok(statuses)
 }
 
-async fn fetch_account_rate_limits(
-    request_handle: AppServerRequestHandle,
-) -> Result<Vec<RateLimitSnapshot>> {
-    let request_id = RequestId::String(format!("account-rate-limits-{}", Uuid::new_v4()));
-    let response: GetAccountRateLimitsResponse = request_handle
-        .request_typed(ClientRequest::GetAccountRateLimits {
-            request_id,
-            params: None,
-        })
-        .await
-        .wrap_err("account/rateLimits/read failed in TUI")?;
-
-    Ok(app_server_rate_limit_snapshots_to_core(response))
-}
-
 async fn fetch_skills_list(
     request_handle: AppServerRequestHandle,
     cwd: PathBuf,
@@ -6776,9 +6693,15 @@ fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -> McpInvent
         auth_statuses.insert(
             server_name.clone(),
             match status.auth_status {
-                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => {
+                    McpAuthStatus::Unsupported
+                }
+                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => {
+                    McpAuthStatus::NotLoggedIn
+                }
+                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => {
+                    McpAuthStatus::BearerToken
+                }
                 darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );
@@ -6810,7 +6733,7 @@ mod tests {
     use crate::chatwidget::ChatWidgetInit;
     use crate::chatwidget::create_initial_user_message;
     use crate::chatwidget::tests::make_chatwidget_manual_with_sender;
-    use crate::chatwidget::tests::set_chatgpt_auth;
+    use crate::chatwidget::tests::set_byok_model_catalog;
     use crate::chatwidget::tests::set_fast_mode_test_catalog;
     use crate::file_search::FileSearchManager;
     use crate::history_cell::AgentMessageCell;
@@ -6822,6 +6745,7 @@ mod tests {
 
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
+    use crossterm::event::KeyModifiers;
     use darwin_code_app_server_protocol::AdditionalFileSystemPermissions;
     use darwin_code_app_server_protocol::AdditionalNetworkPermissions;
     use darwin_code_app_server_protocol::AdditionalPermissionProfile;
@@ -6890,7 +6814,6 @@ mod tests {
     use darwin_code_protocol::user_input::TextElement;
     use darwin_code_protocol::user_input::UserInput;
     use darwin_code_utils_absolute_path::AbsolutePathBuf;
-    use crossterm::event::KeyModifiers;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use ratatui::prelude::Line;
@@ -7305,9 +7228,9 @@ mod tests {
                 Vec::new(),
             ),
             enhanced_keys_supported: false,
-            has_chatgpt_account: false,
+            has_account_backed_features: false,
             model_catalog: app.model_catalog.clone(),
-            feedback: todo!(),
+            feedback: codex_feedback::CodexFeedback::new(),
             is_first_run: false,
             status_account_display: None,
             initial_plan_type: None,
@@ -8515,6 +8438,7 @@ mod tests {
         let (mut app, _app_event_rx, _op_rx) = make_test_app_with_channels().await;
         let darwin_code_home = tempdir()?;
         app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        app.config.sqlite_home = darwin_code_home.path().to_path_buf();
         // Seed the previous setting so this test exercises the thread-mode update path.
         app.config.memories.generate_memories = true;
 
@@ -9290,10 +9214,11 @@ guardian_approval = true
                 darwin_code_protocol::protocol::ReviewDecision::Approved,
                 darwin_code_protocol::protocol::ReviewDecision::ApprovedForSession,
                 darwin_code_protocol::protocol::ReviewDecision::NetworkPolicyAmendment {
-                    network_policy_amendment: darwin_code_protocol::approvals::NetworkPolicyAmendment {
-                        host: "example.com".to_string(),
-                        action: darwin_code_protocol::approvals::NetworkPolicyRuleAction::Allow,
-                    },
+                    network_policy_amendment:
+                        darwin_code_protocol::approvals::NetworkPolicyAmendment {
+                            host: "example.com".to_string(),
+                            action: darwin_code_protocol::approvals::NetworkPolicyRuleAction::Allow,
+                        },
                 },
                 darwin_code_protocol::protocol::ReviewDecision::Abort,
             ]
@@ -9816,7 +9741,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             };
             Arc::new(new_session_info(
@@ -9902,7 +9827,7 @@ guardian_approval = true
             .set_reasoning_effort(Some(ReasoningEffortConfig::XHigh));
         app.chat_widget
             .set_service_tier(Some(darwin_code_protocol::config_types::ServiceTier::Fast));
-        set_chatgpt_auth(&mut app.chat_widget);
+        set_byok_model_catalog(&mut app.chat_widget);
         set_fast_mode_test_catalog(&mut app.chat_widget);
 
         let rendered = app
@@ -9949,7 +9874,7 @@ guardian_approval = true
             terminal_title_invalid_items_warned: Arc::new(AtomicBool::new(false)),
             backtrack: BacktrackState::default(),
             backtrack_render_pending: false,
-            feedback: todo!(),
+            feedback: codex_feedback::CodexFeedback::new(),
             feedback_audience: FeedbackAudience::External,
             environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
             remote_app_server_url: None,
@@ -10005,7 +9930,7 @@ guardian_approval = true
                 terminal_title_invalid_items_warned: Arc::new(AtomicBool::new(false)),
                 backtrack: BacktrackState::default(),
                 backtrack_render_pending: false,
-                feedback: todo!(),
+                feedback: codex_feedback::CodexFeedback::new(),
                 feedback_audience: FeedbackAudience::External,
                 environment_manager: Arc::new(EnvironmentManager::new(
                     /*exec_server_url*/ None,
@@ -10048,7 +9973,7 @@ guardian_approval = true
             reasoning_effort: None,
             history_log_id: 0,
             history_entry_count: 0,
-            network_proxy: None,
+            network_access: None,
             rollout_path: Some(PathBuf::new()),
         }
     }
@@ -10651,7 +10576,7 @@ guardian_approval = true
     fn active_turn_not_steerable_turn_error_extracts_structured_server_error() {
         let turn_error = AppServerTurnError {
             message: "cannot steer a review turn".to_string(),
-            darwin_code_error_info: Some(AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable {
+            codex_error_info: Some(AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: AppServerNonSteerableTurnKind::Review,
             }),
             additional_details: None,
@@ -10827,7 +10752,9 @@ guardian_approval = true
 
     #[tokio::test]
     async fn model_migration_prompt_shows_for_hidden_model() {
-        let darwin_code_home = tempdir().expect("temp darwin-code home");
+        let darwin_code_home = tempdir().expect("temp darwin_code home");
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())
+            .expect("write BYOK test config");
         let config = ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
             .build()
@@ -10909,6 +10836,7 @@ guardian_approval = true
         let mut app = make_test_app().await;
         let darwin_code_home = tempdir()?;
         app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+        crate::test_support::ensure_default_byok_provider_config(&app.config.darwin_code_home)?;
         let app_id = "unit_test_refresh_in_memory_config_connector".to_string();
 
         assert_eq!(app_enabled_in_effective_config(&app.config, &app_id), None);
@@ -10983,7 +10911,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             }),
         });
@@ -11099,7 +11027,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             };
             Arc::new(new_session_info(
@@ -11162,7 +11090,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             }),
         });
@@ -11255,7 +11183,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             }),
         });
@@ -11395,7 +11323,7 @@ guardian_approval = true
             app_event_tx: app.app_event_tx.clone(),
             initial_user_message: None,
             enhanced_keys_supported: app.enhanced_keys_supported,
-            has_chatgpt_account: app.chat_widget.has_chatgpt_account(),
+            has_account_backed_features: app.chat_widget.has_account_backed_features(),
             model_catalog: app.model_catalog.clone(),
             feedback: app.feedback.clone(),
             is_first_run: false,
@@ -11635,7 +11563,7 @@ guardian_approval = true
             history_log_id: 0,
             history_entry_count: 0,
             initial_messages: None,
-            network_proxy: None,
+            network_access: None,
             rollout_path: Some(PathBuf::new()),
         };
 
@@ -11751,7 +11679,7 @@ guardian_approval = true
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(PathBuf::new()),
             }),
         });
@@ -11842,7 +11770,7 @@ guardian_approval = true
         );
         assert_eq!(
             summary.resume_command,
-            Some("darwin-code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+            Some("darwin_code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
         );
     }
 
@@ -11868,7 +11796,7 @@ guardian_approval = true
         .expect("summary");
         assert_eq!(
             summary.resume_command,
-            Some("darwin-code resume my-session".to_string())
+            Some("darwin_code resume my-session".to_string())
         );
     }
 }

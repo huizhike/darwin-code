@@ -5,7 +5,7 @@ use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use codex_app_server_protocol::JSONRPCNotification;
+use darwin_code_app_server_protocol::JSONRPCNotification;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
@@ -757,9 +757,9 @@ async fn handle_server_notification(
 
 #[cfg(test)]
 mod tests {
-    use codex_app_server_protocol::JSONRPCMessage;
-    use codex_app_server_protocol::JSONRPCNotification;
-    use codex_app_server_protocol::JSONRPCResponse;
+    use darwin_code_app_server_protocol::JSONRPCMessage;
+    use darwin_code_app_server_protocol::JSONRPCNotification;
+    use darwin_code_app_server_protocol::JSONRPCResponse;
     use pretty_assertions::assert_eq;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWrite;

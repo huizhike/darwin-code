@@ -3,10 +3,10 @@ use std::future::Future;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
-use codex_exec_server::CODEX_FS_HELPER_ARG1;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
-use codex_utils_home_dir::find_codex_home;
+use darwin_code_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
+use darwin_code_exec_server::CODEX_FS_HELPER_ARG1;
+use darwin_code_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use darwin_code_utils_home_dir::find_codex_home;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 use tempfile::TempDir;
@@ -26,7 +26,7 @@ pub struct Arg0DispatchPaths {
     /// a test harness, where `current_exe()` can point at the harness binary
     /// instead of the real Codex CLI.
     pub codex_self_exe: Option<PathBuf>,
-    pub codex_linux_sandbox_exe: Option<PathBuf>,
+    pub darwin_code_linux_sandbox_exe: Option<PathBuf>,
     pub main_execve_wrapper_exe: Option<PathBuf>,
 }
 
@@ -78,7 +78,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Err(_) => std::process::exit(1),
         };
         let exit_code = runtime.block_on(
-            codex_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
+            darwin_code_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
         );
         match exit_code {
             Ok(exit_code) => std::process::exit(exit_code),
@@ -88,14 +88,14 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
 
     if exe_name == CODEX_LINUX_SANDBOX_ARG0 {
         // Safety: [`run_main`] never returns.
-        codex_linux_sandbox::run_main();
+        darwin_code_linux_sandbox::run_main();
     } else if exe_name == APPLY_PATCH_ARG0 || exe_name == MISSPELLED_APPLY_PATCH_ARG0 {
-        codex_apply_patch::main();
+        darwin_code_apply_patch::main();
     }
 
     let argv1 = args.next().unwrap_or_default();
     if argv1 == CODEX_FS_HELPER_ARG1 {
-        codex_exec_server::run_fs_helper_main();
+        darwin_code_exec_server::run_fs_helper_main();
     }
     if argv1 == CODEX_CORE_APPLY_PATCH_ARG1 {
         let patch_arg = args.next().and_then(|s| s.to_str().map(str::to_owned));
@@ -103,7 +103,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Some(patch_arg) => {
                 let mut stdout = std::io::stdout();
                 let mut stderr = std::io::stderr();
-                let cwd = match codex_utils_absolute_path::AbsolutePathBuf::current_dir() {
+                let cwd = match darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir() {
                     Ok(cwd) => cwd,
                     Err(_) => std::process::exit(1),
                 };
@@ -114,12 +114,12 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
                     Ok(runtime) => runtime,
                     Err(_) => std::process::exit(1),
                 };
-                match runtime.block_on(codex_apply_patch::apply_patch(
+                match runtime.block_on(darwin_code_apply_patch::apply_patch(
                     &patch_arg,
                     &cwd,
                     &mut stdout,
                     &mut stderr,
-                    codex_exec_server::LOCAL_FS.as_ref(),
+                    darwin_code_exec_server::LOCAL_FS.as_ref(),
                     /*sandbox*/ None,
                 )) {
                     Ok(()) => 0,
@@ -157,7 +157,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
 ///
 /// When the current executable is invoked through the hard-link or alias named
 /// `codex-linux-sandbox` we *directly* execute
-/// [`codex_linux_sandbox::run_main`] (which never returns). Otherwise we:
+/// [`darwin_code_linux_sandbox::run_main`] (which never returns). Otherwise we:
 ///
 /// 1.  Load `.env` values from `~/.codex/.env` before creating any threads.
 /// 2.  Construct a Tokio multi-thread runtime.
@@ -189,7 +189,7 @@ where
         let current_exe = std::env::current_exe().ok();
         let paths = Arg0DispatchPaths {
             codex_self_exe: current_exe.clone(),
-            codex_linux_sandbox_exe: if cfg!(target_os = "linux") {
+            darwin_code_linux_sandbox_exe: if cfg!(target_os = "linux") {
                 linux_sandbox_exe_path(path_entry_guard.as_ref(), current_exe)
             } else {
                 None
@@ -211,7 +211,7 @@ fn linux_sandbox_exe_path(
     // re-exec through a path whose basename still triggers arg0 dispatch on
     // bubblewrap builds that do not support `--argv0`.
     path_entry_guard
-        .and_then(|path_entry| path_entry.paths().codex_linux_sandbox_exe.clone())
+        .and_then(|path_entry| path_entry.paths().darwin_code_linux_sandbox_exe.clone())
         .or(current_exe)
 }
 
@@ -366,7 +366,7 @@ pub fn prepend_path_entry_for_codex_aliases() -> std::io::Result<Arg0PathEntryGu
 
     let paths = Arg0DispatchPaths {
         codex_self_exe: std::env::current_exe().ok(),
-        codex_linux_sandbox_exe: {
+        darwin_code_linux_sandbox_exe: {
             #[cfg(target_os = "linux")]
             {
                 Some(path.join(CODEX_LINUX_SANDBOX_ARG0))
@@ -459,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn linux_sandbox_exe_path_prefers_codex_linux_sandbox_alias() -> std::io::Result<()> {
+    fn linux_sandbox_exe_path_prefers_darwin_code_linux_sandbox_alias() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
         let lock_file = create_lock(temp_dir.path())?;
         let alias_path = temp_dir.path().join("codex-linux-sandbox");
@@ -468,7 +468,7 @@ mod tests {
             lock_file,
             Arg0DispatchPaths {
                 codex_self_exe: Some(PathBuf::from("/usr/bin/codex")),
-                codex_linux_sandbox_exe: Some(alias_path.clone()),
+                darwin_code_linux_sandbox_exe: Some(alias_path.clone()),
                 main_execve_wrapper_exe: None,
             },
         );

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use app_test_support::McpProcess;
+use app_test_support::ensure_default_byok_provider_config;
 use app_test_support::to_response;
 use darwin_code_app_server_protocol::ConfigReadParams;
 use darwin_code_app_server_protocol::ConfigReadResponse;
@@ -29,6 +30,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 #[tokio::test]
 async fn experimental_feature_list_returns_feature_metadata_with_stage() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
+    ensure_default_byok_provider_config(darwin_code_home.path())?;
     let config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))

@@ -2,12 +2,12 @@
 
 mod common;
 
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_exec_server::InitializeParams;
-use codex_exec_server::InitializeResponse;
 use common::exec_server::exec_server;
+use darwin_code_app_server_protocol::JSONRPCError;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_exec_server::InitializeParams;
+use darwin_code_exec_server::InitializeResponse;
 use pretty_assertions::assert_eq;
 use uuid::Uuid;
 
@@ -22,7 +22,7 @@ async fn exec_server_reports_malformed_websocket_json_and_keeps_running() -> any
     let JSONRPCMessage::Error(JSONRPCError { id, error }) = response else {
         panic!("expected malformed-message error response");
     };
-    assert_eq!(id, codex_app_server_protocol::RequestId::Integer(-1));
+    assert_eq!(id, darwin_code_app_server_protocol::RequestId::Integer(-1));
     assert_eq!(error.code, -32600);
     assert!(
         error
@@ -46,7 +46,7 @@ async fn exec_server_reports_malformed_websocket_json_and_keeps_running() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &initialize_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == initialize_id
             )
         })
         .await?;

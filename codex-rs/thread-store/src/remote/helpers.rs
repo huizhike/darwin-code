@@ -3,15 +3,15 @@ use std::str::FromStr;
 
 use chrono::DateTime;
 use chrono::Utc;
-use codex_git_utils::GitSha;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_git_utils::GitSha;
+use darwin_code_protocol::AgentPath;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
 
 use super::proto;
 use crate::StoredThread;

@@ -90,10 +90,12 @@ async fn request_permissions_round_trip() -> Result<()> {
         serde_json::to_value(PermissionsRequestApprovalResponse {
             permissions: darwin_code_app_server_protocol::GrantedPermissionProfile {
                 network: None,
-                file_system: Some(darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
-                    read: None,
-                    write: Some(vec![requested_writes[0].clone()]),
-                }),
+                file_system: Some(
+                    darwin_code_app_server_protocol::AdditionalFileSystemPermissions {
+                        read: None,
+                        write: Some(vec![requested_writes[0].clone()]),
+                    },
+                ),
             },
             scope: PermissionGrantScope::Turn,
         })?,

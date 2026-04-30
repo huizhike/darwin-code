@@ -41,6 +41,7 @@ uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
 ctor = { workspace = true }
 pretty_assertions = { workspace = true }
 serial_test = { workspace = true }

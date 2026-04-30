@@ -2,12 +2,12 @@ use super::*;
 use crate::shell::default_user_shell;
 use crate::tools::handlers::parse_arguments_with_base_path;
 use crate::tools::handlers::resolve_workdir_base_path;
+use core_test_support::PathExt;
 use darwin_code_protocol::models::FileSystemPermissions;
 use darwin_code_protocol::models::PermissionProfile;
 use darwin_code_tools::UnifiedExecShellMode;
 use darwin_code_tools::ZshForkConfig;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::sync::Arc;
@@ -133,16 +133,16 @@ fn test_get_command_ignores_explicit_shell_in_zsh_fork_mode() -> anyhow::Result<
     let json = r#"{"cmd": "echo hello", "shell": "/bin/bash"}"#;
     let args: ExecCommandArgs = parse_arguments(json)?;
     let shell_zsh_path = AbsolutePathBuf::from_absolute_path(if cfg!(windows) {
-        r"C:\opt\darwin-code\zsh"
+        r"C:\opt\darwin_code\zsh"
     } else {
-        "/opt/darwin-code/zsh"
+        "/opt/darwin_code/zsh"
     })?;
     let shell_mode = UnifiedExecShellMode::ZshFork(ZshForkConfig {
         shell_zsh_path: shell_zsh_path.clone(),
         main_execve_wrapper_exe: AbsolutePathBuf::from_absolute_path(if cfg!(windows) {
-            r"C:\opt\darwin-code\darwin-code-execve-wrapper"
+            r"C:\opt\darwin_code\darwin_code-execve-wrapper"
         } else {
-            "/opt/darwin-code/darwin-code-execve-wrapper"
+            "/opt/darwin_code/darwin_code-execve-wrapper"
         })?,
     });
 

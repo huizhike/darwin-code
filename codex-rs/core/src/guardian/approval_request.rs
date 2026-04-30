@@ -2,7 +2,6 @@ use std::path::Path;
 
 use darwin_code_protocol::approvals::GuardianAssessmentAction;
 use darwin_code_protocol::approvals::GuardianCommandSource;
-use darwin_code_protocol::approvals::NetworkApprovalProtocol;
 use darwin_code_protocol::models::PermissionProfile;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Serialize;
@@ -44,14 +43,6 @@ pub(crate) enum GuardianApprovalRequest {
         cwd: AbsolutePathBuf,
         files: Vec<AbsolutePathBuf>,
         patch: String,
-    },
-    NetworkAccess {
-        id: String,
-        turn_id: String,
-        target: String,
-        host: String,
-        protocol: NetworkApprovalProtocol,
-        port: u16,
     },
     McpToolCall {
         id: String,
@@ -256,20 +247,6 @@ pub(crate) fn guardian_approval_request_to_json(
             "files": files,
             "patch": patch,
         })),
-        GuardianApprovalRequest::NetworkAccess {
-            id: _,
-            turn_id: _,
-            target,
-            host,
-            protocol,
-            port,
-        } => Ok(serde_json::json!({
-            "tool": "network_access",
-            "target": target,
-            "host": host,
-            "protocol": protocol,
-            "port": port,
-        })),
         GuardianApprovalRequest::McpToolCall {
             id: _,
             server,
@@ -325,19 +302,6 @@ pub(crate) fn guardian_assessment_action(
                 files: files.clone(),
             }
         }
-        GuardianApprovalRequest::NetworkAccess {
-            id: _,
-            turn_id: _,
-            target,
-            host,
-            protocol,
-            port,
-        } => GuardianAssessmentAction::NetworkAccess {
-            target: target.clone(),
-            host: host.clone(),
-            protocol: *protocol,
-            port: *port,
-        },
         GuardianApprovalRequest::McpToolCall {
             server,
             tool_name,
@@ -361,7 +325,6 @@ pub(crate) fn guardian_request_target_item_id(request: &GuardianApprovalRequest)
         | GuardianApprovalRequest::ExecCommand { id, .. }
         | GuardianApprovalRequest::ApplyPatch { id, .. }
         | GuardianApprovalRequest::McpToolCall { id, .. } => Some(id),
-        GuardianApprovalRequest::NetworkAccess { .. } => None,
         #[cfg(unix)]
         GuardianApprovalRequest::Execve { id, .. } => Some(id),
     }
@@ -372,7 +335,6 @@ pub(crate) fn guardian_request_turn_id<'a>(
     default_turn_id: &'a str,
 ) -> &'a str {
     match request {
-        GuardianApprovalRequest::NetworkAccess { turn_id, .. } => turn_id,
         GuardianApprovalRequest::Shell { .. }
         | GuardianApprovalRequest::ExecCommand { .. }
         | GuardianApprovalRequest::ApplyPatch { .. }

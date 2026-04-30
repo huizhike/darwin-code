@@ -3,18 +3,6 @@ use crate::config::ConfigBuilder;
 use crate::session::tests::make_session_and_context;
 use crate::session::tests::make_session_and_context_with_rx;
 use crate::state::ActiveTurn;
-use darwin_code_config::CONFIG_TOML_FILE;
-use darwin_code_config::config_toml::ConfigToml;
-use darwin_code_config::types::AppConfig;
-use darwin_code_config::types::AppToolConfig;
-use darwin_code_config::types::AppToolsConfig;
-use darwin_code_config::types::ApprovalsReviewer;
-use darwin_code_config::types::AppsConfigToml;
-use darwin_code_config::types::McpServerConfig;
-use darwin_code_config::types::McpServerToolConfig;
-use darwin_code_model_provider::create_model_provider;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::PathExt;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -22,15 +10,52 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
+use darwin_code_config::CONFIG_TOML_FILE;
+use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::types::ApprovalsReviewer;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerToolConfig;
+use darwin_code_model_provider::create_model_provider;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::sync::Arc;
 use tempfile::tempdir;
 use tracing::Instrument;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_test::internal::MockWriter;
+
+struct EnvVarGuard {
+    key: &'static str,
+    original: Option<std::ffi::OsString>,
+}
+
+impl EnvVarGuard {
+    fn set(key: &'static str, value: &OsStr) -> Self {
+        let original = std::env::var_os(key);
+        unsafe {
+            std::env::set_var(key, value);
+        }
+        Self { key, original }
+    }
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match self.original.take() {
+            Some(value) => unsafe {
+                std::env::set_var(self.key, value);
+            },
+            None => unsafe {
+                std::env::remove_var(self.key);
+            },
+        }
+    }
+}
 
 fn annotations(
     read_only: Option<bool>,
@@ -604,7 +629,8 @@ async fn mcp_tool_call_request_meta_includes_turn_metadata_for_custom_server() {
 }
 
 #[tokio::test]
-async fn darwin_code_apps_tool_call_request_meta_includes_turn_metadata_and_darwin_code_apps_meta() {
+async fn darwin_code_apps_tool_call_request_meta_includes_turn_metadata_and_darwin_code_apps_meta()
+{
     let (_, turn_context) = make_session_and_context().await;
     let expected_turn_metadata = serde_json::from_str::<serde_json::Value>(
         &turn_context
@@ -1074,42 +1100,17 @@ fn accepted_elicitation_without_content_defaults_to_accept() {
 }
 
 #[tokio::test]
-async fn persist_darwin_code_app_tool_approval_writes_tool_override() {
+async fn persist_darwin_code_app_tool_approval_does_not_write_removed_apps_config() {
     let tmp = tempdir().expect("tempdir");
 
     persist_darwin_code_app_tool_approval(&tmp.path().abs(), "calendar", "calendar/list_events")
         .await
-        .expect("persist approval");
+        .expect("removed app approval persistence should no-op");
 
-    let contents = std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("read config");
-    let parsed: ConfigToml = toml::from_str(&contents).expect("parse config");
-
-    assert_eq!(
-        parsed.apps,
-        Some(AppsConfigToml {
-            default: None,
-            apps: HashMap::from([(
-                "calendar".to_string(),
-                AppConfig {
-                    enabled: true,
-                    destructive_enabled: None,
-                    open_world_enabled: None,
-                    default_tools_approval_mode: None,
-                    default_tools_enabled: None,
-                    tools: Some(AppToolsConfig {
-                        tools: HashMap::from([(
-                            "calendar/list_events".to_string(),
-                            AppToolConfig {
-                                enabled: None,
-                                approval_mode: Some(AppToolApproval::Approve),
-                            },
-                        )]),
-                    }),
-                },
-            )]),
-        })
+    assert!(
+        !tmp.path().join(CONFIG_TOML_FILE).exists(),
+        "removed [apps] config surface must not be recreated"
     );
-    assert!(contents.contains("[apps.calendar.tools.\"calendar/list_events\"]"));
 }
 
 #[tokio::test]
@@ -1185,10 +1186,10 @@ approval_mode = "prompt"
 }
 
 #[tokio::test]
-async fn maybe_persist_mcp_tool_approval_reloads_session_config() {
+async fn maybe_persist_mcp_tool_approval_remembers_app_approval_without_apps_config() {
     let (session, turn_context) = make_session_and_context().await;
     let darwin_code_home = session.darwin_code_home().await;
-    std::fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
+    std::fs::create_dir_all(&darwin_code_home).expect("create darwin_code home");
     let key = McpToolApprovalKey {
         server: DARWIN_CODE_APPS_MCP_SERVER_NAME.to_string(),
         connector_id: Some("calendar".to_string()),
@@ -1198,27 +1199,13 @@ async fn maybe_persist_mcp_tool_approval_reloads_session_config() {
     maybe_persist_mcp_tool_approval(&session, &turn_context, key.clone()).await;
 
     let config = session.get_config().await;
-    let apps_toml = config
-        .config_layer_stack
-        .effective_config()
+    let effective_config = config.config_layer_stack.effective_config();
+    let has_apps_config = effective_config
         .as_table()
-        .and_then(|table| table.get("apps"))
-        .cloned()
-        .expect("apps table");
-    let apps = AppsConfigToml::deserialize(apps_toml).expect("deserialize apps config");
-    let tool = apps
-        .apps
-        .get("calendar")
-        .and_then(|app| app.tools.as_ref())
-        .and_then(|tools| tools.tools.get("calendar/list_events"))
-        .expect("calendar/list_events tool config exists");
-
-    assert_eq!(
-        tool,
-        &AppToolConfig {
-            enabled: None,
-            approval_mode: Some(AppToolApproval::Approve),
-        }
+        .is_some_and(|table| table.contains_key("apps"));
+    assert!(
+        !has_apps_config,
+        "removed [apps] config surface must not be materialized by approvals"
     );
     assert_eq!(mcp_tool_approval_is_remembered(&session, &key).await, true);
 }
@@ -1227,7 +1214,7 @@ async fn maybe_persist_mcp_tool_approval_reloads_session_config() {
 async fn maybe_persist_mcp_tool_approval_reloads_session_config_for_custom_server() {
     let (session, turn_context) = make_session_and_context().await;
     let darwin_code_home = session.darwin_code_home().await;
-    std::fs::create_dir_all(&darwin_code_home).expect("create darwin-code home");
+    std::fs::create_dir_all(&darwin_code_home).expect("create darwin_code home");
     std::fs::write(
         darwin_code_home.join(CONFIG_TOML_FILE),
         "[mcp_servers.docs]\ncommand = \"docs-server\"\n",
@@ -1271,8 +1258,8 @@ async fn maybe_persist_mcp_tool_approval_writes_project_config_for_project_serve
     let darwin_code_home = session.darwin_code_home().await;
     let project_dir = tempdir().expect("tempdir");
     std::fs::write(project_dir.path().join(".git"), "gitdir: nowhere").expect("seed git marker");
-    let project_darwin_code_dir = project_dir.path().join(".darwin-code");
-    std::fs::create_dir_all(&project_darwin_code_dir).expect("create project .darwin-code dir");
+    let project_darwin_code_dir = project_dir.path().join(".darwin_code");
+    std::fs::create_dir_all(&project_darwin_code_dir).expect("create project .darwin_code dir");
     std::fs::write(
         project_darwin_code_dir.join(CONFIG_TOML_FILE),
         "[mcp_servers.docs]\ncommand = \"docs-server\"\n",
@@ -1386,15 +1373,11 @@ async fn guardian_mode_skips_auto_when_annotations_do_not_require_approval() {
     let config = Arc::new(config);
     let models_manager = Arc::new(crate::test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn_context.config = Arc::clone(&config);
-    turn_context.provider = create_model_provider(
-        config.model_provider.clone(),
-        turn_context.auth_manager.clone(),
-    );
+    turn_context.provider = create_model_provider(config.model_provider.clone());
 
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context);
@@ -1434,6 +1417,9 @@ async fn guardian_mode_skips_auto_when_annotations_do_not_require_approval() {
 
 #[tokio::test]
 async fn guardian_mode_mcp_denial_returns_rationale_message() {
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "dummy-test-key");
+    }
     let server = start_mock_server().await;
     let guardian_request_log = mount_sse_once(
         &server,
@@ -1465,15 +1451,11 @@ async fn guardian_mode_mcp_denial_returns_rationale_message() {
     let config = Arc::new(config);
     let models_manager = Arc::new(crate::test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn_context.config = Arc::clone(&config);
-    turn_context.provider = create_model_provider(
-        config.model_provider.clone(),
-        turn_context.auth_manager.clone(),
-    );
+    turn_context.provider = create_model_provider(config.model_provider.clone());
 
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context);
@@ -1572,6 +1554,7 @@ async fn prompt_mode_waits_for_approval_when_annotations_do_not_require_approval
 }
 
 #[tokio::test]
+#[serial_test::serial(arc_monitor_env)]
 async fn approve_mode_blocks_when_arc_returns_interrupt_for_model() {
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -1580,8 +1563,10 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_for_model() {
     use wiremock::matchers::path;
 
     let server = MockServer::start().await;
+    let _token_guard =
+        EnvVarGuard::set("DARWIN_CODE_ARC_MONITOR_TOKEN", OsStr::new("Access Token"));
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "short_reason": "needs approval",
@@ -1598,11 +1583,11 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_for_model() {
         .await;
 
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE",
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     let session = Arc::new(session);
@@ -1643,6 +1628,7 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_for_model() {
 }
 
 #[tokio::test]
+#[serial_test::serial(arc_monitor_env)]
 async fn custom_approve_mode_blocks_when_arc_returns_interrupt_for_model() {
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -1651,8 +1637,10 @@ async fn custom_approve_mode_blocks_when_arc_returns_interrupt_for_model() {
     use wiremock::matchers::path;
 
     let server = MockServer::start().await;
+    let _token_guard =
+        EnvVarGuard::set("DARWIN_CODE_ARC_MONITOR_TOKEN", OsStr::new("Access Token"));
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "short_reason": "needs approval",
@@ -1669,11 +1657,11 @@ async fn custom_approve_mode_blocks_when_arc_returns_interrupt_for_model() {
         .await;
 
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE",
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     let session = Arc::new(session);
@@ -1714,6 +1702,7 @@ async fn custom_approve_mode_blocks_when_arc_returns_interrupt_for_model() {
 }
 
 #[tokio::test]
+#[serial_test::serial(arc_monitor_env)]
 async fn approve_mode_blocks_when_arc_returns_interrupt_without_annotations() {
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -1722,8 +1711,10 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_without_annotations() {
     use wiremock::matchers::path;
 
     let server = MockServer::start().await;
+    let _token_guard =
+        EnvVarGuard::set("DARWIN_CODE_ARC_MONITOR_TOKEN", OsStr::new("Access Token"));
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "short_reason": "needs approval",
@@ -1740,11 +1731,11 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_without_annotations() {
         .await;
 
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE",
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     let session = Arc::new(session);
@@ -1785,6 +1776,7 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_without_annotations() {
 }
 
 #[tokio::test]
+#[serial_test::serial(arc_monitor_env)]
 async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
     use wiremock::Mock;
     use wiremock::MockServer;
@@ -1793,8 +1785,10 @@ async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
     use wiremock::matchers::path;
 
     let server = MockServer::start().await;
+    let _token_guard =
+        EnvVarGuard::set("DARWIN_CODE_ARC_MONITOR_TOKEN", OsStr::new("Access Token"));
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "steer-model",
             "short_reason": "needs approval",
@@ -1811,9 +1805,6 @@ async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
         .await;
 
     let (session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     turn_context
         .approval_policy
         .set(AskForApproval::Never)
@@ -1823,7 +1814,10 @@ async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
         .set(SandboxPolicy::DangerFullAccess)
         .expect("test setup should allow updating sandbox policy");
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE",
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     turn_context.config = Arc::new(config);
 
     let session = Arc::new(session);
@@ -1865,6 +1859,7 @@ async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
 }
 
 #[tokio::test]
+#[serial_test::serial(arc_monitor_env)]
 async fn approve_mode_routes_arc_ask_user_to_guardian_when_guardian_reviewer_is_enabled() {
     use wiremock::Mock;
     use wiremock::ResponseTemplate;
@@ -1872,6 +1867,11 @@ async fn approve_mode_routes_arc_ask_user_to_guardian_when_guardian_reviewer_is_
     use wiremock::matchers::path;
 
     let server = start_mock_server().await;
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "dummy-test-key");
+    }
+    let _token_guard =
+        EnvVarGuard::set("DARWIN_CODE_ARC_MONITOR_TOKEN", OsStr::new("Access Token"));
     let guardian_request_log = mount_sse_once(
         &server,
         sse(vec![
@@ -1891,7 +1891,7 @@ async fn approve_mode_routes_arc_ask_user_to_guardian_when_guardian_reviewer_is_
     )
     .await;
     Mock::given(method("POST"))
-        .and(path("/darwin-code/safety/arc"))
+        .and(path("/darwin_code/safety/arc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "outcome": "ask-user",
             "short_reason": "needs confirmation",
@@ -1908,29 +1908,25 @@ async fn approve_mode_routes_arc_ask_user_to_guardian_when_guardian_reviewer_is_
         .await;
 
     let (mut session, mut turn_context) = make_session_and_context().await;
-    turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing(),
-    ));
     turn_context
         .approval_policy
         .set(AskForApproval::OnRequest)
         .expect("test setup should allow updating approval policy");
     let mut config = (*turn_context.config).clone();
-    config.chatgpt_base_url = server.uri();
+    let _url_guard = EnvVarGuard::set(
+        "DARWIN_CODE_ARC_MONITOR_ENDPOINT_OVERRIDE",
+        OsStr::new(&format!("{}/darwin_code/safety/arc", server.uri())),
+    );
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     config.approvals_reviewer = ApprovalsReviewer::GuardianSubagent;
     let config = Arc::new(config);
     let models_manager = Arc::new(crate::test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn_context.config = Arc::clone(&config);
-    turn_context.provider = create_model_provider(
-        config.model_provider.clone(),
-        turn_context.auth_manager.clone(),
-    );
+    turn_context.provider = create_model_provider(config.model_provider.clone());
 
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context);

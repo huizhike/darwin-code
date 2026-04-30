@@ -1,18 +1,17 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::default_client::USER_AGENT_SUFFIX;
-use codex_login::default_client::get_codex_user_agent;
-use codex_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::Submission;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_client::USER_AGENT_SUFFIX;
+use darwin_code_client::get_codex_user_agent;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::config::Config;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_features::Feature;
+use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::Submission;
 use rmcp::model::CallToolRequestParams;
 use rmcp::model::CallToolResult;
 use rmcp::model::ClientNotification;
@@ -56,13 +55,8 @@ impl MessageProcessor {
         environment_manager: Arc<EnvironmentManager>,
     ) -> Self {
         let outgoing = Arc::new(outgoing);
-        let auth_manager = AuthManager::shared_from_config(
-            config.as_ref(),
-            /*enable_codex_api_key_env*/ false,
-        );
         let thread_manager = Arc::new(ThreadManager::new(
             config.as_ref(),
-            auth_manager,
             SessionSource::Mcp,
             CollaborationModesConfig {
                 default_mode_request_user_input: config
@@ -216,7 +210,7 @@ impl MessageProcessor {
         }
 
         let server_info = Implementation {
-            name: "codex-mcp-server".to_string(),
+            name: "darwin-code-mcp-server".to_string(),
             title: Some("Codex".to_string()),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: None,
@@ -578,7 +572,7 @@ impl MessageProcessor {
         if let Err(e) = codex_arc
             .submit_with_id(Submission {
                 id: request_id_string,
-                op: codex_protocol::protocol::Op::Interrupt,
+                op: darwin_code_protocol::protocol::Op::Interrupt,
                 trace: None,
             })
             .await

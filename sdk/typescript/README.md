@@ -130,7 +130,9 @@ const codex = new Codex({
 ```
 
 The SDK still injects its required variables (such as `CODEX_API_KEY`) on top of the environment you provide. If you set
-`baseUrl`, the SDK passes it as a `--config openai_base_url=...` override.
+`baseUrl`, the SDK passes it as a legacy `--config openai_base_url=...` override for the built-in OpenAI path. Darwin Code
+BYOK product usage should instead pass provider config overrides such as `model_provider`, `model`, and
+`providers.<id>.base_url` / `providers.<id>.api_key`.
 
 ### Passing `--config` overrides
 

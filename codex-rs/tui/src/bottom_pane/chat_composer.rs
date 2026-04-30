@@ -99,7 +99,7 @@
 //! machine and treats the key stream as normal typing. When toggling from enabled → disabled, the
 //! composer flushes/clears any in-flight burst state so it cannot leak into subsequent input.
 //!
-//! For the detailed burst state machine, see `darwin-code-rs/tui/src/bottom_pane/paste_burst.rs`.
+//! For the detailed burst state machine, see `darwin_code-rs/tui/src/bottom_pane/paste_burst.rs`.
 //! For a narrative overview of the combined state machine, see `docs/tui-chat-composer.md`.
 //!
 //! # PasteBurst Integration Points
@@ -4034,7 +4034,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4088,7 +4088,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_footer_hint_override(Some(vec![("K".to_string(), "label".to_string())]));
@@ -4127,7 +4127,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4146,7 +4146,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_footer_hint_override(Some(vec![("K".to_string(), "label".to_string())]));
@@ -4195,7 +4195,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             enhanced_keys_supported,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         setup(&mut composer);
@@ -4235,7 +4235,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ true,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.is_zellij = true;
@@ -4610,7 +4610,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ true,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4637,7 +4637,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4661,7 +4661,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4687,7 +4687,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4749,7 +4749,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4792,7 +4792,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let remote_image_url = "https://example.com/one.png".to_string();
@@ -4834,7 +4834,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4877,7 +4877,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4919,7 +4919,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -4948,7 +4948,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_connectors_enabled(/*enabled*/ true);
@@ -4978,7 +4978,7 @@ mod tests {
         let mention = popup
             .selected_mention()
             .expect("expected connector mention to be selected");
-        assert_eq!(mention.insert_text, "$notion".to_string());
+        assert_eq!(mention.insert_text, "$connector_1".to_string());
         assert_eq!(mention.path, Some("app://connector_1".to_string()));
     }
 
@@ -4990,7 +4990,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_connectors_enabled(/*enabled*/ true);
@@ -5028,7 +5028,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_text_content("$".to_string(), Vec::new(), Vec::new());
@@ -5061,7 +5061,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_text_content("$".to_string(), Vec::new(), Vec::new());
@@ -5069,8 +5069,8 @@ mod tests {
 
         let skill_path = test_path_buf("/tmp/skill/SKILL.md").abs();
         composer.set_skill_mentions(Some(vec![SkillMetadata {
-            name: "darwin-code".to_string(),
-            description: "Primary personal Darwin-Code repo skill.".to_string(),
+            name: "darwin_code".to_string(),
+            description: "Primary personal DarwinCode repo skill.".to_string(),
             short_description: None,
             interface: None,
             dependencies: None,
@@ -5085,7 +5085,7 @@ mod tests {
         let mention = popup
             .selected_mention()
             .expect("expected skill mention to be selected");
-        assert_eq!(mention.insert_text, "$darwin-code".to_string());
+        assert_eq!(mention.insert_text, "$darwin_code".to_string());
         assert_eq!(mention.path, Some(skill_path.display().to_string()));
     }
 
@@ -5098,7 +5098,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_connectors_enabled(/*enabled*/ true);
@@ -5255,7 +5255,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_connectors_enabled(/*enabled*/ true);
@@ -5293,7 +5293,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5543,7 +5543,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5578,7 +5578,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5609,7 +5609,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5633,7 +5633,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5666,7 +5666,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5714,7 +5714,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5751,7 +5751,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5805,7 +5805,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5834,7 +5834,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5869,7 +5869,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5902,7 +5902,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5931,7 +5931,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5960,7 +5960,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -5994,7 +5994,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_steer_enabled(true);
@@ -6022,7 +6022,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_steer_enabled(true);
@@ -6064,7 +6064,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_steer_enabled(false);
@@ -6109,7 +6109,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6150,7 +6150,7 @@ mod tests {
                 /*has_input_focus*/ true,
                 sender.clone(),
                 /*enhanced_keys_supported*/ false,
-                "Ask Darwin-Code to do anything".to_string(),
+                "Ask DarwinCode to do anything".to_string(),
                 /*disable_paste_burst*/ false,
             );
 
@@ -6263,7 +6263,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6291,7 +6291,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         type_chars_humanlike(&mut composer, &['/', 'm', 'o']);
@@ -6319,7 +6319,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6344,7 +6344,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         type_chars_humanlike(&mut composer, &['/', 'r', 'e', 's']);
@@ -6397,7 +6397,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6440,7 +6440,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_steer_enabled(true);
@@ -6474,7 +6474,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.textarea.insert_str("restore me");
@@ -6512,7 +6512,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_task_running(/*running*/ true);
@@ -6555,7 +6555,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6576,7 +6576,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6614,7 +6614,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_collaboration_modes_enabled(/*enabled*/ true);
@@ -6636,7 +6636,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_collaboration_modes_enabled(/*enabled*/ true);
@@ -6657,7 +6657,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6689,7 +6689,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6717,7 +6717,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_task_running(/*running*/ false);
@@ -6746,7 +6746,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6787,7 +6787,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_collaboration_modes_enabled(/*enabled*/ true);
@@ -6825,7 +6825,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6883,7 +6883,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -6962,7 +6962,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7036,7 +7036,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7075,7 +7075,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7115,7 +7115,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7163,7 +7163,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let path = PathBuf::from("/tmp/image1.png");
@@ -7201,7 +7201,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7234,7 +7234,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let remote_image_url = "https://example.com/remote.png".to_string();
@@ -7268,7 +7268,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let remote_image_urls = vec![
@@ -7300,7 +7300,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7343,7 +7343,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7368,7 +7368,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7411,7 +7411,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7454,7 +7454,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7497,7 +7497,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7543,7 +7543,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let path = PathBuf::from("/tmp/image2.png");
@@ -7582,7 +7582,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let path = PathBuf::from("/tmp/image_dup.png");
@@ -7605,7 +7605,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         let path = PathBuf::from("/tmp/image3.png");
@@ -7647,7 +7647,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7673,7 +7673,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7733,7 +7733,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7796,7 +7796,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7834,7 +7834,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7858,7 +7858,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7894,7 +7894,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7932,7 +7932,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -7961,7 +7961,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8008,7 +8008,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8047,7 +8047,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8072,7 +8072,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8102,7 +8102,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8145,7 +8145,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8170,7 +8170,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8195,7 +8195,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
         composer.set_collaboration_modes_enabled(/*enabled*/ true);
@@ -8229,7 +8229,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8263,7 +8263,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8288,7 +8288,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8316,7 +8316,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8341,7 +8341,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8369,7 +8369,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8390,7 +8390,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8412,7 +8412,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8449,7 +8449,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8469,7 +8469,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 
@@ -8508,7 +8508,7 @@ mod tests {
             /*has_input_focus*/ true,
             sender,
             /*enhanced_keys_supported*/ false,
-            "Ask Darwin-Code to do anything".to_string(),
+            "Ask DarwinCode to do anything".to_string(),
             /*disable_paste_burst*/ false,
         );
 

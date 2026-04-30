@@ -10,11 +10,11 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::RemoveOptions;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_exec_server::CreateDirectoryOptions;
+use darwin_code_exec_server::ExecutorFileSystem;
+use darwin_code_exec_server::FileSystemSandboxContext;
+use darwin_code_exec_server::RemoveOptions;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 pub use parser::Hunk;
 pub use parser::ParseError;
 use parser::ParseError::*;
@@ -613,8 +613,8 @@ pub fn print_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_exec_server::LOCAL_FS;
-    use codex_utils_absolute_path::test_support::PathExt;
+    use darwin_code_exec_server::LOCAL_FS;
+    use darwin_code_utils_absolute_path::test_support::PathExt;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::string::ToString;

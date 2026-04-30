@@ -20,8 +20,8 @@ impl CodeModeExecuteHandler {
         call_id: String,
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {
-        let args =
-            darwin_code_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
+        let args = darwin_code_code_mode::parse_exec_source(&code)
+            .map_err(FunctionCallError::RespondToModel)?;
         let exec = ExecContext { session, turn };
         let enabled_tools = build_enabled_tools(&exec).await;
         let stored_values = exec

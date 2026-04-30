@@ -19,20 +19,20 @@ use crate::ToolRegistryPlanMcpTool;
 use crate::ToolsConfigParams;
 use crate::WaitAgentTimeoutOptions;
 use crate::mcp_call_tool_result_output_schema;
-use codex_app_server_protocol::AppInfo;
-use codex_features::Feature;
-use codex_features::Features;
-use codex_protocol::config_types::WebSearchConfig;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::VIEW_IMAGE_TOOL_NAME;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::WebSearchToolType;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_app_server_protocol::AppInfo;
+use darwin_code_features::Feature;
+use darwin_code_features::Features;
+use darwin_code_protocol::config_types::WebSearchConfig;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::VIEW_IMAGE_TOOL_NAME;
+use darwin_code_protocol::openai_models::InputModality;
+use darwin_code_protocol::openai_models::ModelInfo;
+use darwin_code_protocol::openai_models::WebSearchToolType;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -857,17 +857,17 @@ fn web_search_config_is_forwarded_to_tool_spec() {
     let model_info = model_info();
     let features = Features::with_defaults();
     let web_search_config = WebSearchConfig {
-        filters: Some(codex_protocol::config_types::WebSearchFilters {
+        filters: Some(darwin_code_protocol::config_types::WebSearchFilters {
             allowed_domains: Some(vec!["example.com".to_string()]),
         }),
-        user_location: Some(codex_protocol::config_types::WebSearchUserLocation {
-            r#type: codex_protocol::config_types::WebSearchUserLocationType::Approximate,
+        user_location: Some(darwin_code_protocol::config_types::WebSearchUserLocation {
+            r#type: darwin_code_protocol::config_types::WebSearchUserLocationType::Approximate,
             country: Some("US".to_string()),
             region: Some("California".to_string()),
             city: Some("San Francisco".to_string()),
             timezone: Some("America/Los_Angeles".to_string()),
         }),
-        search_context_size: Some(codex_protocol::config_types::WebSearchContextSize::High),
+        search_context_size: Some(darwin_code_protocol::config_types::WebSearchContextSize::High),
     };
 
     let available_models = Vec::new();
@@ -2097,7 +2097,7 @@ fn discoverable_connector(id: &str, name: &str, description: &str) -> Discoverab
         branding: None,
         app_metadata: None,
         labels: None,
-        install_url: Some(format!("https://chatgpt.com/apps/{slug}/{id}")),
+        install_url: Some(format!("https://apps.darwin-code.local/apps/{slug}/{id}")),
         is_accessible: false,
         is_enabled: true,
         plugin_display_names: Vec::new(),

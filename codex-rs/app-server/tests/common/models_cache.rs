@@ -1,78 +1,24 @@
 use chrono::DateTime;
 use chrono::Utc;
-use darwin_code_core::test_support::all_model_presets;
+use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::client_version_to_whole;
-use darwin_code_protocol::config_types::ReasoningSummary;
-use darwin_code_protocol::openai_models::ConfigShellToolType;
 use darwin_code_protocol::openai_models::ModelInfo;
-use darwin_code_protocol::openai_models::ModelPreset;
 use darwin_code_protocol::openai_models::ModelVisibility;
-use darwin_code_protocol::openai_models::TruncationPolicyConfig;
-use darwin_code_protocol::openai_models::default_input_modalities;
 use serde_json::json;
 use std::path::Path;
 
-/// Convert a ModelPreset to ModelInfo for cache storage.
-fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
-    ModelInfo {
-        slug: preset.id.clone(),
-        display_name: preset.display_name.clone(),
-        description: Some(preset.description.clone()),
-        default_reasoning_level: Some(preset.default_reasoning_effort),
-        supported_reasoning_levels: preset.supported_reasoning_efforts.clone(),
-        shell_type: ConfigShellToolType::ShellCommand,
-        visibility: if preset.show_in_picker {
-            ModelVisibility::List
-        } else {
-            ModelVisibility::Hide
-        },
-        supported_in_api: preset.supported_in_api,
-        priority,
-        additional_speed_tiers: preset.additional_speed_tiers.clone(),
-        upgrade: preset.upgrade.as_ref().map(Into::into),
-        base_instructions: "base instructions".to_string(),
-        model_messages: None,
-        supports_reasoning_summaries: false,
-        default_reasoning_summary: ReasoningSummary::Auto,
-        support_verbosity: false,
-        default_verbosity: None,
-        availability_nux: None,
-        apply_patch_tool_type: None,
-        web_search_tool_type: Default::default(),
-        truncation_policy: TruncationPolicyConfig::bytes(/*limit*/ 10_000),
-        supports_parallel_tool_calls: false,
-        supports_image_detail_original: false,
-        context_window: Some(272_000),
-        auto_compact_token_limit: None,
-        effective_context_window_percent: 95,
-        experimental_supported_tools: Vec::new(),
-        input_modalities: default_input_modalities(),
-        used_fallback_model_metadata: false,
-        supports_search_tool: false,
-    }
-}
-
-/// Write a models_cache.json file to the darwin-code home directory.
+/// Write a models_cache.json file to the darwin_code home directory.
 /// This prevents ModelsManager from making network requests to refresh models.
 /// The cache will be treated as fresh (within TTL) and used instead of fetching from the network.
-/// Uses bundled-catalog-derived presets, converted to ModelInfo format.
+/// Uses bundled ModelInfo entries so instruction templates and personality metadata remain intact.
 pub fn write_models_cache(darwin_code_home: &Path) -> std::io::Result<()> {
-    // Get a stable bundled-catalog-derived preset list and filter for picker-visible entries.
-    let presets: Vec<&ModelPreset> = all_model_presets()
-        .iter()
-        .filter(|preset| preset.show_in_picker)
-        .collect();
-    // Convert presets to ModelInfo, assigning priorities (lower = earlier in list).
-    // Priority is used for sorting, so the first model gets the lowest priority.
-    let models: Vec<ModelInfo> = presets
-        .iter()
-        .enumerate()
-        .map(|(idx, preset)| {
-            // Lower priority = earlier in list.
-            let priority = idx as i32;
-            preset_to_info(preset, priority)
-        })
-        .collect();
+    let mut models = bundled_models_response()
+        .map_err(std::io::Error::other)?
+        .models
+        .into_iter()
+        .filter(|model| model.visibility == ModelVisibility::List)
+        .collect::<Vec<_>>();
+    models.sort_by(|a, b| a.priority.cmp(&b.priority));
 
     write_models_cache_with_models(darwin_code_home, models)
 }

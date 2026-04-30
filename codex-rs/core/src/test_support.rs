@@ -8,8 +8,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use darwin_code_exec_server::EnvironmentManager;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::collaboration_mode_presets;
@@ -23,6 +21,22 @@ use crate::ThreadManager;
 use crate::config::Config;
 use crate::thread_manager;
 use crate::unified_exec;
+
+#[derive(Clone, Debug)]
+pub struct ByokTestAuth;
+
+impl ByokTestAuth {
+    pub fn from_api_key(_api_key: impl Into<String>) -> Self {
+        Self
+    }
+
+    pub fn dummy_for_testing() -> Self {
+        Self
+    }
+}
+
+pub const DARWIN_CODE_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
+pub const OPENAI_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
 
 static TEST_MODEL_PRESETS: Lazy<Vec<ModelPreset>> = Lazy::new(|| {
     let mut response = bundled_models_response()
@@ -41,23 +55,15 @@ pub fn set_deterministic_process_ids(enabled: bool) {
     unified_exec::set_deterministic_process_ids_for_tests(enabled);
 }
 
-pub fn auth_manager_from_auth(auth: DarwinCodeAuth) -> Arc<AuthManager> {
-    AuthManager::from_auth_for_testing(auth)
-}
-
-pub fn auth_manager_from_auth_with_home(auth: DarwinCodeAuth, darwin_code_home: PathBuf) -> Arc<AuthManager> {
-    AuthManager::from_auth_for_testing_with_home(auth, darwin_code_home)
-}
-
-pub fn thread_manager_with_models_provider(
-    auth: DarwinCodeAuth,
+pub fn thread_manager_with_models_provider<T>(
+    auth: T,
     provider: ModelProviderInfo,
 ) -> ThreadManager {
     ThreadManager::with_models_provider_for_tests(auth, provider)
 }
 
-pub fn thread_manager_with_models_provider_and_home(
-    auth: DarwinCodeAuth,
+pub fn thread_manager_with_models_provider_and_home<T>(
+    auth: T,
     provider: ModelProviderInfo,
     darwin_code_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
@@ -84,14 +90,12 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
     thread_manager: &ThreadManager,
     config: Config,
     rollout_path: PathBuf,
-    auth_manager: Arc<AuthManager>,
     user_shell_override: crate::shell::Shell,
 ) -> darwin_code_protocol::error::Result<crate::NewThread> {
     thread_manager
         .resume_thread_from_rollout_with_user_shell_override_for_tests(
             config,
             rollout_path,
-            auth_manager,
             user_shell_override,
         )
         .await
@@ -99,10 +103,9 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
 
 pub fn models_manager_with_provider(
     darwin_code_home: PathBuf,
-    auth_manager: Arc<AuthManager>,
     provider: ModelProviderInfo,
 ) -> ModelsManager {
-    ModelsManager::with_provider_for_tests(darwin_code_home, auth_manager, provider)
+    ModelsManager::with_provider_for_tests(darwin_code_home, provider)
 }
 
 pub fn get_model_offline(model: Option<&str>) -> String {

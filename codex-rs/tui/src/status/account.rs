@@ -1,8 +1,5 @@
 #[derive(Debug, Clone)]
 pub(crate) enum StatusAccountDisplay {
-    ChatGpt {
-        email: Option<String>,
-        plan: Option<String>,
-    },
+    #[cfg_attr(not(test), allow(dead_code))]
     ApiKey,
 }

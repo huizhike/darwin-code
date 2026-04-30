@@ -1,8 +1,3 @@
-use darwin_code_model_provider_info::ModelProviderInfo;
-use darwin_code_model_provider_info::WireApi;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::sse;
@@ -10,6 +5,11 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::UserInput;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
@@ -66,8 +66,9 @@ async fn continue_after_stream_error() {
     let provider = ModelProviderInfo {
         name: "mock-openai".into(),
         base_url: Some(format!("{}/v1", server.uri())),
-        env_key: Some("PATH".into()),
-        env_key_instructions: None,
+        api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
+            "test-direct-api-key".to_string(),
+        )),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -82,7 +83,7 @@ async fn continue_after_stream_error() {
         supports_websockets: false,
     };
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(move |config| {
             config.base_instructions = Some("You are a helpful assistant".to_string());
             config.model_provider = provider;
@@ -91,7 +92,7 @@ async fn continue_after_stream_error() {
         .await
         .unwrap();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first message".into(),
@@ -104,14 +105,14 @@ async fn continue_after_stream_error() {
         .unwrap();
 
     // Expect an Error followed by TurnComplete so the session is released.
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::Error(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::Error(_))).await;
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // 2) Second turn: now send another prompt that should succeed using the
     // mock server SSE stream. If the agent failed to clear the running task on
     // error above, this submission would be rejected/queued indefinitely.
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "follow up".into(),
@@ -123,5 +124,5 @@ async fn continue_after_stream_error() {
         .await
         .unwrap();
 
-    wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }

@@ -1,6 +1,6 @@
 use crate::protocol::EventMsg;
 use crate::protocol::RolloutItem;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::models::ResponseItem;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum EventPersistenceMode {
@@ -111,7 +111,7 @@ fn event_msg_persistence_mode(ev: &EventMsg) -> Option<EventPersistenceMode> {
             // Plan items are derived from streaming tags and are not part of the
             // raw ResponseItem history, so we persist their completion to replay
             // them on resume without bloating rollouts with every item lifecycle.
-            if matches!(event.item, codex_protocol::items::TurnItem::Plan(_)) {
+            if matches!(event.item, darwin_code_protocol::items::TurnItem::Plan(_)) {
                 Some(EventPersistenceMode::Limited)
             } else {
                 None
@@ -189,10 +189,10 @@ fn event_msg_persistence_mode(ev: &EventMsg) -> Option<EventPersistenceMode> {
 mod tests {
     use super::EventPersistenceMode;
     use super::should_persist_event_msg;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::ImageGenerationEndEvent;
-    use codex_protocol::protocol::ThreadNameUpdatedEvent;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::protocol::EventMsg;
+    use darwin_code_protocol::protocol::ImageGenerationEndEvent;
+    use darwin_code_protocol::protocol::ThreadNameUpdatedEvent;
 
     #[test]
     fn persists_image_generation_end_events_in_limited_mode() {

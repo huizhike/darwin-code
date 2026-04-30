@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use std::time::Duration;
 use std::time::Instant;
 
+use codex_analytics::AppInvocation;
+use codex_analytics::InvocationType;
+use codex_analytics::build_track_events_context;
 use darwin_code_app_server_protocol::ConfigLayerSource;
 use darwin_code_app_server_protocol::McpElicitationObjectType;
 use darwin_code_app_server_protocol::McpElicitationSchema;
@@ -63,8 +66,8 @@ use tracing::Span;
 use tracing::field::Empty;
 use url::Url;
 
-const MCP_CALL_COUNT_METRIC: &str = "darwin-code.mcp.call";
-const MCP_CALL_DURATION_METRIC: &str = "darwin-code.mcp.call.duration_ms";
+const MCP_CALL_COUNT_METRIC: &str = "darwin_code.mcp.call";
+const MCP_CALL_DURATION_METRIC: &str = "darwin_code.mcp.call.duration_ms";
 
 /// Handles the specified tool call dispatches the appropriate
 /// `McpToolCallBegin` and `McpToolCallEnd` events to the `Session`.
@@ -342,7 +345,8 @@ pub(crate) async fn handle_mcp_tool_call(
         tool_call_end_event.clone(),
     )
     .await;
-    maybe_track_darwin_code_app_used(sess.as_ref(), turn_context.as_ref(), &server, &tool_name).await;
+    maybe_track_darwin_code_app_used(sess.as_ref(), turn_context.as_ref(), &server, &tool_name)
+        .await;
 
     let status = if result.is_ok() { "ok" } else { "error" };
     emit_mcp_call_metrics(
@@ -511,7 +515,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
 
     let sandbox_state = serde_json::to_value(SandboxState {
         sandbox_policy: turn_context.sandbox_policy.get().clone(),
-        darwin_code_linux_sandbox_exe: turn_context.darwin_code_linux_sandbox_exe.clone(),
+        codex_linux_sandbox_exe: turn_context.codex_linux_sandbox_exe.clone(),
         sandbox_cwd: turn_context.cwd.to_path_buf(),
         use_legacy_landlock: turn_context.features.use_legacy_landlock(),
     })?;
@@ -1572,8 +1576,12 @@ async fn maybe_persist_mcp_tool_approval(
             remember_mcp_tool_approval(sess, key).await;
             return;
         };
-        persist_darwin_code_app_tool_approval(&turn_context.config.darwin_code_home, &connector_id, &tool_name)
-            .await
+        persist_darwin_code_app_tool_approval(
+            &turn_context.config.darwin_code_home,
+            &connector_id,
+            &tool_name,
+        )
+        .await
     } else {
         persist_custom_mcp_tool_approval(&turn_context.config, &key.server, &tool_name).await
     };
@@ -1594,23 +1602,14 @@ async fn maybe_persist_mcp_tool_approval(
 }
 
 async fn persist_darwin_code_app_tool_approval(
-    darwin_code_home: &AbsolutePathBuf,
-    connector_id: &str,
-    tool_name: &str,
+    _darwin_code_home: &AbsolutePathBuf,
+    _connector_id: &str,
+    _tool_name: &str,
 ) -> anyhow::Result<()> {
-    ConfigEditsBuilder::new(darwin_code_home)
-        .with_edits([ConfigEdit::SetPath {
-            segments: vec![
-                "apps".to_string(),
-                connector_id.to_string(),
-                "tools".to_string(),
-                tool_name.to_string(),
-                "approval_mode".to_string(),
-            ],
-            value: value("approve"),
-        }])
-        .apply()
-        .await
+    // The product-level `[apps]` user configuration surface has been removed.
+    // App-tool approvals may still be remembered in-session, but Darwin Code
+    // must not persist connector-specific app settings back into config.toml.
+    Ok(())
 }
 
 async fn persist_custom_mcp_tool_approval(
@@ -1664,7 +1663,10 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, darwin_code_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, darwin_code_config::types::McpServerConfig>::deserialize(
+                        value,
+                    )
+                    .ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

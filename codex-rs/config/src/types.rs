@@ -9,13 +9,13 @@ pub use crate::mcp_types::McpServerDisabledReason;
 pub use crate::mcp_types::McpServerToolConfig;
 pub use crate::mcp_types::McpServerTransportConfig;
 pub use crate::mcp_types::RawMcpServerConfig;
-pub use codex_protocol::config_types::AltScreenMode;
-pub use codex_protocol::config_types::ApprovalsReviewer;
-pub use codex_protocol::config_types::ModeKind;
-pub use codex_protocol::config_types::Personality;
-pub use codex_protocol::config_types::ServiceTier;
-pub use codex_protocol::config_types::WebSearchMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+pub use darwin_code_protocol::config_types::AltScreenMode;
+pub use darwin_code_protocol::config_types::ApprovalsReviewer;
+pub use darwin_code_protocol::config_types::ModeKind;
+pub use darwin_code_protocol::config_types::Personality;
+pub use darwin_code_protocol::config_types::ServiceTier;
+pub use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt;
@@ -86,37 +86,6 @@ pub struct WindowsToml {
     pub sandbox_private_desktop: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, JsonSchema)]
-pub enum UriBasedFileOpener {
-    #[serde(rename = "vscode")]
-    VsCode,
-
-    #[serde(rename = "vscode-insiders")]
-    VsCodeInsiders,
-
-    #[serde(rename = "windsurf")]
-    Windsurf,
-
-    #[serde(rename = "cursor")]
-    Cursor,
-
-    /// Option to disable the URI-based file opener.
-    #[serde(rename = "none")]
-    None,
-}
-
-impl UriBasedFileOpener {
-    pub fn get_scheme(&self) -> Option<&str> {
-        match self {
-            UriBasedFileOpener::VsCode => Some("vscode"),
-            UriBasedFileOpener::VsCodeInsiders => Some("vscode-insiders"),
-            UriBasedFileOpener::Windsurf => Some("windsurf"),
-            UriBasedFileOpener::Cursor => Some("cursor"),
-            UriBasedFileOpener::None => None,
-        }
-    }
-}
-
 /// Settings that govern if and what will be written to `~/.codex/history.jsonl`.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -137,23 +106,6 @@ pub enum HistoryPersistence {
     SaveAll,
     /// Do not write history to disk.
     None,
-}
-
-// ===== Analytics configuration =====
-
-/// Analytics settings loaded from config.toml. Fields are optional so we can apply defaults.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
-#[schemars(deny_unknown_fields)]
-pub struct AnalyticsConfigToml {
-    /// When `false`, disables analytics across Codex product surfaces in this profile.
-    pub enabled: Option<bool>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
-#[schemars(deny_unknown_fields)]
-pub struct FeedbackConfigToml {
-    /// When `false`, disables the feedback flow across Codex product surfaces.
-    pub enabled: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, JsonSchema)]
@@ -411,26 +363,6 @@ pub enum OtelExporterKind {
     },
 }
 
-/// OTEL settings loaded from config.toml. Fields are optional so we can apply defaults.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
-#[schemars(deny_unknown_fields)]
-pub struct OtelConfigToml {
-    /// Log user prompt in traces
-    pub log_user_prompt: Option<bool>,
-
-    /// Mark traces with environment (dev, staging, prod, test). Defaults to dev.
-    pub environment: Option<String>,
-
-    /// Optional log exporter
-    pub exporter: Option<OtelExporterKind>,
-
-    /// Optional trace exporter
-    pub trace_exporter: Option<OtelExporterKind>,
-
-    /// Optional metrics exporter
-    pub metrics_exporter: Option<OtelExporterKind>,
-}
-
 /// Effective OTEL settings after defaults are applied.
 #[derive(Debug, Clone, PartialEq)]
 pub struct OtelConfig {
@@ -448,7 +380,7 @@ impl Default for OtelConfig {
             environment: DEFAULT_OTEL_ENVIRONMENT.to_owned(),
             exporter: OtelExporterKind::None,
             trace_exporter: OtelExporterKind::None,
-            metrics_exporter: OtelExporterKind::Statsig,
+            metrics_exporter: OtelExporterKind::None,
         }
     }
 }
@@ -683,7 +615,7 @@ pub struct SandboxWorkspaceWrite {
     pub exclude_slash_tmp: bool,
 }
 
-impl From<SandboxWorkspaceWrite> for codex_app_server_protocol::SandboxSettings {
+impl From<SandboxWorkspaceWrite> for darwin_code_app_server_protocol::SandboxSettings {
     fn from(sandbox_workspace_write: SandboxWorkspaceWrite) -> Self {
         Self {
             writable_roots: sandbox_workspace_write.writable_roots,

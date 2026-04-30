@@ -36,7 +36,7 @@ Run `just write-config-schema` to overwrite with your changes.\n\n{diff}"
         );
     }
 
-    // Make sure the version in the repo matches exactly: https://github.com/openai/darwin-code/pull/10977.
+    // Make sure the version in the repo matches exactly: https://github.com/openai/darwin_code/pull/10977.
     let tmp = TempDir::new().expect("create temp dir");
     let tmp_path = tmp.path().join("config.schema.json");
     write_config_schema(&tmp_path).expect("write config schema to temp path");

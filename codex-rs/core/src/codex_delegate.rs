@@ -41,14 +41,13 @@ use crate::mcp_tool_call::MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC;
 use crate::mcp_tool_call::build_guardian_mcp_tool_review_request;
 use crate::mcp_tool_call::is_mcp_tool_approval_question_id;
 use crate::mcp_tool_call::lookup_mcp_tool_metadata;
-use crate::session::Darwin-Code;
+use crate::session::DarwinCode;
 use crate::session::DarwinCodeSpawnArgs;
 use crate::session::DarwinCodeSpawnOk;
 use crate::session::SUBMISSION_CHANNEL_CAPACITY;
 use crate::session::emit_subagent_session_started;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use darwin_code_login::AuthManager;
 use darwin_code_models_manager::manager::ModelsManager;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::protocol::InitialHistory;
@@ -56,7 +55,7 @@ use darwin_code_protocol::protocol::InitialHistory;
 #[cfg(test)]
 use crate::session::completed_session_loop_termination;
 
-/// Start an interactive sub-Darwin-Code thread and return IO channels.
+/// Start an interactive sub-DarwinCode thread and return IO channels.
 ///
 /// The returned `events_rx` yields non-approval events emitted by the sub-agent.
 /// Approval requests are handled via `parent_session` and are not surfaced.
@@ -64,20 +63,18 @@ use crate::session::completed_session_loop_termination;
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_darwin_code_thread_interactive(
     config: Config,
-    auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
     parent_session: Arc<Session>,
     parent_ctx: Arc<TurnContext>,
     cancel_token: CancellationToken,
     subagent_source: SubAgentSource,
     initial_history: Option<InitialHistory>,
-) -> Result<Darwin-Code, DarwinCodeErr> {
+) -> Result<DarwinCode, DarwinCodeErr> {
     let (tx_sub, rx_sub) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (tx_ops, rx_ops) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
 
-    let DarwinCodeSpawnOk { darwin-code, .. } = Box::pin(Darwin-Code::spawn(DarwinCodeSpawnArgs {
+    let DarwinCodeSpawnOk { darwin_code, .. } = Box::pin(DarwinCode::spawn(DarwinCodeSpawnArgs {
         config,
-        auth_manager,
         models_manager,
         environment_manager: Arc::new(EnvironmentManager::from_environment(
             parent_ctx.environment.as_deref(),
@@ -100,18 +97,18 @@ pub(crate) async fn run_darwin_code_thread_interactive(
     }))
     .await?;
     if parent_session.enabled(darwin_code_features::Feature::GeneralAnalytics) {
-        let thread_config = darwin-code.thread_config_snapshot().await;
+        let thread_config = darwin_code.thread_config_snapshot().await;
         let client_metadata = parent_session.app_server_client_metadata().await;
         emit_subagent_session_started(
             &parent_session.services.analytics_events_client,
             client_metadata,
-            darwin-code.session.conversation_id,
+            darwin_code.session.conversation_id,
             Some(parent_session.conversation_id),
             thread_config,
             subagent_source,
         );
     }
-    let darwin-code = Arc::new(darwin-code);
+    let darwin_code = Arc::new(darwin_code);
 
     // Use a child token so parent cancel cascades but we can scope it to this task
     let cancel_token_events = cancel_token.child_token();
@@ -121,7 +118,7 @@ pub(crate) async fn run_darwin_code_thread_interactive(
     // routing them to the parent session for decisions.
     let parent_session_clone = Arc::clone(&parent_session);
     let parent_ctx_clone = Arc::clone(&parent_ctx);
-    let darwin_code_for_events = Arc::clone(&darwin-code);
+    let darwin_code_for_events = Arc::clone(&darwin_code);
     // Cache delegated MCP invocations so guardian can recover the full tool call
     // context when the later legacy RequestUserInput approval event only carries
     // a call_id plus approval question metadata.
@@ -139,17 +136,17 @@ pub(crate) async fn run_darwin_code_thread_interactive(
     });
 
     // Forward ops from the caller to the sub-agent.
-    let darwin_code_for_ops = Arc::clone(&darwin-code);
+    let darwin_code_for_ops = Arc::clone(&darwin_code);
     tokio::spawn(async move {
         forward_ops(darwin_code_for_ops, rx_ops, cancel_token_ops).await;
     });
 
-    Ok(Darwin-Code {
+    Ok(DarwinCode {
         tx_sub: tx_ops,
         rx_event: rx_sub,
-        agent_status: darwin-code.agent_status.clone(),
-        session: Arc::clone(&darwin-code.session),
-        session_loop_termination: darwin-code.session_loop_termination.clone(),
+        agent_status: darwin_code.agent_status.clone(),
+        session: Arc::clone(&darwin_code.session),
+        session_loop_termination: darwin_code.session_loop_termination.clone(),
     })
 }
 
@@ -159,7 +156,6 @@ pub(crate) async fn run_darwin_code_thread_interactive(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_darwin_code_thread_one_shot(
     config: Config,
-    auth_manager: Arc<AuthManager>,
     models_manager: Arc<ModelsManager>,
     input: Vec<UserInput>,
     parent_session: Arc<Session>,
@@ -168,13 +164,12 @@ pub(crate) async fn run_darwin_code_thread_one_shot(
     subagent_source: SubAgentSource,
     final_output_json_schema: Option<Value>,
     initial_history: Option<InitialHistory>,
-) -> Result<Darwin-Code, DarwinCodeErr> {
+) -> Result<DarwinCode, DarwinCodeErr> {
     // Use a child token so we can stop the delegate after completion without
     // requiring the caller to cancel the parent token.
     let child_cancel = cancel_token.child_token();
     let io = Box::pin(run_darwin_code_thread_interactive(
         config,
-        auth_manager,
         models_manager,
         parent_session,
         parent_ctx,
@@ -226,7 +221,7 @@ pub(crate) async fn run_darwin_code_thread_one_shot(
     let (tx_closed, rx_closed) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
     drop(rx_closed);
 
-    Ok(Darwin-Code {
+    Ok(DarwinCode {
         rx_event: rx_bridge,
         tx_sub: tx_closed,
         agent_status,
@@ -236,7 +231,7 @@ pub(crate) async fn run_darwin_code_thread_one_shot(
 }
 
 async fn forward_events(
-    darwin-code: Arc<Darwin-Code>,
+    darwin_code: Arc<DarwinCode>,
     tx_sub: Sender<Event>,
     parent_session: Arc<Session>,
     parent_ctx: Arc<TurnContext>,
@@ -249,10 +244,10 @@ async fn forward_events(
     loop {
         tokio::select! {
             _ = &mut cancelled => {
-                shutdown_delegate(&darwin-code).await;
+                shutdown_delegate(&darwin_code).await;
                 break;
             }
-            event = darwin-code.next_event() => {
+            event = darwin_code.next_event() => {
                 let event = match event {
                     Ok(event) => event,
                     Err(_) => break,
@@ -281,7 +276,7 @@ async fn forward_events(
                     } => {
                         // Initiate approval via parent session; do not surface to consumer.
                         handle_exec_approval(
-                            &darwin-code,
+                            &darwin_code,
                             id,
                             &parent_session,
                             &parent_ctx,
@@ -295,7 +290,7 @@ async fn forward_events(
                         msg: EventMsg::ApplyPatchApprovalRequest(event),
                     } => {
                         handle_patch_approval(
-                            &darwin-code,
+                            &darwin_code,
                             id,
                             &parent_session,
                             &parent_ctx,
@@ -309,7 +304,7 @@ async fn forward_events(
                         ..
                     } => {
                         handle_request_permissions(
-                            &darwin-code,
+                            &darwin_code,
                             &parent_session,
                             &parent_ctx,
                             event,
@@ -322,7 +317,7 @@ async fn forward_events(
                         msg: EventMsg::RequestUserInput(event),
                     } => {
                         handle_request_user_input(
-                            &darwin-code,
+                            &darwin_code,
                             id,
                             &parent_session,
                             &parent_ctx,
@@ -341,7 +336,7 @@ async fn forward_events(
                             .await
                             .insert(event.call_id.clone(), event.invocation.clone());
                         if !forward_event_or_shutdown(
-                            &darwin-code,
+                            &darwin_code,
                             &tx_sub,
                             &cancel_token,
                             Event {
@@ -360,7 +355,7 @@ async fn forward_events(
                     } => {
                         pending_mcp_invocations.lock().await.remove(&event.call_id);
                         if !forward_event_or_shutdown(
-                            &darwin-code,
+                            &darwin_code,
                             &tx_sub,
                             &cancel_token,
                             Event {
@@ -374,7 +369,7 @@ async fn forward_events(
                         }
                     }
                     other => {
-                        if !forward_event_or_shutdown(&darwin-code, &tx_sub, &cancel_token, other).await
+                        if !forward_event_or_shutdown(&darwin_code, &tx_sub, &cancel_token, other).await
                         {
                             break;
                         }
@@ -386,12 +381,12 @@ async fn forward_events(
 }
 
 /// Ask the delegate to stop and drain its events so background sends do not hit a closed channel.
-async fn shutdown_delegate(darwin-code: &Darwin-Code) {
-    let _ = darwin-code.submit(Op::Interrupt).await;
-    let _ = darwin-code.submit(Op::Shutdown {}).await;
+async fn shutdown_delegate(darwin_code: &DarwinCode) {
+    let _ = darwin_code.submit(Op::Interrupt).await;
+    let _ = darwin_code.submit(Op::Shutdown {}).await;
 
     let _ = timeout(Duration::from_millis(500), async {
-        while let Ok(event) = darwin-code.next_event().await {
+        while let Ok(event) = darwin_code.next_event().await {
             if matches!(
                 event.msg,
                 EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_)
@@ -404,7 +399,7 @@ async fn shutdown_delegate(darwin-code: &Darwin-Code) {
 }
 
 async fn forward_event_or_shutdown(
-    darwin-code: &Darwin-Code,
+    darwin_code: &DarwinCode,
     tx_sub: &Sender<Event>,
     cancel_token: &CancellationToken,
     event: Event,
@@ -412,7 +407,7 @@ async fn forward_event_or_shutdown(
     match tx_sub.send(event).or_cancel(cancel_token).await {
         Ok(Ok(())) => true,
         _ => {
-            shutdown_delegate(darwin-code).await;
+            shutdown_delegate(darwin_code).await;
             false
         }
     }
@@ -420,7 +415,7 @@ async fn forward_event_or_shutdown(
 
 /// Forward ops from a caller to a sub-agent, respecting cancellation.
 async fn forward_ops(
-    darwin-code: Arc<Darwin-Code>,
+    darwin_code: Arc<DarwinCode>,
     rx_ops: Receiver<Submission>,
     cancel_token_ops: CancellationToken,
 ) {
@@ -429,13 +424,13 @@ async fn forward_ops(
             Ok(Ok(submission)) => submission,
             Ok(Err(_)) | Err(_) => break,
         };
-        let _ = darwin-code.submit_with_id(submission).await;
+        let _ = darwin_code.submit_with_id(submission).await;
     }
 }
 
 /// Handle an ExecApprovalRequest by consulting the parent session and replying.
 async fn handle_exec_approval(
-    darwin-code: &Darwin-Code,
+    darwin_code: &DarwinCode,
     turn_id: String,
     parent_session: &Arc<Session>,
     parent_ctx: &Arc<TurnContext>,
@@ -506,7 +501,7 @@ async fn handle_exec_approval(
         .await
     };
 
-    let _ = darwin-code
+    let _ = darwin_code
         .submit(Op::ExecApproval {
             id: approval_id_for_op,
             turn_id: Some(turn_id),
@@ -517,7 +512,7 @@ async fn handle_exec_approval(
 
 /// Handle an ApplyPatchApprovalRequest by consulting the parent session and replying.
 async fn handle_patch_approval(
-    darwin-code: &Darwin-Code,
+    darwin_code: &DarwinCode,
     _id: String,
     parent_session: &Arc<Session>,
     parent_ctx: &Arc<TurnContext>,
@@ -606,7 +601,7 @@ async fn handle_patch_approval(
         )
         .await
     };
-    let _ = darwin-code
+    let _ = darwin_code
         .submit(Op::PatchApproval {
             id: approval_id,
             decision,
@@ -615,7 +610,7 @@ async fn handle_patch_approval(
 }
 
 async fn handle_request_user_input(
-    darwin-code: &Darwin-Code,
+    darwin_code: &DarwinCode,
     id: String,
     parent_session: &Arc<Session>,
     parent_ctx: &Arc<TurnContext>,
@@ -633,7 +628,9 @@ async fn handle_request_user_input(
         )
         .await
     {
-        let _ = darwin-code.submit(Op::UserInputAnswer { id, response }).await;
+        let _ = darwin_code
+            .submit(Op::UserInputAnswer { id, response })
+            .await;
         return;
     }
 
@@ -649,7 +646,9 @@ async fn handle_request_user_input(
         cancel_token,
     )
     .await;
-    let _ = darwin-code.submit(Op::UserInputAnswer { id, response }).await;
+    let _ = darwin_code
+        .submit(Op::UserInputAnswer { id, response })
+        .await;
 }
 
 /// Intercepts delegated legacy MCP approval prompts on the RequestUserInput
@@ -761,7 +760,7 @@ fn spawn_guardian_review(
 }
 
 async fn handle_request_permissions(
-    darwin-code: &Darwin-Code,
+    darwin_code: &DarwinCode,
     parent_session: &Arc<Session>,
     parent_ctx: &Arc<TurnContext>,
     event: RequestPermissionsEvent,
@@ -776,7 +775,7 @@ async fn handle_request_permissions(
     let response =
         await_request_permissions_with_cancel(response_fut, parent_session, &call_id, cancel_token)
             .await;
-    let _ = darwin-code
+    let _ = darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: call_id,
             response,
@@ -867,5 +866,5 @@ where
 }
 
 #[cfg(test)]
-#[path = "darwin_code_delegate_tests.rs"]
+#[path = "codex_delegate_tests.rs"]
 mod tests;

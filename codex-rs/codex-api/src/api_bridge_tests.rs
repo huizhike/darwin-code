@@ -31,11 +31,11 @@ fn map_api_error_maps_usage_limit_limit_name_header() {
     let mut headers = HeaderMap::new();
     headers.insert(
         ACTIVE_LIMIT_HEADER,
-        http::HeaderValue::from_static("codex_other"),
+        http::HeaderValue::from_static("darwin_code_other"),
     );
     headers.insert(
-        "x-codex-other-limit-name",
-        http::HeaderValue::from_static("codex_other"),
+        "x-darwin_code_other-limit-name",
+        http::HeaderValue::from_static("darwin_code_other"),
     );
     let body = serde_json::json!({
         "error": {
@@ -59,7 +59,7 @@ fn map_api_error_maps_usage_limit_limit_name_header() {
             .rate_limits
             .as_ref()
             .and_then(|snapshot| snapshot.limit_name.as_deref()),
-        Some("codex_other")
+        Some("darwin_code_other")
     );
 }
 
@@ -68,7 +68,7 @@ fn map_api_error_does_not_fallback_limit_name_to_limit_id() {
     let mut headers = HeaderMap::new();
     headers.insert(
         ACTIVE_LIMIT_HEADER,
-        http::HeaderValue::from_static("codex_other"),
+        http::HeaderValue::from_static("darwin_code_other"),
     );
     let body = serde_json::json!({
         "error": {
@@ -114,7 +114,7 @@ fn map_api_error_extracts_identity_auth_details_from_headers() {
 
     let err = map_api_error(ApiError::Transport(TransportError::Http {
         status: http::StatusCode::UNAUTHORIZED,
-        url: Some("https://chatgpt.com/backend-api/codex/models".to_string()),
+        url: Some("https://provider.test/v1/models".to_string()),
         headers: Some(headers),
         body: Some(r#"{"detail":"Unauthorized"}"#.to_string()),
     }));

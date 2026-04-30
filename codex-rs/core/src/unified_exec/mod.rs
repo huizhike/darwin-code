@@ -27,8 +27,8 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Weak;
 
-use darwin_code_network_proxy::NetworkProxy;
 use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use rand::Rng;
 use rand::rng;
@@ -93,7 +93,7 @@ pub(crate) struct ExecCommandRequest {
     pub yield_time_ms: u64,
     pub max_output_tokens: Option<usize>,
     pub workdir: Option<AbsolutePathBuf>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<NetworkAccessRuntime>,
     pub tty: bool,
     pub sandbox_permissions: SandboxPermissions,
     pub additional_permissions: Option<PermissionProfile>,

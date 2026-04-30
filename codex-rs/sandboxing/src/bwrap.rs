@@ -1,4 +1,4 @@
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -9,7 +9,7 @@ const MISSING_BWRAP_WARNING: &str = concat!(
     "Codex could not find bubblewrap on PATH. ",
     "Install bubblewrap with your OS package manager. ",
     "See the sandbox prerequisites: ",
-    "https://developers.openai.com/codex/concepts/sandboxing#prerequisites. ",
+    "https://developers.openai.com/darwin_code/concepts/sandboxing#prerequisites. ",
     "Codex will use the vendored bubblewrap in the meantime.",
 );
 const USER_NAMESPACE_WARNING: &str =

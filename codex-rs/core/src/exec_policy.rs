@@ -12,12 +12,10 @@ use darwin_code_execpolicy::Decision;
 use darwin_code_execpolicy::Error as ExecPolicyRuleError;
 use darwin_code_execpolicy::Evaluation;
 use darwin_code_execpolicy::MatchOptions;
-use darwin_code_execpolicy::NetworkRuleProtocol;
 use darwin_code_execpolicy::Policy;
 use darwin_code_execpolicy::PolicyParser;
 use darwin_code_execpolicy::RuleMatch;
 use darwin_code_execpolicy::blocking_append_allow_prefix_rule;
-use darwin_code_execpolicy::blocking_append_network_rule;
 use darwin_code_protocol::approvals::ExecPolicyAmendment;
 use darwin_code_protocol::permissions::FileSystemSandboxKind;
 use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
@@ -360,44 +358,6 @@ impl ExecPolicyManager {
         self.policy.store(Arc::new(updated_policy));
         Ok(())
     }
-
-    pub(crate) async fn append_network_rule_and_update(
-        &self,
-        darwin_code_home: &Path,
-        host: &str,
-        protocol: NetworkRuleProtocol,
-        decision: Decision,
-        justification: Option<String>,
-    ) -> Result<(), ExecPolicyUpdateError> {
-        let _update_guard = self.update_lock.lock().await;
-        let policy_path = default_policy_path(darwin_code_home);
-        let host = host.to_string();
-        spawn_blocking({
-            let policy_path = policy_path.clone();
-            let host = host.clone();
-            let justification = justification.clone();
-            move || {
-                blocking_append_network_rule(
-                    &policy_path,
-                    &host,
-                    protocol,
-                    decision,
-                    justification.as_deref(),
-                )
-            }
-        })
-        .await
-        .map_err(|source| ExecPolicyUpdateError::JoinBlockingTask { source })?
-        .map_err(|source| ExecPolicyUpdateError::AppendRule {
-            path: policy_path,
-            source,
-        })?;
-
-        let mut updated_policy = self.current().as_ref().clone();
-        updated_policy.add_network_rule(&host, protocol, decision, justification)?;
-        self.policy.store(Arc::new(updated_policy));
-        Ok(())
-    }
 }
 
 impl Default for ExecPolicyManager {
@@ -639,7 +599,9 @@ pub fn render_decision_for_unmatched_command(
 }
 
 fn default_policy_path(darwin_code_home: &Path) -> PathBuf {
-    darwin_code_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
+    darwin_code_home
+        .join(RULES_DIR_NAME)
+        .join(DEFAULT_POLICY_FILE)
 }
 
 fn commands_for_exec_policy(command: &[String]) -> (Vec<Vec<String>>, bool) {
@@ -687,7 +649,7 @@ fn try_derive_execpolicy_amendment_for_prompt_rules(
         })
 }
 
-/// - Note: we only use this amendment when the command fails to run in sandbox and darwin-code prompts the user to run outside the sandbox
+/// - Note: we only use this amendment when the command fails to run in sandbox and darwin_code prompts the user to run outside the sandbox
 /// - The purpose of this amendment is to bypass sandbox for similar commands in the future
 /// - If any execpolicy rule matches, return None, because we would already be running command outside the sandbox
 fn try_derive_execpolicy_amendment_for_allow_rules(

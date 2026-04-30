@@ -51,7 +51,7 @@ use darwin_code_tools::ToolSpec;
 use darwin_code_utils_output_truncation::TruncationPolicy;
 use darwin_code_utils_output_truncation::truncate_text;
 
-pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// darwin-code-js-repl:";
+pub(crate) const JS_REPL_PRAGMA_PREFIX: &str = "// darwin_code-js-repl:";
 const KERNEL_SOURCE: &str = include_str!("kernel.js");
 const MERIYAH_UMD: &str = include_str!("meriyah.umd.min.js");
 const JS_REPL_MIN_NODE_VERSION: &str = include_str!("../../../../node-version.txt");
@@ -1030,13 +1030,13 @@ impl JsReplManager {
         }
 
         let sandbox = SandboxManager::new();
-        let managed_network_active = turn.network.is_some();
+        let network_policy_active = turn.network.is_some();
         let sandbox_type = sandbox.select_initial(
             &turn.file_system_sandbox_policy,
             turn.network_sandbox_policy,
             SandboxablePreference::Auto,
             turn.windows_sandbox_level,
-            managed_network_active,
+            network_policy_active,
         );
         let command = SandboxCommand {
             program: node_path.into_os_string(),
@@ -1059,10 +1059,10 @@ impl JsReplManager {
                 file_system_policy: &turn.file_system_sandbox_policy,
                 network_policy: turn.network_sandbox_policy,
                 sandbox: sandbox_type,
-                enforce_managed_network: managed_network_active,
+                enforce_network_policy: network_policy_active,
                 network: None,
                 sandbox_policy_cwd: &turn.cwd,
-                darwin_code_linux_sandbox_exe: turn.darwin_code_linux_sandbox_exe.as_deref(),
+                codex_linux_sandbox_exe: turn.codex_linux_sandbox_exe.as_deref(),
                 use_legacy_landlock: turn.features.use_legacy_landlock(),
                 windows_sandbox_level: turn.windows_sandbox_level,
                 windows_sandbox_private_desktop: turn
@@ -1761,7 +1761,7 @@ fn validate_emitted_image_url(image_url: &str) -> Result<(), String> {
     {
         Ok(())
     } else {
-        Err("darwin-code.emitImage only accepts data URLs".to_string())
+        Err("darwin_code.emitImage only accepts data URLs".to_string())
     }
 }
 

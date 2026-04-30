@@ -12,14 +12,6 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use darwin_code_features::Feature;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
-#[cfg(target_os = "linux")]
-use darwin_code_sandboxing::landlock::DARWIN_CODE_LINUX_SANDBOX_ARG0;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
@@ -36,6 +28,14 @@ use core_test_support::test_darwin_code::TestDarwinCodeHarness;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_with_timeout;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
+#[cfg(target_os = "linux")]
+use darwin_code_sandboxing::landlock::DARWIN_CODE_LINUX_SANDBOX_ARG0;
 use serde_json::json;
 use test_case::test_case;
 use wiremock::Mock;
@@ -101,9 +101,9 @@ async fn apply_patch_cli_uses_darwin_code_self_exe_with_linux_sandbox_helper_ali
     let darwin_code_linux_sandbox_exe = harness
         .test()
         .config
-        .darwin_code_linux_sandbox_exe
+        .codex_linux_sandbox_exe
         .as_ref()
-        .expect("linux test config should include darwin-code-linux-sandbox helper");
+        .expect("linux test config should include darwin_code-linux-sandbox helper");
     assert_eq!(
         darwin_code_linux_sandbox_exe
             .file_name()
@@ -346,7 +346,7 @@ async fn apply_patch_cli_move_without_content_change_has_no_turn_diff(
 
     let harness = apply_patch_harness().await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     harness.write_file("old/name.txt", "same\n").await?;
 
@@ -355,7 +355,7 @@ async fn apply_patch_cli_move_without_content_change_has_no_turn_diff(
     mount_apply_patch(&harness, call_id, patch, "ok", model_output).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "rename without content change".into(),
@@ -376,7 +376,7 @@ async fn apply_patch_cli_move_without_content_change_has_no_turn_diff(
         .await?;
 
     let mut saw_turn_diff = false;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnDiff(_) => {
             saw_turn_diff = true;
             false
@@ -949,7 +949,7 @@ async fn apply_patch_custom_tool_streaming_emits_updated_changes() -> Result<()>
     })
     .await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
     let call_id = "apply-patch-streaming";
     let patch = "*** Begin Patch\n*** Add File: streamed.txt\n+hello\n+world\n*** End Patch";
     mount_sse_sequence(
@@ -992,7 +992,7 @@ async fn apply_patch_custom_tool_streaming_emits_updated_changes() -> Result<()>
     )
     .await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "create streamed file".into(),
@@ -1013,7 +1013,7 @@ async fn apply_patch_custom_tool_streaming_emits_updated_changes() -> Result<()>
         .await?;
 
     let mut updates = Vec::new();
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::PatchApplyUpdated(update) => {
             updates.push(update.clone());
             false
@@ -1067,7 +1067,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
 
     let harness = apply_patch_harness_with(|builder| builder.with_model("gpt-5.1")).await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     // Prepare a file inside a subdir; update it via cd && apply_patch heredoc form.
     harness.write_file("sub/in_sub.txt", "before\n").await?;
@@ -1089,7 +1089,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
     mount_sse_sequence(harness.server(), bodies).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply via shell heredoc with cd".into(),
@@ -1112,7 +1112,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
     let mut saw_turn_diff = None;
     let mut saw_patch_begin = false;
     let mut patch_end_success = None;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::PatchApplyBegin(begin) => {
             saw_patch_begin = true;
             assert_eq!(begin.call_id, call_id);
@@ -1152,7 +1152,7 @@ async fn apply_patch_shell_command_failure_propagates_error_and_skips_diff() -> 
 
     let harness = apply_patch_harness_with(|builder| builder.with_model("gpt-5.1")).await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     harness.write_file("invalid.txt", "ok\n").await?;
 
@@ -1173,7 +1173,7 @@ async fn apply_patch_shell_command_failure_propagates_error_and_skips_diff() -> 
     mount_sse_sequence(harness.server(), bodies).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply patch via shell".into(),
@@ -1194,7 +1194,7 @@ async fn apply_patch_shell_command_failure_propagates_error_and_skips_diff() -> 
         .await?;
 
     let mut saw_turn_diff = false;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnDiff(_) => {
             saw_turn_diff = true;
             false
@@ -1320,7 +1320,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff(
 
     let harness = apply_patch_harness().await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     let call_id = "apply-diff-event";
     let file = "udiff.txt";
@@ -1328,7 +1328,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff(
     mount_apply_patch(&harness, call_id, patch.as_str(), "ok", model_output).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "emit diff".into(),
@@ -1349,7 +1349,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff(
         .await?;
 
     let mut saw_turn_diff = None;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnDiff(ev) => {
             saw_turn_diff = Some(ev.unified_diff.clone());
             false
@@ -1384,7 +1384,7 @@ async fn apply_patch_turn_diff_for_rename_with_content_change(
 
     let harness = apply_patch_harness().await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     // Seed original file
     harness.write_file("old.txt", "old\n").await?;
@@ -1395,7 +1395,7 @@ async fn apply_patch_turn_diff_for_rename_with_content_change(
     mount_apply_patch(&harness, call_id, patch, "ok", model_output).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "rename with change".into(),
@@ -1416,7 +1416,7 @@ async fn apply_patch_turn_diff_for_rename_with_content_change(
         .await?;
 
     let mut last_diff: Option<String> = None;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnDiff(ev) => {
             last_diff = Some(ev.unified_diff.clone());
             false
@@ -1447,7 +1447,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
 
     let harness = apply_patch_harness().await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     let call1 = "agg-1";
     let call2 = "agg-2";
@@ -1471,7 +1471,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
     mount_sse_sequence(harness.server(), vec![s1, s2, s3]).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "aggregate diffs".into(),
@@ -1492,7 +1492,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
         .await?;
 
     let mut last_diff: Option<String> = None;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnDiff(ev) => {
             last_diff = Some(ev.unified_diff.clone());
             false
@@ -1520,7 +1520,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
 
     let harness = apply_patch_harness().await?;
     let test = harness.test();
-    let darwin-code = test.darwin-code.clone();
+    let darwin_code = test.darwin_code.clone();
 
     let call_success = "agg-success";
     let call_failure = "agg-failure";
@@ -1547,7 +1547,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
     mount_sse_sequence(harness.server(), responses).await;
 
     let model = test.session_configured.model.clone();
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "apply patch twice with failure".into(),
@@ -1569,7 +1569,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
 
     let mut last_diff: Option<String> = None;
     wait_for_event_with_timeout(
-        &darwin-code,
+        &darwin_code,
         |event| match event {
             EventMsg::TurnDiff(ev) => {
                 last_diff = Some(ev.unified_diff.clone());

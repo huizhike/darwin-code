@@ -22,7 +22,7 @@ async fn submission_preserves_text_elements_and_local_images() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -106,7 +106,7 @@ async fn submission_with_remote_and_local_images_keeps_local_placeholder_numberi
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -201,7 +201,7 @@ async fn enter_with_only_remote_images_submits_user_turn() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -266,7 +266,7 @@ async fn shift_enter_with_only_remote_images_does_not_submit_user_turn() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -306,7 +306,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_modal_is_active() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -346,7 +346,7 @@ async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -389,7 +389,7 @@ async fn submission_prefers_selected_duplicate_skill_path() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {

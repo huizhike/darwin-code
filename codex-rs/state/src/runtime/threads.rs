@@ -1,6 +1,6 @@
 use super::*;
 use crate::SortDirection;
-use codex_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SessionSource;
 use std::sync::atomic::Ordering;
 
 impl StateRuntime {
@@ -975,10 +975,11 @@ fn thread_spawn_parent_thread_id_from_source_str(source: &str) -> Option<ThreadI
     let parsed_source = serde_json::from_str(source)
         .or_else(|_| serde_json::from_value::<SessionSource>(Value::String(source.to_string())));
     match parsed_source.ok() {
-        Some(SessionSource::SubAgent(codex_protocol::protocol::SubAgentSource::ThreadSpawn {
-            parent_thread_id,
-            ..
-        })) => Some(parent_thread_id),
+        Some(SessionSource::SubAgent(
+            darwin_code_protocol::protocol::SubAgentSource::ThreadSpawn {
+                parent_thread_id, ..
+            },
+        )) => Some(parent_thread_id),
         _ => None,
     }
 }
@@ -1086,11 +1087,11 @@ mod tests {
     use crate::DirectionalThreadSpawnEdgeStatus;
     use crate::runtime::test_support::test_thread_metadata;
     use crate::runtime::test_support::unique_temp_dir;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::GitInfo;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::EventMsg;
+    use darwin_code_protocol::protocol::GitInfo;
+    use darwin_code_protocol::protocol::SessionMeta;
+    use darwin_code_protocol::protocol::SessionMetaLine;
+    use darwin_code_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -1311,7 +1312,7 @@ mod tests {
                 memory_mode: None,
             },
             git: Some(GitInfo {
-                commit_hash: Some(codex_git_utils::GitSha::new("rollout-sha")),
+                commit_hash: Some(darwin_code_git_utils::GitSha::new("rollout-sha")),
                 branch: Some("rollout-branch".to_string()),
                 repository_url: Some("git@example.com:openai/codex.git".to_string()),
             }),
@@ -1634,16 +1635,16 @@ mod tests {
             SessionSource::Cli,
         );
         let items = vec![RolloutItem::EventMsg(EventMsg::TokenCount(
-            codex_protocol::protocol::TokenCountEvent {
-                info: Some(codex_protocol::protocol::TokenUsageInfo {
-                    total_token_usage: codex_protocol::protocol::TokenUsage {
+            darwin_code_protocol::protocol::TokenCountEvent {
+                info: Some(darwin_code_protocol::protocol::TokenUsageInfo {
+                    total_token_usage: darwin_code_protocol::protocol::TokenUsage {
                         input_tokens: 0,
                         cached_input_tokens: 0,
                         output_tokens: 0,
                         reasoning_output_tokens: 0,
                         total_tokens: 321,
                     },
-                    last_token_usage: codex_protocol::protocol::TokenUsage::default(),
+                    last_token_usage: darwin_code_protocol::protocol::TokenUsage::default(),
                     model_context_window: None,
                 }),
                 rate_limits: None,

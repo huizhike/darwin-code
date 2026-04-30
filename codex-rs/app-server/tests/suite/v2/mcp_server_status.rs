@@ -47,7 +47,7 @@ async fn mcp_server_status_list_returns_raw_server_and_tool_names() -> Result<()
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
-        /*requires_openai_auth*/ None,
+        /*legacy_auth_marker*/ None,
         "mock_provider",
         "compact",
     )?;
@@ -218,7 +218,7 @@ async fn mcp_server_status_list_tools_and_auth_only_skips_slow_inventory_calls()
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
-        /*requires_openai_auth*/ None,
+        /*legacy_auth_marker*/ None,
         "mock_provider",
         "compact",
     )?;
@@ -279,7 +279,7 @@ async fn mcp_server_status_list_keeps_tools_for_sanitized_name_collisions() -> R
         &server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
-        /*requires_openai_auth*/ None,
+        /*legacy_auth_marker*/ None,
         "mock_provider",
         "compact",
     )?;

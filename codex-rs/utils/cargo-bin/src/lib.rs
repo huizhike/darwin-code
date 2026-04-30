@@ -37,35 +37,71 @@ pub enum CargoBinError {
 /// This helper allows callers to transparently support both.
 #[allow(deprecated)]
 pub fn cargo_bin(name: &str) -> Result<PathBuf, CargoBinError> {
-    let env_keys = cargo_bin_env_keys(name);
-    for key in &env_keys {
-        if let Some(value) = std::env::var_os(key) {
-            return resolve_bin_from_env(key, value);
+    let candidate_names = cargo_bin_candidate_names(name);
+    let mut env_keys = Vec::new();
+
+    for candidate in &candidate_names {
+        for key in cargo_bin_env_keys(candidate) {
+            if env_keys.contains(&key) {
+                continue;
+            }
+            if let Some(value) = std::env::var_os(&key) {
+                return resolve_bin_from_env(&key, value);
+            }
+            env_keys.push(key);
         }
     }
-    match assert_cmd::Command::cargo_bin(name) {
-        Ok(cmd) => {
-            let mut path = PathBuf::from(cmd.get_program());
-            if !path.is_absolute() {
-                path = std::env::current_dir()
-                    .map_err(|source| CargoBinError::CurrentDir { source })?
-                    .join(path);
+
+    let mut fallback_errors = Vec::new();
+    for candidate in &candidate_names {
+        match assert_cmd::Command::cargo_bin(candidate) {
+            Ok(cmd) => {
+                let mut path = PathBuf::from(cmd.get_program());
+                if !path.is_absolute() {
+                    path = std::env::current_dir()
+                        .map_err(|source| CargoBinError::CurrentDir { source })?
+                        .join(path);
+                }
+                if path.exists() {
+                    return Ok(path);
+                } else {
+                    return Err(CargoBinError::ResolvedPathDoesNotExist {
+                        key: "assert_cmd::Command::cargo_bin".to_owned(),
+                        path,
+                    });
+                }
             }
-            if path.exists() {
-                Ok(path)
-            } else {
-                Err(CargoBinError::ResolvedPathDoesNotExist {
-                    key: "assert_cmd::Command::cargo_bin".to_owned(),
-                    path,
-                })
+            Err(err) => {
+                fallback_errors.push(format!("{candidate}: {err}"));
             }
         }
-        Err(err) => Err(CargoBinError::NotFound {
-            name: name.to_owned(),
-            env_keys,
-            fallback: format!("assert_cmd fallback failed: {err}"),
-        }),
     }
+
+    Err(CargoBinError::NotFound {
+        name: name.to_owned(),
+        env_keys,
+        fallback: format!(
+            "assert_cmd fallback failed for candidates {:?}: {}",
+            candidate_names,
+            fallback_errors.join("; ")
+        ),
+    })
+}
+
+fn cargo_bin_candidate_names(name: &str) -> Vec<String> {
+    let mut names = vec![name.to_owned()];
+
+    // During the Darwin rename, several tests kept using legacy `darwin_code*`
+    // helper names while Cargo binary targets are named `darwin-code*`.  The
+    // Cargo env var form happens to be the same after dash-to-underscore
+    // normalization, but assert_cmd's target/debug fallback needs the real
+    // target name. Keep the compatibility here so tests can work both with and
+    // without CARGO_BIN_EXE_* being exported.
+    if let Some(suffix) = name.strip_prefix("darwin_code") {
+        names.push(format!("darwin-code{suffix}"));
+    }
+
+    names
 }
 
 fn cargo_bin_env_keys(name: &str) -> Vec<String> {

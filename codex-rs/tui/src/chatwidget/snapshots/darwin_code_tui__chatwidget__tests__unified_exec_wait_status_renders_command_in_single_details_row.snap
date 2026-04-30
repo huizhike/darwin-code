@@ -1,0 +1,18 @@
+---
+source: tui/src/chatwidget/tests/exec_flow.rs
+expression: normalize_snapshot_paths(rendered)
+---
+╭───────────────────────────────────────╮
+│ >_ OpenAI DarwinCode (v0.0.0)         │
+│                                       │
+│ model:     loading   /model to change │
+│ directory: /tmp/project               │
+╰───────────────────────────────────────╯
+
+• Waiting for background terminal (0s • esc to …
+  └ cargo test -p darwin_code-core -- --exact…
+
+
+› Explain this codebase
+
+  gpt-5.3-darwin-code default · /tmp/project

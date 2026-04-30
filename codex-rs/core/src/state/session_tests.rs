@@ -39,9 +39,9 @@ async fn set_agent_task_persists_plaintext_task_for_session_reuse() {
     let session_configuration = make_session_configuration_for_tests().await;
     let mut state = SessionState::new(session_configuration);
     let agent_task = RegisteredAgentTask {
-        binding_id: "chatgpt-account-account-123".to_string(),
-        chatgpt_account_id: "account-123".to_string(),
-        chatgpt_user_id: Some("user-123".to_string()),
+        binding_id: "provider-account-account-123".to_string(),
+        provider_account_id: "account-123".to_string(),
+        provider_user_id: Some("user-123".to_string()),
         agent_runtime_id: "agent_123".to_string(),
         task_id: "task_123".to_string(),
         registered_at: "2026-03-23T12:00:00Z".to_string(),
@@ -57,9 +57,9 @@ async fn clear_agent_task_removes_cached_task() {
     let session_configuration = make_session_configuration_for_tests().await;
     let mut state = SessionState::new(session_configuration);
     let agent_task = RegisteredAgentTask {
-        binding_id: "chatgpt-account-account-123".to_string(),
-        chatgpt_account_id: "account-123".to_string(),
-        chatgpt_user_id: Some("user-123".to_string()),
+        binding_id: "provider-account-account-123".to_string(),
+        provider_account_id: "account-123".to_string(),
+        provider_user_id: Some("user-123".to_string()),
         agent_runtime_id: "agent_123".to_string(),
         task_id: "task_123".to_string(),
         registered_at: "2026-03-23T12:00:00Z".to_string(),
@@ -95,7 +95,7 @@ async fn set_rate_limits_defaults_limit_id_to_darwin_code_when_missing() {
             .latest_rate_limits
             .as_ref()
             .and_then(|v| v.limit_id.clone()),
-        Some("darwin-code".to_string())
+        Some("darwin_code".to_string())
     );
 }
 
@@ -136,7 +136,7 @@ async fn set_rate_limits_defaults_to_darwin_code_when_limit_id_missing_after_oth
             .latest_rate_limits
             .as_ref()
             .and_then(|v| v.limit_id.clone()),
-        Some("darwin-code".to_string())
+        Some("darwin_code".to_string())
     );
 }
 
@@ -146,8 +146,8 @@ async fn set_rate_limits_carries_credits_and_plan_type_from_darwin_code_to_darwi
     let mut state = SessionState::new(session_configuration);
 
     state.set_rate_limits(RateLimitSnapshot {
-        limit_id: Some("darwin-code".to_string()),
-        limit_name: Some("darwin-code".to_string()),
+        limit_id: Some("darwin_code".to_string()),
+        limit_name: Some("darwin_code".to_string()),
         primary: Some(RateLimitWindow {
             used_percent: 10.0,
             window_minutes: Some(60),

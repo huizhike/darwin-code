@@ -1,8 +1,8 @@
 use super::*;
-use darwin_code_protocol::config_types::WindowsSandboxLevel;
-use darwin_code_sandboxing::SandboxType;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_sandboxing::SandboxType;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -643,9 +643,9 @@ fn windows_restricted_token_supports_full_read_split_write_read_carveouts() {
         },
     ]);
 
-    // The legacy workspace-write root already protects top-level `.darwin-code`, so
-    // the restricted-token overlay only needs the extra read-only docs carveout.
-    let expected_deny_write_paths = vec![docs];
+    // The legacy workspace-write root protects top-level `.darwin_code`; the
+    // Windows overlay must carry that carveout plus the extra read-only docs path.
+    let expected_deny_write_paths = vec![cwd.join(".darwin_code"), docs];
 
     assert_eq!(
         resolve_windows_restricted_token_filesystem_overrides(
@@ -749,6 +749,7 @@ fn windows_elevated_supports_split_write_read_carveouts() {
             read_roots_override: None,
             write_roots_override: None,
             additional_deny_write_paths: vec![
+                temp_dir.path().abs().join(".darwin_code"),
                 darwin_code_utils_absolute_path::AbsolutePathBuf::from_absolute_path(expected_docs)
                     .expect("absolute docs"),
             ],
@@ -913,15 +914,16 @@ fn windows_elevated_rejects_reopened_writable_descendants() {
 
 #[test]
 fn process_exec_tool_call_uses_platform_sandbox_for_network_only_restrictions() {
-    let expected = darwin_code_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
-        .unwrap_or(SandboxType::None);
+    let expected =
+        darwin_code_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
+            .unwrap_or(SandboxType::None);
 
     assert_eq!(
         select_process_exec_tool_sandbox_type(
             &FileSystemSandboxPolicy::unrestricted(),
             NetworkSandboxPolicy::Restricted,
             darwin_code_protocol::config_types::WindowsSandboxLevel::Disabled,
-            /*enforce_managed_network*/ false,
+            /*enforce_network_policy*/ false,
         ),
         expected
     );

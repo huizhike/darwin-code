@@ -65,7 +65,10 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     Ok(())
 }
 
-async fn seed_stage1_output(state_db: &Arc<StateRuntime>, darwin_code_home: &Path) -> Result<ThreadId> {
+async fn seed_stage1_output(
+    state_db: &Arc<StateRuntime>,
+    darwin_code_home: &Path,
+) -> Result<ThreadId> {
     let now = Utc::now();
     let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
@@ -113,7 +116,8 @@ async fn seed_stage1_output(state_db: &Arc<StateRuntime>, darwin_code_home: &Pat
 }
 
 async fn init_state_db(darwin_code_home: &Path) -> Result<Arc<StateRuntime>> {
-    let state_db = StateRuntime::init(darwin_code_home.to_path_buf(), "mock_provider".into()).await?;
+    let state_db =
+        StateRuntime::init(darwin_code_home.to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;

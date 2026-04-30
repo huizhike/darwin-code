@@ -6,12 +6,12 @@ use std::path::PathBuf;
 
 use darwin_code_config::permissions_toml::FilesystemPermissionToml;
 use darwin_code_config::permissions_toml::FilesystemPermissionsToml;
+use darwin_code_config::permissions_toml::NetworkAccessConfig;
 use darwin_code_config::permissions_toml::NetworkToml;
+#[cfg(test)]
+use darwin_code_config::permissions_toml::NetworkUnixSocketPermission as ProxyNetworkUnixSocketPermission;
 use darwin_code_config::permissions_toml::PermissionProfileToml;
 use darwin_code_config::permissions_toml::PermissionsToml;
-use darwin_code_network_proxy::NetworkProxyConfig;
-#[cfg(test)]
-use darwin_code_network_proxy::NetworkUnixSocketPermission as ProxyNetworkUnixSocketPermission;
 use darwin_code_protocol::permissions::FileSystemAccessMode;
 use darwin_code_protocol::permissions::FileSystemPath;
 use darwin_code_protocol::permissions::FileSystemSandboxEntry;
@@ -20,12 +20,12 @@ use darwin_code_protocol::permissions::FileSystemSpecialPath;
 use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
-pub(crate) fn network_proxy_config_from_profile_network(
+pub(crate) fn network_access_config_from_profile_network(
     network: Option<&NetworkToml>,
-) -> NetworkProxyConfig {
+) -> NetworkAccessConfig {
     network.map_or_else(
-        NetworkProxyConfig::default,
-        NetworkToml::to_network_proxy_config,
+        NetworkAccessConfig::default,
+        NetworkToml::to_network_access_config,
     )
 }
 
@@ -104,14 +104,15 @@ pub(crate) fn compile_permission_profile(
 }
 
 /// Returns a list of paths that must be readable by shell tools in order
-/// for Darwin-Code to function. These should always be added to the
+/// for DarwinCode to function. These should always be added to the
 /// `FileSystemSandboxPolicy` for a thread.
 pub(crate) fn get_readable_roots_required_for_darwin_code_runtime(
     darwin_code_home: &Path,
     zsh_path: Option<&PathBuf>,
     main_execve_wrapper_exe: Option<&PathBuf>,
 ) -> Vec<AbsolutePathBuf> {
-    let arg0_root = AbsolutePathBuf::from_absolute_path(darwin_code_home.join("tmp").join("arg0")).ok();
+    let arg0_root =
+        AbsolutePathBuf::from_absolute_path(darwin_code_home.join("tmp").join("arg0")).ok();
     let zsh_path = zsh_path.and_then(|path| AbsolutePathBuf::from_absolute_path(path).ok());
     let execve_wrapper_root = main_execve_wrapper_exe.and_then(|path| {
         let path = AbsolutePathBuf::from_absolute_path(path).ok()?;
@@ -391,7 +392,7 @@ fn remove_trailing_glob_suffix(path: &str) -> &str {
 }
 
 // WARNING: keep this parser forward-compatible.
-// Adding a new `:special_path` must not make older Darwin-Code versions reject the
+// Adding a new `:special_path` must not make older DarwinCode versions reject the
 // config. Unknown values intentionally round-trip through
 // `FileSystemSpecialPath::Unknown` so they can be surfaced as warnings and
 // ignored, rather than aborting config load.
@@ -504,7 +505,7 @@ fn push_warning(startup_warnings: &mut Vec<String>, message: String) {
 
 fn missing_filesystem_entries_warning(profile_name: &str) -> String {
     format!(
-        "Permissions profile `{profile_name}` does not define any recognized filesystem entries for this version of Darwin-Code. Filesystem access will remain restricted. Upgrade Darwin-Code if this profile expects filesystem permissions."
+        "Permissions profile `{profile_name}` does not define any recognized filesystem entries for this version of DarwinCode. Filesystem access will remain restricted. Upgrade DarwinCode if this profile expects filesystem permissions."
     )
 }
 
@@ -519,11 +520,11 @@ fn maybe_push_unknown_special_path_warning(
         startup_warnings,
         match subpath.as_deref() {
             Some(subpath) => format!(
-                "Configured filesystem path `{path}` with nested entry `{}` is not recognized by this version of Darwin-Code and will be ignored. Upgrade Darwin-Code if this path is required.",
+                "Configured filesystem path `{path}` with nested entry `{}` is not recognized by this version of DarwinCode and will be ignored. Upgrade DarwinCode if this path is required.",
                 subpath.display()
             ),
             None => format!(
-                "Configured filesystem path `{path}` is not recognized by this version of Darwin-Code and will be ignored. Upgrade Darwin-Code if this path is required."
+                "Configured filesystem path `{path}` is not recognized by this version of DarwinCode and will be ignored. Upgrade DarwinCode if this path is required."
             ),
         },
     );

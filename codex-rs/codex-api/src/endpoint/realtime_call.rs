@@ -5,24 +5,23 @@ use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
 use bytes::Bytes;
-use codex_client::HttpTransport;
-use codex_client::RequestBody;
-use codex_client::RequestTelemetry;
+use darwin_code_client::HttpTransport;
+use darwin_code_client::RequestBody;
+use darwin_code_client::RequestTelemetry;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
 use http::header::CONTENT_TYPE;
 use http::header::LOCATION;
-use serde::Serialize;
 use serde_json::Value;
 use serde_json::to_string;
-use serde_json::to_value;
 use std::sync::Arc;
 use tracing::instrument;
 use tracing::trace;
 
-const MULTIPART_BOUNDARY: &str = "codex-realtime-call-boundary";
-const MULTIPART_CONTENT_TYPE: &str = "multipart/form-data; boundary=codex-realtime-call-boundary";
+const MULTIPART_BOUNDARY: &str = "darwin_code-realtime-call-boundary";
+const MULTIPART_CONTENT_TYPE: &str =
+    "multipart/form-data; boundary=darwin_code-realtime-call-boundary";
 
 pub struct RealtimeCallClient<T: HttpTransport> {
     session: EndpointSession<T>,
@@ -36,12 +35,6 @@ pub struct RealtimeCallClient<T: HttpTransport> {
 pub struct RealtimeCallResponse {
     pub sdp: String,
     pub call_id: String,
-}
-
-#[derive(Serialize)]
-struct BackendRealtimeCallRequest<'a> {
-    sdp: &'a str,
-    session: &'a Value,
 }
 
 impl<T: HttpTransport> RealtimeCallClient<T> {
@@ -59,10 +52,6 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
 
     fn path() -> &'static str {
         "realtime/calls"
-    }
-
-    fn uses_backend_request_shape(&self) -> bool {
-        self.session.provider().base_url.contains("/backend-api")
     }
 
     #[instrument(
@@ -127,22 +116,6 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
         if let Some(session) = session.as_object_mut() {
             session.remove("id");
         }
-        // TODO(aibrahim): Align the SIWC route with the API multipart shape and remove this branch.
-        if self.uses_backend_request_shape() {
-            let body = to_value(BackendRealtimeCallRequest {
-                sdp: &sdp,
-                session: &session,
-            })
-            .map_err(|err| ApiError::Stream(format!("failed to encode realtime call: {err}")))?;
-            let resp = self
-                .session
-                .execute(Method::POST, Self::path(), extra_headers, Some(body))
-                .await?;
-            let sdp = decode_sdp_response(resp.body.as_ref())?;
-            let call_id = decode_call_id_from_location(&resp.headers)?;
-            return Ok(RealtimeCallResponse { sdp, call_id });
-        }
-
         let session = to_string(&session).map_err(|err| ApiError::InvalidRequest {
             message: err.to_string(),
         })?;
@@ -227,11 +200,11 @@ mod tests {
     use crate::endpoint::realtime_websocket::RealtimeSessionMode;
     use crate::provider::RetryConfig;
     use async_trait::async_trait;
-    use codex_client::Request;
-    use codex_client::Response;
-    use codex_client::StreamResponse;
-    use codex_client::TransportError;
-    use codex_protocol::protocol::RealtimeVoice;
+    use darwin_code_client::Request;
+    use darwin_code_client::Response;
+    use darwin_code_client::StreamResponse;
+    use darwin_code_client::TransportError;
+    use darwin_code_protocol::protocol::RealtimeVoice;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
     use std::sync::Mutex;
@@ -370,7 +343,7 @@ mod tests {
             CapturingTransport::with_location("/v1/realtime/calls/calls/rtc_backend_test");
         let client = RealtimeCallClient::new(
             transport.clone(),
-            provider("https://chatgpt.com/backend-api/codex"),
+            provider("https://provider.test/v1"),
             Arc::new(DummyAuth),
         );
 
@@ -389,10 +362,7 @@ mod tests {
 
         let request = transport.last_request.lock().unwrap().clone().unwrap();
         assert_eq!(request.method, Method::POST);
-        assert_eq!(
-            request.url,
-            "https://chatgpt.com/backend-api/codex/realtime/calls"
-        );
+        assert_eq!(request.url, "https://provider.test/v1/realtime/calls");
         assert_eq!(
             request.body,
             Some(RequestBody::Raw(Bytes::from_static(b"v=offer\r\n")))
@@ -445,68 +415,19 @@ mod tests {
         assert_eq!(
             body,
             format!(
-                "--codex-realtime-call-boundary\r\n\
+                "--darwin_code-realtime-call-boundary\r\n\
                  Content-Disposition: form-data; name=\"sdp\"\r\n\
                  Content-Type: application/sdp\r\n\
                  \r\n\
                  v=offer\r\n\
                  \r\n\
-                 --codex-realtime-call-boundary\r\n\
+                 --darwin_code-realtime-call-boundary\r\n\
                  Content-Disposition: form-data; name=\"session\"\r\n\
                  Content-Type: application/json\r\n\
                  \r\n\
                  {session}\r\n\
-                 --codex-realtime-call-boundary--\r\n"
+                 --darwin_code-realtime-call-boundary--\r\n"
             )
-        );
-    }
-
-    #[tokio::test]
-    async fn sends_backend_session_call_as_json_body() {
-        let transport = CapturingTransport::new();
-        let client = RealtimeCallClient::new(
-            transport.clone(),
-            provider("https://chatgpt.com/backend-api/codex"),
-            Arc::new(DummyAuth),
-        );
-
-        let response = client
-            .create_with_session(
-                "v=offer\r\n".to_string(),
-                realtime_session_config("sess-backend"),
-            )
-            .await
-            .expect("request should succeed");
-
-        assert_eq!(
-            response,
-            RealtimeCallResponse {
-                sdp: "v=0\r\n".to_string(),
-                call_id: "rtc_test".to_string(),
-            }
-        );
-
-        let request = transport.last_request.lock().unwrap().clone().unwrap();
-        assert_eq!(request.method, Method::POST);
-        assert_eq!(
-            request.url,
-            "https://chatgpt.com/backend-api/codex/realtime/calls"
-        );
-        let mut expected_session = realtime_session_json(realtime_session_config("sess-backend"))
-            .expect("session should encode");
-        expected_session
-            .as_object_mut()
-            .expect("session should be an object")
-            .remove("id");
-        assert_eq!(
-            request.body,
-            Some(RequestBody::Json(
-                to_value(BackendRealtimeCallRequest {
-                    sdp: "v=offer\r\n",
-                    session: &expected_session,
-                })
-                .expect("request should encode")
-            ))
         );
     }
 

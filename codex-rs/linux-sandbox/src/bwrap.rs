@@ -22,11 +22,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::WritableRoot;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::error::CodexErr;
+use darwin_code_protocol::error::Result;
+use darwin_code_protocol::protocol::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::WritableRoot;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use globset::GlobBuilder;
 use globset::GlobSet;
 use globset::GlobSetBuilder;
@@ -997,14 +997,14 @@ fn find_first_non_existent_component(target_path: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::protocol::FileSystemAccessMode;
-    use codex_protocol::protocol::FileSystemPath;
-    use codex_protocol::protocol::FileSystemSandboxEntry;
-    use codex_protocol::protocol::FileSystemSandboxPolicy;
-    use codex_protocol::protocol::FileSystemSpecialPath;
-    use codex_protocol::protocol::ReadOnlyAccess;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::protocol::FileSystemAccessMode;
+    use darwin_code_protocol::protocol::FileSystemPath;
+    use darwin_code_protocol::protocol::FileSystemSandboxEntry;
+    use darwin_code_protocol::protocol::FileSystemSandboxPolicy;
+    use darwin_code_protocol::protocol::FileSystemSpecialPath;
+    use darwin_code_protocol::protocol::ReadOnlyAccess;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
@@ -1428,9 +1428,12 @@ mod tests {
                 "--bind".to_string(),
                 "/".to_string(),
                 "/".to_string(),
-                // Mask the default protected .codex subpath under that writable
-                // root. Because the root is `/` in this test, the carveout path
-                // appears as `/.codex`.
+                // Mask the default protected metadata subpaths under that
+                // writable root. Because the root is `/` in this test, the
+                // carveout paths appear at filesystem root.
+                "--ro-bind".to_string(),
+                "/dev/null".to_string(),
+                "/.darwin_code".to_string(),
                 "--ro-bind".to_string(),
                 "/dev/null".to_string(),
                 "/.codex".to_string(),

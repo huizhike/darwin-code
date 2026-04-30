@@ -5,8 +5,8 @@ use crate::ResponsesApiNamespaceTool;
 use crate::ResponsesApiTool;
 use crate::ToolName;
 use crate::ToolSpec;
-use codex_code_mode::CodeModeToolKind;
-use codex_code_mode::ToolDefinition as CodeModeToolDefinition;
+use darwin_code_code_mode::CodeModeToolKind;
+use darwin_code_code_mode::ToolDefinition as CodeModeToolDefinition;
 use std::collections::BTreeMap;
 
 /// Augment tool descriptions with code-mode-specific exec samples.
@@ -45,7 +45,7 @@ pub fn augment_tool_spec_for_code_mode(spec: ToolSpec) -> ToolSpec {
                             output_schema: tool.output_schema.clone(),
                         };
                         tool.description =
-                            codex_code_mode::augment_tool_definition(definition).description;
+                            darwin_code_code_mode::augment_tool_definition(definition).description;
                     }
                 }
             }
@@ -59,8 +59,8 @@ pub fn augment_tool_spec_for_code_mode(spec: ToolSpec) -> ToolSpec {
 /// including the code-mode-specific description sample.
 pub fn tool_spec_to_code_mode_tool_definition(spec: &ToolSpec) -> Option<CodeModeToolDefinition> {
     let definition = code_mode_tool_definition_for_spec(spec)?;
-    codex_code_mode::is_code_mode_nested_tool(&definition.name)
-        .then(|| codex_code_mode::augment_tool_definition(definition))
+    darwin_code_code_mode::is_code_mode_nested_tool(&definition.name)
+        .then(|| darwin_code_code_mode::augment_tool_definition(definition))
 }
 
 pub fn collect_code_mode_tool_definitions<'a>(
@@ -69,8 +69,8 @@ pub fn collect_code_mode_tool_definitions<'a>(
     let mut tool_definitions = specs
         .into_iter()
         .flat_map(code_mode_tool_definitions_for_spec)
-        .filter(|definition| codex_code_mode::is_code_mode_nested_tool(&definition.name))
-        .map(codex_code_mode::augment_tool_definition)
+        .filter(|definition| darwin_code_code_mode::is_code_mode_nested_tool(&definition.name))
+        .map(darwin_code_code_mode::augment_tool_definition)
         .collect::<Vec<_>>();
     tool_definitions.sort_by(|left, right| left.name.cmp(&right.name));
     tool_definitions.dedup_by(|left, right| left.name == right.name);
@@ -83,7 +83,7 @@ pub fn collect_code_mode_exec_prompt_tool_definitions<'a>(
     let mut tool_definitions = specs
         .into_iter()
         .flat_map(code_mode_tool_definitions_for_spec)
-        .filter(|definition| codex_code_mode::is_code_mode_nested_tool(&definition.name))
+        .filter(|definition| darwin_code_code_mode::is_code_mode_nested_tool(&definition.name))
         .collect::<Vec<_>>();
     tool_definitions.sort_by(|left, right| left.name.cmp(&right.name));
     tool_definitions.dedup_by(|left, right| left.name == right.name);
@@ -118,11 +118,11 @@ pub fn create_wait_tool() -> ToolSpec {
     ]);
 
     ToolSpec::Function(ResponsesApiTool {
-        name: codex_code_mode::WAIT_TOOL_NAME.to_string(),
+        name: darwin_code_code_mode::WAIT_TOOL_NAME.to_string(),
         description: format!(
             "Waits on a yielded `{}` cell and returns new output or completion.\n{}",
-            codex_code_mode::PUBLIC_TOOL_NAME,
-            codex_code_mode::build_wait_tool_description().trim()
+            darwin_code_code_mode::PUBLIC_TOOL_NAME,
+            darwin_code_code_mode::build_wait_tool_description().trim()
         ),
         strict: false,
         parameters: JsonSchema::object(
@@ -137,7 +137,7 @@ pub fn create_wait_tool() -> ToolSpec {
 
 pub fn create_code_mode_tool(
     enabled_tools: &[CodeModeToolDefinition],
-    namespace_descriptions: &BTreeMap<String, codex_code_mode::ToolNamespaceDescription>,
+    namespace_descriptions: &BTreeMap<String, darwin_code_code_mode::ToolNamespaceDescription>,
     code_mode_only: bool,
     deferred_tools_available: bool,
 ) -> ToolSpec {
@@ -152,8 +152,8 @@ SOURCE: /[\s\S]+/
 "#;
 
     ToolSpec::Freeform(FreeformTool {
-        name: codex_code_mode::PUBLIC_TOOL_NAME.to_string(),
-        description: codex_code_mode::build_exec_tool_description(
+        name: darwin_code_code_mode::PUBLIC_TOOL_NAME.to_string(),
+        description: darwin_code_code_mode::build_exec_tool_description(
             enabled_tools,
             namespace_descriptions,
             code_mode_only,
@@ -169,7 +169,7 @@ SOURCE: /[\s\S]+/
 
 fn augmented_description_for_spec(spec: &ToolSpec) -> Option<String> {
     code_mode_tool_definition_for_spec(spec)
-        .map(codex_code_mode::augment_tool_definition)
+        .map(darwin_code_code_mode::augment_tool_definition)
         .map(|definition| definition.description)
 }
 

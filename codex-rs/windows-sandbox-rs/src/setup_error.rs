@@ -1,6 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_utils_string::sanitize_metric_tag_value;
+use darwin_code_utils_string::sanitize_metric_tag_value;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;

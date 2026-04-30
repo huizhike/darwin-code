@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;

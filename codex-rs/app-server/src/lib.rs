@@ -1,13 +1,15 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
+#![recursion_limit = "256"]
 
+use codex_analytics::AppServerRpcTransport;
+use codex_feedback::CodexFeedback as DarwinCodeFeedback;
 use darwin_code_arg0::Arg0DispatchPaths;
 use darwin_code_core::config::Config;
 use darwin_code_core::config::ConfigBuilder;
-use darwin_code_core::config_loader::CloudRequirementsLoader;
 use darwin_code_core::config_loader::ConfigLayerStackOrdering;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
 use darwin_code_features::Feature;
-use darwin_code_login::AuthManager;
 use darwin_code_utils_cli::CliConfigOverrides;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -63,9 +65,11 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 mod app_server_tracing;
 mod bespoke_event_handling;
-mod darwin_code_message_processor;
+mod byok_connectors;
 mod command_exec;
 mod config_api;
+#[path = "codex_message_processor.rs"]
+mod darwin_code_message_processor;
 mod dynamic_tools;
 mod error_code;
 mod external_agent_config_api;
@@ -277,14 +281,14 @@ fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_darwin_code_folder } = &layer.name else {
+        let ConfigLayerSource::Project { dot_codex_folder } = &layer.name else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
             continue;
         };
         disabled_folders.push((
-            dot_darwin_code_folder.as_path().display().to_string(),
+            dot_codex_folder.as_path().display().to_string(),
             disabled_reason.clone(),
         ));
     }
@@ -355,7 +359,7 @@ pub async fn run_main_with_transport(
 ) -> IoResult<()> {
     let environment_manager = Arc::new(EnvironmentManager::from_env_with_runtime_paths(Some(
         ExecServerRuntimePaths::from_optional_paths(
-            arg0_paths.darwin_code_self_exe.clone(),
+            arg0_paths.codex_self_exe.clone(),
             arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         )?,
     )));
@@ -373,7 +377,7 @@ pub async fn run_main_with_transport(
             format!("error parsing -c overrides: {e}"),
         )
     })?;
-    let cloud_requirements = match ConfigBuilder::default()
+    let external_requirements = match ConfigBuilder::default()
         .cli_overrides(cli_kv_overrides.clone())
         .loader_overrides(loader_overrides.clone())
         .build()
@@ -383,11 +387,12 @@ pub async fn run_main_with_transport(
             let effective_toml = config.config_layer_stack.effective_config();
             match effective_toml.try_into() {
                 Ok(config_toml) => {
-                    if let Err(err) = darwin_code_core::personality_migration::maybe_migrate_personality(
-                        &config.darwin_code_home,
-                        &config_toml,
-                    )
-                    .await
+                    if let Err(err) =
+                        darwin_code_core::personality_migration::maybe_migrate_personality(
+                            &config.darwin_code_home,
+                            &config_toml,
+                        )
+                        .await
                     {
                         warn!(error = %err, "Failed to run personality migration");
                     }
@@ -397,18 +402,11 @@ pub async fn run_main_with_transport(
                 }
             }
 
-            let auth_manager =
-                AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
-            cloud_requirements_loader(
-                auth_manager,
-                config.chatgpt_base_url,
-                config.darwin_code_home.to_path_buf(),
-            )
+            ExternalRequirementsLoader::default()
         }
         Err(err) => {
-            warn!(error = %err, "Failed to preload config for cloud requirements");
-            // TODO(gt): Make cloud requirements preload failures blocking once we can fail-closed.
-            CloudRequirementsLoader::default()
+            warn!(error = %err, "Failed to preload config");
+            ExternalRequirementsLoader::default()
         }
     };
     let loader_overrides_for_config_api = loader_overrides.clone();
@@ -416,7 +414,7 @@ pub async fn run_main_with_transport(
     let config = match ConfigBuilder::default()
         .cli_overrides(cli_kv_overrides.clone())
         .loader_overrides(loader_overrides)
-        .cloud_requirements(cloud_requirements.clone())
+        .external_requirements(external_requirements.clone())
         .build()
         .await
     {
@@ -473,7 +471,7 @@ pub async fn run_main_with_transport(
     let otel = darwin_code_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
-        Some("darwin-code-app-server"),
+        Some("darwin_code-app-server"),
         default_analytics_enabled,
     )
     .map_err(|e| {
@@ -561,9 +559,6 @@ pub async fn run_main_with_transport(
         AppServerTransport::Off => {}
     }
 
-    let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
-
     let remote_control_enabled = config.features.enabled(Feature::RemoteControl);
     if transport_accept_handles.is_empty() && !remote_control_enabled {
         return Err(std::io::Error::new(
@@ -573,9 +568,7 @@ pub async fn run_main_with_transport(
     }
 
     let (remote_control_accept_handle, remote_control_handle) = start_remote_control(
-        config.chatgpt_base_url.clone(),
         state_db.clone(),
-        auth_manager.clone(),
         transport_event_tx.clone(),
         transport_shutdown_token.clone(),
         app_server_client_name_rx,
@@ -642,8 +635,6 @@ pub async fn run_main_with_transport(
     let processor_handle = tokio::spawn({
         let outgoing_message_sender = Arc::new(OutgoingMessageSender::new(outgoing_tx));
         let outbound_control_tx = outbound_control_tx;
-        let auth_manager =
-            AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
         let cli_overrides: Vec<(String, TomlValue)> = cli_kv_overrides.clone();
         let loader_overrides = loader_overrides_for_config_api;
         let processor = Arc::new(MessageProcessor::new(MessageProcessorArgs {
@@ -653,12 +644,11 @@ pub async fn run_main_with_transport(
             environment_manager,
             cli_overrides,
             loader_overrides,
-            cloud_requirements: cloud_requirements.clone(),
+            external_requirements: external_requirements.clone(),
             feedback: feedback.clone(),
             log_db,
             config_warnings,
             session_source,
-            auth_manager,
             rpc_transport: analytics_rpc_transport(transport),
             remote_control_handle: Some(remote_control_handle),
         }));

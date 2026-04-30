@@ -3,11 +3,8 @@ use std::sync::Arc;
 
 use darwin_code_api::Provider;
 use darwin_code_api::SharedAuthProvider;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
 
-use crate::auth::auth_manager_for_provider;
 use crate::auth::resolve_provider_auth;
 
 /// Runtime provider abstraction used by model execution.
@@ -20,28 +17,14 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Returns the configured provider metadata.
     fn info(&self) -> &ModelProviderInfo;
 
-    /// Returns the provider-scoped auth manager, when this provider uses one.
-    ///
-    /// TODO(celia-oai): Make auth manager access internal to this crate so callers
-    /// resolve provider-specific auth only through `ModelProvider`. We first need
-    /// to think through whether Darwin-Code should have a unified provider-specific auth
-    /// manager throughout the codebase; that is a larger refactor than this change.
-    fn auth_manager(&self) -> Option<Arc<AuthManager>>;
-
-    /// Returns the current provider-scoped auth value, if one is configured.
-    async fn auth(&self) -> Option<DarwinCodeAuth>;
-
     /// Returns provider configuration adapted for the API client.
     async fn api_provider(&self) -> darwin_code_protocol::error::Result<Provider> {
-        let auth = self.auth().await;
-        self.info()
-            .to_api_provider(auth.as_ref().map(DarwinCodeAuth::auth_mode))
+        self.info().to_api_provider()
     }
 
     /// Returns the auth provider used to attach request credentials.
     async fn api_auth(&self) -> darwin_code_protocol::error::Result<SharedAuthProvider> {
-        let auth = self.auth().await;
-        resolve_provider_auth(auth.as_ref(), self.info())
+        resolve_provider_auth(self.info())
     }
 }
 
@@ -49,14 +32,11 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
 pub type SharedModelProvider = Arc<dyn ModelProvider>;
 
 /// Creates the default runtime model provider for configured provider metadata.
-pub fn create_model_provider(
-    provider_info: ModelProviderInfo,
-    auth_manager: Option<Arc<AuthManager>>,
-) -> SharedModelProvider {
-    let auth_manager = auth_manager_for_provider(auth_manager, &provider_info);
+///
+/// Provider credentials are resolved only from `ModelProviderInfo`.
+pub fn create_model_provider(provider_info: ModelProviderInfo) -> SharedModelProvider {
     Arc::new(ConfiguredModelProvider {
         info: provider_info,
-        auth_manager,
     })
 }
 
@@ -64,7 +44,6 @@ pub fn create_model_provider(
 #[derive(Clone, Debug)]
 struct ConfiguredModelProvider {
     info: ModelProviderInfo,
-    auth_manager: Option<Arc<AuthManager>>,
 }
 
 #[async_trait::async_trait]
@@ -72,23 +51,13 @@ impl ModelProvider for ConfiguredModelProvider {
     fn info(&self) -> &ModelProviderInfo {
         &self.info
     }
-
-    fn auth_manager(&self) -> Option<Arc<AuthManager>> {
-        self.auth_manager.clone()
-    }
-
-    async fn auth(&self) -> Option<DarwinCodeAuth> {
-        match self.auth_manager.as_ref() {
-            Some(auth_manager) => auth_manager.auth().await,
-            None => None,
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU64;
 
+    use darwin_code_model_provider_info::WireApi;
     use darwin_code_protocol::config_types::ModelProviderAuthInfo;
 
     use super::*;
@@ -106,21 +75,36 @@ mod tests {
                     .expect("current dir should be absolute"),
             }),
             requires_openai_auth: false,
-            ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
+            ..ModelProviderInfo::create_openai_compatible_provider(
+                "Test BYOK".to_string(),
+                "https://api.openai.com/v1".to_string(),
+                WireApi::Responses,
+                "OPENAI_API_KEY".to_string(),
+            )
         }
     }
 
     #[test]
-    fn create_model_provider_builds_command_auth_manager_without_base_manager() {
-        let provider = create_model_provider(
-            provider_info_with_command_auth(),
-            /*auth_manager*/ None,
-        );
+    fn create_model_provider_preserves_configured_auth_metadata() {
+        let provider = create_model_provider(provider_info_with_command_auth());
 
-        let auth_manager = provider
-            .auth_manager()
-            .expect("command auth provider should have an auth manager");
+        assert!(provider.info().auth.is_some());
+    }
 
-        assert!(auth_manager.has_external_auth());
+    #[tokio::test]
+    async fn api_provider_uses_configured_byok_boundary() {
+        let provider = create_model_provider(ModelProviderInfo::create_openai_compatible_provider(
+            "Test BYOK".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            WireApi::Responses,
+            "OPENAI_API_KEY".to_string(),
+        ));
+
+        let api_provider = provider
+            .api_provider()
+            .await
+            .expect("provider config should resolve");
+
+        assert_eq!(api_provider.base_url, "https://api.openai.com/v1");
     }
 }

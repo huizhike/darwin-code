@@ -4,13 +4,6 @@ use std::fs;
 use std::sync::Arc;
 
 use anyhow::Result;
-use darwin_code_config::types::Personality;
-use darwin_code_features::Feature;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -25,6 +18,13 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_config::types::Personality;
+use darwin_code_features::Feature;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use serde_json::json;
 
 const PRETURN_CONTEXT_DIFF_CWD: &str = "PRETURN_CONTEXT_DIFF_CWD";
@@ -112,7 +112,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
     let preturn_context_diff_cwd = test.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&preturn_context_diff_cwd)?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "first turn".into(),
@@ -131,12 +131,12 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "second turn with context updates".into(),
@@ -155,7 +155,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
             personality: Some(Personality::Friendly),
         })
         .await?;
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -215,7 +215,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
         "# AGENTS two\n\n<INSTRUCTIONS>\nTurn two agents instructions.\n</INSTRUCTIONS>\n",
     )?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "first turn in agents_one".into(),
@@ -234,12 +234,12 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "second turn in agents_two".into(),
@@ -258,7 +258,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -298,7 +298,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = initial_builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -315,7 +315,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
         ]),
     )
     .await;
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "seed resume history".into(),
@@ -325,7 +325,10 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -350,7 +353,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
     let resume_override_cwd = resumed.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&resume_override_cwd)?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "resume and change personality".into(),
@@ -369,7 +372,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
             personality: Some(Personality::Friendly),
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -398,7 +401,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = initial_builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -415,7 +418,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         ]),
     )
     .await;
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "seed resume history".into(),
@@ -425,7 +428,10 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -445,7 +451,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
     let resume_override_cwd = resumed.cwd_path().join(PRETURN_CONTEXT_DIFF_CWD);
     fs::create_dir_all(&resume_override_cwd)?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: Some(resume_override_cwd),
             approval_policy: None,
@@ -461,7 +467,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         })
         .await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first resumed turn after model override".into(),
@@ -471,7 +477,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

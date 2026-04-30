@@ -1,7 +1,7 @@
 //! Public wrapper around the internal ChatComposer for simple, reusable text input.
 //!
 //! This exposes a minimal interface suitable for other crates (e.g.,
-//! darwin-code-cloud-tasks) to reuse the mature composer behavior: multi-line input,
+//! external task surfaces) to reuse the mature composer behavior: multi-line input,
 //! paste heuristics, Enter-to-submit, and Shift+Enter for newline.
 
 use crossterm::event::KeyEvent;

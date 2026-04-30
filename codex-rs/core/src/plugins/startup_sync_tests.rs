@@ -4,7 +4,7 @@ use crate::plugins::test_support::TEST_CURATED_PLUGIN_SHA;
 use crate::plugins::test_support::write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_openai_curated_marketplace;
-use darwin_code_login::DarwinCodeAuth;
+use crate::test_support::ByokTestAuth;
 use pretty_assertions::assert_eq;
 use std::io::Write;
 use std::path::Path;
@@ -135,7 +135,7 @@ fn assert_curated_gmail_repo(repo_path: &Path) {
     assert!(repo_path.join(".agents/plugins/marketplace.json").is_file());
     assert!(
         repo_path
-            .join("plugins/gmail/.darwin-code-plugin/plugin.json")
+            .join("plugins/gmail/.codex-plugin/plugin.json")
             .is_file()
     );
 }
@@ -225,11 +225,11 @@ if [ "$1" = "ls-remote" ]; then
 fi
 if [ "$1" = "clone" ]; then
   dest="$5"
-  mkdir -p "$dest/.git" "$dest/.agents/plugins" "$dest/plugins/gmail/.darwin-code-plugin"
+  mkdir -p "$dest/.git" "$dest/.agents/plugins" "$dest/plugins/gmail/.codex-plugin"
   cat > "$dest/.agents/plugins/marketplace.json" <<'EOF'
 {{"name":"openai-curated","plugins":[{{"name":"gmail","source":{{"source":"local","path":"./plugins/gmail"}}}}]}}
 EOF
-  printf '%s\n' '{{"name":"gmail"}}' > "$dest/plugins/gmail/.darwin-code-plugin/plugin.json"
+  printf '%s\n' '{{"name":"gmail"}}' > "$dest/plugins/gmail/.codex-plugin/plugin.json"
   exit 0
 fi
 if [ "$1" = "-C" ] && [ "$3" = "rev-parse" ] && [ "$4" = "HEAD" ]; then
@@ -268,7 +268,7 @@ fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
     let work_repo = repo_root.path().join("work/plugins");
     let remote_repo = repo_root.path().join("remotes/openai/plugins.git");
     std::fs::create_dir_all(work_repo.join(".agents/plugins")).expect("create marketplace dir");
-    std::fs::create_dir_all(work_repo.join("plugins/gmail/.darwin-code-plugin"))
+    std::fs::create_dir_all(work_repo.join("plugins/gmail/.codex-plugin"))
         .expect("create plugin dir");
     std::fs::write(
         work_repo.join(".agents/plugins/marketplace.json"),
@@ -276,7 +276,7 @@ fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
     )
     .expect("write marketplace");
     std::fs::write(
-        work_repo.join("plugins/gmail/.darwin-code-plugin/plugin.json"),
+        work_repo.join("plugins/gmail/.codex-plugin/plugin.json"),
         r#"{"name":"gmail"}"#,
     )
     .expect("write plugin manifest");
@@ -302,9 +302,9 @@ fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
         .arg("-C")
         .arg(&work_repo)
         .arg("-c")
-        .arg("user.name=Darwin-Code Test")
+        .arg("user.name=DarwinCode Test")
         .arg("-c")
-        .arg("user.email=darwin-code@example.com")
+        .arg("user.email=darwin_code@example.com")
         .arg("commit")
         .arg("-m")
         .arg("init")
@@ -557,7 +557,7 @@ async fn sync_openai_plugins_repo_skips_export_archive_when_snapshot_exists() {
     write_openai_curated_marketplace(&curated_root, &["linear"]);
     write_curated_plugin_sha(tmp.path());
 
-    let plugin_manifest_path = curated_root.join("plugins/linear/.darwin-code-plugin/plugin.json");
+    let plugin_manifest_path = curated_root.join("plugins/linear/.codex-plugin/plugin.json");
     let original_manifest =
         std::fs::read_to_string(&plugin_manifest_path).expect("read existing plugin manifest");
 
@@ -637,77 +637,6 @@ fn read_extracted_backup_archive_git_sha_rejects_path_traversal_ref() {
 
     assert!(err.contains("invalid path components"));
 }
-
-#[tokio::test]
-async fn startup_remote_plugin_sync_writes_marker_and_reconciles_state() {
-    let tmp = tempdir().expect("tempdir");
-    let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear"]);
-    write_curated_plugin_sha(tmp.path());
-    write_file(
-        &tmp.path().join(CONFIG_TOML_FILE),
-        r#"[features]
-plugins = true
-
-[plugins."linear@openai-curated"]
-enabled = false
-"#,
-    );
-
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/list"))
-        .and(header("authorization", "Bearer Access Token"))
-        .and(header("chatgpt-account-id", "account_id"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(
-            r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
-]"#,
-        ))
-        .mount(&server)
-        .await;
-
-    let mut config = crate::plugins::test_support::load_plugins_config(tmp.path()).await;
-    config.chatgpt_base_url = format!("{}/backend-api/", server.uri());
-    let manager = Arc::new(PluginsManager::new(tmp.path().to_path_buf()));
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
-
-    start_startup_remote_plugin_sync_once(
-        Arc::clone(&manager),
-        tmp.path().to_path_buf(),
-        config,
-        auth_manager,
-    );
-
-    let marker_path = tmp.path().join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE);
-    tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            if marker_path.is_file() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await
-    .expect("marker should be written");
-
-    assert!(
-        tmp.path()
-            .join(format!(
-                "plugins/cache/openai-curated/linear/{TEST_CURATED_PLUGIN_SHA}"
-            ))
-            .is_dir()
-    );
-    let config =
-        std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("config should exist");
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
-    assert!(config.contains("enabled = true"));
-
-    let marker_contents = std::fs::read_to_string(marker_path).expect("marker should be readable");
-    assert_eq!(marker_contents, "ok\n");
-}
-
 fn curated_repo_zipball_bytes(sha: &str) -> Vec<u8> {
     let cursor = std::io::Cursor::new(Vec::new());
     let mut writer = ZipWriter::new(cursor);
@@ -734,7 +663,7 @@ fn curated_repo_zipball_bytes(sha: &str) -> Vec<u8> {
         .expect("write marketplace");
     writer
         .start_file(
-            format!("{root}/plugins/gmail/.darwin-code-plugin/plugin.json"),
+            format!("{root}/plugins/gmail/.codex-plugin/plugin.json"),
             options,
         )
         .expect("start plugin manifest entry");
@@ -782,7 +711,7 @@ fn curated_repo_backup_archive_zip_bytes(sha: &str) -> Vec<u8> {
         )
         .expect("write marketplace");
     writer
-        .start_file("plugins/plugins/gmail/.darwin-code-plugin/plugin.json", options)
+        .start_file("plugins/plugins/gmail/.codex-plugin/plugin.json", options)
         .expect("start plugin manifest entry");
     writer
         .write_all(br#"{"name":"gmail"}"#)

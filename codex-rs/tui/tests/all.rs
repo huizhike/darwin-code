@@ -3,6 +3,6 @@
 mod test_backend;
 
 #[allow(unused_imports)]
-use darwin_code_cli as _; // Keep dev-dep for cargo-shear; tests spawn the darwin-code binary.
+use darwin_code_cli as _; // Keep dev-dep for cargo-shear; tests spawn the darwin_code binary.
 
 mod suite;

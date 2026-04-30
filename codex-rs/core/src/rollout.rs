@@ -25,7 +25,7 @@ pub use darwin_code_rollout::read_session_meta_line;
 pub use darwin_code_rollout::rollout_date_parts;
 
 impl darwin_code_rollout::RolloutConfigView for Config {
-    fn darwin_code_home(&self) -> &std::path::Path {
+    fn codex_home(&self) -> &std::path::Path {
         self.darwin_code_home.as_path()
     }
 

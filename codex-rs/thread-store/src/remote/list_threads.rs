@@ -58,8 +58,8 @@ pub(super) async fn list_threads(
 mod tests {
     use std::path::PathBuf;
 
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::protocol::SessionSource;
+    use darwin_code_protocol::openai_models::ReasoningEffort;
+    use darwin_code_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use tonic::Request;
     use tonic::Response;

@@ -1,17 +1,18 @@
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use std::path::Path;
 
 /// Basename used when the Codex executable self-invokes as the Linux sandbox
 /// helper.
 pub const CODEX_LINUX_SANDBOX_ARG0: &str = "codex-linux-sandbox";
+pub const DARWIN_CODE_LINUX_SANDBOX_ARG0: &str = CODEX_LINUX_SANDBOX_ARG0;
 
-pub fn allow_network_for_proxy(enforce_managed_network: bool) -> bool {
-    // When managed network requirements are active, request proxy-only
+pub fn allow_network_for_network_policy(enforce_network_policy: bool) -> bool {
+    // When network policy requirements are active, request proxy-only
     // networking from the Linux sandbox helper. Without managed requirements,
     // preserve existing behavior.
-    enforce_managed_network
+    enforce_network_policy
 }
 
 /// Converts the sandbox policies into the CLI invocation for
@@ -30,7 +31,7 @@ pub fn create_linux_sandbox_command_args_for_policies(
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox_policy_cwd: &Path,
     use_legacy_landlock: bool,
-    allow_network_for_proxy: bool,
+    allow_network_for_network_policy: bool,
 ) -> Vec<String> {
     let sandbox_policy_json = serde_json::to_string(sandbox_policy)
         .unwrap_or_else(|err| panic!("failed to serialize sandbox policy: {err}"));
@@ -62,7 +63,7 @@ pub fn create_linux_sandbox_command_args_for_policies(
     if use_legacy_landlock {
         linux_cmd.push("--use-legacy-landlock".to_string());
     }
-    if allow_network_for_proxy {
+    if allow_network_for_network_policy {
         linux_cmd.push("--allow-network-for-proxy".to_string());
     }
     linux_cmd.push("--".to_string());
@@ -78,7 +79,7 @@ fn create_linux_sandbox_command_args(
     command_cwd: &Path,
     sandbox_policy_cwd: &Path,
     use_legacy_landlock: bool,
-    allow_network_for_proxy: bool,
+    allow_network_for_network_policy: bool,
 ) -> Vec<String> {
     let command_cwd = command_cwd
         .to_str()
@@ -98,7 +99,7 @@ fn create_linux_sandbox_command_args(
     if use_legacy_landlock {
         linux_cmd.push("--use-legacy-landlock".to_string());
     }
-    if allow_network_for_proxy {
+    if allow_network_for_network_policy {
         linux_cmd.push("--allow-network-for-proxy".to_string());
     }
 

@@ -34,12 +34,12 @@ fn normalize_absolute_path_for_platform_simplifies_windows_verbatim_paths() {
 async fn restricted_read_implicitly_allows_helper_executables() -> std::io::Result<()> {
     let temp_dir = TempDir::new()?;
     let cwd = temp_dir.path().join("workspace");
-    let darwin_code_home = temp_dir.path().join(".darwin-code");
+    let darwin_code_home = temp_dir.path().join(".darwin_code");
     let zsh_path = temp_dir.path().join("runtime").join("zsh");
     let arg0_root = darwin_code_home.join("tmp").join("arg0");
-    let allowed_arg0_dir = arg0_root.join("darwin-code-arg0-session");
-    let sibling_arg0_dir = arg0_root.join("darwin-code-arg0-other-session");
-    let execve_wrapper = allowed_arg0_dir.join("darwin-code-execve-wrapper");
+    let allowed_arg0_dir = arg0_root.join("darwin_code-arg0-session");
+    let sibling_arg0_dir = arg0_root.join("darwin_code-arg0-other-session");
+    let execve_wrapper = allowed_arg0_dir.join("darwin_code-execve-wrapper");
     std::fs::create_dir_all(&cwd)?;
     std::fs::create_dir_all(zsh_path.parent().expect("zsh path should have parent"))?;
     std::fs::create_dir_all(&allowed_arg0_dir)?;
@@ -167,7 +167,7 @@ fn network_permission_containers_project_allowed_and_denied_entries() {
 
 #[test]
 fn network_toml_overlays_unix_socket_permissions_by_path() {
-    let mut config = NetworkProxyConfig::default();
+    let mut config = NetworkAccessConfig::default();
 
     NetworkToml {
         unix_sockets: Some(NetworkUnixSocketPermissionsToml {
@@ -184,7 +184,7 @@ fn network_toml_overlays_unix_socket_permissions_by_path() {
         }),
         ..Default::default()
     }
-    .apply_to_network_proxy_config(&mut config);
+    .apply_to_network_access_config(&mut config);
 
     NetworkToml {
         unix_sockets: Some(NetworkUnixSocketPermissionsToml {
@@ -201,26 +201,28 @@ fn network_toml_overlays_unix_socket_permissions_by_path() {
         }),
         ..Default::default()
     }
-    .apply_to_network_proxy_config(&mut config);
+    .apply_to_network_access_config(&mut config);
 
     assert_eq!(
         config.network.unix_sockets,
-        Some(darwin_code_network_proxy::NetworkUnixSocketPermissions {
-            entries: BTreeMap::from([
-                (
-                    "/tmp/base.sock".to_string(),
-                    ProxyNetworkUnixSocketPermission::Allow,
-                ),
-                (
-                    "/tmp/extra.sock".to_string(),
-                    ProxyNetworkUnixSocketPermission::Allow,
-                ),
-                (
-                    "/tmp/override.sock".to_string(),
-                    ProxyNetworkUnixSocketPermission::None,
-                ),
-            ]),
-        })
+        Some(
+            darwin_code_config::permissions_toml::NetworkUnixSocketPermissions {
+                entries: BTreeMap::from([
+                    (
+                        "/tmp/base.sock".to_string(),
+                        ProxyNetworkUnixSocketPermission::Allow,
+                    ),
+                    (
+                        "/tmp/extra.sock".to_string(),
+                        ProxyNetworkUnixSocketPermission::Allow,
+                    ),
+                    (
+                        "/tmp/override.sock".to_string(),
+                        ProxyNetworkUnixSocketPermission::None,
+                    ),
+                ]),
+            }
+        )
     );
 }
 

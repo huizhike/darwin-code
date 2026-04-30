@@ -21,8 +21,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use toml::Value as TomlValue;
 
-const EXTERNAL_AGENT_CONFIG_DETECT_METRIC: &str = "darwin-code.external_agent_config.detect";
-const EXTERNAL_AGENT_CONFIG_IMPORT_METRIC: &str = "darwin-code.external_agent_config.import";
+const EXTERNAL_AGENT_CONFIG_DETECT_METRIC: &str = "darwin_code.external_agent_config.detect";
+const EXTERNAL_AGENT_CONFIG_IMPORT_METRIC: &str = "darwin_code.external_agent_config.import";
 const EXTERNAL_AGENT_DIR: &str = ".claude";
 const EXTERNAL_AGENT_CONFIG_MD: &str = "CLAUDE.md";
 
@@ -192,7 +192,7 @@ impl ExternalAgentConfigService {
         let settings = read_external_settings(&source_settings)?;
         let target_config = repo_root.map_or_else(
             || self.darwin_code_home.join("config.toml"),
-            |repo_root| repo_root.join(".darwin-code").join("config.toml"),
+            |repo_root| repo_root.join(".darwin_code").join("config.toml"),
         );
         if let Some(settings) = settings.as_ref() {
             let migrated = build_config_from_external(settings)?;
@@ -445,7 +445,8 @@ impl ExternalAgentConfigService {
                 ref_name: import_source.ref_name,
                 sparse_paths: Vec::new(),
             };
-            let add_marketplace_outcome = add_marketplace(self.darwin_code_home.clone(), request).await;
+            let add_marketplace_outcome =
+                add_marketplace(self.darwin_code_home.clone(), request).await;
             let marketplace_path = match add_marketplace_outcome {
                 Ok(add_marketplace_outcome) => {
                     let Some(marketplace_path) = find_marketplace_manifest_path(
@@ -491,7 +492,7 @@ impl ExternalAgentConfigService {
         let (source_settings, target_config) = if let Some(repo_root) = find_repo_root(cwd)? {
             (
                 repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
-                repo_root.join(".darwin-code").join("config.toml"),
+                repo_root.join(".darwin_code").join("config.toml"),
             )
         } else if cwd.is_some_and(|cwd| !cwd.as_os_str().is_empty()) {
             return Ok(());
@@ -728,7 +729,7 @@ fn configured_marketplace_plugins(
                     .policy
                     .products
                     .as_deref()
-                    .is_none_or(|products| Product::Darwin-Code.matches_product_restriction(products))
+                    .is_none_or(|products| Product::Codex.matches_product_restriction(products))
             })
             .map(|plugin| plugin.name)
             .collect::<HashSet<_>>();
@@ -949,7 +950,7 @@ fn rewrite_external_agent_terms(content: &str) -> String {
         "claudecode",
         "claude",
     ] {
-        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "Darwin-Code");
+        rewritten = replace_case_insensitive_with_boundaries(&rewritten, from, "DarwinCode");
     }
     rewritten
 }

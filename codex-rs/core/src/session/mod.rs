@@ -15,11 +15,10 @@ use crate::agent::agent_status_from_event;
 use crate::agent::status::is_final;
 use crate::agent_identity::AgentIdentityManager;
 use crate::agent_identity::RegisteredAgentTask;
-use crate::apps::render_apps_section;
 use crate::commit_attribution::commit_message_trailer_instruction;
 use crate::compact;
 use crate::config::ManagedFeatures;
-use crate::connectors;
+use crate::config::NetworkAccessAuditMetadata;
 use crate::default_skill_metadata_budget;
 use crate::exec_policy::ExecPolicyManager;
 use crate::installation_id::resolve_installation_id;
@@ -36,9 +35,11 @@ use async_channel::Receiver;
 use async_channel::Sender;
 use chrono::Local;
 use chrono::Utc;
-use darwin_code_app_server_protocol::AuthMode;
+use codex_analytics::AnalyticsEventsClient;
+use codex_analytics::SubAgentThreadStartedInput;
 use darwin_code_app_server_protocol::McpServerElicitationRequest;
 use darwin_code_app_server_protocol::McpServerElicitationRequestParams;
+use darwin_code_client::originator;
 use darwin_code_config::types::OAuthCredentialsStoreMode;
 use darwin_code_exec_server::Environment;
 use darwin_code_exec_server::EnvironmentManager;
@@ -48,10 +49,6 @@ use darwin_code_features::Feature;
 use darwin_code_features::unstable_features_warning_event;
 use darwin_code_hooks::Hooks;
 use darwin_code_hooks::HooksConfig;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_login::auth_env_telemetry::collect_auth_env_telemetry;
-use darwin_code_login::default_client::originator;
 use darwin_code_mcp::McpConnectionManager;
 use darwin_code_mcp::ToolInfo;
 use darwin_code_mcp::darwin_code_apps_tools_cache_key;
@@ -59,9 +56,6 @@ use darwin_code_mcp::darwin_code_apps_tools_cache_key;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_models_manager::manager::ModelsManager;
 use darwin_code_models_manager::manager::RefreshStrategy;
-use darwin_code_network_proxy::NetworkProxy;
-use darwin_code_network_proxy::NetworkProxyAuditMetadata;
-use darwin_code_network_proxy::normalize_host;
 use darwin_code_otel::current_span_trace_id;
 use darwin_code_otel::current_span_w3c_trace_context;
 use darwin_code_otel::set_parent_from_w3c_trace_context;
@@ -110,6 +104,7 @@ use darwin_code_protocol::request_user_input::RequestUserInputResponse;
 use darwin_code_rmcp_client::ElicitationResponse;
 use darwin_code_rollout::RolloutConfig;
 use darwin_code_rollout::state_db;
+use darwin_code_sandboxing::NetworkAccessRuntime;
 use darwin_code_shell_command::parse_command::parse_command;
 use darwin_code_terminal_detection::user_agent;
 use darwin_code_thread_store::LocalThreadStore;
@@ -141,16 +136,15 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::ModelClient;
-use crate::darwin_code_thread::ThreadConfigSnapshot;
 use crate::compact::collect_user_messages;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ConstraintResult;
 use crate::config::GhostSnapshotConfig;
-use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
 use crate::context_manager::TotalTokenUsageBreakdown;
+use crate::darwin_code_thread::ThreadConfigSnapshot;
 use crate::environment_context::EnvironmentContext;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
 use darwin_code_config::CONFIG_TOML_FILE;
@@ -203,11 +197,11 @@ impl SteerInputError {
         match self {
             Self::NoActiveTurn(_) => ErrorEvent {
                 message: "no active turn to steer".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
             Self::ExpectedTurnMismatch { expected, actual } => ErrorEvent {
                 message: format!("expected active turn id `{expected}` but found `{actual}`"),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
             Self::ActiveTurnNotSteerable { turn_kind } => {
                 let turn_kind_label = match turn_kind {
@@ -216,14 +210,14 @@ impl SteerInputError {
                 };
                 ErrorEvent {
                     message: format!("cannot steer a {turn_kind_label} turn"),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+                    codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                         turn_kind: *turn_kind,
                     }),
                 }
             }
             Self::EmptyInput => ErrorEvent {
                 message: "input must not be empty".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             },
         }
     }
@@ -251,7 +245,6 @@ use crate::guardian::GuardianReviewSessionManager;
 use crate::instructions::UserInstructions;
 use crate::mcp::McpManager;
 use crate::memories;
-use crate::network_policy_decision::execpolicy_network_rule_amendment;
 use crate::plugins::PluginsManager;
 use crate::plugins::render_plugins_section;
 use crate::rollout::RolloutRecorder;
@@ -279,8 +272,6 @@ use crate::tasks::SessionTaskContext;
 use crate::tools::js_repl::JsReplHandle;
 use crate::tools::js_repl::resolve_compatible_node;
 use crate::tools::network_approval::NetworkApprovalService;
-use crate::tools::network_approval::build_blocked_request_observer;
-use crate::tools::network_approval::build_network_policy_decider;
 #[cfg(test)]
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::sandboxing::ApprovalStore;
@@ -293,7 +284,6 @@ use darwin_code_mcp::compute_auth_statuses;
 use darwin_code_mcp::with_darwin_code_apps_mcp;
 use darwin_code_otel::SessionTelemetry;
 use darwin_code_otel::THREAD_STARTED_METRIC;
-use darwin_code_otel::TelemetryAuthMode;
 use darwin_code_protocol::config_types::CollaborationMode;
 use darwin_code_protocol::config_types::Personality;
 use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
@@ -307,8 +297,8 @@ use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfi
 use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use darwin_code_protocol::protocol::AskForApproval;
 use darwin_code_protocol::protocol::BackgroundEventEvent;
-use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::DeprecationNoticeEvent;
 use darwin_code_protocol::protocol::ErrorEvent;
 use darwin_code_protocol::protocol::Event;
@@ -326,7 +316,6 @@ use darwin_code_protocol::protocol::RequestUserInputEvent;
 use darwin_code_protocol::protocol::ReviewDecision;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::protocol::SessionConfiguredEvent;
-use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
 use darwin_code_protocol::protocol::SkillDependencies as ProtocolSkillDependencies;
 use darwin_code_protocol::protocol::SkillErrorInfo;
 use darwin_code_protocol::protocol::SkillInterface as ProtocolSkillInterface;
@@ -347,9 +336,9 @@ use darwin_code_utils_readiness::ReadinessFlag;
 #[cfg(test)]
 use darwin_code_utils_stream_parser::ProposedPlanSegment;
 
-/// The high-level interface to the Darwin-Code system.
+/// The high-level interface to the DarwinCode system.
 /// It operates as a queue pair where you send submissions and receive events.
-pub struct Darwin-Code {
+pub struct DarwinCode {
     pub(crate) tx_sub: Sender<Submission>,
     pub(crate) rx_event: Receiver<Event>,
     // Last known status of the agent.
@@ -364,16 +353,15 @@ pub(crate) type SessionLoopTermination = Shared<BoxFuture<'static, ()>>;
 
 pub(crate) const THREAD_START_SKILLS_TRIMMED_WARNING_MESSAGE: &str = "Some enabled skills were not included in the model-visible skills list for this session. Mention a skill by name or path if you need it.";
 
-/// Wrapper returned by [`Darwin-Code::spawn`] containing the spawned [`Darwin-Code`] and
+/// Wrapper returned by [`DarwinCode::spawn`] containing the spawned [`DarwinCode`] and
 /// the unique session id.
 pub struct DarwinCodeSpawnOk {
-    pub darwin-code: Darwin-Code,
+    pub darwin_code: DarwinCode,
     pub thread_id: ThreadId,
 }
 
 pub(crate) struct DarwinCodeSpawnArgs {
     pub(crate) config: Config,
-    pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) models_manager: Arc<ModelsManager>,
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     pub(crate) skills_manager: Arc<SkillsManager>,
@@ -395,11 +383,11 @@ pub(crate) struct DarwinCodeSpawnArgs {
 
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
 pub(crate) const SUBMISSION_CHANNEL_CAPACITY: usize = 512;
-const CYBER_VERIFY_URL: &str = "https://chatgpt.com/cyber";
-const CYBER_SAFETY_URL: &str = "https://developers.openai.com/darwin-code/concepts/cyber-safety";
+const CYBER_VERIFY_URL: &str = "https://example.invalid/cyber";
+const CYBER_SAFETY_URL: &str = "https://developers.openai.com/darwin_code/concepts/cyber-safety";
 
-impl Darwin-Code {
-    /// Spawn a new [`Darwin-Code`] and initialize the session.
+impl DarwinCode {
+    /// Spawn a new [`DarwinCode`] and initialize the session.
     pub(crate) async fn spawn(args: DarwinCodeSpawnArgs) -> DarwinCodeResult<DarwinCodeSpawnOk> {
         let parent_trace = match args.parent_trace {
             Some(trace) => {
@@ -427,7 +415,6 @@ impl Darwin-Code {
     async fn spawn_internal(args: DarwinCodeSpawnArgs) -> DarwinCodeResult<DarwinCodeSpawnOk> {
         let DarwinCodeSpawnArgs {
             mut config,
-            auth_manager,
             models_manager,
             environment_manager,
             skills_manager,
@@ -525,7 +512,9 @@ impl Darwin-Code {
 
         let config = Arc::new(config);
         let refresh_strategy = match session_source {
-            SessionSource::SubAgent(_) => darwin_code_models_manager::manager::RefreshStrategy::Offline,
+            SessionSource::SubAgent(_) => {
+                darwin_code_models_manager::manager::RefreshStrategy::Offline
+            }
             _ => darwin_code_models_manager::manager::RefreshStrategy::OnlineIfUncached,
         };
         if config.model.is_none()
@@ -564,8 +553,12 @@ impl Darwin-Code {
             match thread_id {
                 Some(thread_id) => {
                     let state_db_ctx = state_db::get_state_db(&config).await;
-                    state_db::get_dynamic_tools(state_db_ctx.as_deref(), thread_id, "darwin_code_spawn")
-                        .await
+                    state_db::get_dynamic_tools(
+                        state_db_ctx.as_deref(),
+                        thread_id,
+                        "darwin_code_spawn",
+                    )
+                    .await
                 }
                 None => None,
             }
@@ -620,14 +613,13 @@ impl Darwin-Code {
             user_shell_override,
         };
 
-        // Generate a unique ID for the lifetime of this Darwin-Code session.
+        // Generate a unique ID for the lifetime of this DarwinCode session.
         let session_source_clone = session_configuration.session_source.clone();
         let (agent_status_tx, agent_status_rx) = watch::channel(AgentStatus::PendingInit);
 
         let session = Session::new(
             session_configuration,
             config.clone(),
-            auth_manager.clone(),
             models_manager.clone(),
             exec_policy,
             tx_event.clone(),
@@ -656,7 +648,7 @@ impl Darwin-Code {
                 .instrument(info_span!("session_loop", thread_id = %thread_id))
                 .await;
         });
-        let darwin-code = Darwin-Code {
+        let darwin_code = DarwinCode {
             tx_sub,
             rx_event,
             agent_status: agent_status_rx,
@@ -664,7 +656,10 @@ impl Darwin-Code {
             session_loop_termination: session_loop_termination_from_handle(session_loop_handle),
         };
 
-        Ok(DarwinCodeSpawnOk { darwin-code, thread_id })
+        Ok(DarwinCodeSpawnOk {
+            darwin_code,
+            thread_id,
+        })
     }
 
     /// Submit the `op` wrapped in a `Submission` with a unique ID.
@@ -687,7 +682,7 @@ impl Darwin-Code {
         Ok(id)
     }
 
-    /// Use sparingly: prefer `submit()` so Darwin-Code is responsible for generating
+    /// Use sparingly: prefer `submit()` so DarwinCode is responsible for generating
     /// unique IDs for each submission.
     pub async fn submit_with_id(&self, mut sub: Submission) -> DarwinCodeResult<()> {
         if sub.trace.is_none() {
@@ -821,11 +816,7 @@ impl Session {
         }
     }
 
-    fn managed_network_proxy_active_for_sandbox_policy(sandbox_policy: &SandboxPolicy) -> bool {
-        !matches!(sandbox_policy, SandboxPolicy::DangerFullAccess)
-    }
-
-    /// Builds the `x-darwin-code-beta-features` header value for this session.
+    /// Builds the `x-darwin_code-beta-features` header value for this session.
     ///
     /// `ModelClient` is session-scoped and intentionally does not depend on the full `Config`, so
     /// we precompute the comma-separated list of enabled experimental feature keys at session
@@ -852,85 +843,7 @@ impl Session {
         }
     }
 
-    async fn start_managed_network_proxy(
-        spec: &crate::config::NetworkProxySpec,
-        exec_policy: &darwin_code_execpolicy::Policy,
-        sandbox_policy: &SandboxPolicy,
-        network_policy_decider: Option<Arc<dyn darwin_code_network_proxy::NetworkPolicyDecider>>,
-        blocked_request_observer: Option<Arc<dyn darwin_code_network_proxy::BlockedRequestObserver>>,
-        managed_network_requirements_enabled: bool,
-        audit_metadata: NetworkProxyAuditMetadata,
-    ) -> anyhow::Result<(StartedNetworkProxy, SessionNetworkProxyRuntime)> {
-        let spec = spec
-            .with_exec_policy_network_rules(exec_policy)
-            .map_err(|err| {
-                tracing::warn!(
-                    "failed to apply execpolicy network rules to managed proxy; continuing with configured network policy: {err}"
-                );
-                err
-            })
-            .unwrap_or_else(|_| spec.clone());
-        let network_proxy = spec
-            .start_proxy(
-                sandbox_policy,
-                network_policy_decider,
-                blocked_request_observer,
-                managed_network_requirements_enabled,
-                audit_metadata,
-            )
-            .await
-            .map_err(|err| anyhow::anyhow!("failed to start managed network proxy: {err}"))?;
-        let session_network_proxy = {
-            let proxy = network_proxy.proxy();
-            SessionNetworkProxyRuntime {
-                http_addr: proxy.http_addr().to_string(),
-                socks_addr: proxy.socks_addr().to_string(),
-            }
-        };
-        Ok((network_proxy, session_network_proxy))
-    }
-
-    async fn refresh_managed_network_proxy_for_current_sandbox_policy(&self) {
-        let Some(started_proxy) = self.services.network_proxy.as_ref() else {
-            return;
-        };
-        let _refresh_guard = self.managed_network_proxy_refresh_lock.lock().await;
-        let session_configuration = {
-            let state = self.state.lock().await;
-            state.session_configuration.clone()
-        };
-        let Some(spec) = session_configuration
-            .original_config_do_not_use
-            .permissions
-            .network
-            .as_ref()
-        else {
-            return;
-        };
-
-        let spec = match spec
-            .recompute_for_sandbox_policy(session_configuration.sandbox_policy.get())
-        {
-            Ok(spec) => spec,
-            Err(err) => {
-                warn!("failed to rebuild managed network proxy policy for sandbox change: {err}");
-                return;
-            }
-        };
-        let current_exec_policy = self.services.exec_policy.current();
-        let spec = match spec.with_exec_policy_network_rules(current_exec_policy.as_ref()) {
-            Ok(spec) => spec,
-            Err(err) => {
-                warn!(
-                    "failed to apply execpolicy network rules while refreshing managed network proxy: {err}"
-                );
-                spec
-            }
-        };
-        if let Err(err) = spec.apply_to_started_proxy(started_proxy).await {
-            warn!("failed to refresh managed network proxy for sandbox change: {err}");
-        }
-    }
+    async fn refresh_network_policy_for_current_sandbox_policy(&self) {}
 
     pub(crate) async fn darwin_code_home(&self) -> AbsolutePathBuf {
         let state = self.state.lock().await;
@@ -969,39 +882,10 @@ impl Session {
     }
 
     fn start_agent_identity_registration(self: &Arc<Self>) {
-        if !self.services.agent_identity_manager.is_enabled() {
-            return;
-        }
-
-        let weak_sess = Arc::downgrade(self);
-        let mut auth_state_rx = self.services.auth_manager.subscribe_auth_state();
-        tokio::spawn(async move {
-            loop {
-                let Some(sess) = weak_sess.upgrade() else {
-                    return;
-                };
-                match sess
-                    .services
-                    .agent_identity_manager
-                    .ensure_registered_identity()
-                    .await
-                {
-                    Ok(Some(_)) => return,
-                    Ok(None) => {
-                        drop(sess);
-                        if auth_state_rx.changed().await.is_err() {
-                            return;
-                        }
-                    }
-                    Err(error) => {
-                        sess.fail_agent_identity_registration(error).await;
-                        return;
-                    }
-                }
-            }
-        });
+        // Agent identity registration depends on cloud account auth and is disabled in BYOK-only DarwinCode.
     }
 
+    #[allow(dead_code)]
     async fn fail_agent_identity_registration(self: &Arc<Self>, error: anyhow::Error) {
         warn!(error = %error, "agent identity registration failed");
         let message = format!(
@@ -1011,7 +895,7 @@ impl Session {
             id: self.next_internal_sub_id(),
             msg: EventMsg::Error(ErrorEvent {
                 message,
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                codex_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         })
         .await;
@@ -1265,7 +1149,7 @@ impl Session {
                         EventMsg::Warning(WarningEvent {
                             message: format!(
                                 "This session was recorded with model `{prev}` but is resuming with `{curr}`. \
-                         Consider switching back to `{prev}` as it may affect Darwin-Code performance."
+                         Consider switching back to `{prev}` as it may affect DarwinCode performance."
                             ),
                         }),
                     )
@@ -1420,7 +1304,7 @@ impl Session {
             &session_source,
         );
         if sandbox_policy_changed {
-            self.refresh_managed_network_proxy_for_current_sandbox_policy()
+            self.refresh_network_policy_for_current_sandbox_policy()
                 .await;
         }
 
@@ -1744,104 +1628,6 @@ impl Session {
             .is_err()
         {
             warn!("no active turn found to record execpolicy amendment message for {sub_id}");
-        }
-    }
-
-    pub(crate) async fn persist_network_policy_amendment(
-        &self,
-        amendment: &NetworkPolicyAmendment,
-        network_approval_context: &NetworkApprovalContext,
-    ) -> anyhow::Result<()> {
-        let _refresh_guard = self.managed_network_proxy_refresh_lock.lock().await;
-        let host =
-            Self::validated_network_policy_amendment_host(amendment, network_approval_context)?;
-        let darwin_code_home = self
-            .state
-            .lock()
-            .await
-            .session_configuration
-            .darwin_code_home()
-            .clone();
-        let execpolicy_amendment =
-            execpolicy_network_rule_amendment(amendment, network_approval_context, &host);
-
-        if let Some(started_network_proxy) = self.services.network_proxy.as_ref() {
-            let proxy = started_network_proxy.proxy();
-            match amendment.action {
-                NetworkPolicyRuleAction::Allow => proxy
-                    .add_allowed_domain(&host)
-                    .await
-                    .map_err(|err| anyhow::anyhow!("failed to update runtime allowlist: {err}"))?,
-                NetworkPolicyRuleAction::Deny => proxy
-                    .add_denied_domain(&host)
-                    .await
-                    .map_err(|err| anyhow::anyhow!("failed to update runtime denylist: {err}"))?,
-            }
-        }
-
-        self.services
-            .exec_policy
-            .append_network_rule_and_update(
-                &darwin_code_home,
-                &host,
-                execpolicy_amendment.protocol,
-                execpolicy_amendment.decision,
-                Some(execpolicy_amendment.justification),
-            )
-            .await
-            .map_err(|err| {
-                anyhow::anyhow!("failed to persist network policy amendment to execpolicy: {err}")
-            })?;
-
-        Ok(())
-    }
-
-    fn validated_network_policy_amendment_host(
-        amendment: &NetworkPolicyAmendment,
-        network_approval_context: &NetworkApprovalContext,
-    ) -> anyhow::Result<String> {
-        let approved_host = normalize_host(&network_approval_context.host);
-        let amendment_host = normalize_host(&amendment.host);
-        if amendment_host != approved_host {
-            return Err(anyhow::anyhow!(
-                "network policy amendment host '{}' does not match approved host '{}'",
-                amendment.host,
-                network_approval_context.host
-            ));
-        }
-        Ok(approved_host)
-    }
-
-    pub(crate) async fn record_network_policy_amendment_message(
-        &self,
-        sub_id: &str,
-        amendment: &NetworkPolicyAmendment,
-    ) {
-        let (action, list_name) = match amendment.action {
-            NetworkPolicyRuleAction::Allow => ("Allowed", "allowlist"),
-            NetworkPolicyRuleAction::Deny => ("Denied", "denylist"),
-        };
-        let text = format!(
-            "{action} network rule saved in execpolicy ({list_name}): {}",
-            amendment.host
-        );
-        let message: ResponseItem = DeveloperInstructions::new(text.clone()).into();
-
-        if let Some(turn_context) = self.turn_context_for_sub_id(sub_id).await {
-            self.record_conversation_items(&turn_context, std::slice::from_ref(&message))
-                .await;
-            return;
-        }
-
-        if self
-            .inject_response_items(vec![ResponseInputItem::Message {
-                role: "developer".to_string(),
-                content: vec![ContentItem::InputText { text }],
-            }])
-            .await
-            .is_err()
-        {
-            warn!("no active turn found to record network policy amendment message for {sub_id}");
         }
     }
 
@@ -2195,7 +1981,7 @@ impl Session {
     pub(crate) async fn record_model_warning(&self, message: impl Into<String>, ctx: &TurnContext) {
         self.services
             .session_telemetry
-            .counter("darwin-code.model_warning", /*inc*/ 1, &[]);
+            .counter("darwin_code.model_warning", /*inc*/ 1, &[]);
         let item = ResponseItem::Message {
             id: None,
             role: "user".to_string(),
@@ -2204,6 +1990,7 @@ impl Session {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         };
 
         self.record_conversation_items(ctx, &[item]).await;
@@ -2372,7 +2159,8 @@ impl Session {
         if turn_context.features.enabled(Feature::MemoryTool)
             && turn_context.config.memories.use_memories
             && let Some(memory_prompt) =
-                build_memory_tool_developer_instructions(&turn_context.config.darwin_code_home).await
+                build_memory_tool_developer_instructions(&turn_context.config.darwin_code_home)
+                    .await
         {
             developer_sections.push(memory_prompt);
         }
@@ -2408,18 +2196,6 @@ impl Session {
                 );
             }
         }
-        if turn_context.config.include_apps_instructions && turn_context.apps_enabled() {
-            let mcp_connection_manager = self.services.mcp_connection_manager.read().await;
-            let accessible_and_enabled_connectors =
-                connectors::list_accessible_and_enabled_connectors_from_manager(
-                    &mcp_connection_manager,
-                    &turn_context.config,
-                )
-                .await;
-            if let Some(apps_section) = render_apps_section(&accessible_and_enabled_connectors) {
-                developer_sections.push(apps_section);
-            }
-        }
         let implicit_skills = turn_context
             .turn_skills
             .outcome
@@ -2452,7 +2228,7 @@ impl Session {
         {
             developer_sections.push(plugin_section);
         }
-        if turn_context.features.enabled(Feature::DarwinCodeGitCommit)
+        if turn_context.features.enabled(Feature::CodexGitCommit)
             && let Some(commit_message_instruction) = commit_message_trailer_instruction(
                 turn_context.config.commit_attribution.as_deref(),
             )
@@ -2732,7 +2508,7 @@ impl Session {
         };
         let event = EventMsg::StreamError(StreamErrorEvent {
             message: message.into(),
-            darwin_code_error_info: Some(darwin_code_error_info),
+            codex_error_info: Some(darwin_code_error_info),
             additional_details: Some(additional_details),
         });
         self.send_event(turn_context, event).await;

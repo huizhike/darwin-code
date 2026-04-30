@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::AuthProvider;
-use codex_client::build_reqwest_client_with_custom_ca;
+use darwin_code_client::build_reqwest_client_with_custom_ca;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_LENGTH;
 use serde::Deserialize;
@@ -292,32 +292,35 @@ mod tests {
     use wiremock::matchers::path;
 
     #[derive(Clone, Copy)]
-    struct ChatGptTestAuth;
+    struct ByokTestAuth;
 
-    impl AuthProvider for ChatGptTestAuth {
+    impl AuthProvider for ByokTestAuth {
         fn add_auth_headers(&self, headers: &mut reqwest::header::HeaderMap) {
             headers.insert(
                 reqwest::header::AUTHORIZATION,
                 HeaderValue::from_static("Bearer token"),
             );
-            headers.insert("ChatGPT-Account-ID", HeaderValue::from_static("account_id"));
+            headers.insert(
+                "X-Darwin-Test-Account-ID",
+                HeaderValue::from_static("account_id"),
+            );
         }
     }
 
-    fn chatgpt_auth() -> ChatGptTestAuth {
-        ChatGptTestAuth
+    fn byok_auth() -> ByokTestAuth {
+        ByokTestAuth
     }
 
     fn base_url_for(server: &MockServer) -> String {
-        format!("{}/backend-api", server.uri())
+        format!("{}/v1", server.uri())
     }
 
     #[tokio::test]
     async fn upload_local_file_returns_canonical_uri() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
-            .and(path("/backend-api/files"))
-            .and(header("chatgpt-account-id", "account_id"))
+            .and(path("/v1/files"))
+            .and(header("x-darwin-test-account-id", "account_id"))
             .and(body_json(serde_json::json!({
                 "file_name": "hello.txt",
                 "file_size": 5,
@@ -339,7 +342,7 @@ mod tests {
         let finalize_attempts_responder = Arc::clone(&finalize_attempts);
         let download_url = format!("{}/download/file_123", server.uri());
         Mock::given(method("POST"))
-            .and(path("/backend-api/files/file_123/uploaded"))
+            .and(path("/v1/files/file_123/uploaded"))
             .respond_with(move |_request: &Request| {
                 if finalize_attempts_responder.fetch_add(1, Ordering::SeqCst) == 0 {
                     return ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -363,7 +366,7 @@ mod tests {
         let path = dir.path().join("hello.txt");
         tokio::fs::write(&path, b"hello").await.expect("write file");
 
-        let uploaded = upload_local_file(&base_url, &chatgpt_auth(), &path)
+        let uploaded = upload_local_file(&base_url, &byok_auth(), &path)
             .await
             .expect("upload succeeds");
 

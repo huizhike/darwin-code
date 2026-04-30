@@ -45,21 +45,17 @@ fn model_from_preset(preset: &ModelPreset) -> Model {
             .collect(),
         default_reasoning_effort: preset.default_reasoning_effort,
         input_modalities: preset.input_modalities.clone(),
-        // `write_models_cache()` round-trips through a simplified ModelInfo fixture that does not
-        // preserve personality placeholders in base instructions, so app-server list results from
-        // cache report `supports_personality = false`.
-        // todo(sayan): fix, maybe make roundtrip use ModelInfo only
-        supports_personality: false,
+        supports_personality: preset.supports_personality,
         additional_speed_tiers: preset.additional_speed_tiers.clone(),
         is_default: preset.is_default,
     }
 }
 
 fn expected_visible_models() -> Vec<Model> {
-    // Filter by supported_in_api to support testing with both ChatGPT and non-ChatGPT auth modes.
+    // Filter by supported_in_api to support testing with both BYOK and non-BYOK model modes.
     let mut presets = ModelPreset::filter_by_auth(
         darwin_code_core::test_support::all_model_presets().clone(),
-        /*chatgpt_mode*/ false,
+        /*provider_auth_mode*/ false,
     );
 
     // Mirror `ModelsManager::build_available_models()` default selection after auth filtering.

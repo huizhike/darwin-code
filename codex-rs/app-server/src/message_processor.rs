@@ -7,9 +7,10 @@ use std::sync::RwLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use crate::byok_connectors as connectors;
+use crate::config_api::ConfigApi;
 use crate::darwin_code_message_processor::DarwinCodeMessageProcessor;
 use crate::darwin_code_message_processor::DarwinCodeMessageProcessorArgs;
-use crate::config_api::ConfigApi;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::external_agent_config_api::ExternalAgentConfigApi;
 use crate::fs_api::FsApi;
@@ -20,13 +21,11 @@ use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::RequestContext;
 use crate::transport::AppServerTransport;
 use crate::transport::RemoteControlHandle;
-use async_trait::async_trait;
 use axum::http::HeaderValue;
+use codex_analytics::AnalyticsEventsClient;
+use codex_analytics::AppServerRpcTransport;
+use codex_feedback::CodexFeedback as DarwinCodeFeedback;
 use darwin_code_app_server_protocol::AppListUpdatedNotification;
-use darwin_code_app_server_protocol::AuthMode as LoginAuthMode;
-use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshParams;
-use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshReason;
-use darwin_code_app_server_protocol::ChatgptAuthTokensRefreshResponse;
 use darwin_code_app_server_protocol::ClientInfo;
 use darwin_code_app_server_protocol::ClientNotification;
 use darwin_code_app_server_protocol::ClientRequest;
@@ -57,25 +56,19 @@ use darwin_code_app_server_protocol::JSONRPCNotification;
 use darwin_code_app_server_protocol::JSONRPCRequest;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::ServerNotification;
-use darwin_code_app_server_protocol::ServerRequestPayload;
 use darwin_code_app_server_protocol::experimental_required_message;
 use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_client::SetOriginatorError;
+use darwin_code_client::USER_AGENT_SUFFIX;
+use darwin_code_client::get_darwin_code_user_agent;
+use darwin_code_client::set_default_client_residency_requirement;
+use darwin_code_client::set_default_originator;
 use darwin_code_core::ThreadManager;
 use darwin_code_core::config::Config;
-use darwin_code_core::config_loader::CloudRequirementsLoader;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
 use darwin_code_exec_server::EnvironmentManager;
 use darwin_code_features::Feature;
-use darwin_code_login::AuthManager;
-use darwin_code_login::auth::ExternalAuth;
-use darwin_code_login::auth::ExternalAuthRefreshContext;
-use darwin_code_login::auth::ExternalAuthRefreshReason;
-use darwin_code_login::auth::ExternalAuthTokens;
-use darwin_code_login::default_client::SetOriginatorError;
-use darwin_code_login::default_client::USER_AGENT_SUFFIX;
-use darwin_code_login::default_client::get_darwin_code_user_agent;
-use darwin_code_login::default_client::set_default_client_residency_requirement;
-use darwin_code_login::default_client::set_default_originator;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::protocol::SessionSource;
@@ -84,80 +77,8 @@ use darwin_code_state::log_db::LogDbLayer;
 use futures::FutureExt;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
-use tokio::time::Duration;
-use tokio::time::timeout;
 use toml::Value as TomlValue;
 use tracing::Instrument;
-
-const EXTERNAL_AUTH_REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
-
-#[derive(Clone)]
-struct ExternalAuthRefreshBridge {
-    outgoing: Arc<OutgoingMessageSender>,
-}
-
-impl ExternalAuthRefreshBridge {
-    fn map_reason(reason: ExternalAuthRefreshReason) -> ChatgptAuthTokensRefreshReason {
-        match reason {
-            ExternalAuthRefreshReason::Unauthorized => ChatgptAuthTokensRefreshReason::Unauthorized,
-        }
-    }
-}
-
-#[async_trait]
-impl ExternalAuth for ExternalAuthRefreshBridge {
-    fn auth_mode(&self) -> LoginAuthMode {
-        LoginAuthMode::Chatgpt
-    }
-
-    async fn refresh(
-        &self,
-        context: ExternalAuthRefreshContext,
-    ) -> std::io::Result<ExternalAuthTokens> {
-        let params = ChatgptAuthTokensRefreshParams {
-            reason: Self::map_reason(context.reason),
-            previous_account_id: context.previous_account_id,
-        };
-
-        let (request_id, rx) = self
-            .outgoing
-            .send_request(ServerRequestPayload::ChatgptAuthTokensRefresh(params))
-            .await;
-
-        let result = match timeout(EXTERNAL_AUTH_REFRESH_TIMEOUT, rx).await {
-            Ok(result) => {
-                // Two failure scenarios:
-                // 1) `oneshot::Receiver` failed (sender dropped) => request canceled/channel closed.
-                // 2) client answered with JSON-RPC error payload => propagate code/message.
-                let result = result.map_err(|err| {
-                    std::io::Error::other(format!("auth refresh request canceled: {err}"))
-                })?;
-                result.map_err(|err| {
-                    std::io::Error::other(format!(
-                        "auth refresh request failed: code={} message={}",
-                        err.code, err.message
-                    ))
-                })?
-            }
-            Err(_) => {
-                let _canceled = self.outgoing.cancel_request(&request_id).await;
-                return Err(std::io::Error::other(format!(
-                    "auth refresh request timed out after {}s",
-                    EXTERNAL_AUTH_REFRESH_TIMEOUT.as_secs()
-                )));
-            }
-        };
-
-        let response: ChatgptAuthTokensRefreshResponse =
-            serde_json::from_value(result).map_err(std::io::Error::other)?;
-
-        Ok(ExternalAuthTokens::chatgpt(
-            response.access_token,
-            response.chatgpt_account_id,
-            response.chatgpt_plan_type,
-        ))
-    }
-}
 
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
@@ -166,7 +87,6 @@ pub(crate) struct MessageProcessor {
     config_api: ConfigApi,
     external_agent_config_api: ExternalAgentConfigApi,
     fs_api: FsApi,
-    auth_manager: Arc<AuthManager>,
     analytics_events_client: AnalyticsEventsClient,
     fs_watch_manager: FsWatchManager,
     config: Arc<Config>,
@@ -230,12 +150,11 @@ pub(crate) struct MessageProcessorArgs {
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     pub(crate) cli_overrides: Vec<(String, TomlValue)>,
     pub(crate) loader_overrides: LoaderOverrides,
-    pub(crate) cloud_requirements: CloudRequirementsLoader,
+    pub(crate) external_requirements: ExternalRequirementsLoader,
     pub(crate) feedback: DarwinCodeFeedback,
     pub(crate) log_db: Option<LogDbLayer>,
     pub(crate) config_warnings: Vec<ConfigWarningNotification>,
     pub(crate) session_source: SessionSource,
-    pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) rpc_transport: AppServerRpcTransport,
     pub(crate) remote_control_handle: Option<RemoteControlHandle>,
 }
@@ -251,26 +170,17 @@ impl MessageProcessor {
             environment_manager,
             cli_overrides,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
             feedback,
             log_db,
             config_warnings,
             session_source,
-            auth_manager,
             rpc_transport,
             remote_control_handle,
         } = args;
-        auth_manager.set_external_auth(Arc::new(ExternalAuthRefreshBridge {
-            outgoing: outgoing.clone(),
-        }));
-        let analytics_events_client = AnalyticsEventsClient::new(
-            Arc::clone(&auth_manager),
-            config.chatgpt_base_url.trim_end_matches('/').to_string(),
-            config.analytics_enabled,
-        );
+        let analytics_events_client = AnalyticsEventsClient::new(config.analytics_enabled);
         let thread_manager = Arc::new(ThreadManager::new(
             config.as_ref(),
-            auth_manager.clone(),
             session_source,
             CollaborationModesConfig {
                 default_mode_request_user_input: config
@@ -286,31 +196,31 @@ impl MessageProcessor {
 
         let cli_overrides = Arc::new(RwLock::new(cli_overrides));
         let runtime_feature_enablement = Arc::new(RwLock::new(BTreeMap::new()));
-        let cloud_requirements = Arc::new(RwLock::new(cloud_requirements));
-        let darwin_code_message_processor = DarwinCodeMessageProcessor::new(DarwinCodeMessageProcessorArgs {
-            auth_manager: auth_manager.clone(),
-            thread_manager: Arc::clone(&thread_manager),
-            outgoing: outgoing.clone(),
-            analytics_events_client: analytics_events_client.clone(),
-            arg0_paths,
-            config: Arc::clone(&config),
-            cli_overrides: cli_overrides.clone(),
-            runtime_feature_enablement: runtime_feature_enablement.clone(),
-            cloud_requirements: cloud_requirements.clone(),
-            feedback,
-            log_db,
-        });
+        let external_requirements = Arc::new(RwLock::new(external_requirements));
+        let darwin_code_message_processor =
+            DarwinCodeMessageProcessor::new(DarwinCodeMessageProcessorArgs {
+                thread_manager: Arc::clone(&thread_manager),
+                outgoing: outgoing.clone(),
+                analytics_events_client: analytics_events_client.clone(),
+                arg0_paths,
+                config: Arc::clone(&config),
+                cli_overrides: cli_overrides.clone(),
+                runtime_feature_enablement: runtime_feature_enablement.clone(),
+                external_requirements: external_requirements.clone(),
+                feedback,
+                log_db,
+            });
         // Keep plugin startup warmups aligned at app-server startup.
         // TODO(xl): Move into PluginManager once this no longer depends on config feature gating.
         thread_manager
             .plugins_manager()
-            .maybe_start_plugin_startup_tasks_for_config(&config, auth_manager.clone());
+            .maybe_start_plugin_startup_tasks_for_config(&config);
         let config_api = ConfigApi::new(
             config.darwin_code_home.to_path_buf(),
             cli_overrides,
             runtime_feature_enablement,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
             thread_manager.clone(),
             analytics_events_client.clone(),
         );
@@ -326,7 +236,6 @@ impl MessageProcessor {
             config_api,
             external_agent_config_api,
             fs_api,
-            auth_manager,
             analytics_events_client,
             fs_watch_manager,
             config,
@@ -336,9 +245,7 @@ impl MessageProcessor {
         }
     }
 
-    pub(crate) fn clear_runtime_references(&self) {
-        self.auth_manager.clear_external_auth();
-    }
+    pub(crate) fn clear_runtime_references(&self) {}
 
     pub(crate) async fn process_request(
         self: &Arc<Self>,
@@ -381,18 +288,19 @@ impl MessageProcessor {
                     }
                 };
 
-                let darwin_code_request = match serde_json::from_value::<ClientRequest>(request_json) {
-                    Ok(darwin_code_request) => darwin_code_request,
-                    Err(err) => {
-                        let error = JSONRPCErrorError {
-                            code: INVALID_REQUEST_ERROR_CODE,
-                            message: format!("Invalid request: {err}"),
-                            data: None,
-                        };
-                        self.outgoing.send_error(request_id.clone(), error).await;
-                        return;
-                    }
-                };
+                let darwin_code_request =
+                    match serde_json::from_value::<ClientRequest>(request_json) {
+                        Ok(darwin_code_request) => darwin_code_request,
+                        Err(err) => {
+                            let error = JSONRPCErrorError {
+                                code: INVALID_REQUEST_ERROR_CODE,
+                                message: format!("Invalid request: {err}"),
+                                data: None,
+                            };
+                            self.outgoing.send_error(request_id.clone(), error).await;
+                            return;
+                        }
+                    };
                 // Websocket callers finalize outbound readiness in lib.rs after mirroring
                 // session state into outbound state and sending initialize notifications to
                 // this specific connection. Passing `None` avoids marking the connection
@@ -523,11 +431,15 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn drain_background_tasks(&self) {
-        self.darwin_code_message_processor.drain_background_tasks().await;
+        self.darwin_code_message_processor
+            .drain_background_tasks()
+            .await;
     }
 
     pub(crate) async fn cancel_active_login(&self) {
-        self.darwin_code_message_processor.cancel_active_login().await;
+        self.darwin_code_message_processor
+            .cancel_active_login()
+            .await;
     }
 
     pub(crate) async fn clear_all_thread_listeners(&self) {
@@ -689,7 +601,7 @@ impl MessageProcessor {
             let user_agent = get_darwin_code_user_agent();
             let response = InitializeResponse {
                 user_agent,
-                darwin_code_home,
+                codex_home: darwin_code_home,
                 platform_family: std::env::consts::FAMILY.to_string(),
                 platform_os: std::env::consts::OS.to_string(),
             };
@@ -843,16 +755,7 @@ impl MessageProcessor {
                 )
                 .await;
             }
-            ClientRequest::ConfigRequirementsRead {
-                request_id,
-                params: _,
-            } => {
-                self.handle_config_requirements_read(ConnectionRequestId {
-                    connection_id,
-                    request_id,
-                })
-                .await;
-            }
+
             ClientRequest::FsReadFile { request_id, params } => {
                 self.handle_fs_read_file(
                     ConnectionRequestId {
@@ -1021,11 +924,7 @@ impl MessageProcessor {
                 return;
             }
         };
-        let auth = self.auth_manager.auth().await;
-        if !config.features.apps_enabled_for_auth(
-            auth.as_ref()
-                .is_some_and(darwin_code_login::DarwinCodeAuth::is_chatgpt_auth),
-        ) {
+        if !config.features.apps_enabled() {
             return;
         }
 
@@ -1106,13 +1005,6 @@ impl MessageProcessor {
                     error.message
                 );
             }
-        }
-    }
-
-    async fn handle_config_requirements_read(&self, request_id: ConnectionRequestId) {
-        match self.config_api.config_requirements_read().await {
-            Ok(response) => self.outgoing.send_response(request_id, response).await,
-            Err(error) => self.outgoing.send_error(request_id, error).await,
         }
     }
 

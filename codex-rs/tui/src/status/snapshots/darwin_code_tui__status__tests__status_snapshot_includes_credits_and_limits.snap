@@ -1,0 +1,24 @@
+---
+source: tui/src/status/tests.rs
+expression: sanitized
+---
+/status
+
+╭─────────────────────────────────────────────────────────────────────────╮
+│  >_ OpenAI DarwinCode (v0.0.0)                                          │
+│                                                                         │
+│ BYOK mode uses provider-side billing,                                   │
+│ rate limits, and quota from the configured API endpoint                 │
+│                                                                         │
+│  Model:            gpt-5.1-darwin-code (reasoning none, summaries auto) │
+│  Model provider:   OpenAI - https://api.openai.com/v1                   │
+│  Directory: [[workspace]]                                               │
+│  Permissions:      Custom (read-only, on-request)                       │
+│  Agents.md:        <none>                                               │
+│                                                                         │
+│  Token usage:      2K total  (1.4K input + 600 output)                  │
+│  Context window:   100% left (2.2K used / 272K)                         │
+│  5h limit:         [███████████░░░░░░░░░] 55% left (resets 09:25)       │
+│  Weekly limit:     [██████████████░░░░░░] 70% left (resets 09:55)       │
+│  Credits:          38 credits                                           │
+╰─────────────────────────────────────────────────────────────────────────╯

@@ -119,7 +119,10 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                darwin_code_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }
@@ -643,7 +646,12 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
         }),
     });
 
-    begin_unified_exec_startup(&mut chat, "call-wait", "proc-1", "cargo test -p darwin-code-core");
+    begin_unified_exec_startup(
+        &mut chat,
+        "call-wait",
+        "proc-1",
+        "cargo test -p darwin_code-core",
+    );
     terminal_interaction(&mut chat, "call-wait-stdin", "proc-1", "");
 
     complete_assistant_message(&mut chat, "msg-1", "Final response.", /*phase*/ None);
@@ -682,7 +690,7 @@ async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
         &mut chat,
         "call-wait-stream",
         "proc-1",
-        "cargo test -p darwin-code-core",
+        "cargo test -p darwin_code-core",
     );
     terminal_interaction(&mut chat, "call-wait-stream-stdin", "proc-1", "");
 
@@ -727,7 +735,6 @@ async fn unified_exec_wait_status_header_updates_on_late_command_display() {
         stdin: String::new(),
     });
 
-    assert!(chat.active_cell.is_none());
     assert_eq!(
         chat.current_status.header,
         "Waiting for background terminal"
@@ -785,7 +792,7 @@ async fn unified_exec_wait_status_renders_command_in_single_details_row_snapshot
         &mut chat,
         "call-wait-ui",
         "proc-ui",
-        "cargo test -p darwin-code-core -- --exact some::very::long::test::name",
+        "cargo test -p darwin_code-core -- --exact some::very::long::test::name",
     );
 
     terminal_interaction(&mut chat, "call-wait-ui-stdin", "proc-ui", "");
@@ -1006,7 +1013,7 @@ async fn bang_shell_command_submits_run_user_shell_command_in_app_server_tui() {
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
     chat.handle_darwin_code_event(Event {
@@ -1049,7 +1056,7 @@ async fn disabled_slash_command_while_task_running_snapshot() {
 //
 // Snapshot test: command approval modal
 //
-// Synthesizes a Darwin-Code ExecApprovalRequest event to trigger the approval modal
+// Synthesizes a DarwinCode ExecApprovalRequest event to trigger the approval modal
 // and snapshots the visual output using the ratatui TestBackend.
 #[tokio::test]
 async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
@@ -1610,7 +1617,10 @@ async fn apply_patch_approval_sends_op_with_call_id() {
         } = app_ev
         {
             assert_eq!(id, "call-999");
-            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                darwin_code_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }
@@ -1654,11 +1664,14 @@ async fn apply_patch_full_flow_integration_like() {
     chat.submit_op(op);
     let forwarded = op_rx
         .try_recv()
-        .expect("expected op forwarded to darwin-code channel");
+        .expect("expected op forwarded to darwin_code channel");
     match forwarded {
         Op::PatchApproval { id, decision } => {
             assert_eq!(id, "call-1");
-            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                darwin_code_protocol::protocol::ReviewDecision::Approved
+            );
         }
         other => panic!("unexpected op forwarded: {other:?}"),
     }

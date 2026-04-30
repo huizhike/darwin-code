@@ -164,8 +164,23 @@ impl ToolRouter {
             // tools that may not have a matching spec entry. Use the parsed payload
             // server so similarly named servers/tools cannot collide.
             ToolPayload::Mcp { server, .. } => self.parallel_mcp_server_names.contains(server),
-            _ => self.configured_tool_supports_parallel(&call.tool_name),
+            _ => {
+                self.configured_tool_supports_parallel(&call.tool_name)
+                    || self.legacy_shell_alias_supports_parallel(&call.tool_name)
+            }
         }
+    }
+
+    fn legacy_shell_alias_supports_parallel(&self, tool_name: &ToolName) -> bool {
+        tool_name.namespace.is_none()
+            && matches!(
+                tool_name.name.as_str(),
+                // These compatibility handler names can be accepted even when
+                // the active model-visible shell spec is a different alias.
+                // Keep their runtime concurrency aligned with the model-visible
+                // shell specs, which are declared parallel-capable.
+                "shell" | "container.exec" | "local_shell" | "exec_command" | "shell_command"
+            )
     }
 
     #[instrument(level = "trace", skip_all, err)]
@@ -284,7 +299,7 @@ impl ToolRouter {
             && !direct_js_repl_call
         {
             return Err(FunctionCallError::RespondToModel(
-                "direct tool calls are disabled; use js_repl and darwin-code.tool(...) instead"
+                "direct tool calls are disabled; use js_repl and darwin_code.tool(...) instead"
                     .to_string(),
             ));
         }

@@ -19,11 +19,30 @@ pub use manager::SandboxType;
 pub use manager::SandboxablePreference;
 pub use manager::get_platform_sandbox;
 
-use codex_protocol::error::CodexErr;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NetworkAccessRuntime;
+
+impl NetworkAccessRuntime {
+    pub fn apply_to_env(&self, _env: &mut std::collections::HashMap<String, String>) {}
+
+    pub fn dangerously_allow_all_unix_sockets(&self) -> bool {
+        false
+    }
+
+    pub fn allow_unix_sockets(&self) -> Vec<String> {
+        Vec::new()
+    }
+
+    pub fn allow_local_binding(&self) -> bool {
+        false
+    }
+}
+
+use darwin_code_protocol::error::CodexErr;
 
 #[cfg(not(target_os = "linux"))]
 pub fn system_bwrap_warning(
-    _sandbox_policy: &codex_protocol::protocol::SandboxPolicy,
+    _sandbox_policy: &darwin_code_protocol::protocol::SandboxPolicy,
 ) -> Option<String> {
     None
 }

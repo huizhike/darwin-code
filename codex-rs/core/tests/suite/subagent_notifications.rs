@@ -1,9 +1,4 @@
 use anyhow::Result;
-use darwin_code_core::ThreadConfigSnapshot;
-use darwin_code_core::config::AgentRoleConfig;
-use darwin_code_features::Feature;
-use darwin_code_protocol::ThreadId;
-use darwin_code_protocol::openai_models::ReasoningEffort;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -17,6 +12,11 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_core::ThreadConfigSnapshot;
+use darwin_code_core::config::AgentRoleConfig;
+use darwin_code_features::Feature;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::time::Duration;
@@ -222,7 +222,7 @@ async fn setup_turn_one_with_custom_spawned_child(
     if child_response_delay.is_none() && wait_for_parent_notification {
         let _ = wait_for_requests(&child_request_log).await?;
         let rollout_path = test
-            .darwin-code
+            .darwin_code
             .rollout_path()
             .ok_or_else(|| anyhow::anyhow!("expected parent rollout path"))?;
         let deadline = Instant::now() + Duration::from_secs(6);

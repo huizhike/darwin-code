@@ -5,10 +5,10 @@ use super::fingerprint::record_origins;
 use super::fingerprint::version_for_toml;
 use super::key_aliases::normalized_with_key_aliases;
 use super::merge::merge_toml_values;
-use codex_app_server_protocol::ConfigLayer;
-use codex_app_server_protocol::ConfigLayerMetadata;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::ConfigLayer;
+use darwin_code_app_server_protocol::ConfigLayerMetadata;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -240,7 +240,7 @@ impl ConfigLayerStack {
     /// Returns the merged config-layer view.
     ///
     /// This only merges ordinary config layers and does not apply requirements
-    /// such as cloud requirements.
+    /// such as external requirements.
     pub fn effective_config(&self) -> TomlValue {
         let mut merged = TomlValue::Table(toml::map::Map::new());
         for layer in self.get_layers(

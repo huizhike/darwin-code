@@ -10,8 +10,8 @@ set -e
 
 # Default the work directory to WORKSPACE_ROOT_DIR if not provided.
 WORK_DIR="${WORKSPACE_ROOT_DIR:-$(pwd)}"
-# Default allowed domains - can be overridden with OPENAI_ALLOWED_DOMAINS env var
-OPENAI_ALLOWED_DOMAINS="${OPENAI_ALLOWED_DOMAINS:-api.openai.com}"
+# Default allowed domains - can be overridden with API_ALLOWED_DOMAINS env var
+API_ALLOWED_DOMAINS="${API_ALLOWED_DOMAINS:-127.0.0.1}"
 
 # Parse optional flag.
 if [ "$1" = "--work_dir" ]; then
@@ -47,9 +47,9 @@ if [ -z "$WORK_DIR" ]; then
   exit 1
 fi
 
-# Verify that OPENAI_ALLOWED_DOMAINS is not empty
-if [ -z "$OPENAI_ALLOWED_DOMAINS" ]; then
-  echo "Error: OPENAI_ALLOWED_DOMAINS is empty."
+# Verify that API_ALLOWED_DOMAINS is not empty
+if [ -z "$API_ALLOWED_DOMAINS" ]; then
+  echo "Error: API_ALLOWED_DOMAINS is empty."
   exit 1
 fi
 
@@ -58,7 +58,7 @@ cleanup
 
 # Run the container with the specified directory mounted at the same path inside the container.
 docker run --name "$CONTAINER_NAME" -d \
-  -e OPENAI_API_KEY \
+  -e API_KEY \
   --cap-add=NET_ADMIN \
   --cap-add=NET_RAW \
   -v "$WORK_DIR:/app$WORK_DIR" \
@@ -67,7 +67,7 @@ docker run --name "$CONTAINER_NAME" -d \
 
 # Write the allowed domains to a file in the container
 docker exec --user root "$CONTAINER_NAME" bash -c "mkdir -p /etc/darwin-code"
-for domain in $OPENAI_ALLOWED_DOMAINS; do
+for domain in $API_ALLOWED_DOMAINS; do
   # Validate domain format to prevent injection
   if [[ ! "$domain" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
     echo "Error: Invalid domain format: $domain"

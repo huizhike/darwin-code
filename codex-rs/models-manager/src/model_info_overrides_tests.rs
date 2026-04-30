@@ -1,6 +1,3 @@
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
-
 use crate::ModelsManagerConfig;
 use crate::collaboration_mode_presets::CollaborationModesConfig;
 use crate::manager::ModelsManager;
@@ -12,11 +9,8 @@ use tempfile::TempDir;
 async fn offline_model_info_without_tool_output_override() {
     let darwin_code_home = TempDir::new().expect("create temp dir");
     let config = ModelsManagerConfig::default();
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     );
@@ -36,11 +30,8 @@ async fn offline_model_info_with_tool_output_override() {
         tool_output_token_limit: Some(123),
         ..Default::default()
     };
-    let auth_manager =
-        AuthManager::from_auth_for_testing(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing());
     let manager = ModelsManager::new(
         darwin_code_home.path().to_path_buf(),
-        auth_manager,
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     );

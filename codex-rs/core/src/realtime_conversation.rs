@@ -20,20 +20,17 @@ use darwin_code_api::RealtimeWebsocketClient;
 use darwin_code_api::RealtimeWebsocketEvents;
 use darwin_code_api::RealtimeWebsocketWriter;
 use darwin_code_api::map_api_error;
-use darwin_code_app_server_protocol::AuthMode;
+use darwin_code_client::default_headers;
 use darwin_code_config::config_toml::RealtimeWsMode;
 use darwin_code_config::config_toml::RealtimeWsVersion;
-use darwin_code_login::DarwinCodeAuth;
-use darwin_code_login::default_client::default_headers;
-use darwin_code_login::read_openai_api_key_from_env;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::error::Result as DarwinCodeResult;
-use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::ConversationAudioParams;
 use darwin_code_protocol::protocol::ConversationStartParams;
 use darwin_code_protocol::protocol::ConversationStartTransport;
 use darwin_code_protocol::protocol::ConversationTextParams;
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::ErrorEvent;
 use darwin_code_protocol::protocol::Event;
 use darwin_code_protocol::protocol::EventMsg;
@@ -432,10 +429,9 @@ impl RealtimeConversationManager {
         };
 
         let text = prefix_realtime_text(text, REALTIME_USER_TEXT_PREFIX, session_kind);
-        sender
-            .send(text)
-            .await
-            .map_err(|_| DarwinCodeErr::InvalidRequest("conversation is not running".to_string()))?;
+        sender.send(text).await.map_err(|_| {
+            DarwinCodeErr::InvalidRequest("conversation is not running".to_string())
+        })?;
         Ok(())
     }
 
@@ -467,7 +463,9 @@ impl RealtimeConversationManager {
                 output_text,
             })
             .await
-            .map_err(|_| DarwinCodeErr::InvalidRequest("conversation is not running".to_string()))?;
+            .map_err(|_| {
+                DarwinCodeErr::InvalidRequest("conversation is not running".to_string())
+            })?;
         Ok(())
     }
 
@@ -601,19 +599,18 @@ async fn prepare_realtime_start(
     params: ConversationStartParams,
 ) -> DarwinCodeResult<PreparedRealtimeConversationStart> {
     let provider = sess.provider().await;
-    let auth_manager = sess
-        .services
-        .model_client
-        .auth_manager()
-        .unwrap_or_else(|| Arc::clone(&sess.services.auth_manager));
-    let auth = auth_manager.auth().await;
     let config = sess.get_config().await;
     let transport = params
         .transport
         .unwrap_or(ConversationStartTransport::Websocket);
-    let mut api_provider = provider.to_api_provider(Some(AuthMode::ApiKey))?;
-    if let Some(realtime_ws_base_url) = &config.experimental_realtime_ws_base_url {
-        api_provider.base_url = realtime_ws_base_url.clone();
+    let mut api_provider = provider.to_api_provider()?;
+    if let Some(base_url) = config
+        .experimental_realtime_ws_base_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|base_url| !base_url.is_empty())
+    {
+        api_provider.base_url = base_url.to_string();
     }
     let version = config.realtime.version;
     let session_config = build_realtime_session_config(
@@ -627,7 +624,7 @@ async fn prepare_realtime_start(
     let requested_session_id = session_config.session_id.clone();
     let extra_headers = match transport {
         ConversationStartTransport::Websocket => {
-            let realtime_api_key = realtime_api_key(auth.as_ref(), &provider)?;
+            let realtime_api_key = realtime_api_key(&provider)?;
             realtime_request_headers(
                 requested_session_id.as_deref(),
                 Some(realtime_api_key.as_str()),
@@ -673,12 +670,7 @@ pub(crate) async fn build_realtime_session_config(
         (false, true) => prompt,
         (false, false) => format!("{prompt}\n\n{startup_context}"),
     };
-    let model = Some(
-        config
-            .experimental_realtime_ws_model
-            .clone()
-            .unwrap_or_else(|| DEFAULT_REALTIME_MODEL.to_string()),
-    );
+    let model = Some(DEFAULT_REALTIME_MODEL.to_string());
     let event_parser = match config.realtime.version {
         RealtimeWsVersion::V1 => RealtimeEventParser::V1,
         RealtimeWsVersion::V2 => RealtimeEventParser::RealtimeV2,
@@ -728,7 +720,10 @@ pub(crate) fn prefix_realtime_v2_text(text: String, prefix: &str) -> String {
     prefix_realtime_text(text, prefix, RealtimeSessionKind::V2)
 }
 
-fn validate_realtime_voice(version: RealtimeWsVersion, voice: RealtimeVoice) -> DarwinCodeResult<()> {
+fn validate_realtime_voice(
+    version: RealtimeWsVersion,
+    voice: RealtimeVoice,
+) -> DarwinCodeResult<()> {
     let voices = RealtimeVoicesList::builtin();
     let allowed = match version {
         RealtimeWsVersion::V1 => &voices.v1,
@@ -884,8 +879,13 @@ pub(crate) async fn handle_audio(
         if sess.conversation.running_state().await.is_some() {
             warn!("realtime audio input failed while the session was already ending");
         } else {
-            send_conversation_error(sess, sub_id, err.to_string(), DarwinCodeErrorInfo::BadRequest)
-                .await;
+            send_conversation_error(
+                sess,
+                sub_id,
+                err.to_string(),
+                DarwinCodeErrorInfo::BadRequest,
+            )
+            .await;
         }
     }
 }
@@ -916,24 +916,8 @@ fn escape_xml_text(input: &str) -> String {
         .replace('>', "&gt;")
 }
 
-fn realtime_api_key(auth: Option<&DarwinCodeAuth>, provider: &ModelProviderInfo) -> DarwinCodeResult<String> {
+fn realtime_api_key(provider: &ModelProviderInfo) -> DarwinCodeResult<String> {
     if let Some(api_key) = provider.api_key()? {
-        return Ok(api_key);
-    }
-
-    if let Some(token) = provider.experimental_bearer_token.clone() {
-        return Ok(token);
-    }
-
-    if let Some(api_key) = auth.and_then(DarwinCodeAuth::api_key) {
-        return Ok(api_key.to_string());
-    }
-
-    // TODO(aibrahim): Remove this temporary fallback once realtime auth no longer
-    // requires API key auth for ChatGPT/SIWC sessions.
-    if provider.is_openai()
-        && let Some(api_key) = read_openai_api_key_from_env()
-    {
         return Ok(api_key);
     }
 
@@ -975,8 +959,13 @@ pub(crate) async fn handle_text(
         if sess.conversation.running_state().await.is_some() {
             warn!("realtime text input failed while the session was already ending");
         } else {
-            send_conversation_error(sess, sub_id, err.to_string(), DarwinCodeErrorInfo::BadRequest)
-                .await;
+            send_conversation_error(
+                sess,
+                sub_id,
+                err.to_string(),
+                DarwinCodeErrorInfo::BadRequest,
+            )
+            .await;
         }
     }
 }
@@ -1362,13 +1351,13 @@ async fn send_conversation_error(
     sess: &Arc<Session>,
     sub_id: String,
     message: String,
-    darwin_code_error_info: DarwinCodeErrorInfo,
+    codex_error_info: DarwinCodeErrorInfo,
 ) {
     sess.send_event_raw(Event {
         id: sub_id,
         msg: EventMsg::Error(ErrorEvent {
             message,
-            darwin_code_error_info: Some(darwin_code_error_info),
+            codex_error_info: Some(codex_error_info),
         }),
     })
     .await;

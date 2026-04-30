@@ -9,17 +9,6 @@ use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
-use darwin_code_config::Constrained;
-use darwin_code_config::types::McpServerConfig;
-use darwin_code_config::types::McpServerTransportConfig;
-use darwin_code_core::sandboxing::SandboxPermissions;
-use darwin_code_features::Feature;
-use darwin_code_protocol::permissions::FileSystemAccessMode;
-use darwin_code_protocol::permissions::FileSystemPath;
-use darwin_code_protocol::permissions::FileSystemSandboxEntry;
-use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -34,6 +23,17 @@ use core_test_support::skip_if_no_network;
 use core_test_support::skip_if_sandbox;
 use core_test_support::stdio_server_bin;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_config::Constrained;
+use darwin_code_config::types::McpServerConfig;
+use darwin_code_config::types::McpServerTransportConfig;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_features::Feature;
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use darwin_code_protocol::permissions::FileSystemPath;
+use darwin_code_protocol::permissions::FileSystemSandboxEntry;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use regex_lite::Regex;
 use serde_json::Value;
 use serde_json::json;
@@ -206,7 +206,7 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
     .await;
 
     test.submit_turn("call the rmcp echo tool").await?;
-    let rollout_path = test.darwin-code.rollout_path().context("rollout path")?;
+    let rollout_path = test.darwin_code.rollout_path().context("rollout path")?;
     assert_eq!(first_turn_mock.requests().len(), 2);
     drop(test);
 
@@ -232,12 +232,14 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
     )
     .await;
 
-    let mut resume_builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
-        config
-            .features
-            .enable(Feature::UnavailableDummyTools)
-            .expect("unavailable dummy tools should be enabled for this test");
-    });
+    let mut resume_builder = test_darwin_code()
+        .with_model("gpt-5.1")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::UnavailableDummyTools)
+                .expect("unavailable dummy tools should be enabled for this test");
+        });
     let test = resume_builder
         .resume(&server, darwin_code_home, rollout_path)
         .await?;
@@ -697,13 +699,15 @@ async fn shell_timeout_handles_background_grandchild_stdout() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
-        config
-            .permissions
-            .sandbox_policy
-            .set(SandboxPolicy::DangerFullAccess)
-            .expect("set sandbox policy");
-    });
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1")
+        .with_config(|config| {
+            config
+                .permissions
+                .sandbox_policy
+                .set(SandboxPolicy::DangerFullAccess)
+                .expect("set sandbox policy");
+        });
     let test = builder.build(&server).await?;
 
     let call_id = "shell-grandchild-timeout";

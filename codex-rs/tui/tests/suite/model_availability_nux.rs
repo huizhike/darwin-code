@@ -70,19 +70,19 @@ trust_level = "trusted"
 
     let fixture_path =
         darwin_code_utils_cargo_bin::find_resource!("../core/tests/cli_responses_fixture.sse")?;
-    let darwin-code = if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code") {
+    let darwin_code = if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin_code") {
         path
     } else {
-        let fallback = repo_root.join("darwin-code-rs/target/debug/darwin-code");
+        let fallback = repo_root.join("darwin_code-rs/target/debug/darwin_code");
         if fallback.is_file() {
             fallback
         } else {
-            eprintln!("skipping integration test because darwin-code binary is unavailable");
+            eprintln!("skipping integration test because darwin_code binary is unavailable");
             return Ok(());
         }
     };
 
-    let exec_output = std::process::Command::new(&darwin-code)
+    let exec_output = std::process::Command::new(&darwin_code)
         .arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-C")
@@ -92,10 +92,10 @@ trust_level = "trusted"
         .env("OPENAI_API_KEY", "dummy")
         .env("DARWIN_CODE_RS_SSE_FIXTURE", fixture_path)
         .output()
-        .context("failed to execute darwin-code exec")?;
+        .context("failed to execute darwin_code exec")?;
     anyhow::ensure!(
         exec_output.status.success(),
-        "darwin-code exec failed: {}",
+        "darwin_code exec failed: {}",
         String::from_utf8_lossy(&exec_output.stderr)
     );
 
@@ -117,7 +117,7 @@ trust_level = "trusted"
     ];
 
     let spawned = darwin_code_utils_pty::spawn_pty_process(
-        darwin-code.to_string_lossy().as_ref(),
+        darwin_code.to_string_lossy().as_ref(),
         &args,
         &repo_root,
         &env,
@@ -173,7 +173,7 @@ trust_level = "trusted"
         Ok(Err(err)) => return Err(err.into()),
         Err(_) => {
             session.terminate();
-            anyhow::bail!("timed out waiting for darwin-code resume to exit");
+            anyhow::bail!("timed out waiting for darwin_code resume to exit");
         }
     };
     let output_text = String::from_utf8_lossy(&output);
@@ -186,7 +186,7 @@ trust_level = "trusted"
     };
     anyhow::ensure!(
         exit_code == 0 || exit_code == 130 || (exit_code == 1 && interrupt_only_output),
-        "unexpected exit code from darwin-code resume: {exit_code}; output: {output_text}",
+        "unexpected exit code from darwin_code resume: {exit_code}; output: {output_text}",
     );
 
     let config_contents = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;

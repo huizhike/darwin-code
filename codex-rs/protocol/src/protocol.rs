@@ -49,7 +49,7 @@ use crate::request_permissions::RequestPermissionsEvent;
 use crate::request_permissions::RequestPermissionsResponse;
 use crate::request_user_input::RequestUserInputResponse;
 use crate::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -1884,6 +1884,8 @@ pub enum CodexErrorInfo {
     Other,
 }
 
+pub type DarwinCodeErrorInfo = CodexErrorInfo;
+
 impl CodexErrorInfo {
     /// Whether this error should mark the current turn as failed when replaying history.
     pub fn affects_turn_status(&self) -> bool {
@@ -2857,6 +2859,7 @@ impl From<CompactedItem> for ResponseItem {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         }
     }
 }
@@ -2927,10 +2930,10 @@ impl From<crate::openai_models::TruncationPolicyConfig> for TruncationPolicy {
 impl TruncationPolicy {
     pub fn token_budget(&self) -> usize {
         match self {
-            TruncationPolicy::Bytes(bytes) => {
-                usize::try_from(codex_utils_string::approx_tokens_from_byte_count(*bytes))
-                    .unwrap_or(usize::MAX)
-            }
+            TruncationPolicy::Bytes(bytes) => usize::try_from(
+                darwin_code_utils_string::approx_tokens_from_byte_count(*bytes),
+            )
+            .unwrap_or(usize::MAX),
             TruncationPolicy::Tokens(tokens) => *tokens,
         }
     }
@@ -2939,7 +2942,7 @@ impl TruncationPolicy {
         match self {
             TruncationPolicy::Bytes(bytes) => *bytes,
             TruncationPolicy::Tokens(tokens) => {
-                codex_utils_string::approx_bytes_for_tokens(*tokens)
+                darwin_code_utils_string::approx_bytes_for_tokens(*tokens)
             }
         }
     }
@@ -3387,8 +3390,6 @@ pub struct RealtimeConversationListVoicesResponseEvent {
 #[serde(rename_all = "lowercase")]
 #[ts(rename_all = "lowercase")]
 pub enum Product {
-    #[serde(alias = "CHATGPT")]
-    Chatgpt,
     #[serde(alias = "CODEX")]
     Codex,
     #[serde(alias = "ATLAS")]
@@ -3397,8 +3398,7 @@ pub enum Product {
 impl Product {
     pub fn to_app_platform(self) -> &'static str {
         match self {
-            Self::Chatgpt => "chat",
-            Self::Codex => "codex",
+            Self::Codex => "darwin_code",
             Self::Atlas => "atlas",
         }
     }
@@ -3406,7 +3406,6 @@ impl Product {
     pub fn from_session_source_name(value: &str) -> Option<Self> {
         let normalized = value.trim().to_ascii_lowercase();
         match normalized.as_str() {
-            "chatgpt" => Some(Self::Chatgpt),
             "codex" => Some(Self::Codex),
             "atlas" => Some(Self::Atlas),
             _ => None,
@@ -3501,7 +3500,7 @@ pub struct SkillsListEntry {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS, PartialEq, Eq)]
-pub struct SessionNetworkProxyRuntime {
+pub struct SessionNetworkAccessRuntimeRuntime {
     pub http_addr: String,
     pub socks_addr: String,
 }
@@ -3559,7 +3558,7 @@ pub struct SessionConfiguredEvent {
     /// Runtime proxy bind addresses, when the managed proxy was started for this session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub network_proxy: Option<SessionNetworkProxyRuntime>,
+    pub network_access: Option<SessionNetworkAccessRuntimeRuntime>,
 
     /// Path in which the rollout is stored. Can be `None` for ephemeral threads
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3879,9 +3878,9 @@ mod tests {
     use crate::permissions::FileSystemSpecialPath;
     use crate::permissions::NetworkSandboxPolicy;
     use anyhow::Result;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -3929,6 +3928,12 @@ mod tests {
             .get_writable_roots_with_cwd(cwd)
             .iter()
             .any(|root| root.is_path_writable(path))
+    }
+
+    #[test]
+    fn product_app_platform_uses_darwin_code_for_codex_product() {
+        assert_eq!(Product::Codex.to_app_platform(), "darwin_code");
+        assert_eq!(Product::Atlas.to_app_platform(), "atlas");
     }
 
     #[test]
@@ -4008,10 +4013,6 @@ mod tests {
     #[test]
     fn session_source_restriction_product_maps_custom_sources_to_products() {
         assert_eq!(
-            SessionSource::Custom("chatgpt".to_string()).restriction_product(),
-            Some(Product::Chatgpt)
-        );
-        assert_eq!(
             SessionSource::Custom("ATLAS".to_string()).restriction_product(),
             Some(Product::Atlas)
         );
@@ -4027,14 +4028,6 @@ mod tests {
 
     #[test]
     fn session_source_matches_product_restriction() {
-        assert!(
-            SessionSource::Custom("chatgpt".to_string())
-                .matches_product_restriction(&[Product::Chatgpt])
-        );
-        assert!(
-            !SessionSource::Custom("chatgpt".to_string())
-                .matches_product_restriction(&[Product::Codex])
-        );
         assert!(SessionSource::VSCode.matches_product_restriction(&[Product::Codex]));
         assert!(
             !SessionSource::Custom("atlas-dev".to_string())
@@ -4283,8 +4276,9 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_root_with_carveouts_as_scoped_access() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            darwin_code_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let root = AbsolutePathBuf::from_absolute_path(&canonical_cwd)
             .expect("absolute canonical tempdir")
             .as_path()
@@ -4294,7 +4288,7 @@ mod tests {
             .expect("filesystem root");
         let blocked = AbsolutePathBuf::resolve_path_against_base("blocked", cwd.path());
         let expected_blocked = AbsolutePathBuf::from_absolute_path(
-            codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+            darwin_code_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
                 .expect("canonicalize cwd")
                 .join("blocked"),
         )
@@ -4339,8 +4333,9 @@ mod tests {
         let cwd = TempDir::new().expect("tempdir");
         std::fs::create_dir_all(cwd.path().join(".agents")).expect("create .agents");
         std::fs::create_dir_all(cwd.path().join(".codex")).expect("create .codex");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            darwin_code_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let cwd_absolute =
             AbsolutePathBuf::from_absolute_path(&canonical_cwd).expect("absolute tempdir");
         let secret = AbsolutePathBuf::resolve_path_against_base("secret", cwd.path());
@@ -4407,8 +4402,9 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_read_entries_as_read_only_subpaths() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            darwin_code_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let docs = AbsolutePathBuf::resolve_path_against_base("docs", cwd.path());
         let docs_public = AbsolutePathBuf::resolve_path_against_base("docs/public", cwd.path());
         let expected_docs = AbsolutePathBuf::from_absolute_path(canonical_cwd.join("docs"))
@@ -4418,6 +4414,9 @@ mod tests {
                 .expect("canonical docs/public");
         let expected_dot_codex = AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".codex"))
             .expect("canonical .codex");
+        let expected_dot_darwin_code =
+            AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".darwin_code"))
+                .expect("canonical .darwin_code");
         let policy = FileSystemSandboxPolicy::restricted(vec![
             FileSystemSandboxEntry {
                 path: FileSystemPath::Special {
@@ -4443,6 +4442,7 @@ mod tests {
                     canonical_cwd,
                     vec![
                         expected_dot_codex.to_path_buf(),
+                        expected_dot_darwin_code.to_path_buf(),
                         expected_docs.to_path_buf()
                     ],
                 ),
@@ -4455,10 +4455,14 @@ mod tests {
     fn legacy_workspace_write_nested_readable_root_stays_writable() {
         let cwd = TempDir::new().expect("tempdir");
         let docs = AbsolutePathBuf::resolve_path_against_base("docs", cwd.path());
-        let canonical_cwd = codex_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            darwin_code_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let expected_dot_codex = AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".codex"))
             .expect("canonical .codex");
+        let expected_dot_darwin_code =
+            AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".darwin_code"))
+                .expect("canonical .darwin_code");
         let policy = SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
             read_only_access: ReadOnlyAccess::Restricted {
@@ -4475,7 +4479,13 @@ mod tests {
                 FileSystemSandboxPolicy::from_legacy_sandbox_policy(&policy, cwd.path())
                     .get_writable_roots_with_cwd(cwd.path())
             ),
-            vec![(canonical_cwd, vec![expected_dot_codex.to_path_buf()])]
+            vec![(
+                canonical_cwd,
+                vec![
+                    expected_dot_codex.to_path_buf(),
+                    expected_dot_darwin_code.to_path_buf()
+                ]
+            )]
         );
     }
 
@@ -5111,7 +5121,7 @@ mod tests {
                 history_log_id: 0,
                 history_entry_count: 0,
                 initial_messages: None,
-                network_proxy: None,
+                network_access: None,
                 rollout_path: Some(rollout_file.path().to_path_buf()),
             }),
         };

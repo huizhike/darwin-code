@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 use std::sync::mpsc as std_mpsc;
 use std::thread;
 
-use codex_protocol::ToolName;
+use darwin_code_protocol::ToolName;
 use serde_json::Value as JsonValue;
 use tokio::sync::mpsc;
 

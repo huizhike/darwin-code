@@ -1,6 +1,6 @@
 //! Connection manager for Model Context Protocol (MCP) servers.
 //!
-//! The [`McpConnectionManager`] owns one [`codex_rmcp_client::RmcpClient`] per
+//! The [`McpConnectionManager`] owns one [`darwin_code_rmcp_client::RmcpClient`] per
 //! configured server (keyed by the *server name*). It offers convenience
 //! helpers to query the available tools across *all* servers and returns them
 //! in a single aggregated map using the model-visible fully-qualified tool name
@@ -32,28 +32,28 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use async_channel::Sender;
-use codex_async_utils::CancelErr;
-use codex_async_utils::OrCancelExt;
-use codex_config::Constrained;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_protocol::ToolName;
-use codex_protocol::approvals::ElicitationRequest;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp::RequestId as ProtocolRequestId;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpStartupCompleteEvent;
-use codex_protocol::protocol::McpStartupFailure;
-use codex_protocol::protocol::McpStartupStatus;
-use codex_protocol::protocol::McpStartupUpdateEvent;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rmcp_client::LocalStdioServerLauncher;
-use codex_rmcp_client::RmcpClient;
-use codex_rmcp_client::SendElicitation;
-use codex_rmcp_client::StdioServerLauncher;
+use darwin_code_async_utils::CancelErr;
+use darwin_code_async_utils::OrCancelExt;
+use darwin_code_config::Constrained;
+use darwin_code_config::types::OAuthCredentialsStoreMode;
+use darwin_code_protocol::ToolName;
+use darwin_code_protocol::approvals::ElicitationRequest;
+use darwin_code_protocol::approvals::ElicitationRequestEvent;
+use darwin_code_protocol::mcp::CallToolResult;
+use darwin_code_protocol::mcp::RequestId as ProtocolRequestId;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::McpStartupCompleteEvent;
+use darwin_code_protocol::protocol::McpStartupFailure;
+use darwin_code_protocol::protocol::McpStartupStatus;
+use darwin_code_protocol::protocol::McpStartupUpdateEvent;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_rmcp_client::ElicitationResponse;
+use darwin_code_rmcp_client::LocalStdioServerLauncher;
+use darwin_code_rmcp_client::RmcpClient;
+use darwin_code_rmcp_client::SendElicitation;
+use darwin_code_rmcp_client::StdioServerLauncher;
 use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use futures::future::Shared;
@@ -89,11 +89,10 @@ use tracing::instrument;
 use tracing::warn;
 use url::Url;
 
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_login::CodexAuth;
-use codex_utils_plugins::mcp_connector::is_connector_id_allowed;
-use codex_utils_plugins::mcp_connector::sanitize_name;
+use darwin_code_config::McpServerConfig;
+use darwin_code_config::McpServerTransportConfig;
+use darwin_code_utils_plugins::mcp_connector::is_connector_id_allowed;
+use darwin_code_utils_plugins::mcp_connector::sanitize_name;
 
 /// Delimiter used to separate MCP tool-name parts.
 const MCP_TOOL_NAME_DELIMITER: &str = "__";
@@ -117,22 +116,11 @@ fn sha1_hex(s: &str) -> String {
     format!("{sha1:x}")
 }
 
-pub fn codex_apps_tools_cache_key(auth: Option<&CodexAuth>) -> CodexAppsToolsCacheKey {
-    let token_data = auth.and_then(|auth| auth.get_token_data().ok());
-    let account_id = token_data
-        .as_ref()
-        .and_then(|token_data| token_data.account_id.clone());
-    let chatgpt_user_id = token_data
-        .as_ref()
-        .and_then(|token_data| token_data.id_token.chatgpt_user_id.clone());
-    let is_workspace_account = token_data
-        .as_ref()
-        .is_some_and(|token_data| token_data.id_token.is_workspace_account());
-
+pub fn codex_apps_tools_cache_key() -> CodexAppsToolsCacheKey {
     CodexAppsToolsCacheKey {
-        account_id,
-        chatgpt_user_id,
-        is_workspace_account,
+        account_id: None,
+        provider_user_id: None,
+        is_workspace_account: false,
     }
 }
 
@@ -250,7 +238,7 @@ fn mask_input_property_schema(schema: &mut JsonValue) {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CodexAppsToolsCacheKey {
     account_id: Option<String>,
-    chatgpt_user_id: Option<String>,
+    provider_user_id: Option<String>,
     is_workspace_account: bool,
 }
 
@@ -655,12 +643,8 @@ impl McpConnectionManager {
         configured_mcp_servers(config)
     }
 
-    pub fn effective_servers(
-        &self,
-        config: &McpConfig,
-        auth: Option<&CodexAuth>,
-    ) -> HashMap<String, McpServerConfig> {
-        effective_mcp_servers(config, auth)
+    pub fn effective_servers(&self, config: &McpConfig) -> HashMap<String, McpServerConfig> {
+        effective_mcp_servers(config)
     }
 
     pub fn tool_plugin_provenance(&self, config: &McpConfig) -> ToolPluginProvenance {
@@ -1628,7 +1612,7 @@ fn filter_disallowed_codex_apps_tools(tools: Vec<ToolInfo>) -> Vec<ToolInfo> {
 }
 
 fn emit_duration(metric: &str, duration: Duration, tags: &[(&str, &str)]) {
-    if let Some(metrics) = codex_otel::global() {
+    if let Some(metrics) = darwin_code_otel::global() {
         let _ = metrics.record_duration(metric, duration, tags);
     }
 }

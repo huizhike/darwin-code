@@ -1,21 +1,21 @@
+use crate::NetworkAccessRuntime;
 #[cfg(target_os = "linux")]
 use crate::bwrap::WSL1_BWRAP_WARNING;
 #[cfg(target_os = "linux")]
 use crate::bwrap::is_wsl1;
 use crate::landlock::CODEX_LINUX_SANDBOX_ARG0;
-use crate::landlock::allow_network_for_proxy;
+use crate::landlock::allow_network_for_network_policy;
 use crate::landlock::create_linux_sandbox_command_args_for_policies;
 use crate::policy_transforms::EffectiveSandboxPermissions;
 use crate::policy_transforms::effective_file_system_sandbox_policy;
 use crate::policy_transforms::effective_network_sandbox_policy;
 use crate::policy_transforms::should_require_platform_sandbox;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::models::PermissionProfile;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::Path;
@@ -76,7 +76,7 @@ pub struct SandboxExecRequest {
     pub command: Vec<String>,
     pub cwd: AbsolutePathBuf,
     pub env: HashMap<String, String>,
-    pub network: Option<NetworkProxy>,
+    pub network: Option<NetworkAccessRuntime>,
     pub sandbox: SandboxType,
     pub windows_sandbox_level: WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
@@ -95,10 +95,10 @@ pub struct SandboxTransformRequest<'a> {
     pub file_system_policy: &'a FileSystemSandboxPolicy,
     pub network_policy: NetworkSandboxPolicy,
     pub sandbox: SandboxType,
-    pub enforce_managed_network: bool,
-    // TODO(viyatb): Evaluate switching this to Option<Arc<NetworkProxy>>
+    pub enforce_network_policy: bool,
+    // TODO(viyatb): Evaluate switching this to Option<Arc<NetworkAccessRuntime>>
     // to make shared ownership explicit across runtime/sandbox plumbing.
-    pub network: Option<&'a NetworkProxy>,
+    pub network: Option<&'a NetworkAccessRuntime>,
     pub sandbox_policy_cwd: &'a Path,
     pub codex_linux_sandbox_exe: Option<&'a Path>,
     pub use_legacy_landlock: bool,
@@ -145,7 +145,7 @@ impl SandboxManager {
         network_policy: NetworkSandboxPolicy,
         pref: SandboxablePreference,
         windows_sandbox_level: WindowsSandboxLevel,
-        has_managed_network_requirements: bool,
+        has_network_requirements: bool,
     ) -> SandboxType {
         match pref {
             SandboxablePreference::Forbid => SandboxType::None,
@@ -157,7 +157,7 @@ impl SandboxManager {
                 if should_require_platform_sandbox(
                     file_system_policy,
                     network_policy,
-                    has_managed_network_requirements,
+                    has_network_requirements,
                 ) {
                     get_platform_sandbox(windows_sandbox_level != WindowsSandboxLevel::Disabled)
                         .unwrap_or(SandboxType::None)
@@ -178,7 +178,7 @@ impl SandboxManager {
             file_system_policy,
             network_policy,
             sandbox,
-            enforce_managed_network,
+            enforce_network_policy,
             network,
             sandbox_policy_cwd,
             codex_linux_sandbox_exe,
@@ -213,7 +213,7 @@ impl SandboxManager {
                     file_system_sandbox_policy: &effective_file_system_policy,
                     network_sandbox_policy: effective_network_policy,
                     sandbox_policy_cwd,
-                    enforce_managed_network,
+                    enforce_network_policy,
                     network,
                     extra_allow_unix_sockets: &[],
                 });
@@ -227,7 +227,7 @@ impl SandboxManager {
             SandboxType::LinuxSeccomp => {
                 let exe = codex_linux_sandbox_exe
                     .ok_or(SandboxTransformError::MissingLinuxSandboxExecutable)?;
-                let allow_proxy_network = allow_network_for_proxy(enforce_managed_network);
+                let allow_proxy_network = allow_network_for_network_policy(enforce_network_policy);
                 #[cfg(target_os = "linux")]
                 ensure_linux_bubblewrap_is_supported(
                     &effective_file_system_policy,
@@ -276,11 +276,12 @@ impl SandboxManager {
 fn ensure_linux_bubblewrap_is_supported(
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     use_legacy_landlock: bool,
-    allow_network_for_proxy: bool,
+    allow_network_for_network_policy: bool,
     is_wsl1: bool,
 ) -> Result<(), SandboxTransformError> {
     let requires_bubblewrap = !use_legacy_landlock
-        && (!file_system_sandbox_policy.has_full_disk_write_access() || allow_network_for_proxy);
+        && (!file_system_sandbox_policy.has_full_disk_write_access()
+            || allow_network_for_network_policy);
     if is_wsl1 && requires_bubblewrap {
         return Err(SandboxTransformError::Wsl1UnsupportedForBubblewrap);
     }

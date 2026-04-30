@@ -1,4 +1,13 @@
 use anyhow::Result;
+use core_test_support::responses::ResponsesRequest;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
 use darwin_code_core::ForkSnapshot;
 use darwin_code_core::config::Constrained;
 use darwin_code_execpolicy::Policy;
@@ -9,15 +18,6 @@ use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::user_input::UserInput;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::responses::ResponsesRequest;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
 use tempfile::TempDir;
@@ -46,7 +46,7 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -56,7 +56,10 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(permissions_texts(&req.single_request()).len(), 1);
 
@@ -84,7 +87,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -94,9 +97,12 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -112,7 +118,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -122,7 +128,10 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -156,7 +165,7 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -166,9 +175,12 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -178,7 +190,10 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -212,7 +227,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -222,9 +237,12 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -240,7 +258,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -250,7 +268,10 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(
         permissions_texts(&req1.single_request()),
@@ -297,7 +318,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -307,10 +328,13 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -327,7 +351,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
         .await?;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -337,11 +361,14 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -351,7 +378,10 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions = permissions_texts(&req3.single_request());
     assert_eq!(permissions.len(), 3);
@@ -399,7 +429,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -409,10 +439,13 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: Some(AskForApproval::Never),
@@ -429,7 +462,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
         .await?;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -439,7 +472,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_base = permissions_texts(&req2.single_request());
     assert_eq!(permissions_base.len(), 2);
@@ -449,7 +485,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     });
     let resumed = builder.resume(&server, home, rollout_path.clone()).await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -459,7 +495,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_resume = permissions_texts(&req3.single_request());
     assert_eq!(permissions_resume.len(), permissions_base.len() + 1);
@@ -535,7 +574,7 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -545,7 +584,10 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions = permissions_texts(&req.single_request());
     let expected = DeveloperInstructions::from_policy(

@@ -4,9 +4,9 @@ use std::time::Duration;
 use anyhow::Context;
 use chrono::DateTime;
 use clap::Parser;
-use codex_state::LogQuery;
-use codex_state::LogRow;
-use codex_state::StateRuntime;
+use darwin_code_state::LogQuery;
+use darwin_code_state::LogRow;
+use darwin_code_state::StateRuntime;
 use dirs::home_dir;
 use owo_colors::OwoColorize;
 
@@ -113,7 +113,7 @@ fn resolve_db_path(args: &Args) -> anyhow::Result<PathBuf> {
     }
 
     let codex_home = args.codex_home.clone().unwrap_or_else(default_codex_home);
-    Ok(codex_state::logs_db_path(codex_home.as_path()))
+    Ok(darwin_code_state::logs_db_path(codex_home.as_path()))
 }
 
 fn default_codex_home() -> PathBuf {

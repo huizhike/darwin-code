@@ -33,12 +33,13 @@ impl IntoProtocol<FunctionCallOutputContentItem>
             darwin_code_code_mode::FunctionCallOutputContentItem::InputText { text } => {
                 FunctionCallOutputContentItem::InputText { text }
             }
-            darwin_code_code_mode::FunctionCallOutputContentItem::InputImage { image_url, detail } => {
-                FunctionCallOutputContentItem::InputImage {
-                    image_url,
-                    detail: detail.map(IntoProtocol::into_protocol),
-                }
-            }
+            darwin_code_code_mode::FunctionCallOutputContentItem::InputImage {
+                image_url,
+                detail,
+            } => FunctionCallOutputContentItem::InputImage {
+                image_url,
+                detail: detail.map(IntoProtocol::into_protocol),
+            },
         }
     }
 }

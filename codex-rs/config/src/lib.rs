@@ -1,8 +1,8 @@
-mod cloud_requirements;
 mod config_requirements;
 pub mod config_toml;
 mod constraint;
 mod diagnostics;
+mod external_requirements;
 mod fingerprint;
 mod key_aliases;
 mod marketplace_edit;
@@ -22,9 +22,6 @@ pub mod types;
 
 pub const CONFIG_TOML_FILE: &str = "config.toml";
 
-pub use cloud_requirements::CloudRequirementsLoadError;
-pub use cloud_requirements::CloudRequirementsLoadErrorCode;
-pub use cloud_requirements::CloudRequirementsLoader;
 pub use config_requirements::AppRequirementToml;
 pub use config_requirements::AppsRequirementsToml;
 pub use config_requirements::ConfigRequirements;
@@ -61,6 +58,9 @@ pub use diagnostics::first_layer_config_error_from_entries;
 pub use diagnostics::format_config_error;
 pub use diagnostics::format_config_error_with_source;
 pub use diagnostics::io_error_from_config_error;
+pub use external_requirements::ExternalRequirementsLoadError;
+pub use external_requirements::ExternalRequirementsLoadErrorCode;
+pub use external_requirements::ExternalRequirementsLoader;
 pub use fingerprint::version_for_toml;
 pub use marketplace_edit::MarketplaceConfigUpdate;
 pub use marketplace_edit::record_user_marketplace;
@@ -90,4 +90,4 @@ pub use state::ConfigLayerStack;
 pub use state::ConfigLayerStackOrdering;
 pub use state::LoaderOverrides;
 
-pub use codex_app_server_protocol::ConfigLayerSource;
+pub use darwin_code_app_server_protocol::ConfigLayerSource;

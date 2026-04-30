@@ -670,6 +670,7 @@ pub fn user_message_item(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -997,6 +998,23 @@ fn base_mock() -> (MockBuilder, ResponseMock) {
         .and(path_regex(".*/responses$"))
         .and(response_mock.clone());
     (mock, response_mock)
+}
+
+fn chat_completions_mock() -> (MockBuilder, ResponseMock) {
+    let response_mock = ResponseMock::new();
+    let mock = Mock::given(method("POST"))
+        .and(path_regex(".*/chat/completions$"))
+        .and(response_mock.clone());
+    (mock, response_mock)
+}
+
+pub async fn mount_chat_completions_sse_once(server: &MockServer, body: String) -> ResponseMock {
+    let (mock, response_mock) = chat_completions_mock();
+    mock.respond_with(sse_response(body))
+        .up_to_n_times(1)
+        .mount(server)
+        .await;
+    response_mock
 }
 
 fn compact_mock() -> (MockBuilder, ResponseMock) {

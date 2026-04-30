@@ -1,11 +1,8 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use anyhow::bail;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use app_test_support::write_chatgpt_auth;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::PluginAuthPolicy;
 use darwin_code_app_server_protocol::PluginInstallPolicy;
@@ -15,25 +12,15 @@ use darwin_code_app_server_protocol::PluginMarketplaceEntry;
 use darwin_code_app_server_protocol::PluginSource;
 use darwin_code_app_server_protocol::PluginSummary;
 use darwin_code_app_server_protocol::RequestId;
-use darwin_code_config::types::AuthCredentialsStoreMode;
 use darwin_code_core::config::set_project_trust_level;
 use darwin_code_protocol::config_types::TrustLevel;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
-use wiremock::Mock;
-use wiremock::MockServer;
-use wiremock::ResponseTemplate;
-use wiremock::matchers::header;
-use wiremock::matchers::method;
-use wiremock::matchers::path;
-use wiremock::matchers::query_param;
 
 // These tests start full app-server processes and can also run plugin startup warmers.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
-const TEST_CURATED_PLUGIN_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
-const STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE: &str = ".tmp/app-server-remote-plugin-sync-v1";
 const ALTERNATE_MARKETPLACE_RELATIVE_PATH: &str = ".claude-plugin/marketplace.json";
 const ALTERNATE_PLUGIN_MANIFEST_RELATIVE_PATH: &str = ".claude-plugin/plugin.json";
 
@@ -140,7 +127,7 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
     std::fs::create_dir_all(
         valid_repo_root
             .path()
-            .join("plugins/valid-plugin/.darwin-code-plugin"),
+            .join("plugins/valid-plugin/.codex-plugin"),
     )?;
     std::fs::create_dir_all(invalid_repo_root.path().join(".git"))?;
     std::fs::create_dir_all(invalid_repo_root.path().join(".agents/plugins"))?;
@@ -177,7 +164,7 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
     std::fs::write(
         valid_repo_root
             .path()
-            .join("plugins/valid-plugin/.darwin-code-plugin/plugin.json"),
+            .join("plugins/valid-plugin/.codex-plugin/plugin.json"),
         r#"{"name":"valid-plugin"}"#,
     )?;
     std::fs::write(invalid_marketplace_path.as_path(), "{not json")?;
@@ -385,9 +372,11 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     std::fs::create_dir_all(darwin_code_home.path().join(".agents/plugins"))?;
     write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
-        darwin_code_home.path().join(".agents/plugins/marketplace.json"),
+        darwin_code_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "plugins": [
     {
       "name": "home-plugin",
@@ -429,14 +418,14 @@ async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<
     let repo_root = TempDir::new()?;
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "enabled-plugin")?;
-    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "disabled-plugin")?;
+    write_installed_plugin(&darwin_code_home, "darwin_code-curated", "enabled-plugin")?;
+    write_installed_plugin(&darwin_code_home, "darwin_code-curated", "disabled-plugin")?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "interface": {
-    "displayName": "ChatGPT Official"
+    "displayName": "Darwin Official"
   },
   "plugins": [
     {
@@ -468,10 +457,10 @@ async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<
         r#"[features]
 plugins = true
 
-[plugins."enabled-plugin@darwin-code-curated"]
+[plugins."enabled-plugin@darwin_code-curated"]
 enabled = true
 
-[plugins."disabled-plugin@darwin-code-curated"]
+[plugins."disabled-plugin@darwin_code-curated"]
 enabled = false
 "#,
     )?;
@@ -506,16 +495,19 @@ enabled = false
         })
         .expect("expected repo marketplace entry");
 
-    assert_eq!(marketplace.name, "darwin-code-curated");
+    assert_eq!(marketplace.name, "darwin_code-curated");
     assert_eq!(
         marketplace
             .interface
             .as_ref()
             .and_then(|interface| interface.display_name.as_deref()),
-        Some("ChatGPT Official")
+        Some("Darwin Official")
     );
     assert_eq!(marketplace.plugins.len(), 3);
-    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@darwin-code-curated");
+    assert_eq!(
+        marketplace.plugins[0].id,
+        "enabled-plugin@darwin_code-curated"
+    );
     assert_eq!(marketplace.plugins[0].name, "enabled-plugin");
     assert_eq!(marketplace.plugins[0].installed, true);
     assert_eq!(marketplace.plugins[0].enabled, true);
@@ -527,7 +519,10 @@ enabled = false
         marketplace.plugins[0].auth_policy,
         PluginAuthPolicy::OnInstall
     );
-    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@darwin-code-curated");
+    assert_eq!(
+        marketplace.plugins[1].id,
+        "disabled-plugin@darwin_code-curated"
+    );
     assert_eq!(marketplace.plugins[1].name, "disabled-plugin");
     assert_eq!(marketplace.plugins[1].installed, true);
     assert_eq!(marketplace.plugins[1].enabled, false);
@@ -541,7 +536,7 @@ enabled = false
     );
     assert_eq!(
         marketplace.plugins[2].id,
-        "uninstalled-plugin@darwin-code-curated"
+        "uninstalled-plugin@darwin_code-curated"
     );
     assert_eq!(marketplace.plugins[2].name, "uninstalled-plugin");
     assert_eq!(marketplace.plugins[2].installed, false);
@@ -561,11 +556,13 @@ enabled = false
 async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
     std::fs::create_dir_all(darwin_code_home.path().join(".agents/plugins"))?;
-    write_installed_plugin(&darwin_code_home, "darwin-code-curated", "shared-plugin")?;
+    write_installed_plugin(&darwin_code_home, "darwin_code-curated", "shared-plugin")?;
     std::fs::write(
-        darwin_code_home.path().join(".agents/plugins/marketplace.json"),
+        darwin_code_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -582,7 +579,7 @@ async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
         r#"[features]
 plugins = true
 
-[plugins."shared-plugin@darwin-code-curated"]
+[plugins."shared-plugin@darwin_code-curated"]
 enabled = true
 "#,
     )?;
@@ -595,7 +592,7 @@ enabled = true
             .path()
             .join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -607,10 +604,10 @@ enabled = true
   ]
 }"#,
     )?;
-    std::fs::create_dir_all(workspace_enabled.path().join(".darwin-code"))?;
+    std::fs::create_dir_all(workspace_enabled.path().join(".darwin_code"))?;
     std::fs::write(
-        workspace_enabled.path().join(".darwin-code/config.toml"),
-        r#"[plugins."shared-plugin@darwin-code-curated"]
+        workspace_enabled.path().join(".darwin_code/config.toml"),
+        r#"[plugins."shared-plugin@darwin_code-curated"]
 enabled = false
 "#,
     )?;
@@ -654,7 +651,7 @@ enabled = false
         .flat_map(|marketplace| marketplace.plugins.iter())
         .find(|plugin| plugin.name == "shared-plugin")
         .expect("expected shared-plugin entry");
-    assert_eq!(shared_plugin.id, "shared-plugin@darwin-code-curated");
+    assert_eq!(shared_plugin.id, "shared-plugin@darwin_code-curated");
     assert_eq!(shared_plugin.installed, true);
     assert_eq!(shared_plugin.enabled, true);
     Ok(())
@@ -667,12 +664,12 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     let plugin_root = repo_root.path().join("plugins/demo-plugin");
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
+    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
     write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -690,7 +687,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".darwin-code-plugin/plugin.json"),
+        plugin_root.join(".codex-plugin/plugin.json"),
         r##"{
   "name": "demo-plugin",
   "interface": {
@@ -738,7 +735,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
         .find(|plugin| plugin.name == "demo-plugin")
         .expect("expected demo-plugin entry");
 
-    assert_eq!(plugin.id, "demo-plugin@darwin-code-curated");
+    assert_eq!(plugin.id, "demo-plugin@darwin_code-curated");
     assert_eq!(plugin.installed, false);
     assert_eq!(plugin.enabled, false);
     assert_eq!(plugin.install_policy, PluginInstallPolicy::Available);
@@ -800,12 +797,12 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
     let plugin_root = repo_root.path().join("plugins/demo-plugin");
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    std::fs::create_dir_all(plugin_root.join(".darwin-code-plugin"))?;
+    std::fs::create_dir_all(plugin_root.join(".codex-plugin"))?;
     write_plugins_enabled_config(darwin_code_home.path())?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "darwin-code-curated",
+  "name": "darwin_code-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -818,7 +815,7 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 }"#,
     )?;
     std::fs::write(
-        plugin_root.join(".darwin-code-plugin/plugin.json"),
+        plugin_root.join(".codex-plugin/plugin.json"),
         r##"{
   "name": "demo-plugin",
   "interface": {
@@ -859,214 +856,6 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
     Ok(())
 }
 
-#[tokio::test]
-async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    let server = MockServer::start().await;
-    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_chatgpt_auth(
-        darwin_code_home.path(),
-        ChatGptAuthFixture::new("chatgpt-token")
-            .account_id("account-123")
-            .chatgpt_user_id("user-123")
-            .chatgpt_account_id("account-123"),
-        AuthCredentialsStoreMode::File,
-    )?;
-    write_openai_curated_marketplace(darwin_code_home.path(), &["linear"])?;
-
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/list"))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(
-            r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
-]"#,
-        ))
-        .mount(&server)
-        .await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "darwin-code"))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
-        .mount(&server)
-        .await;
-
-    let marker_path = darwin_code_home
-        .path()
-        .join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE);
-
-    {
-        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
-        timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-
-        wait_for_path_exists(&marker_path).await?;
-        wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1)
-            .await?;
-        let request_id = mcp
-            .send_plugin_list_request(PluginListParams { cwds: None })
-            .await?;
-        let response: JSONRPCResponse = timeout(
-            DEFAULT_TIMEOUT,
-            mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
-        )
-        .await??;
-        let response: PluginListResponse = to_response(response)?;
-        let curated_marketplace = response
-            .marketplaces
-            .into_iter()
-            .find(|marketplace| marketplace.name == "openai-curated")
-            .expect("expected openai-curated marketplace entry");
-        assert_eq!(
-            curated_marketplace
-                .plugins
-                .into_iter()
-                .map(|plugin| (plugin.id, plugin.installed, plugin.enabled))
-                .collect::<Vec<_>>(),
-            vec![("linear@openai-curated".to_string(), true, true)]
-        );
-        wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1)
-            .await?;
-    }
-
-    let config = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
-
-    {
-        let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
-        timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    }
-
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1).await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    let server = MockServer::start().await;
-    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(darwin_code_home.path(), &["linear", "gmail"])?;
-
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "darwin-code"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
-        .mount(&server)
-        .await;
-
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
-    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-
-    let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
-        .await?;
-
-    let response: JSONRPCResponse = timeout(
-        DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
-    )
-    .await??;
-    let response: PluginListResponse = to_response(response)?;
-
-    assert_eq!(
-        response.featured_plugin_ids,
-        vec!["linear@openai-curated".to_string()]
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() -> Result<()> {
-    let darwin_code_home = TempDir::new()?;
-    let server = MockServer::start().await;
-    write_plugin_sync_config(darwin_code_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(darwin_code_home.path(), &["linear", "gmail"])?;
-
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "darwin-code"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
-        .expect(1)
-        .mount(&server)
-        .await;
-
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
-    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    wait_for_featured_plugin_request_count(&server, /*expected_count*/ 1).await?;
-
-    let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
-        .await?;
-
-    let response: JSONRPCResponse = timeout(
-        DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
-    )
-    .await??;
-    let response: PluginListResponse = to_response(response)?;
-
-    assert_eq!(
-        response.featured_plugin_ids,
-        vec!["linear@openai-curated".to_string()]
-    );
-    Ok(())
-}
-
-async fn wait_for_featured_plugin_request_count(
-    server: &MockServer,
-    expected_count: usize,
-) -> Result<()> {
-    wait_for_remote_plugin_request_count(server, "/plugins/featured", expected_count).await
-}
-
-async fn wait_for_remote_plugin_request_count(
-    server: &MockServer,
-    path_suffix: &str,
-    expected_count: usize,
-) -> Result<()> {
-    timeout(DEFAULT_TIMEOUT, async {
-        loop {
-            let Some(requests) = server.received_requests().await else {
-                bail!("wiremock did not record requests");
-            };
-            let request_count = requests
-                .iter()
-                .filter(|request| {
-                    request.method == "GET" && request.url.path().ends_with(path_suffix)
-                })
-                .count();
-            if request_count == expected_count {
-                return Ok::<(), anyhow::Error>(());
-            }
-            if request_count > expected_count {
-                bail!(
-                    "expected exactly {expected_count} {path_suffix} requests, got {request_count}"
-                );
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await??;
-    Ok(())
-}
-
-async fn wait_for_path_exists(path: &std::path::Path) -> Result<()> {
-    timeout(DEFAULT_TIMEOUT, async {
-        loop {
-            if path.exists() {
-                return Ok::<(), anyhow::Error>(());
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await??;
-    Ok(())
-}
-
 fn write_installed_plugin(
     darwin_code_home: &TempDir,
     marketplace_name: &str,
@@ -1077,84 +866,11 @@ fn write_installed_plugin(
         .join("plugins/cache")
         .join(marketplace_name)
         .join(plugin_name)
-        .join("local/.darwin-code-plugin");
+        .join("local/.codex-plugin");
     std::fs::create_dir_all(&plugin_root)?;
     std::fs::write(
         plugin_root.join("plugin.json"),
         format!(r#"{{"name":"{plugin_name}"}}"#),
-    )?;
-    Ok(())
-}
-
-fn write_plugin_sync_config(darwin_code_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
-    std::fs::write(
-        darwin_code_home.join("config.toml"),
-        format!(
-            r#"
-chatgpt_base_url = "{base_url}"
-
-[features]
-plugins = true
-
-[plugins."linear@openai-curated"]
-enabled = false
-
-[plugins."gmail@openai-curated"]
-enabled = false
-
-[plugins."calendar@openai-curated"]
-enabled = true
-"#
-        ),
-    )
-}
-
-fn write_openai_curated_marketplace(
-    darwin_code_home: &std::path::Path,
-    plugin_names: &[&str],
-) -> std::io::Result<()> {
-    let curated_root = darwin_code_home.join(".tmp/plugins");
-    std::fs::create_dir_all(curated_root.join(".git"))?;
-    std::fs::create_dir_all(curated_root.join(".agents/plugins"))?;
-    let plugins = plugin_names
-        .iter()
-        .map(|plugin_name| {
-            format!(
-                r#"{{
-      "name": "{plugin_name}",
-      "source": {{
-        "source": "local",
-        "path": "./plugins/{plugin_name}"
-      }}
-    }}"#
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(",\n");
-    std::fs::write(
-        curated_root.join(".agents/plugins/marketplace.json"),
-        format!(
-            r#"{{
-  "name": "openai-curated",
-  "plugins": [
-{plugins}
-  ]
-}}"#
-        ),
-    )?;
-
-    for plugin_name in plugin_names {
-        let plugin_root = curated_root.join(format!("plugins/{plugin_name}/.darwin-code-plugin"));
-        std::fs::create_dir_all(&plugin_root)?;
-        std::fs::write(
-            plugin_root.join("plugin.json"),
-            format!(r#"{{"name":"{plugin_name}"}}"#),
-        )?;
-    }
-    std::fs::create_dir_all(darwin_code_home.join(".tmp"))?;
-    std::fs::write(
-        darwin_code_home.join(".tmp/plugins.sha"),
-        format!("{TEST_CURATED_PLUGIN_SHA}\n"),
     )?;
     Ok(())
 }

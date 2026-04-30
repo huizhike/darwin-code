@@ -595,7 +595,10 @@ impl EventProcessor for EventProcessorWithJsonOutput {
         self.emit(Self::thread_started_event(session_configured));
     }
 
-    fn process_server_notification(&mut self, notification: ServerNotification) -> DarwinCodeStatus {
+    fn process_server_notification(
+        &mut self,
+        notification: ServerNotification,
+    ) -> DarwinCodeStatus {
         let collected = self.collect_thread_events(notification);
         for event in collected.events {
             self.emit(event);

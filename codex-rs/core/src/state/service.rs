@@ -6,7 +6,6 @@ use crate::SkillsManager;
 use crate::agent::AgentControl;
 use crate::agent_identity::AgentIdentityManager;
 use crate::client::ModelClient;
-use crate::config::StartedNetworkProxy;
 use crate::exec_policy::ExecPolicyManager;
 use crate::guardian::GuardianRejection;
 use crate::mcp::McpManager;
@@ -16,9 +15,9 @@ use crate::tools::code_mode::CodeModeService;
 use crate::tools::network_approval::NetworkApprovalService;
 use crate::tools::sandboxing::ApprovalStore;
 use crate::unified_exec::UnifiedExecProcessManager;
+use codex_analytics::AnalyticsEventsClient;
 use darwin_code_exec_server::Environment;
 use darwin_code_hooks::Hooks;
-use darwin_code_login::AuthManager;
 use darwin_code_mcp::McpConnectionManager;
 use darwin_code_models_manager::manager::ModelsManager;
 use darwin_code_otel::SessionTelemetry;
@@ -46,7 +45,6 @@ pub(crate) struct SessionServices {
     pub(crate) shell_snapshot_tx: watch::Sender<Option<Arc<crate::shell_snapshot::ShellSnapshot>>>,
     pub(crate) show_raw_agent_reasoning: bool,
     pub(crate) exec_policy: Arc<ExecPolicyManager>,
-    pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) models_manager: Arc<ModelsManager>,
     pub(crate) session_telemetry: SessionTelemetry,
     pub(crate) tool_approvals: Mutex<ApprovalStore>,
@@ -56,7 +54,6 @@ pub(crate) struct SessionServices {
     pub(crate) mcp_manager: Arc<McpManager>,
     pub(crate) skills_watcher: Arc<SkillsWatcher>,
     pub(crate) agent_control: AgentControl,
-    pub(crate) network_proxy: Option<StartedNetworkProxy>,
     pub(crate) network_approval: Arc<NetworkApprovalService>,
     pub(crate) state_db: Option<StateDbHandle>,
     pub(crate) thread_store: LocalThreadStore,

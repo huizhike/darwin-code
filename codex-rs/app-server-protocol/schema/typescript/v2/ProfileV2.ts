@@ -16,4 +16,4 @@ export type ProfileV2 = {model: string | null, model_provider: string | null, ap
  * are routed for review. If omitted, the enclosing config default is
  * used.
  */
-approvals_reviewer: ApprovalsReviewer | null, service_tier: ServiceTier | null, model_reasoning_effort: ReasoningEffort | null, model_reasoning_summary: ReasoningSummary | null, model_verbosity: Verbosity | null, web_search: WebSearchMode | null, tools: ToolsV2 | null, chatgpt_base_url: string | null} & ({ [key in string]?: number | string | boolean | Array<JsonValue> | { [key in string]?: JsonValue } | null });
+approvals_reviewer: ApprovalsReviewer | null, service_tier: ServiceTier | null, model_reasoning_effort: ReasoningEffort | null, model_reasoning_summary: ReasoningSummary | null, model_verbosity: Verbosity | null, web_search: WebSearchMode | null, tools: ToolsV2 | null} & ({ [key in string]?: number | string | boolean | Array<JsonValue> | { [key in string]?: JsonValue } | null });

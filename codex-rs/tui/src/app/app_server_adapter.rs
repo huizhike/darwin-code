@@ -15,12 +15,9 @@ use super::App;
 use crate::app_command::AppCommand;
 use crate::app_event::AppEvent;
 use crate::app_server_session::AppServerSession;
-use crate::app_server_session::app_server_rate_limit_snapshot_to_core;
-use crate::app_server_session::status_account_display_from_auth_mode;
 #[cfg(test)]
 use crate::exec_command::split_command_string;
 use darwin_code_app_server_client::AppServerEvent;
-use darwin_code_app_server_protocol::AuthMode;
 use darwin_code_app_server_protocol::JSONRPCErrorError;
 use darwin_code_app_server_protocol::ServerNotification;
 use darwin_code_app_server_protocol::ServerRequest;
@@ -169,26 +166,6 @@ impl App {
             ServerNotification::McpServerStatusUpdated(_) => {
                 self.refresh_mcp_startup_expected_servers_from_config();
             }
-            ServerNotification::AccountRateLimitsUpdated(notification) => {
-                self.chat_widget.on_rate_limit_snapshot(Some(
-                    app_server_rate_limit_snapshot_to_core(notification.rate_limits.clone()),
-                ));
-                return;
-            }
-            ServerNotification::AccountUpdated(notification) => {
-                self.chat_widget.update_account_state(
-                    status_account_display_from_auth_mode(
-                        notification.auth_mode,
-                        notification.plan_type,
-                    ),
-                    notification.plan_type,
-                    matches!(
-                        notification.auth_mode,
-                        Some(AuthMode::Chatgpt) | Some(AuthMode::ChatgptAuthTokens)
-                    ),
-                );
-                return;
-            }
             ServerNotification::ExternalAgentConfigImportCompleted(_) => {
                 let cwd = self.chat_widget.config_ref().cwd.to_path_buf();
                 if let Err(err) = self.refresh_in_memory_config_from_disk().await {
@@ -319,9 +296,9 @@ fn server_request_thread_id(request: &ServerRequest) -> Option<ThreadId> {
         ServerRequest::DynamicToolCall { params, .. } => {
             ThreadId::from_string(&params.thread_id).ok()
         }
-        ServerRequest::ChatgptAuthTokensRefresh { .. }
-        | ServerRequest::ApplyPatchApproval { .. }
-        | ServerRequest::ExecCommandApproval { .. } => None,
+        ServerRequest::ApplyPatchApproval { .. } | ServerRequest::ExecCommandApproval { .. } => {
+            None
+        }
     }
 }
 
@@ -425,8 +402,6 @@ fn server_notification_thread_target(
         ServerNotification::SkillsChanged(_)
         | ServerNotification::McpServerStatusUpdated(_)
         | ServerNotification::McpServerOauthLoginCompleted(_)
-        | ServerNotification::AccountUpdated(_)
-        | ServerNotification::AccountRateLimitsUpdated(_)
         | ServerNotification::AppListUpdated(_)
         | ServerNotification::ExternalAgentConfigImportCompleted(_)
         | ServerNotification::DeprecationNotice(_)
@@ -436,8 +411,7 @@ fn server_notification_thread_target(
         | ServerNotification::CommandExecOutputDelta(_)
         | ServerNotification::FsChanged(_)
         | ServerNotification::WindowsWorldWritableWarning(_)
-        | ServerNotification::WindowsSandboxSetupCompleted(_)
-        | ServerNotification::AccountLoginCompleted(_) => None,
+        | ServerNotification::WindowsSandboxSetupCompleted(_) => None,
     };
 
     match thread_id {
@@ -504,10 +478,10 @@ fn server_notification_thread_events(
                 id: String::new(),
                 msg: EventMsg::Error(ErrorEvent {
                     message: notification.error.message,
-                    darwin_code_error_info: notification
+                    codex_error_info: notification
                         .error
-                        .darwin_code_error_info
-                        .and_then(app_server_darwin_code_error_info_to_core),
+                        .codex_error_info
+                        .and_then(app_server_codex_error_info_to_core),
                 }),
             }],
         )),
@@ -799,10 +773,10 @@ fn append_terminal_turn_events(events: &mut Vec<Event>, turn: &Turn, include_fai
                     id: String::new(),
                     msg: EventMsg::Error(ErrorEvent {
                         message: error.message.clone(),
-                        darwin_code_error_info: error
-                            .darwin_code_error_info
+                        codex_error_info: error
+                            .codex_error_info
                             .clone()
-                            .and_then(app_server_darwin_code_error_info_to_core),
+                            .and_then(app_server_codex_error_info_to_core),
                     }),
                 });
             }
@@ -971,12 +945,18 @@ fn command_execution_completed_event(turn_id: &str, item: &ThreadItem) -> Option
     }
 
     let status = match status {
-        darwin_code_app_server_protocol::CommandExecutionStatus::InProgress => return Some(Vec::new()),
+        darwin_code_app_server_protocol::CommandExecutionStatus::InProgress => {
+            return Some(Vec::new());
+        }
         darwin_code_app_server_protocol::CommandExecutionStatus::Completed => {
             ExecCommandStatus::Completed
         }
-        darwin_code_app_server_protocol::CommandExecutionStatus::Failed => ExecCommandStatus::Failed,
-        darwin_code_app_server_protocol::CommandExecutionStatus::Declined => ExecCommandStatus::Declined,
+        darwin_code_app_server_protocol::CommandExecutionStatus::Failed => {
+            ExecCommandStatus::Failed
+        }
+        darwin_code_app_server_protocol::CommandExecutionStatus::Declined => {
+            ExecCommandStatus::Declined
+        }
     };
 
     let duration = Duration::from_millis(
@@ -1042,7 +1022,7 @@ fn app_server_web_search_action_to_core(
 }
 
 #[cfg(test)]
-fn app_server_darwin_code_error_info_to_core(
+fn app_server_codex_error_info_to_core(
     value: darwin_code_app_server_protocol::DarwinCodeErrorInfo,
 ) -> Option<darwin_code_protocol::protocol::DarwinCodeErrorInfo> {
     serde_json::from_value(serde_json::to_value(value).ok()?).ok()
@@ -1057,11 +1037,11 @@ mod tests {
     use super::thread_snapshot_events;
     use super::turn_snapshot_events;
     use darwin_code_app_server_protocol::AgentMessageDeltaNotification;
-    use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
     use darwin_code_app_server_protocol::CommandAction;
     use darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification;
     use darwin_code_app_server_protocol::CommandExecutionSource;
     use darwin_code_app_server_protocol::CommandExecutionStatus;
+    use darwin_code_app_server_protocol::DarwinCodeErrorInfo;
     use darwin_code_app_server_protocol::ItemCompletedNotification;
     use darwin_code_app_server_protocol::ItemStartedNotification;
     use darwin_code_app_server_protocol::ReasoningSummaryTextDeltaNotification;
@@ -1408,7 +1388,7 @@ mod tests {
                     status: TurnStatus::Failed,
                     error: Some(TurnError {
                         message: "request failed".to_string(),
-                        darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                        codex_error_info: Some(DarwinCodeErrorInfo::Other),
                         additional_details: None,
                     }),
                     started_at: None,
@@ -1535,7 +1515,7 @@ mod tests {
                         status: TurnStatus::Failed,
                         error: Some(TurnError {
                             message: "request failed".to_string(),
-                            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                            codex_error_info: Some(DarwinCodeErrorInfo::Other),
                             additional_details: None,
                         }),
                         started_at: None,
@@ -1567,7 +1547,7 @@ mod tests {
         };
         assert_eq!(error.message, "request failed");
         assert_eq!(
-            error.darwin_code_error_info,
+            error.codex_error_info,
             Some(darwin_code_protocol::protocol::DarwinCodeErrorInfo::Other)
         );
         assert!(matches!(events[8].msg, EventMsg::TurnComplete(_)));

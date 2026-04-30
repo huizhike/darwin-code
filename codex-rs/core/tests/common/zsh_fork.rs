@@ -61,9 +61,10 @@ pub fn zsh_fork_runtime(test_name: &str) -> Result<Option<ZshForkRuntime>> {
         );
         return Ok(None);
     }
-    let Ok(main_execve_wrapper_exe) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-execve-wrapper")
+    let Ok(main_execve_wrapper_exe) =
+        darwin_code_utils_cargo_bin::cargo_bin("darwin_code-execve-wrapper")
     else {
-        eprintln!("skipping {test_name}: unable to resolve `darwin-code-execve-wrapper` binary");
+        eprintln!("skipping {test_name}: unable to resolve `darwin_code-execve-wrapper` binary");
         return Ok(None);
     };
 
@@ -93,7 +94,7 @@ where
 
 fn find_test_zsh_path() -> Result<Option<PathBuf>> {
     let repo_root = darwin_code_utils_cargo_bin::repo_root()?;
-    let dotslash_zsh = repo_root.join("darwin-code-rs/app-server/tests/suite/zsh");
+    let dotslash_zsh = repo_root.join("darwin_code-rs/app-server/tests/suite/zsh");
     if !dotslash_zsh.is_file() {
         eprintln!(
             "skipping zsh-fork test: shared zsh DotSlash file not found at {}",

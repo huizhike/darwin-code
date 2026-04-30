@@ -1,5 +1,4 @@
 use anyhow::Result;
-use darwin_code_exec_server::CreateDirectoryOptions;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -7,6 +6,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_exec_server::CreateDirectoryOptions;
 
 async fn agents_instructions(mut builder: TestDarwinCodeBuilder) -> Result<String> {
     let server = start_mock_server().await;
@@ -29,8 +29,8 @@ async fn agents_instructions(mut builder: TestDarwinCodeBuilder) -> Result<Strin
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn agents_override_is_preferred_over_agents_md() -> Result<()> {
-    let instructions =
-        agents_instructions(test_darwin_code().with_workspace_setup(|cwd, fs| async move {
+    let instructions = agents_instructions(test_darwin_code().with_workspace_setup(
+        |cwd, fs| async move {
             let agents_md = cwd.join("AGENTS.md");
             let override_md = cwd.join("AGENTS.override.md");
             fs.write_file(&agents_md, b"base doc".to_vec(), /*sandbox*/ None)
@@ -42,8 +42,9 @@ async fn agents_override_is_preferred_over_agents_md() -> Result<()> {
             )
             .await?;
             Ok::<(), anyhow::Error>(())
-        }))
-        .await?;
+        },
+    ))
+    .await?;
 
     assert!(
         instructions.contains("override doc"),

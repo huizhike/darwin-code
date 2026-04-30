@@ -1,16 +1,17 @@
 //! Prototype MCP server.
 #![deny(clippy::print_stdout, clippy::print_stderr)]
+#![recursion_limit = "256"]
 
 use std::io::ErrorKind;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_utils_cli::CliConfigOverrides;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_client::set_default_client_residency_requirement;
+use darwin_code_core::config::Config;
+use darwin_code_exec_server::EnvironmentManager;
+use darwin_code_exec_server::ExecServerRuntimePaths;
+use darwin_code_utils_cli::CliConfigOverrides;
 
 use rmcp::model::ClientNotification;
 use rmcp::model::ClientRequest;
@@ -62,7 +63,7 @@ pub async fn run_main(
     let environment_manager = Arc::new(EnvironmentManager::from_env_with_runtime_paths(Some(
         ExecServerRuntimePaths::from_optional_paths(
             arg0_paths.codex_self_exe.clone(),
-            arg0_paths.codex_linux_sandbox_exe.clone(),
+            arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         )?,
     )));
     // Parse CLI overrides once and derive the base Config eagerly so later
@@ -80,7 +81,7 @@ pub async fn run_main(
         })?;
     set_default_client_residency_requirement(config.enforce_residency.value());
 
-    let otel = codex_core::otel_init::build_provider(
+    let otel = darwin_code_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
         Some(OTEL_SERVICE_NAME),
@@ -189,11 +190,27 @@ pub async fn run_main(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_config::types::OtelExporterKind;
-    use codex_core::config::ConfigBuilder;
+    use darwin_code_config::types::OtelExporterKind;
+    use darwin_code_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use tempfile::TempDir;
+
+    const DEFAULT_BYOK_TEST_CONFIG: &str = r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#;
+
+    fn write_default_byok_test_config(darwin_code_home: &std::path::Path) {
+        std::fs::write(
+            darwin_code_home.join("config.toml"),
+            DEFAULT_BYOK_TEST_CONFIG,
+        )
+        .expect("write BYOK test config");
+    }
 
     #[test]
     fn mcp_server_defaults_analytics_to_enabled() {
@@ -203,8 +220,9 @@ mod tests {
     #[tokio::test]
     async fn mcp_server_builds_otel_provider_with_logs_traces_and_metrics() -> anyhow::Result<()> {
         let codex_home = TempDir::new()?;
+        write_default_byok_test_config(codex_home.path());
         let mut config = ConfigBuilder::default()
-            .codex_home(codex_home.path().to_path_buf())
+            .darwin_code_home(codex_home.path().to_path_buf())
             .build()
             .await?;
         let exporter = OtelExporterKind::OtlpGrpc {
@@ -217,7 +235,7 @@ mod tests {
         config.otel.metrics_exporter = exporter;
         config.analytics_enabled = None;
 
-        let provider = codex_core::otel_init::build_provider(
+        let provider = darwin_code_core::otel_init::build_provider(
             &config,
             "0.0.0-test",
             Some(OTEL_SERVICE_NAME),

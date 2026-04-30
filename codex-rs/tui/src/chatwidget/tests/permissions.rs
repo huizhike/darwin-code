@@ -468,7 +468,7 @@ async fn permissions_selection_marks_guardian_approvals_current_after_session_co
             history_log_id: 0,
             history_entry_count: 0,
             initial_messages: None,
-            network_proxy: None,
+            network_access: None,
             rollout_path: Some(PathBuf::new()),
         }),
     });
@@ -522,7 +522,7 @@ async fn permissions_selection_marks_guardian_approvals_current_with_custom_work
             history_log_id: 0,
             history_entry_count: 0,
             initial_messages: None,
-            network_proxy: None,
+            network_access: None,
             rollout_path: Some(PathBuf::new()),
         }),
     });

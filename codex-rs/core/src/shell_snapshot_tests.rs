@@ -132,7 +132,10 @@ fn bash_snapshot_filters_invalid_exports() -> Result<()> {
         .env("BASH_ENV", "/dev/null")
         .env("VALID_NAME", "ok")
         .env("PWD", "/tmp/stale")
-        .env("NEXTEST_BIN_EXE_darwin-code-write-config-schema", "/path/to/bin")
+        .env(
+            "NEXTEST_BIN_EXE_darwin_code-write-config-schema",
+            "/path/to/bin",
+        )
         .env("BAD-NAME", "broken")
         .output()?;
 
@@ -141,7 +144,7 @@ fn bash_snapshot_filters_invalid_exports() -> Result<()> {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("VALID_NAME"));
     assert!(!stdout.contains("PWD=/tmp/stale"));
-    assert!(!stdout.contains("NEXTEST_BIN_EXE_darwin-code-write-config-schema"));
+    assert!(!stdout.contains("NEXTEST_BIN_EXE_darwin_code-write-config-schema"));
     assert!(!stdout.contains("BAD-NAME"));
 
     Ok(())
@@ -263,10 +266,10 @@ async fn snapshot_shell_does_not_inherit_stdin() -> Result<()> {
     let home = dir.path().abs();
     let read_status_path = home.join("stdin-read-status");
     let read_status_display = read_status_path.display();
-    // Persist the startup `read` exit status so the test can assert whether
-    // bash saw EOF on stdin after the snapshot process exits.
-    let bashrc = format!("read -t 1 -r ignored\nprintf '%s' \"$?\" > \"{read_status_display}\"\n");
-    fs::write(home.join(".bashrc"), bashrc).await?;
+    // Persist a startup `read` exit status so the test can assert whether bash
+    // saw EOF on stdin after the snapshot process exits.
+    let stdin_probe =
+        format!("read -t 1 -r ignored\nprintf '%s' \"$?\" > \"{read_status_display}\"\n");
 
     let shell = Shell {
         shell_type: ShellType::Bash,
@@ -276,7 +279,7 @@ async fn snapshot_shell_does_not_inherit_stdin() -> Result<()> {
 
     let home_display = home.display();
     let script = format!(
-        "HOME=\"{home_display}\"; export HOME; {}",
+        "HOME=\"{home_display}\"; export HOME; {stdin_probe}\n{}",
         bash_snapshot_script()
     );
     let output = run_script_with_timeout(

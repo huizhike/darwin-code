@@ -78,7 +78,7 @@ def test_schema_normalization_only_flattens_string_literal_oneofs() -> None:
             / "app-server-protocol"
             / "schema"
             / "json"
-            / "codex_app_server_protocol.v2.schemas.json"
+            / "darwin_code_app_server_protocol.v2.schemas.json"
         ).read_text()
     )
 
@@ -91,7 +91,6 @@ def test_schema_normalization_only_flattens_string_literal_oneofs() -> None:
     ]
 
     assert flattened == [
-        "AuthMode",
         "CommandExecOutputStream",
         "ExperimentalFeatureStage",
         "InputModality",
@@ -108,7 +107,7 @@ def test_python_codegen_schema_annotation_adds_stable_variant_titles() -> None:
             / "app-server-protocol"
             / "schema"
             / "json"
-            / "codex_app_server_protocol.v2.schemas.json"
+            / "darwin_code_app_server_protocol.v2.schemas.json"
         ).read_text()
     )
 

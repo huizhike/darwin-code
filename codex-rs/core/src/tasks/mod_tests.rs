@@ -1,8 +1,8 @@
-use super::emit_turn_network_proxy_metric;
+use super::emit_turn_network_access_metric;
 use darwin_code_otel::MetricsClient;
 use darwin_code_otel::MetricsConfig;
 use darwin_code_otel::SessionTelemetry;
-use darwin_code_otel::TURN_NETWORK_PROXY_METRIC;
+use darwin_code_otel::TURN_NETWORK_ACCESS_METRIC;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::protocol::SessionSource;
 use opentelemetry::KeyValue;
@@ -17,8 +17,13 @@ use std::collections::BTreeMap;
 fn test_session_telemetry() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "darwin-code-core", env!("CARGO_PKG_VERSION"), exporter)
-            .with_runtime_reader(),
+        MetricsConfig::in_memory(
+            "test",
+            "darwin_code-core",
+            env!("CARGO_PKG_VERSION"),
+            exporter,
+        )
+        .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(
@@ -56,7 +61,7 @@ fn attributes_to_map<'a>(
 }
 
 fn metric_point(resource_metrics: &ResourceMetrics) -> (BTreeMap<String, String>, u64) {
-    let metric = find_metric(resource_metrics, TURN_NETWORK_PROXY_METRIC);
+    let metric = find_metric(resource_metrics, TURN_NETWORK_ACCESS_METRIC);
     match metric.data() {
         AggregatedMetrics::U64(data) => match data {
             MetricData::Sum(sum) => {
@@ -72,12 +77,12 @@ fn metric_point(resource_metrics: &ResourceMetrics) -> (BTreeMap<String, String>
 }
 
 #[test]
-fn emit_turn_network_proxy_metric_records_active_turn() {
+fn emit_turn_network_access_metric_records_active_turn() {
     let session_telemetry = test_session_telemetry();
 
-    emit_turn_network_proxy_metric(
+    emit_turn_network_access_metric(
         &session_telemetry,
-        /*network_proxy_active*/ true,
+        /*network_access_active*/ true,
         ("tmp_mem_enabled", "true"),
     );
 
@@ -97,12 +102,12 @@ fn emit_turn_network_proxy_metric_records_active_turn() {
 }
 
 #[test]
-fn emit_turn_network_proxy_metric_records_inactive_turn() {
+fn emit_turn_network_access_metric_records_inactive_turn() {
     let session_telemetry = test_session_telemetry();
 
-    emit_turn_network_proxy_metric(
+    emit_turn_network_access_metric(
         &session_telemetry,
-        /*network_proxy_active*/ false,
+        /*network_access_active*/ false,
         ("tmp_mem_enabled", "false"),
     );
 

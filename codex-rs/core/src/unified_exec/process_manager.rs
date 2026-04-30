@@ -783,7 +783,10 @@ impl UnifiedExecProcessManager {
             .await
             .map(|result| (result.output, result.deferred_network_approval))
             .map_err(|err| match err {
-                ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied { output, .. })) => {
+                ToolError::DarwinCode(DarwinCodeErr::Sandbox(SandboxErr::Denied {
+                    output,
+                    ..
+                })) => {
                     let output = *output;
                     let message = if output.aggregated_output.text.is_empty() {
                         let exit_code = output.exit_code;

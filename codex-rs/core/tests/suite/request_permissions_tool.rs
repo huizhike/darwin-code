@@ -2,19 +2,6 @@
 #![cfg(target_os = "macos")]
 
 use anyhow::Result;
-use darwin_code_core::config::Constrained;
-use darwin_code_features::Feature;
-use darwin_code_protocol::models::FileSystemPermissions;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::ReviewDecision;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::request_permissions::PermissionGrantScope;
-use darwin_code_protocol::request_permissions::RequestPermissionProfile;
-use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
-use darwin_code_protocol::user_input::UserInput;
-use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -28,6 +15,19 @@ use core_test_support::skip_if_sandbox;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_core::config::Constrained;
+use darwin_code_features::Feature;
+use darwin_code_protocol::models::FileSystemPermissions;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::request_permissions::PermissionGrantScope;
+use darwin_code_protocol::request_permissions::RequestPermissionProfile;
+use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -136,7 +136,7 @@ async fn submit_turn(
     sandbox_policy: SandboxPolicy,
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -162,7 +162,7 @@ async fn expect_request_permissions_event(
     test: &TestDarwinCode,
     expected_call_id: &str,
 ) -> RequestPermissionProfile {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
@@ -255,7 +255,7 @@ async fn approved_folder_write_request_permissions_unblocks_later_exec_without_s
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -265,7 +265,7 @@ async fn approved_folder_write_request_permissions_unblocks_later_exec_without_s
         })
         .await?;
 
-    let completion_event = wait_for_event(&test.darwin-code, |event| {
+    let completion_event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -273,14 +273,14 @@ async fn approved_folder_write_request_permissions_unblocks_later_exec_without_s
     })
     .await;
     if let EventMsg::ExecApprovalRequest(approval) = completion_event {
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
-        wait_for_event(&test.darwin-code, |event| {
+        wait_for_event(&test.darwin_code, |event| {
             matches!(event, EventMsg::TurnComplete(_))
         })
         .await;
@@ -374,7 +374,7 @@ async fn approved_folder_write_request_permissions_unblocks_later_apply_patch_wi
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -384,7 +384,7 @@ async fn approved_folder_write_request_permissions_unblocks_later_apply_patch_wi
         })
         .await?;
 
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)

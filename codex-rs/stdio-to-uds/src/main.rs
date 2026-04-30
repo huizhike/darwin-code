@@ -15,5 +15,5 @@ fn main() -> anyhow::Result<()> {
     }
 
     let socket_path = PathBuf::from(socket_path);
-    codex_stdio_to_uds::run(&socket_path)
+    darwin_code_stdio_to_uds::run(&socket_path)
 }

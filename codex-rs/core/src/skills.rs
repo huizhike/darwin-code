@@ -6,6 +6,9 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
+use codex_analytics::InvocationType;
+use codex_analytics::SkillInvocation;
+use codex_analytics::build_track_events_context;
 use darwin_code_protocol::protocol::SkillScope;
 use darwin_code_protocol::request_user_input::RequestUserInputArgs;
 use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
@@ -208,7 +211,7 @@ pub(crate) async fn maybe_emit_implicit_skill_invocation(
     }
 
     turn_context.session_telemetry.counter(
-        "darwin-code.skill.injected",
+        "darwin_code.skill.injected",
         /*inc*/ 1,
         &[
             ("status", "ok"),

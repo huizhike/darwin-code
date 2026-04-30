@@ -3,7 +3,7 @@ use std::sync::Mutex as StdMutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use codex_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
 
 use crate::ExecServerRuntimePaths;
 use crate::protocol::ExecParams;

@@ -11,7 +11,7 @@ use darwin_code_app_server_protocol::SkillsListExtraRootsForCwd;
 use darwin_code_app_server_protocol::SkillsListParams;
 use darwin_code_app_server_protocol::SkillsListResponse;
 use darwin_code_app_server_protocol::ThreadStartParams;
-use darwin_code_exec_server::DARWIN_CODE_EXEC_SERVER_URL_ENV_VAR;
+use darwin_code_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR as DARWIN_CODE_EXEC_SERVER_URL_ENV_VAR;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;

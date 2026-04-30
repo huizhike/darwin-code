@@ -1,14 +1,14 @@
-//! Entry-point for the `darwin-code-exec` binary.
+//! Entry-point for the `darwin_code-exec` binary.
 //!
-//! When this CLI is invoked normally, it parses the standard `darwin-code-exec` CLI
-//! options and launches the non-interactive Darwin-Code agent. However, if it is
-//! invoked with arg0 as `darwin-code-linux-sandbox`, we instead treat the invocation
-//! as a request to run the logic for the standalone `darwin-code-linux-sandbox`
+//! When this CLI is invoked normally, it parses the standard `darwin_code-exec` CLI
+//! options and launches the non-interactive DarwinCode agent. However, if it is
+//! invoked with arg0 as `darwin_code-linux-sandbox`, we instead treat the invocation
+//! as a request to run the logic for the standalone `darwin_code-linux-sandbox`
 //! executable (i.e., parse any -s args and then run a *sandboxed* command under
 //! Landlock + seccomp.
 //!
 //! This allows us to ship a completely separate set of functionality as part
-//! of the `darwin-code-exec` binary.
+//! of the `darwin_code-exec` binary.
 use clap::Parser;
 use darwin_code_arg0::Arg0DispatchPaths;
 use darwin_code_arg0::arg0_dispatch_or_else;

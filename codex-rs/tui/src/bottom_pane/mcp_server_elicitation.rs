@@ -2,6 +2,10 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
 use darwin_code_app_server_protocol::McpElicitationEnumSchema;
 use darwin_code_app_server_protocol::McpElicitationPrimitiveSchema;
 use darwin_code_app_server_protocol::McpElicitationSingleSelectEnumSchema;
@@ -15,10 +19,6 @@ use darwin_code_protocol::mcp::RequestId as McpRequestId;
 #[cfg(test)]
 use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::user_input::TextElement;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;

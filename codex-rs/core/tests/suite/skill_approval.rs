@@ -2,13 +2,6 @@
 #![cfg(unix)]
 
 use anyhow::Result;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
-use darwin_code_protocol::protocol::GranularApprovalConfig;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::mount_function_call_agent_response;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
@@ -18,6 +11,13 @@ use core_test_support::wait_for_event_match;
 use core_test_support::zsh_fork::build_zsh_fork_test;
 use core_test_support::zsh_fork::restrictive_workspace_write_policy;
 use core_test_support::zsh_fork::zsh_fork_runtime;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -42,7 +42,7 @@ async fn submit_turn_with_policies(
     approval_policy: AskForApproval,
     sandbox_policy: SandboxPolicy,
 ) -> Result<()> {
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.to_string(),
@@ -105,7 +105,7 @@ fn skill_script_command(test: &TestDarwinCode, script_name: &str) -> Result<Stri
 }
 
 async fn wait_for_exec_approval_request(test: &TestDarwinCode) -> Option<ExecApprovalRequestEvent> {
-    wait_for_event_match(test.darwin-code.as_ref(), |event| match event {
+    wait_for_event_match(test.darwin_code.as_ref(), |event| match event {
         EventMsg::ExecApprovalRequest(request) => Some(Some(request.clone())),
         EventMsg::TurnComplete(_) => Some(None),
         _ => None,
@@ -114,7 +114,7 @@ async fn wait_for_exec_approval_request(test: &TestDarwinCode) -> Option<ExecApp
 }
 
 async fn wait_for_turn_complete(test: &TestDarwinCode) {
-    wait_for_event(test.darwin-code.as_ref(), |event| {
+    wait_for_event(test.darwin_code.as_ref(), |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -232,7 +232,7 @@ async fn shell_zsh_fork_still_enforces_workspace_write_sandbox() -> Result<()> {
 
     let server = start_mock_server().await;
     let tool_call_id = "zsh-fork-workspace-write-deny";
-    let outside_path = "/tmp/darwin-code-zsh-fork-workspace-write-deny.txt";
+    let outside_path = "/tmp/darwin_code-zsh-fork-workspace-write-deny.txt";
     let workspace_write_policy = restrictive_workspace_write_policy();
     let _ = fs::remove_file(outside_path);
     let test = build_zsh_fork_test(

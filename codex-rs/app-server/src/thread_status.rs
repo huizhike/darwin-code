@@ -884,7 +884,10 @@ mod tests {
         notification
     }
 
-    fn test_thread(thread_id: &str, source: darwin_code_app_server_protocol::SessionSource) -> Thread {
+    fn test_thread(
+        thread_id: &str,
+        source: darwin_code_app_server_protocol::SessionSource,
+    ) -> Thread {
         Thread {
             id: thread_id.to_string(),
             forked_from_id: None,

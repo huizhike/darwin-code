@@ -1,6 +1,8 @@
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::RequestId;
 use darwin_code_app_server_protocol::ThreadStartParams;
@@ -10,8 +12,7 @@ use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnSteerParams;
 use darwin_code_app_server_protocol::TurnSteerResponse;
 use darwin_code_app_server_protocol::UserInput as V2UserInput;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
+use darwin_code_core::config::ConfigBuilder;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::Path;
@@ -87,10 +88,10 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
 
     let request = response_mock.single_request();
     let metadata = request
-        .header("x-darwin-code-turn-metadata")
+        .header("x-darwin_code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing x-darwin-code-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing x-darwin_code-turn-metadata header"));
     assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
     assert_eq!(metadata["origin"].as_str(), Some("gaas"));
     assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
@@ -198,10 +199,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 2);
     let first_metadata = requests[0]
-        .header("x-darwin-code-turn-metadata")
+        .header("x-darwin_code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing first x-darwin-code-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing first x-darwin_code-turn-metadata header"));
     assert_eq!(
         first_metadata["fiber_run_id"].as_str(),
         Some("fiber-start-123")
@@ -209,10 +210,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     assert_eq!(first_metadata["turn_id"].as_str(), Some(turn_id.as_str()));
 
     let second_metadata = requests[1]
-        .header("x-darwin-code-turn-metadata")
+        .header("x-darwin_code-turn-metadata")
         .as_deref()
         .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing second x-darwin-code-turn-metadata header"));
+        .unwrap_or_else(|| panic!("missing second x-darwin_code-turn-metadata header"));
     assert_eq!(
         second_metadata["fiber_run_id"].as_str(),
         Some("fiber-steer-456")
@@ -224,95 +225,23 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
 }
 
 #[tokio::test]
-async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body_v2() -> Result<()>
-{
-    skip_if_no_network!(Ok(()));
-
-    let websocket_server = responses::start_websocket_server(vec![vec![
-        vec![
-            responses::ev_response_created("warm-1"),
-            responses::ev_completed("warm-1"),
-        ],
-        vec![
-            responses::ev_response_created("resp-1"),
-            responses::ev_assistant_message("msg-1", "Done"),
-            responses::ev_completed("resp-1"),
-        ],
-    ]])
-    .await;
-
+async fn legacy_responses_websocket_provider_config_is_rejected_byok() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
     create_config_toml(
         darwin_code_home.path(),
-        &websocket_server.uri().replacen("ws://", "http://", 1),
+        "http://127.0.0.1:9",
         /*supports_websockets*/ true,
     )?;
 
-    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
-    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-
-    let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams::default())
-        .await?;
-    let thread_resp: JSONRPCResponse = timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
-    )
-    .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
-
-    let client_metadata = HashMap::from([
-        ("fiber_run_id".to_string(), "fiber-start-123".to_string()),
-        ("origin".to_string(), "gaas".to_string()),
-    ]);
-    let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
-            input: vec![V2UserInput::Text {
-                text: "Hello".to_string(),
-                text_elements: Vec::new(),
-            }],
-            responsesapi_client_metadata: Some(client_metadata),
-            ..Default::default()
-        })
-        .await?;
-    let turn_resp: JSONRPCResponse = timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
-    )
-    .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
-
-    timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
-    )
-    .await??;
-
-    let warmup = websocket_server
-        .wait_for_request(/*connection_index*/ 0, /*request_index*/ 0)
+    let err = ConfigBuilder::default()
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
+        .build()
         .await
-        .body_json();
-    let request = websocket_server
-        .wait_for_request(/*connection_index*/ 0, /*request_index*/ 1)
-        .await
-        .body_json();
-
-    assert_eq!(warmup["type"].as_str(), Some("response.create"));
-    assert_eq!(warmup["generate"].as_bool(), Some(false));
-    assert_eq!(request["type"].as_str(), Some("response.create"));
-    assert_eq!(request["previous_response_id"].as_str(), Some("warm-1"));
-
-    let metadata = request["client_metadata"]["x-darwin-code-turn-metadata"]
-        .as_str()
-        .map(parse_json_header)
-        .unwrap_or_else(|| panic!("missing websocket x-darwin-code-turn-metadata client metadata"));
-    assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
-    assert_eq!(metadata["origin"].as_str(), Some("gaas"));
-    assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
-    assert!(metadata.get("session_id").is_some());
-
-    websocket_server.shutdown().await;
+        .expect_err("legacy responses websocket provider config should be rejected");
+    assert!(
+        err.to_string().contains("supports_websockets"),
+        "unexpected config error: {err}"
+    );
     Ok(())
 }
 
@@ -322,6 +251,9 @@ fn create_config_toml(
     supports_websockets: bool,
 ) -> std::io::Result<()> {
     let config_toml = darwin_code_home.join("config.toml");
+    let websocket_line = supports_websockets
+        .then_some("supports_websockets = true\n")
+        .unwrap_or("");
     std::fs::write(
         config_toml,
         format!(
@@ -338,7 +270,7 @@ base_url = "{server_uri}/v1"
 wire_api = "responses"
 request_max_retries = 0
 stream_max_retries = 0
-supports_websockets = {supports_websockets}
+{websocket_line}
 "#
         ),
     )

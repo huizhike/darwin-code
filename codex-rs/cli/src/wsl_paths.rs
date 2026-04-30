@@ -42,14 +42,14 @@ mod tests {
     #[test]
     fn win_to_wsl_basic() {
         assert_eq!(
-            win_path_to_wsl(r"C:\Temp\darwin-code.zip").as_deref(),
-            Some("/mnt/c/Temp/darwin-code.zip")
+            win_path_to_wsl(r"C:\Temp\darwin_code.zip").as_deref(),
+            Some("/mnt/c/Temp/darwin_code.zip")
         );
         assert_eq!(
-            win_path_to_wsl("D:/Work/darwin-code.tgz").as_deref(),
-            Some("/mnt/d/Work/darwin-code.tgz")
+            win_path_to_wsl("D:/Work/darwin_code.tgz").as_deref(),
+            Some("/mnt/d/Work/darwin_code.tgz")
         );
-        assert!(win_path_to_wsl("/home/user/darwin-code").is_none());
+        assert!(win_path_to_wsl("/home/user/darwin_code").is_none());
     }
 
     #[test]

@@ -93,7 +93,7 @@ impl WidgetRef for &WelcomeWidget {
         lines.push(Line::from(vec![
             "  ".into(),
             "Welcome to ".into(),
-            "Darwin-Code".bold(),
+            "DarwinCode".bold(),
             ", OpenAI's command-line coding agent".into(),
         ]));
 

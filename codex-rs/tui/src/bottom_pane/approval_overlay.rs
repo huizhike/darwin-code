@@ -17,6 +17,10 @@ use crate::key_hint::KeyBinding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
 use darwin_code_features::Features;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::mcp::RequestId;
@@ -31,10 +35,6 @@ use darwin_code_protocol::protocol::ReviewDecision;
 use darwin_code_protocol::request_permissions::PermissionGrantScope;
 use darwin_code_protocol::request_permissions::RequestPermissionProfile;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -776,7 +776,7 @@ fn exec_options(
             }),
             ReviewDecision::TimedOut => None,
             ReviewDecision::Abort => Some(ApprovalOption {
-                label: "No, and tell Darwin-Code what to do differently".to_string(),
+                label: "No, and tell DarwinCode what to do differently".to_string(),
                 decision: ApprovalDecision::Review(ReviewDecision::Abort),
                 display_shortcut: Some(key_hint::plain(KeyCode::Esc)),
                 additional_shortcuts: vec![key_hint::plain(KeyCode::Char('n'))],
@@ -843,7 +843,7 @@ fn patch_options() -> Vec<ApprovalOption> {
             additional_shortcuts: vec![key_hint::plain(KeyCode::Char('a'))],
         },
         ApprovalOption {
-            label: "No, and tell Darwin-Code what to do differently".to_string(),
+            label: "No, and tell DarwinCode what to do differently".to_string(),
             decision: ApprovalDecision::Review(ReviewDecision::Abort),
             display_shortcut: Some(key_hint::plain(KeyCode::Esc)),
             additional_shortcuts: vec![key_hint::plain(KeyCode::Char('n'))],
@@ -1235,7 +1235,7 @@ mod tests {
                 "Yes, just this once".to_string(),
                 "Yes, and allow this host for this conversation".to_string(),
                 "Yes, and allow this host in the future".to_string(),
-                "No, and tell Darwin-Code what to do differently".to_string(),
+                "No, and tell DarwinCode what to do differently".to_string(),
             ]
         );
     }
@@ -1258,7 +1258,7 @@ mod tests {
             vec![
                 "Yes, proceed".to_string(),
                 "Yes, and don't ask again for this command in this session".to_string(),
-                "No, and tell Darwin-Code what to do differently".to_string(),
+                "No, and tell DarwinCode what to do differently".to_string(),
             ]
         );
     }
@@ -1283,7 +1283,7 @@ mod tests {
             labels,
             vec![
                 "Yes, proceed".to_string(),
-                "No, and tell Darwin-Code what to do differently".to_string(),
+                "No, and tell DarwinCode what to do differently".to_string(),
             ]
         );
     }
@@ -1505,10 +1505,11 @@ mod tests {
             })
             .collect();
         let expected = vec![
-            "✔ You approved darwin-code to run".to_string(),
-            "  git add tui/src/render/".to_string(),
-            "  mod.rs tui/src/render/".to_string(),
-            "  renderable.rs this time".to_string(),
+            "✔ You approved darwin_code".to_string(),
+            "  to run git add tui/src/".to_string(),
+            "  render/mod.rs tui/src/".to_string(),
+            "  render/renderable.rs this".to_string(),
+            "  time".to_string(),
         ];
         assert_eq!(rendered, expected);
     }

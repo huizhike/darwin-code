@@ -1,13 +1,4 @@
 use anyhow::Context;
-use darwin_code_protocol::models::ContentItem;
-use darwin_code_protocol::models::ResponseItem;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::RolloutItem;
-use darwin_code_protocol::protocol::RolloutLine;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -18,6 +9,15 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use image::ImageBuffer;
 use image::Rgba;
 use pretty_assertions::assert_eq;
@@ -88,7 +88,7 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
     let server = start_mock_server().await;
 
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         home: _home,
@@ -108,7 +108,7 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![
                 UserInput::LocalImage {
@@ -133,11 +133,17 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
-    darwin-code.submit(Op::Shutdown).await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
+    darwin_code.submit(Op::Shutdown).await?;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::ShutdownComplete)
+    })
+    .await;
 
-    let rollout_path = darwin-code.rollout_path().expect("rollout path");
+    let rollout_path = darwin_code.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
     let actual = find_user_message_with_image(&rollout_text)
         .expect("expected user message with input image in rollout");
@@ -148,7 +154,9 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         role: "user".to_string(),
         content: vec![
             ContentItem::InputText {
-                text: darwin_code_protocol::models::local_image_open_tag_text(/*label_number*/ 1),
+                text: darwin_code_protocol::models::local_image_open_tag_text(
+                    /*label_number*/ 1,
+                ),
             },
             ContentItem::InputImage { image_url },
             ContentItem::InputText {
@@ -160,6 +168,7 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         ],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     assert_eq!(actual, expected);
@@ -174,7 +183,7 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
     let server = start_mock_server().await;
 
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         home: _home,
@@ -192,7 +201,7 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![
                 UserInput::Image {
@@ -217,11 +226,17 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
-    darwin-code.submit(Op::Shutdown).await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
+    darwin_code.submit(Op::Shutdown).await?;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::ShutdownComplete)
+    })
+    .await;
 
-    let rollout_path = darwin-code.rollout_path().expect("rollout path");
+    let rollout_path = darwin_code.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
     let actual = find_user_message_with_image(&rollout_text)
         .expect("expected user message with input image in rollout");
@@ -244,6 +259,7 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
         ],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     assert_eq!(actual, expected);

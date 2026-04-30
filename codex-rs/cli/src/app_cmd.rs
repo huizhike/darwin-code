@@ -1,11 +1,12 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-const DEFAULT_DARWIN_CODE_DMG_URL: &str = "https://persistent.oaistatic.com/darwin-code-app-prod/Darwin-Code.dmg";
+const DEFAULT_DARWIN_CODE_DMG_URL: &str =
+    "https://persistent.oaistatic.com/darwin_code-app-prod/DarwinCode.dmg";
 
 #[derive(Debug, Parser)]
 pub struct AppCommand {
-    /// Workspace path to open in Darwin-Code Desktop.
+    /// Workspace path to open in DarwinCode Desktop.
     #[arg(value_name = "PATH", default_value = ".")]
     pub path: PathBuf,
 

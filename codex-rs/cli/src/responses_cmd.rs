@@ -20,21 +20,18 @@ pub(crate) async fn run_responses_command(
     let payload: serde_json::Value = serde_json::from_str(&payload_text)
         .map_err(|err| anyhow::anyhow!("failed to parse Responses API JSON payload: {err}"))?;
     if payload.get("stream").and_then(serde_json::Value::as_bool) != Some(true) {
-        anyhow::bail!("darwin-code responses expects a streaming payload with `\"stream\": true`");
+        anyhow::bail!("darwin_code responses expects a streaming payload with `\"stream\": true`");
     }
 
     let cli_overrides = root_config_overrides
         .parse_overrides()
         .map_err(anyhow::Error::msg)?;
     let config = Config::load_with_cli_overrides(cli_overrides).await?;
-    let base_auth_manager = darwin_code_login::AuthManager::shared_from_config(
-        &config, /*enable_darwin_code_api_key_env*/ true,
-    );
-    let model_provider = create_model_provider(config.model_provider, Some(base_auth_manager));
+    let model_provider = create_model_provider(config.model_provider);
     let api_provider = model_provider.api_provider().await?;
     let api_auth = model_provider.api_auth().await?;
     let client = darwin_code_api::ResponsesClient::new(
-        darwin_code_api::ReqwestTransport::new(darwin_code_login::default_client::build_reqwest_client()),
+        darwin_code_api::ReqwestTransport::new(darwin_code_client::build_reqwest_client()),
         api_provider,
         api_auth,
     );
@@ -184,10 +181,11 @@ mod tests {
             })
         );
 
-        let completed_without_usage = response_event_to_json(darwin_code_api::ResponseEvent::Completed {
-            response_id: "resp-2".to_string(),
-            token_usage: None,
-        });
+        let completed_without_usage =
+            response_event_to_json(darwin_code_api::ResponseEvent::Completed {
+                response_id: "resp-2".to_string(),
+                token_usage: None,
+            });
         assert_eq!(
             completed_without_usage,
             json!({"type": "response.completed", "response": {"id": "resp-2"}})
@@ -196,10 +194,11 @@ mod tests {
 
     #[test]
     fn reasoning_deltas_use_responses_event_names() {
-        let summary = response_event_to_json(darwin_code_api::ResponseEvent::ReasoningSummaryDelta {
-            delta: "plan".to_string(),
-            summary_index: 1,
-        });
+        let summary =
+            response_event_to_json(darwin_code_api::ResponseEvent::ReasoningSummaryDelta {
+                delta: "plan".to_string(),
+                summary_index: 1,
+            });
         assert_eq!(
             summary,
             json!({
@@ -209,10 +208,11 @@ mod tests {
             })
         );
 
-        let content = response_event_to_json(darwin_code_api::ResponseEvent::ReasoningContentDelta {
-            delta: "detail".to_string(),
-            content_index: 2,
-        });
+        let content =
+            response_event_to_json(darwin_code_api::ResponseEvent::ReasoningContentDelta {
+                delta: "detail".to_string(),
+                content_index: 2,
+            });
         assert_eq!(
             content,
             json!({

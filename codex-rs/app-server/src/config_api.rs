@@ -1,36 +1,27 @@
 use crate::error_code::INTERNAL_ERROR_CODE;
 use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use async_trait::async_trait;
+use codex_analytics::AnalyticsEventsClient;
 use darwin_code_app_server_protocol::ConfigBatchWriteParams;
 use darwin_code_app_server_protocol::ConfigReadParams;
 use darwin_code_app_server_protocol::ConfigReadResponse;
-use darwin_code_app_server_protocol::ConfigRequirements;
-use darwin_code_app_server_protocol::ConfigRequirementsReadResponse;
 use darwin_code_app_server_protocol::ConfigValueWriteParams;
 use darwin_code_app_server_protocol::ConfigWriteErrorCode;
 use darwin_code_app_server_protocol::ConfigWriteResponse;
 use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetParams;
 use darwin_code_app_server_protocol::ExperimentalFeatureEnablementSetResponse;
 use darwin_code_app_server_protocol::JSONRPCErrorError;
-use darwin_code_app_server_protocol::NetworkDomainPermission;
-use darwin_code_app_server_protocol::NetworkRequirements;
-use darwin_code_app_server_protocol::NetworkUnixSocketPermission;
-use darwin_code_app_server_protocol::SandboxMode;
 use darwin_code_core::ThreadManager;
 use darwin_code_core::config::Config;
 use darwin_code_core::config::ConfigService;
 use darwin_code_core::config::ConfigServiceError;
-use darwin_code_core::config_loader::CloudRequirementsLoader;
-use darwin_code_core::config_loader::ConfigRequirementsToml;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
-use darwin_code_core::config_loader::ResidencyRequirement as CoreResidencyRequirement;
-use darwin_code_core::config_loader::SandboxModeRequirement as CoreSandboxModeRequirement;
 use darwin_code_core::plugins::PluginId;
 use darwin_code_core_plugins::loader::installed_plugin_telemetry_metadata;
 use darwin_code_core_plugins::toggles::collect_plugin_enabled_candidates;
 use darwin_code_features::canonical_feature_for_key;
 use darwin_code_features::feature_for_key;
-use darwin_code_protocol::config_types::WebSearchMode;
 use darwin_code_protocol::protocol::Op;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -75,7 +66,7 @@ pub(crate) struct ConfigApi {
     cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
     runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
     loader_overrides: LoaderOverrides,
-    cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
+    external_requirements: Arc<RwLock<ExternalRequirementsLoader>>,
     user_config_reloader: Arc<dyn UserConfigReloader>,
     analytics_events_client: AnalyticsEventsClient,
 }
@@ -86,7 +77,7 @@ impl ConfigApi {
         cli_overrides: Arc<RwLock<Vec<(String, TomlValue)>>>,
         runtime_feature_enablement: Arc<RwLock<BTreeMap<String, bool>>>,
         loader_overrides: LoaderOverrides,
-        cloud_requirements: Arc<RwLock<CloudRequirementsLoader>>,
+        external_requirements: Arc<RwLock<ExternalRequirementsLoader>>,
         user_config_reloader: Arc<dyn UserConfigReloader>,
         analytics_events_client: AnalyticsEventsClient,
     ) -> Self {
@@ -95,7 +86,7 @@ impl ConfigApi {
             cli_overrides,
             runtime_feature_enablement,
             loader_overrides,
-            cloud_requirements,
+            external_requirements,
             user_config_reloader,
             analytics_events_client,
         }
@@ -106,7 +97,7 @@ impl ConfigApi {
             self.darwin_code_home.clone(),
             self.current_cli_overrides(),
             self.loader_overrides.clone(),
-            self.current_cloud_requirements(),
+            self.current_external_requirements(),
         )
     }
 
@@ -124,8 +115,8 @@ impl ConfigApi {
             .unwrap_or_default()
     }
 
-    fn current_cloud_requirements(&self) -> CloudRequirementsLoader {
-        self.cloud_requirements
+    fn current_external_requirements(&self) -> ExternalRequirementsLoader {
+        self.external_requirements
             .read()
             .map(|guard| guard.clone())
             .unwrap_or_default()
@@ -140,7 +131,7 @@ impl ConfigApi {
             .cli_overrides(self.current_cli_overrides())
             .loader_overrides(self.loader_overrides.clone())
             .fallback_cwd(fallback_cwd)
-            .cloud_requirements(self.current_cloud_requirements())
+            .external_requirements(self.current_external_requirements())
             .build()
             .await
             .map_err(|err| JSONRPCErrorError {
@@ -184,20 +175,6 @@ impl ConfigApi {
         }
         Ok(response)
     }
-
-    pub(crate) async fn config_requirements_read(
-        &self,
-    ) -> Result<ConfigRequirementsReadResponse, JSONRPCErrorError> {
-        let requirements = self
-            .config_service()
-            .read_requirements()
-            .await
-            .map_err(map_error)?
-            .map(map_requirements_toml_to_api);
-
-        Ok(ConfigRequirementsReadResponse { requirements })
-    }
-
     pub(crate) async fn write_value(
         &self,
         params: ConfigValueWriteParams,
@@ -307,7 +284,8 @@ impl ConfigApi {
                 continue;
             };
             let metadata =
-                installed_plugin_telemetry_metadata(self.darwin_code_home.as_path(), &plugin_id).await;
+                installed_plugin_telemetry_metadata(self.darwin_code_home.as_path(), &plugin_id)
+                    .await;
             if enabled {
                 self.analytics_events_client.track_plugin_enabled(metadata);
             } else {
@@ -360,139 +338,6 @@ pub(crate) fn apply_runtime_feature_enablement(
     }
 }
 
-fn map_requirements_toml_to_api(requirements: ConfigRequirementsToml) -> ConfigRequirements {
-    ConfigRequirements {
-        allowed_approval_policies: requirements.allowed_approval_policies.map(|policies| {
-            policies
-                .into_iter()
-                .map(darwin_code_app_server_protocol::AskForApproval::from)
-                .collect()
-        }),
-        allowed_approvals_reviewers: requirements.allowed_approvals_reviewers.map(|reviewers| {
-            reviewers
-                .into_iter()
-                .map(darwin_code_app_server_protocol::ApprovalsReviewer::from)
-                .collect()
-        }),
-        allowed_sandbox_modes: requirements.allowed_sandbox_modes.map(|modes| {
-            modes
-                .into_iter()
-                .filter_map(map_sandbox_mode_requirement_to_api)
-                .collect()
-        }),
-        allowed_web_search_modes: requirements.allowed_web_search_modes.map(|modes| {
-            let mut normalized = modes
-                .into_iter()
-                .map(Into::into)
-                .collect::<Vec<WebSearchMode>>();
-            if !normalized.contains(&WebSearchMode::Disabled) {
-                normalized.push(WebSearchMode::Disabled);
-            }
-            normalized
-        }),
-        feature_requirements: requirements
-            .feature_requirements
-            .map(|requirements| requirements.entries),
-        enforce_residency: requirements
-            .enforce_residency
-            .map(map_residency_requirement_to_api),
-        network: requirements.network.map(map_network_requirements_to_api),
-    }
-}
-
-fn map_sandbox_mode_requirement_to_api(mode: CoreSandboxModeRequirement) -> Option<SandboxMode> {
-    match mode {
-        CoreSandboxModeRequirement::ReadOnly => Some(SandboxMode::ReadOnly),
-        CoreSandboxModeRequirement::WorkspaceWrite => Some(SandboxMode::WorkspaceWrite),
-        CoreSandboxModeRequirement::DangerFullAccess => Some(SandboxMode::DangerFullAccess),
-        CoreSandboxModeRequirement::ExternalSandbox => None,
-    }
-}
-
-fn map_residency_requirement_to_api(
-    residency: CoreResidencyRequirement,
-) -> darwin_code_app_server_protocol::ResidencyRequirement {
-    match residency {
-        CoreResidencyRequirement::Us => darwin_code_app_server_protocol::ResidencyRequirement::Us,
-    }
-}
-
-fn map_network_requirements_to_api(
-    network: darwin_code_core::config_loader::NetworkRequirementsToml,
-) -> NetworkRequirements {
-    let allowed_domains = network
-        .domains
-        .as_ref()
-        .and_then(darwin_code_core::config_loader::NetworkDomainPermissionsToml::allowed_domains);
-    let denied_domains = network
-        .domains
-        .as_ref()
-        .and_then(darwin_code_core::config_loader::NetworkDomainPermissionsToml::denied_domains);
-    let allow_unix_sockets = network
-        .unix_sockets
-        .as_ref()
-        .map(darwin_code_core::config_loader::NetworkUnixSocketPermissionsToml::allow_unix_sockets)
-        .filter(|entries| !entries.is_empty());
-
-    NetworkRequirements {
-        enabled: network.enabled,
-        http_port: network.http_port,
-        socks_port: network.socks_port,
-        allow_upstream_proxy: network.allow_upstream_proxy,
-        dangerously_allow_non_loopback_proxy: network.dangerously_allow_non_loopback_proxy,
-        dangerously_allow_all_unix_sockets: network.dangerously_allow_all_unix_sockets,
-        domains: network.domains.map(|domains| {
-            domains
-                .entries
-                .into_iter()
-                .map(|(pattern, permission)| {
-                    (pattern, map_network_domain_permission_to_api(permission))
-                })
-                .collect()
-        }),
-        managed_allowed_domains_only: network.managed_allowed_domains_only,
-        allowed_domains,
-        denied_domains,
-        unix_sockets: network.unix_sockets.map(|unix_sockets| {
-            unix_sockets
-                .entries
-                .into_iter()
-                .map(|(path, permission)| {
-                    (path, map_network_unix_socket_permission_to_api(permission))
-                })
-                .collect()
-        }),
-        allow_unix_sockets,
-        allow_local_binding: network.allow_local_binding,
-    }
-}
-
-fn map_network_domain_permission_to_api(
-    permission: darwin_code_core::config_loader::NetworkDomainPermissionToml,
-) -> NetworkDomainPermission {
-    match permission {
-        darwin_code_core::config_loader::NetworkDomainPermissionToml::Allow => {
-            NetworkDomainPermission::Allow
-        }
-        darwin_code_core::config_loader::NetworkDomainPermissionToml::Deny => {
-            NetworkDomainPermission::Deny
-        }
-    }
-}
-
-fn map_network_unix_socket_permission_to_api(
-    permission: darwin_code_core::config_loader::NetworkUnixSocketPermissionToml,
-) -> NetworkUnixSocketPermission {
-    match permission {
-        darwin_code_core::config_loader::NetworkUnixSocketPermissionToml::Allow => {
-            NetworkUnixSocketPermission::Allow
-        }
-        darwin_code_core::config_loader::NetworkUnixSocketPermissionToml::None => {
-            NetworkUnixSocketPermission::None
-        }
-    }
-}
-
 fn map_error(err: ConfigServiceError) -> JSONRPCErrorError {
     if let Some(code) = err.write_error_code() {
         return config_write_error(code, err.to_string());
@@ -518,21 +363,21 @@ fn config_write_error(code: ConfigWriteErrorCode, message: impl Into<String>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use darwin_code_core::config_loader::NetworkDomainPermissionToml as CoreNetworkDomainPermissionToml;
-    use darwin_code_core::config_loader::NetworkDomainPermissionsToml as CoreNetworkDomainPermissionsToml;
-    use darwin_code_core::config_loader::NetworkRequirementsToml as CoreNetworkRequirementsToml;
-    use darwin_code_core::config_loader::NetworkUnixSocketPermissionToml as CoreNetworkUnixSocketPermissionToml;
-    use darwin_code_core::config_loader::NetworkUnixSocketPermissionsToml as CoreNetworkUnixSocketPermissionsToml;
+    use darwin_code_core::config_loader::ConfigRequirementsToml;
     use darwin_code_features::Feature;
-    use darwin_code_login::AuthManager;
-    use darwin_code_login::DarwinCodeAuth;
-    use darwin_code_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
-    use darwin_code_protocol::protocol::AskForApproval as CoreAskForApproval;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
     use tempfile::TempDir;
+
+    const TEST_BYOK_PROVIDER_CONFIG: &str = r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#;
 
     #[derive(Default)]
     struct RecordingUserConfigReloader {
@@ -545,217 +390,12 @@ mod tests {
             self.call_count.fetch_add(1, Ordering::Relaxed);
         }
     }
-
-    #[test]
-    fn map_requirements_toml_to_api_converts_core_enums() {
-        let requirements = ConfigRequirementsToml {
-            allowed_approval_policies: Some(vec![
-                CoreAskForApproval::Never,
-                CoreAskForApproval::OnRequest,
-            ]),
-            allowed_approvals_reviewers: Some(vec![
-                CoreApprovalsReviewer::User,
-                CoreApprovalsReviewer::GuardianSubagent,
-            ]),
-            allowed_sandbox_modes: Some(vec![
-                CoreSandboxModeRequirement::ReadOnly,
-                CoreSandboxModeRequirement::ExternalSandbox,
-            ]),
-            allowed_web_search_modes: Some(vec![
-                darwin_code_core::config_loader::WebSearchModeRequirement::Cached,
-            ]),
-            guardian_policy_config: None,
-            feature_requirements: Some(darwin_code_core::config_loader::FeatureRequirementsToml {
-                entries: std::collections::BTreeMap::from([
-                    ("apps".to_string(), false),
-                    ("personality".to_string(), true),
-                ]),
-            }),
-            mcp_servers: None,
-            apps: None,
-            rules: None,
-            enforce_residency: Some(CoreResidencyRequirement::Us),
-            network: Some(CoreNetworkRequirementsToml {
-                enabled: Some(true),
-                http_port: Some(8080),
-                socks_port: Some(1080),
-                allow_upstream_proxy: Some(false),
-                dangerously_allow_non_loopback_proxy: Some(false),
-                dangerously_allow_all_unix_sockets: Some(true),
-                domains: Some(CoreNetworkDomainPermissionsToml {
-                    entries: std::collections::BTreeMap::from([
-                        (
-                            "api.openai.com".to_string(),
-                            CoreNetworkDomainPermissionToml::Allow,
-                        ),
-                        (
-                            "example.com".to_string(),
-                            CoreNetworkDomainPermissionToml::Deny,
-                        ),
-                    ]),
-                }),
-                managed_allowed_domains_only: Some(false),
-                unix_sockets: Some(CoreNetworkUnixSocketPermissionsToml {
-                    entries: std::collections::BTreeMap::from([(
-                        "/tmp/proxy.sock".to_string(),
-                        CoreNetworkUnixSocketPermissionToml::Allow,
-                    )]),
-                }),
-                allow_local_binding: Some(true),
-            }),
-            permissions: None,
-        };
-
-        let mapped = map_requirements_toml_to_api(requirements);
-
-        assert_eq!(
-            mapped.allowed_approval_policies,
-            Some(vec![
-                darwin_code_app_server_protocol::AskForApproval::Never,
-                darwin_code_app_server_protocol::AskForApproval::OnRequest,
-            ])
-        );
-        assert_eq!(
-            mapped.allowed_approvals_reviewers,
-            Some(vec![
-                darwin_code_app_server_protocol::ApprovalsReviewer::User,
-                darwin_code_app_server_protocol::ApprovalsReviewer::GuardianSubagent,
-            ])
-        );
-        assert_eq!(
-            mapped.allowed_sandbox_modes,
-            Some(vec![SandboxMode::ReadOnly]),
-        );
-        assert_eq!(
-            mapped.allowed_web_search_modes,
-            Some(vec![WebSearchMode::Cached, WebSearchMode::Disabled]),
-        );
-        assert_eq!(
-            mapped.feature_requirements,
-            Some(std::collections::BTreeMap::from([
-                ("apps".to_string(), false),
-                ("personality".to_string(), true),
-            ])),
-        );
-        assert_eq!(
-            mapped.enforce_residency,
-            Some(darwin_code_app_server_protocol::ResidencyRequirement::Us),
-        );
-        assert_eq!(
-            mapped.network,
-            Some(NetworkRequirements {
-                enabled: Some(true),
-                http_port: Some(8080),
-                socks_port: Some(1080),
-                allow_upstream_proxy: Some(false),
-                dangerously_allow_non_loopback_proxy: Some(false),
-                dangerously_allow_all_unix_sockets: Some(true),
-                domains: Some(std::collections::BTreeMap::from([
-                    ("api.openai.com".to_string(), NetworkDomainPermission::Allow,),
-                    ("example.com".to_string(), NetworkDomainPermission::Deny),
-                ])),
-                managed_allowed_domains_only: Some(false),
-                allowed_domains: Some(vec!["api.openai.com".to_string()]),
-                denied_domains: Some(vec!["example.com".to_string()]),
-                unix_sockets: Some(std::collections::BTreeMap::from([(
-                    "/tmp/proxy.sock".to_string(),
-                    NetworkUnixSocketPermission::Allow,
-                )])),
-                allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
-                allow_local_binding: Some(true),
-            }),
-        );
-    }
-
-    #[test]
-    fn map_requirements_toml_to_api_omits_unix_socket_none_entries_from_legacy_network_fields() {
-        let requirements = ConfigRequirementsToml {
-            allowed_approval_policies: None,
-            allowed_approvals_reviewers: None,
-            allowed_sandbox_modes: None,
-            allowed_web_search_modes: None,
-            guardian_policy_config: None,
-            feature_requirements: None,
-            mcp_servers: None,
-            apps: None,
-            rules: None,
-            enforce_residency: None,
-            network: Some(CoreNetworkRequirementsToml {
-                enabled: None,
-                http_port: None,
-                socks_port: None,
-                allow_upstream_proxy: None,
-                dangerously_allow_non_loopback_proxy: None,
-                dangerously_allow_all_unix_sockets: None,
-                domains: None,
-                managed_allowed_domains_only: None,
-                unix_sockets: Some(CoreNetworkUnixSocketPermissionsToml {
-                    entries: std::collections::BTreeMap::from([(
-                        "/tmp/ignored.sock".to_string(),
-                        CoreNetworkUnixSocketPermissionToml::None,
-                    )]),
-                }),
-                allow_local_binding: None,
-            }),
-            permissions: None,
-        };
-
-        let mapped = map_requirements_toml_to_api(requirements);
-
-        assert_eq!(
-            mapped.network,
-            Some(NetworkRequirements {
-                enabled: None,
-                http_port: None,
-                socks_port: None,
-                allow_upstream_proxy: None,
-                dangerously_allow_non_loopback_proxy: None,
-                dangerously_allow_all_unix_sockets: None,
-                domains: None,
-                managed_allowed_domains_only: None,
-                allowed_domains: None,
-                denied_domains: None,
-                unix_sockets: Some(std::collections::BTreeMap::from([(
-                    "/tmp/ignored.sock".to_string(),
-                    NetworkUnixSocketPermission::None,
-                )])),
-                allow_unix_sockets: None,
-                allow_local_binding: None,
-            }),
-        );
-    }
-
-    #[test]
-    fn map_requirements_toml_to_api_normalizes_allowed_web_search_modes() {
-        let requirements = ConfigRequirementsToml {
-            allowed_approval_policies: None,
-            allowed_approvals_reviewers: None,
-            allowed_sandbox_modes: None,
-            allowed_web_search_modes: Some(Vec::new()),
-            guardian_policy_config: None,
-            feature_requirements: None,
-            mcp_servers: None,
-            apps: None,
-            rules: None,
-            enforce_residency: None,
-            network: None,
-            permissions: None,
-        };
-
-        let mapped = map_requirements_toml_to_api(requirements);
-
-        assert_eq!(
-            mapped.allowed_web_search_modes,
-            Some(vec![WebSearchMode::Disabled])
-        );
-    }
-
     #[tokio::test]
     async fn apply_runtime_feature_enablement_keeps_cli_overrides_above_config_and_runtime() {
         let darwin_code_home = TempDir::new().expect("create temp dir");
         std::fs::write(
             darwin_code_home.path().join("config.toml"),
-            "[features]\napps = false\n",
+            format!("{TEST_BYOK_PROVIDER_CONFIG}\n[features]\napps = false\n"),
         )
         .expect("write config");
 
@@ -781,6 +421,11 @@ mod tests {
     #[tokio::test]
     async fn apply_runtime_feature_enablement_keeps_cloud_pins_above_cli_and_runtime() {
         let darwin_code_home = TempDir::new().expect("create temp dir");
+        std::fs::write(
+            darwin_code_home.path().join("config.toml"),
+            TEST_BYOK_PROVIDER_CONFIG,
+        )
+        .expect("write config");
 
         let mut config = darwin_code_core::config::ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.path().to_path_buf())
@@ -788,7 +433,7 @@ mod tests {
                 "features.apps".to_string(),
                 TomlValue::Boolean(true),
             )])
-            .cloud_requirements(CloudRequirementsLoader::new(async {
+            .external_requirements(ExternalRequirementsLoader::new(async {
                 Ok(Some(ConfigRequirementsToml {
                     feature_requirements: Some(
                         darwin_code_core::config_loader::FeatureRequirementsToml {
@@ -822,22 +467,14 @@ mod tests {
                 .await
                 .expect("load analytics config"),
         );
-        let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("test"));
         let config_api = ConfigApi::new(
             darwin_code_home.path().to_path_buf(),
             Arc::new(RwLock::new(Vec::new())),
             Arc::new(RwLock::new(BTreeMap::new())),
             LoaderOverrides::default(),
-            Arc::new(RwLock::new(CloudRequirementsLoader::default())),
+            Arc::new(RwLock::new(ExternalRequirementsLoader::default())),
             reloader.clone(),
-            AnalyticsEventsClient::new(
-                auth_manager,
-                analytics_config
-                    .chatgpt_base_url
-                    .trim_end_matches('/')
-                    .to_string(),
-                analytics_config.analytics_enabled,
-            ),
+            AnalyticsEventsClient::new(analytics_config.analytics_enabled),
         );
 
         let response = config_api

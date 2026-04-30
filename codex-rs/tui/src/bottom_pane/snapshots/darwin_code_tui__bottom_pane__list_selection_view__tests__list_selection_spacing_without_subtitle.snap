@@ -1,0 +1,13 @@
+---
+source: tui/src/bottom_pane/list_selection_view.rs
+expression: render_lines(&view)
+---
+                                                
+  Select Approval Mode                          
+                                                
+› 1. Read Only (current)  DarwinCode can read   
+                          files                 
+  2. Full Access          DarwinCode can edit   
+                          files                 
+                                                
+  Press enter to confirm or esc to go back

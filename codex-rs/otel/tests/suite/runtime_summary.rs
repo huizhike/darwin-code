@@ -94,12 +94,12 @@ fn runtime_metrics_summary_collects_tool_api_and_streaming_metrics() -> Result<(
     ))));
     manager.record_websocket_event(&ws_timing_response, Duration::from_millis(20));
     manager.record_duration(
-        "codex.turn.ttft.duration_ms",
+        "darwin_code.turn.ttft.duration_ms",
         Duration::from_millis(95),
         &[],
     );
     manager.record_duration(
-        "codex.turn.ttfm.duration_ms",
+        "darwin_code.turn.ttfm.duration_ms",
         Duration::from_millis(180),
         &[],
     );

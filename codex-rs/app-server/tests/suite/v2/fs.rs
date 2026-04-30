@@ -160,10 +160,12 @@ async fn fs_methods_cover_current_fs_utils_surface() -> Result<()> {
     let mut mcp = initialized_mcp(&darwin_code_home).await?;
 
     let create_directory_request_id = mcp
-        .send_fs_create_directory_request(darwin_code_app_server_protocol::FsCreateDirectoryParams {
-            path: absolute_path(nested_dir.clone()),
-            recursive: None,
-        })
+        .send_fs_create_directory_request(
+            darwin_code_app_server_protocol::FsCreateDirectoryParams {
+                path: absolute_path(nested_dir.clone()),
+                recursive: None,
+            },
+        )
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,

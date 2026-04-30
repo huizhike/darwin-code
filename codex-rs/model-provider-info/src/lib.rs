@@ -1,17 +1,14 @@
-//! Registry of model providers supported by Darwin-Code.
+//! Registry of model providers supported by DarwinCode.
 //!
 //! Providers can be defined in two places:
-//!   1. Built-in defaults compiled into the binary so Darwin-Code works out-of-the-box.
-//!   2. User-defined entries inside `~/.darwin-code/config.toml` under the `model_providers`
+//!   1. Built-in defaults compiled into the binary so DarwinCode works out-of-the-box.
+//!   2. User-defined entries inside `~/.darwin_code/config.toml` under the `model_providers`
 //!      key. These override or extend the defaults at runtime.
 
 use darwin_code_api::Provider as ApiProvider;
 use darwin_code_api::RetryConfig as ApiRetryConfig;
 use darwin_code_api::is_azure_responses_provider;
-use darwin_code_app_server_protocol::AuthMode;
 use darwin_code_protocol::config_types::ModelProviderAuthInfo;
-use darwin_code_protocol::error::DarwinCodeErr;
-use darwin_code_protocol::error::EnvVarError;
 use darwin_code_protocol::error::Result as DarwinCodeResult;
 use http::HeaderMap;
 use http::header::HeaderName;
@@ -34,23 +31,31 @@ const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
 const OPENAI_PROVIDER_NAME: &str = "OpenAI";
 pub const OPENAI_PROVIDER_ID: &str = "openai";
-const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is no longer supported.\nHow to fix: set `wire_api = \"responses\"` in your provider config.\nMore info: https://github.com/openai/darwin-code/discussions/7782";
-pub const LEGACY_OLLAMA_CHAT_PROVIDER_ID: &str = "ollama-chat";
-pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer supported.\nHow to fix: replace `ollama-chat` with `ollama` in `model_provider`, `oss_provider`, or `--local-provider`.\nMore info: https://github.com/openai/darwin-code/discussions/7782";
+pub const OPENAI_COMPATIBLE_PROVIDER_ID: &str = "openai-compatible";
+const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is ambiguous and no longer supported.\nHow to fix: set `wire_api = \"chat-completions\"` for Chat Completions providers, or `wire_api = \"responses\"` for Responses-compatible providers.";
 
 /// Wire protocol that the provider speaks.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum WireApi {
-    /// The Responses API exposed by OpenAI at `/v1/responses`.
+    /// The Responses API exposed by OpenAI at `/v1/responses` and OpenAI-compatible endpoints.
     #[default]
     Responses,
+    /// The Chat Completions API exposed by OpenAI-compatible providers at `/chat/completions`.
+    ChatCompletions,
+    /// The Gemini API exposed by Google.
+    GeminiGenerate,
+    /// The Claude API exposed by Anthropic.
+    ClaudeMessages,
 }
 
 impl fmt::Display for WireApi {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let value = match self {
             Self::Responses => "responses",
+            Self::ChatCompletions => "chat-completions",
+            Self::GeminiGenerate => "gemini-generate",
+            Self::ClaudeMessages => "claude-messages",
         };
         f.write_str(value)
     }
@@ -64,31 +69,66 @@ impl<'de> Deserialize<'de> for WireApi {
         let value = String::deserialize(deserializer)?;
         match value.as_str() {
             "responses" => Ok(Self::Responses),
+            "chat-completions" => Ok(Self::ChatCompletions),
+            "gemini-generate" => Ok(Self::GeminiGenerate),
+            "claude-messages" => Ok(Self::ClaudeMessages),
             "chat" => Err(serde::de::Error::custom(CHAT_WIRE_API_REMOVED_ERROR)),
-            _ => Err(serde::de::Error::unknown_variant(&value, &["responses"])),
+            _ => Err(serde::de::Error::unknown_variant(
+                &value,
+                &[
+                    "responses",
+                    "chat-completions",
+                    "gemini-generate",
+                    "claude-messages",
+                ],
+            )),
         }
+    }
+}
+
+/// Inline BYOK API key for product provider configs.
+///
+/// Debug deliberately redacts the secret because `ModelProviderInfo` appears in
+/// diagnostics and config assertions.
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
+pub struct InlineApiKey(String);
+
+impl InlineApiKey {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    pub fn expose_secret(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for InlineApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("<redacted>")
     }
 }
 
 /// Serializable representation of a provider definition.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct ModelProviderInfo {
     /// Friendly display name.
     pub name: String,
     /// Base URL for the provider's OpenAI-compatible API.
     pub base_url: Option<String>,
-    /// Environment variable that stores the user's API key for this provider.
-    pub env_key: Option<String>,
-
-    /// Optional instructions to help the user get a valid value for the
-    /// variable and set it.
-    pub env_key_instructions: Option<String>,
-    /// Value to use with `Authorization: Bearer <token>` header. Use of this
-    /// config is discouraged in favor of `env_key` for security reasons, but
-    /// this may be necessary when using this programmatically.
+    /// Direct BYOK API key for this provider. The user supplies this in local
+    /// config; Debug output redacts it and serialization skips it to avoid
+    /// leaking secrets through status/config APIs.
+    #[serde(default, skip_serializing)]
+    pub api_key: Option<InlineApiKey>,
+    /// Legacy bearer-token field retained only for config-schema compatibility.
+    /// DarwinCode is BYOK-only; provider configs use direct `api_key`.
     pub experimental_bearer_token: Option<String>,
-    /// Command-backed bearer-token configuration for this provider.
+    /// Legacy command-backed bearer-token configuration. DarwinCode is
+    /// BYOK-only; provider configs use direct `api_key`.
     pub auth: Option<ModelProviderAuthInfo>,
     /// Which wire protocol this provider expects.
     #[serde(default)]
@@ -113,46 +153,44 @@ pub struct ModelProviderInfo {
     /// Maximum time (in milliseconds) to wait for a websocket connection attempt before treating
     /// it as failed.
     pub websocket_connect_timeout_ms: Option<u64>,
-    /// Does this provider require an OpenAI API Key or ChatGPT login token? If true,
-    /// user is presented with login screen on first run, and login preference and token/key
-    /// are stored in auth.json. If false (which is the default), login screen is skipped,
-    /// and API key (if needed) comes from the "env_key" environment variable.
+    /// Legacy OpenAI-login gate retained only for config-schema compatibility.
+    /// DarwinCode provider runtime is BYOK-only and rejects this in user
+    /// `model_providers`.
     #[serde(default)]
     pub requires_openai_auth: bool,
-    /// Whether this provider supports the Responses API WebSocket transport.
+    /// Legacy Responses WebSocket capability. DarwinCode's BYOK runtime uses
+    /// HTTP/SSE and rejects this in user `model_providers`.
     #[serde(default)]
     pub supports_websockets: bool,
 }
 
 impl ModelProviderInfo {
     pub fn validate(&self) -> std::result::Result<(), String> {
-        let Some(auth) = self.auth.as_ref() else {
-            return Ok(());
-        };
-
-        if auth.command.trim().is_empty() {
-            return Err("provider auth.command must not be empty".to_string());
-        }
-
-        let mut conflicts = Vec::new();
-        if self.env_key.is_some() {
-            conflicts.push("env_key");
-        }
         if self.experimental_bearer_token.is_some() {
-            conflicts.push("experimental_bearer_token");
+            return Err(
+                "BYOK-only provider auth rejects experimental_bearer_token; use direct api_key"
+                    .to_string(),
+            );
+        }
+        if self.auth.is_some() {
+            return Err(
+                "BYOK-only provider auth rejects command-backed auth; use direct api_key"
+                    .to_string(),
+            );
         }
         if self.requires_openai_auth {
-            conflicts.push("requires_openai_auth");
+            return Err(
+                "BYOK-only provider auth rejects requires_openai_auth; use direct api_key"
+                    .to_string(),
+            );
         }
-
-        if conflicts.is_empty() {
-            Ok(())
-        } else {
-            Err(format!(
-                "provider auth cannot be combined with {}",
-                conflicts.join(", ")
-            ))
+        if self.supports_websockets {
+            return Err(
+                "BYOK-only providers must use HTTP/SSE; supports_websockets is unsupported"
+                    .to_string(),
+            );
         }
+        Ok(())
     }
 
     fn build_header_map(&self) -> DarwinCodeResult<HeaderMap> {
@@ -182,16 +220,8 @@ impl ModelProviderInfo {
         Ok(headers)
     }
 
-    pub fn to_api_provider(&self, auth_mode: Option<AuthMode>) -> DarwinCodeResult<ApiProvider> {
-        let default_base_url = if matches!(auth_mode, Some(AuthMode::Chatgpt)) {
-            "https://chatgpt.com/backend-api/codex"
-        } else {
-            "https://api.openai.com/v1"
-        };
-        let base_url = self
-            .base_url
-            .clone()
-            .unwrap_or_else(|| default_base_url.to_string());
+    pub fn to_api_provider(&self) -> DarwinCodeResult<ApiProvider> {
+        let base_url = self.base_url.clone().unwrap_or_else(|| "".to_string());
 
         let headers = self.build_header_map()?;
         let retry = ApiRetryConfig {
@@ -212,25 +242,17 @@ impl ModelProviderInfo {
         })
     }
 
-    /// If `env_key` is Some, returns the API key for this provider if present
-    /// (and non-empty) in the environment. If `env_key` is required but
-    /// cannot be found, returns an error.
+    /// Returns the direct BYOK API key configured for this provider, if any.
     pub fn api_key(&self) -> DarwinCodeResult<Option<String>> {
-        match &self.env_key {
-            Some(env_key) => {
-                let api_key = std::env::var(env_key)
-                    .ok()
-                    .filter(|v| !v.trim().is_empty())
-                    .ok_or_else(|| {
-                        DarwinCodeErr::EnvVar(EnvVarError {
-                            var: env_key.clone(),
-                            instructions: self.env_key_instructions.clone(),
-                        })
-                    })?;
-                Ok(Some(api_key))
-            }
-            None => Ok(None),
-        }
+        Ok(self
+            .api_key
+            .as_ref()
+            .map(|api_key| api_key.expose_secret().to_string()))
+    }
+
+    pub fn with_api_key(mut self, api_key: Option<String>) -> Self {
+        self.api_key = api_key.map(InlineApiKey::new);
+        self
     }
 
     /// Effective maximum number of request retries for this provider.
@@ -261,12 +283,14 @@ impl ModelProviderInfo {
             .unwrap_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS))
     }
 
-    pub fn create_openai_provider(base_url: Option<String>) -> ModelProviderInfo {
+    pub fn create_openai_provider(
+        base_url: Option<String>,
+        api_key: Option<String>,
+    ) -> ModelProviderInfo {
         ModelProviderInfo {
             name: OPENAI_PROVIDER_NAME.into(),
-            base_url,
-            env_key: None,
-            env_key_instructions: None,
+            base_url: Some(base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string())),
+            api_key: api_key.map(InlineApiKey::new),
             experimental_bearer_token: None,
             auth: None,
             wire_api: WireApi::Responses,
@@ -292,8 +316,87 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: true,
-            supports_websockets: true,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    }
+
+    pub fn create_gemini_native_provider(
+        base_url: Option<String>,
+        api_key: Option<String>,
+    ) -> ModelProviderInfo {
+        ModelProviderInfo {
+            name: "Google Gemini".into(),
+            base_url: Some(
+                base_url.unwrap_or_else(|| {
+                    "https://generativelanguage.googleapis.com/v1beta".to_string()
+                }),
+            ),
+            api_key: api_key.map(InlineApiKey::new),
+            experimental_bearer_token: None,
+            auth: None,
+            wire_api: WireApi::GeminiGenerate,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    }
+
+    pub fn create_claude_native_provider(
+        base_url: Option<String>,
+        api_key: Option<String>,
+    ) -> ModelProviderInfo {
+        ModelProviderInfo {
+            name: "Anthropic Claude".into(),
+            base_url: Some(base_url.unwrap_or_else(|| "https://api.anthropic.com/v1".to_string())),
+            api_key: api_key.map(InlineApiKey::new),
+            experimental_bearer_token: None,
+            auth: None,
+            wire_api: WireApi::ClaudeMessages,
+            query_params: None,
+            http_headers: Some(
+                [("anthropic-version".to_string(), "2023-06-01".to_string())]
+                    .into_iter()
+                    .collect(),
+            ),
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    }
+
+    pub fn create_openai_compatible_provider(
+        name: String,
+        base_url: String,
+        wire_api: WireApi,
+        api_key: impl Into<Option<String>>,
+    ) -> ModelProviderInfo {
+        ModelProviderInfo {
+            name,
+            base_url: Some(base_url),
+            api_key: api_key.into().map(InlineApiKey::new),
+            experimental_bearer_token: None,
+            auth: None,
+            wire_api,
+            query_params: None,
+            http_headers: None,
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
         }
     }
 
@@ -307,79 +410,6 @@ impl ModelProviderInfo {
 
     pub fn has_command_auth(&self) -> bool {
         self.auth.is_some()
-    }
-}
-
-pub const DEFAULT_LMSTUDIO_PORT: u16 = 1234;
-pub const DEFAULT_OLLAMA_PORT: u16 = 11434;
-
-pub const LMSTUDIO_OSS_PROVIDER_ID: &str = "lmstudio";
-pub const OLLAMA_OSS_PROVIDER_ID: &str = "ollama";
-
-/// Built-in default provider list.
-pub fn built_in_model_providers(
-    openai_base_url: Option<String>,
-) -> HashMap<String, ModelProviderInfo> {
-    use ModelProviderInfo as P;
-    let openai_provider = P::create_openai_provider(openai_base_url);
-
-    // We do not want to be in the business of adjucating which third-party
-    // providers are bundled with Darwin-Code CLI, so we only include the OpenAI and
-    // open source ("oss") providers by default. Users are encouraged to add to
-    // `model_providers` in config.toml to add their own providers.
-    [
-        (OPENAI_PROVIDER_ID, openai_provider),
-        (
-            OLLAMA_OSS_PROVIDER_ID,
-            create_oss_provider(DEFAULT_OLLAMA_PORT, WireApi::Responses),
-        ),
-        (
-            LMSTUDIO_OSS_PROVIDER_ID,
-            create_oss_provider(DEFAULT_LMSTUDIO_PORT, WireApi::Responses),
-        ),
-    ]
-    .into_iter()
-    .map(|(k, v)| (k.to_string(), v))
-    .collect()
-}
-
-pub fn create_oss_provider(default_provider_port: u16, wire_api: WireApi) -> ModelProviderInfo {
-    // These DARWIN_CODE_OSS_ environment variables are experimental: we may
-    // switch to reading values from config.toml instead.
-    let default_darwin_code_oss_base_url = format!(
-        "http://localhost:{darwin_code_oss_port}/v1",
-        darwin_code_oss_port = std::env::var("DARWIN_CODE_OSS_PORT")
-            .ok()
-            .filter(|value| !value.trim().is_empty())
-            .and_then(|value| value.parse::<u16>().ok())
-            .unwrap_or(default_provider_port)
-    );
-
-    let darwin_code_oss_base_url = std::env::var("DARWIN_CODE_OSS_BASE_URL")
-        .ok()
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or(default_darwin_code_oss_base_url);
-    create_oss_provider_with_base_url(&darwin_code_oss_base_url, wire_api)
-}
-
-pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> ModelProviderInfo {
-    ModelProviderInfo {
-        name: "gpt-oss".into(),
-        base_url: Some(base_url.into()),
-        env_key: None,
-        env_key_instructions: None,
-        experimental_bearer_token: None,
-        auth: None,
-        wire_api,
-        query_params: None,
-        http_headers: None,
-        env_http_headers: None,
-        request_max_retries: None,
-        stream_max_retries: None,
-        stream_idle_timeout_ms: None,
-        websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
-        supports_websockets: false,
     }
 }
 

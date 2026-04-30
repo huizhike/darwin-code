@@ -2,16 +2,16 @@ use std::path::PathBuf;
 
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TokenUsage;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::GitInfo;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::TokenUsage;
 use serde::Deserialize;
 use serde::Serialize;
 

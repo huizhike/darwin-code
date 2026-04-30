@@ -1,4 +1,4 @@
-//! The main Darwin-Code TUI chat surface.
+//! The main DarwinCode TUI chat surface.
 //!
 //! `ChatWidget` consumes protocol events, builds and updates history cells, and drives rendering
 //! for both the main viewport and overlay UIs.
@@ -55,6 +55,7 @@ use crate::bottom_pane::StatusLinePreviewData;
 use crate::bottom_pane::StatusLineSetupView;
 use crate::bottom_pane::TerminalTitleItem;
 use crate::bottom_pane::TerminalTitleSetupView;
+use crate::byok_connectors as connectors;
 use crate::legacy_core::DEFAULT_AGENTS_MD_FILENAME;
 use crate::legacy_core::config::Config;
 use crate::legacy_core::config::Constrained;
@@ -81,13 +82,13 @@ use crate::text_formatting::proper_join;
 use crate::version::DARWIN_CODE_CLI_VERSION;
 use darwin_code_app_server_protocol::AppInfo;
 use darwin_code_app_server_protocol::AppSummary;
-use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::CollabAgentState as AppServerCollabAgentState;
 use darwin_code_app_server_protocol::CollabAgentStatus as AppServerCollabAgentStatus;
 use darwin_code_app_server_protocol::CollabAgentTool;
 use darwin_code_app_server_protocol::CollabAgentToolCallStatus;
 use darwin_code_app_server_protocol::CommandExecutionRequestApprovalParams;
 use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_app_server_protocol::DarwinCodeErrorInfo as AppServerDarwinCodeErrorInfo;
 use darwin_code_app_server_protocol::ErrorNotification;
 use darwin_code_app_server_protocol::FileChangeRequestApprovalParams;
 use darwin_code_app_server_protocol::GuardianApprovalReviewAction;
@@ -118,7 +119,11 @@ use darwin_code_git_utils::recent_commits;
 use darwin_code_otel::RuntimeMetricsSummary;
 use darwin_code_otel::SessionTelemetry;
 
-type FeedbackClient = ();
+type FeedbackClient = codex_feedback::CodexFeedback;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::account::PlanType;
 use darwin_code_protocol::approvals::ElicitationRequestEvent;
@@ -153,13 +158,13 @@ use darwin_code_protocol::protocol::AgentStatus;
 use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
 #[cfg(test)]
 use darwin_code_protocol::protocol::BackgroundEventEvent;
-#[cfg(test)]
-use darwin_code_protocol::protocol::DarwinCodeErrorInfo as CoreDarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::CollabAgentRef;
 #[cfg(test)]
 use darwin_code_protocol::protocol::CollabAgentSpawnBeginEvent;
 use darwin_code_protocol::protocol::CollabAgentStatusEntry;
 use darwin_code_protocol::protocol::CreditsSnapshot;
+#[cfg(test)]
+use darwin_code_protocol::protocol::DarwinCodeErrorInfo as CoreDarwinCodeErrorInfo;
 use darwin_code_protocol::protocol::DeprecationNoticeEvent;
 #[cfg(test)]
 use darwin_code_protocol::protocol::ErrorEvent;
@@ -227,10 +232,7 @@ use darwin_code_terminal_detection::TerminalName;
 use darwin_code_terminal_detection::terminal_info;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_sleep_inhibitor::SleepInhibitor;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
+#[cfg(not(test))]
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -250,7 +252,7 @@ const MULTI_AGENT_ENABLE_TITLE: &str = "Enable subagents?";
 const MULTI_AGENT_ENABLE_YES: &str = "Yes, enable";
 const MULTI_AGENT_ENABLE_NO: &str = "Not now";
 const MULTI_AGENT_ENABLE_NOTICE: &str = "Subagents will be enabled in the next session.";
-const MEMORIES_DOC_URL: &str = "https://developers.openai.com/darwin-code/memories";
+const MEMORIES_DOC_URL: &str = "https://developers.openai.com/darwin_code/memories";
 const MEMORIES_ENABLE_TITLE: &str = "Enable memories?";
 const MEMORIES_ENABLE_YES: &str = "Yes, enable";
 const MEMORIES_ENABLE_NO: &str = "Not now";
@@ -299,7 +301,6 @@ fn queued_message_edit_binding_for_terminal(terminal_info: TerminalInfo) -> KeyB
 use crate::app_event::AppEvent;
 use crate::app_event::ConnectorsSnapshot;
 use crate::app_event::ExitMode;
-use crate::app_event::RateLimitRefreshOrigin;
 #[cfg(target_os = "windows")]
 use crate::app_event::WindowsSandboxEnableMode;
 use crate::app_event_sender::AppEventSender;
@@ -463,16 +464,20 @@ fn is_standard_tool_call(parsed_cmd: &[ParsedCommand]) -> bool {
             .all(|parsed| !matches!(parsed, ParsedCommand::Unknown { .. }))
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 const RATE_LIMIT_WARNING_THRESHOLDS: [f64; 3] = [75.0, 90.0, 95.0];
 const NUDGE_MODEL_SLUG: &str = "gpt-5.1-darwin-code-mini";
+#[cfg_attr(not(test), allow(dead_code))]
 const RATE_LIMIT_SWITCH_PROMPT_THRESHOLD: f64 = 90.0;
 
 #[derive(Default)]
+#[cfg_attr(not(test), allow(dead_code))]
 struct RateLimitWarningState {
     secondary_index: usize,
     primary_index: usize,
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 impl RateLimitWarningState {
     fn take_warnings(
         &mut self,
@@ -561,7 +566,7 @@ pub(crate) struct ChatWidgetInit {
     pub(crate) app_event_tx: AppEventSender,
     pub(crate) initial_user_message: Option<UserMessage>,
     pub(crate) enhanced_keys_supported: bool,
-    pub(crate) has_chatgpt_account: bool,
+    pub(crate) has_account_backed_features: bool,
     pub(crate) model_catalog: Arc<ModelCatalog>,
     pub(crate) feedback: FeedbackClient,
     pub(crate) is_first_run: bool,
@@ -580,6 +585,7 @@ pub(crate) struct ChatWidgetInit {
 enum RateLimitSwitchPromptState {
     #[default]
     Idle,
+    #[cfg_attr(not(test), allow(dead_code))]
     Pending,
     Shown,
 }
@@ -624,9 +630,11 @@ fn core_rate_limit_error_kind(info: &CoreDarwinCodeErrorInfo) -> Option<RateLimi
     }
 }
 
-fn app_server_rate_limit_error_kind(info: &AppServerDarwinCodeErrorInfo) -> Option<RateLimitErrorKind> {
+fn api_rate_limit_error_kind(info: &AppServerDarwinCodeErrorInfo) -> Option<RateLimitErrorKind> {
     match info {
-        AppServerDarwinCodeErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
+        AppServerDarwinCodeErrorInfo::ServerOverloaded => {
+            Some(RateLimitErrorKind::ServerOverloaded)
+        }
         AppServerDarwinCodeErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
         AppServerDarwinCodeErrorInfo::ResponseTooManyFailedAttempts {
             http_status_code: Some(429),
@@ -739,7 +747,7 @@ impl PendingGuardianReviewStatus {
 /// intent (`Op` submissions and `AppEvent` requests).
 ///
 /// It is not responsible for running the agent itself; it reflects progress by updating UI state
-/// and by sending requests back to darwin-code-core.
+/// and by sending requests back to darwin_code-core.
 ///
 /// Quit/interrupt behavior intentionally spans layers: the bottom pane owns local input routing
 /// (which view gets Ctrl+C), while `ChatWidget` owns process-level decisions such as interrupting
@@ -766,7 +774,7 @@ pub(crate) struct ChatWidget {
     current_collaboration_mode: CollaborationMode,
     /// The currently active collaboration mask, if any.
     active_collaboration_mask: Option<CollaborationModeMask>,
-    has_chatgpt_account: bool,
+    has_account_backed_features: bool,
     model_catalog: Arc<ModelCatalog>,
     session_telemetry: SessionTelemetry,
     session_header: SessionHeader,
@@ -775,8 +783,8 @@ pub(crate) struct ChatWidget {
     token_info: Option<TokenUsageInfo>,
     rate_limit_snapshots_by_limit_id: BTreeMap<String, RateLimitSnapshotDisplay>,
     refreshing_status_outputs: Vec<(u64, StatusHistoryHandle)>,
-    next_status_refresh_request_id: u64,
     plan_type: Option<PlanType>,
+    #[cfg_attr(not(test), allow(dead_code))]
     rate_limit_warnings: RateLimitWarningState,
     rate_limit_switch_prompt: RateLimitSwitchPromptState,
     adaptive_chunking: AdaptiveChunkingPolicy,
@@ -816,7 +824,7 @@ pub(crate) struct ChatWidget {
     turn_sleep_inhibitor: SleepInhibitor,
     task_complete_pending: bool,
     unified_exec_processes: Vec<UnifiedExecProcessSummary>,
-    /// Tracks whether darwin-code-core currently considers an agent turn to be in progress.
+    /// Tracks whether darwin_code-core currently considers an agent turn to be in progress.
     ///
     /// This is kept separate from `mcp_startup_status` so that MCP startup progress (or completion)
     /// can update the status header without accidentally clearing the spinner for an active turn.
@@ -954,8 +962,9 @@ pub(crate) struct ChatWidget {
     current_cwd: Option<PathBuf>,
     // Instruction source files loaded for the current session, supplied by app-server.
     instruction_source_paths: Vec<AbsolutePathBuf>,
-    // Runtime network proxy bind addresses from SessionConfigured.
-    session_network_proxy: Option<darwin_code_protocol::protocol::SessionNetworkProxyRuntime>,
+    // Runtime network access bind addresses from SessionConfigured.
+    session_network_access:
+        Option<darwin_code_protocol::protocol::SessionNetworkAccessRuntimeRuntime>,
     // Shared latch so we only warn once about invalid status-line item IDs.
     status_line_invalid_items_warned: Arc<AtomicBool>,
     // Shared latch so we only warn once about invalid terminal-title item IDs.
@@ -1310,7 +1319,7 @@ fn thread_session_state_to_legacy_event(
         history_log_id: session.history_log_id,
         history_entry_count: usize::try_from(session.history_entry_count).unwrap_or(usize::MAX),
         initial_messages: None,
-        network_proxy: session.network_proxy,
+        network_access: session.network_access,
         rollout_path: session.rollout_path,
     }
 }
@@ -1973,13 +1982,16 @@ impl ChatWidget {
     }
 
     // --- Small event handlers ---
-    fn on_session_configured(&mut self, event: darwin_code_protocol::protocol::SessionConfiguredEvent) {
+    fn on_session_configured(
+        &mut self,
+        event: darwin_code_protocol::protocol::SessionConfiguredEvent,
+    ) {
         self.last_agent_markdown = None;
         self.saw_copy_source_this_turn = false;
         self.bottom_pane
             .set_history_metadata(event.history_log_id, event.history_entry_count);
         self.set_skills(/*skills*/ None);
-        self.session_network_proxy = event.network_proxy.clone();
+        self.session_network_access = event.network_access.clone();
         self.thread_id = Some(event.session_id);
         self.last_turn_id = None;
         self.thread_name = event.thread_name.clone();
@@ -2125,7 +2137,10 @@ impl ChatWidget {
         });
     }
 
-    fn on_thread_name_updated(&mut self, event: darwin_code_protocol::protocol::ThreadNameUpdatedEvent) {
+    fn on_thread_name_updated(
+        &mut self,
+        event: darwin_code_protocol::protocol::ThreadNameUpdatedEvent,
+    ) {
         if self.thread_id == Some(event.thread_id) {
             if let Some(name) = event.thread_name.as_deref() {
                 let cell = Self::rename_confirmation_cell(name, self.thread_id);
@@ -2526,19 +2541,19 @@ impl ChatWidget {
     }
 
     #[cfg(test)]
-    fn handle_steer_rejected_error(&mut self, darwin_code_error_info: &CoreDarwinCodeErrorInfo) -> bool {
+    fn handle_steer_rejected_error(&mut self, codex_error_info: &CoreDarwinCodeErrorInfo) -> bool {
         matches!(
-            darwin_code_error_info,
+            codex_error_info,
             CoreDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. }
         ) && self.enqueue_rejected_steer()
     }
 
     fn handle_app_server_steer_rejected_error(
         &mut self,
-        darwin_code_error_info: &AppServerDarwinCodeErrorInfo,
+        codex_error_info: &AppServerDarwinCodeErrorInfo,
     ) -> bool {
         matches!(
-            darwin_code_error_info,
+            codex_error_info,
             AppServerDarwinCodeErrorInfo::ActiveTurnNotSteerable { .. }
         ) && self.enqueue_rejected_steer()
     }
@@ -2701,12 +2716,13 @@ impl ChatWidget {
         }
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn on_rate_limit_snapshot(&mut self, snapshot: Option<RateLimitSnapshot>) {
         if let Some(mut snapshot) = snapshot {
             let limit_id = snapshot
                 .limit_id
                 .clone()
-                .unwrap_or_else(|| "darwin-code".to_string());
+                .unwrap_or_else(|| "darwin_code".to_string());
             let limit_label = snapshot
                 .limit_name
                 .clone()
@@ -2725,7 +2741,7 @@ impl ChatWidget {
 
             self.plan_type = snapshot.plan_type.or(self.plan_type);
 
-            let is_darwin_code_limit = limit_id.eq_ignore_ascii_case("darwin-code");
+            let is_darwin_code_limit = limit_id.eq_ignore_ascii_case("darwin_code");
             let warnings = if is_darwin_code_limit {
                 self.rate_limit_warnings.take_warnings(
                     snapshot
@@ -2821,7 +2837,7 @@ impl ChatWidget {
         self.finalize_turn();
 
         let message = if message.trim().is_empty() {
-            "Darwin-Code is currently experiencing high load.".to_string()
+            "DarwinCode is currently experiencing high load.".to_string()
         } else {
             message
         };
@@ -2844,15 +2860,15 @@ impl ChatWidget {
     fn handle_non_retry_error(
         &mut self,
         message: String,
-        darwin_code_error_info: Option<AppServerDarwinCodeErrorInfo>,
+        codex_error_info: Option<AppServerDarwinCodeErrorInfo>,
     ) {
-        if darwin_code_error_info
+        if codex_error_info
             .as_ref()
             .is_some_and(|info| self.handle_app_server_steer_rejected_error(info))
         {
-        } else if let Some(info) = darwin_code_error_info
+        } else if let Some(info) = codex_error_info
             .as_ref()
-            .and_then(app_server_rate_limit_error_kind)
+            .and_then(api_rate_limit_error_kind)
         {
             match info {
                 RateLimitErrorKind::ServerOverloaded => self.on_server_overloaded_error(message),
@@ -3477,11 +3493,11 @@ impl ChatWidget {
                     GuardianAssessmentAction::McpToolCall {
                         server, tool_name, ..
                     } => history_cell::new_guardian_timed_out_action_request(format!(
-                        "darwin-code could call MCP tool {server}.{tool_name}"
+                        "darwin_code could call MCP tool {server}.{tool_name}"
                     )),
                     GuardianAssessmentAction::NetworkAccess { target, .. } => {
                         history_cell::new_guardian_timed_out_action_request(format!(
-                            "darwin-code could access {target}"
+                            "darwin_code could access {target}"
                         ))
                     }
                     GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -3515,11 +3531,11 @@ impl ChatWidget {
                 GuardianAssessmentAction::McpToolCall {
                     server, tool_name, ..
                 } => history_cell::new_guardian_denied_action_request(format!(
-                    "darwin-code to call MCP tool {server}.{tool_name}"
+                    "darwin_code to call MCP tool {server}.{tool_name}"
                 )),
                 GuardianAssessmentAction::NetworkAccess { target, .. } => {
                     history_cell::new_guardian_denied_action_request(format!(
-                        "darwin-code to access {target}"
+                        "darwin_code to access {target}"
                     ))
                 }
                 GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -4766,14 +4782,17 @@ impl ChatWidget {
         Self::new_with_op_target(common, DarwinCodeOpTarget::AppEvent)
     }
 
-    fn new_with_op_target(common: ChatWidgetInit, darwin_code_op_target: DarwinCodeOpTarget) -> Self {
+    fn new_with_op_target(
+        common: ChatWidgetInit,
+        darwin_code_op_target: DarwinCodeOpTarget,
+    ) -> Self {
         let ChatWidgetInit {
             config,
             frame_requester,
             app_event_tx,
             initial_user_message,
             enhanced_keys_supported,
-            has_chatgpt_account,
+            has_account_backed_features,
             model_catalog,
             feedback,
             is_first_run,
@@ -4789,8 +4808,7 @@ impl ChatWidget {
         let mut config = config;
         config.model = model.clone();
         let prevent_idle_sleep = config.features.enabled(Feature::PreventIdleSleep);
-        let mut rng = rand::rng();
-        let placeholder = PLACEHOLDERS[rng.random_range(0..PLACEHOLDERS.len())].to_string();
+        let placeholder = initial_placeholder();
 
         let model_override = model.as_deref();
         let model_for_header = model
@@ -4838,7 +4856,7 @@ impl ChatWidget {
             skills_initial_state: None,
             current_collaboration_mode,
             active_collaboration_mask,
-            has_chatgpt_account,
+            has_account_backed_features,
             model_catalog,
             session_telemetry,
             session_header: SessionHeader::new(header_model),
@@ -4847,7 +4865,6 @@ impl ChatWidget {
             token_info: None,
             rate_limit_snapshots_by_limit_id: BTreeMap::new(),
             refreshing_status_outputs: Vec::new(),
-            next_status_refresh_request_id: 0,
             plan_type: initial_plan_type,
             rate_limit_warnings: RateLimitWarningState::default(),
             rate_limit_switch_prompt: RateLimitSwitchPromptState::default(),
@@ -4925,7 +4942,7 @@ impl ChatWidget {
             current_rollout_path: None,
             current_cwd,
             instruction_source_paths: Vec::new(),
-            session_network_proxy: None,
+            session_network_access: None,
             status_line_invalid_items_warned,
             terminal_title_invalid_items_warned,
             last_terminal_title: None,
@@ -5778,14 +5795,14 @@ impl ChatWidget {
                             entries: citation
                                 .entries
                                 .into_iter()
-                                .map(
-                                    |entry| darwin_code_protocol::memory_citation::MemoryCitationEntry {
+                                .map(|entry| {
+                                    darwin_code_protocol::memory_citation::MemoryCitationEntry {
                                         path: entry.path,
                                         line_start: entry.line_start,
                                         line_end: entry.line_end,
                                         note: entry.note,
-                                    },
-                                )
+                                    }
+                                })
                                 .collect(),
                             rollout_ids: citation.thread_ids,
                         }
@@ -6051,7 +6068,6 @@ impl ChatWidget {
                 self.on_request_user_input(request_user_input_from_params(params));
             }
             ServerRequest::DynamicToolCall { .. }
-            | ServerRequest::ChatgptAuthTokensRefresh { .. }
             | ServerRequest::ApplyPatchApproval { .. }
             | ServerRequest::ExecCommandApproval { .. } => {
                 if replay_kind.is_none() {
@@ -6189,7 +6205,7 @@ impl ChatWidget {
                     ));
                     self.handle_non_retry_error(
                         notification.error.message,
-                        notification.error.darwin_code_error_info,
+                        notification.error.codex_error_info,
                     );
                 }
             }
@@ -6294,8 +6310,6 @@ impl ChatWidget {
                 }
             }
             ServerNotification::ServerRequestResolved(_)
-            | ServerNotification::AccountUpdated(_)
-            | ServerNotification::AccountRateLimitsUpdated(_)
             | ServerNotification::ThreadStarted(_)
             | ServerNotification::ThreadStatusChanged(_)
             | ServerNotification::ThreadArchived(_)
@@ -6312,8 +6326,7 @@ impl ChatWidget {
             | ServerNotification::ThreadRealtimeTranscriptDelta(_)
             | ServerNotification::ThreadRealtimeTranscriptDone(_)
             | ServerNotification::WindowsWorldWritableWarning(_)
-            | ServerNotification::WindowsSandboxSetupCompleted(_)
-            | ServerNotification::AccountLoginCompleted(_) => {}
+            | ServerNotification::WindowsSandboxSetupCompleted(_) => {}
             ServerNotification::ContextCompacted(_) => {}
         }
     }
@@ -6379,7 +6392,7 @@ impl ChatWidget {
                     {
                         self.last_non_retry_error = None;
                     } else {
-                        self.handle_non_retry_error(error.message, error.darwin_code_error_info);
+                        self.handle_non_retry_error(error.message, error.codex_error_info);
                     }
                 } else {
                     self.last_non_retry_error = None;
@@ -6699,13 +6712,13 @@ impl ChatWidget {
             EventMsg::ModelReroute(_) => {}
             EventMsg::Error(ErrorEvent {
                 message,
-                darwin_code_error_info,
+                codex_error_info,
             }) => {
-                if darwin_code_error_info
+                if codex_error_info
                     .as_ref()
                     .is_some_and(|info| self.handle_steer_rejected_error(info))
                 {
-                } else if let Some(kind) = darwin_code_error_info
+                } else if let Some(kind) = codex_error_info
                     .as_ref()
                     .and_then(core_rate_limit_error_kind)
                 {
@@ -6870,7 +6883,9 @@ impl ChatWidget {
             }
             EventMsg::ItemCompleted(event) => {
                 let item = event.item;
-                if !from_replay && let darwin_code_protocol::items::TurnItem::UserMessage(item) = &item {
+                if !from_replay
+                    && let darwin_code_protocol::items::TurnItem::UserMessage(item) = &item
+                {
                     let EventMsg::UserMessage(event) = item.as_legacy_event() else {
                         unreachable!("user message item should convert to a legacy user message");
                     };
@@ -7176,6 +7191,7 @@ impl ChatWidget {
         self.add_to_history(cell);
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn finish_status_rate_limit_refresh(&mut self, request_id: u64) {
         if self.refreshing_status_outputs.is_empty() {
             return;
@@ -7206,7 +7222,7 @@ impl ChatWidget {
     pub(crate) fn add_debug_config_output(&mut self) {
         self.add_to_history(crate::debug_config::new_debug_config_output(
             &self.config,
-            self.session_network_proxy.as_ref(),
+            self.session_network_access.as_ref(),
         ));
     }
 
@@ -7372,7 +7388,7 @@ impl ChatWidget {
                     }
                 };
             let should_schedule_force_refetch =
-                !force_refetch && !accessible_result.darwin_code_apps_ready;
+                !force_refetch && !accessible_result.codex_apps_ready;
             let accessible_connectors = accessible_result.connectors;
 
             app_event_tx.send(AppEvent::ConnectorsLoaded {
@@ -7415,7 +7431,7 @@ impl ChatWidget {
 
     #[cfg_attr(not(test), allow(dead_code))]
     fn should_prefetch_rate_limits(&self) -> bool {
-        self.config.model_provider.requires_openai_auth && self.has_chatgpt_account
+        self.config.model_provider.requires_openai_auth && self.has_account_backed_features
     }
 
     fn lower_cost_preset(&self) -> Option<ModelPreset> {
@@ -7616,7 +7632,9 @@ impl ChatWidget {
 
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Select Personality".bold()));
-        header.push(Line::from("Choose a communication style for Darwin-Code.".dim()));
+        header.push(Line::from(
+            "Choose a communication style for DarwinCode.".dim(),
+        ));
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
             header: Box::new(header),
@@ -7652,7 +7670,7 @@ impl ChatWidget {
 
         self.bottom_pane.show_selection_view(SelectionViewParams {
             title: Some("Settings".to_string()),
-            subtitle: Some("Configure settings for Darwin-Code.".to_string()),
+            subtitle: Some("Configure settings for DarwinCode.".to_string()),
             footer_hint: Some(standard_popup_hint_line()),
             items,
             ..Default::default()
@@ -7906,14 +7924,14 @@ impl ChatWidget {
     }
 
     fn is_auto_model(model: &str) -> bool {
-        model.starts_with("darwin-code-auto-")
+        model.starts_with("darwin_code-auto-")
     }
 
     fn auto_model_order(model: &str) -> usize {
         match model {
-            "darwin-code-auto-fast" => 0,
-            "darwin-code-auto-balanced" => 1,
-            "darwin-code-auto-thorough" => 2,
+            "darwin_code-auto-fast" => 0,
+            "darwin_code-auto-balanced" => 1,
+            "darwin_code-auto-thorough" => 2,
             _ => 3,
         }
     }
@@ -7932,29 +7950,45 @@ impl ChatWidget {
             let description =
                 (!preset.description.is_empty()).then_some(preset.description.to_string());
             let is_current = preset.model.as_str() == self.current_model();
-            let single_supported_effort = preset.supported_reasoning_efforts.len() == 1;
-            let preset_for_action = preset.clone();
-            let actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
-                let preset_for_event = preset_for_action.clone();
-                tx.send(AppEvent::OpenReasoningPopup {
-                    model: preset_for_event,
-                });
-            })];
+            let single_effort_choice = Self::single_reasoning_effort_choice(&preset);
+            let model_for_action = preset.model.clone();
+            let should_prompt_plan_mode_scope = single_effort_choice.is_some_and(|effort| {
+                self.should_prompt_plan_mode_reasoning_scope(
+                    model_for_action.as_str(),
+                    Some(effort),
+                )
+            });
+            let actions: Vec<SelectionAction> = if let Some(effort) = single_effort_choice {
+                Self::model_selection_actions(
+                    model_for_action,
+                    Some(effort),
+                    should_prompt_plan_mode_scope,
+                )
+            } else {
+                let preset_for_action = preset.clone();
+                vec![Box::new(move |tx| {
+                    let preset_for_event = preset_for_action.clone();
+                    tx.send(AppEvent::OpenReasoningPopup {
+                        model: preset_for_event,
+                    });
+                })]
+            };
             items.push(SelectionItem {
                 name: preset.model.clone(),
                 description,
                 is_current,
                 is_default: preset.is_default,
                 actions,
-                dismiss_on_select: single_supported_effort,
-                dismiss_parent_on_child_accept: !single_supported_effort,
+                dismiss_on_select: single_effort_choice.is_some() && !should_prompt_plan_mode_scope,
+                dismiss_parent_on_child_accept: single_effort_choice.is_none()
+                    || should_prompt_plan_mode_scope,
                 ..Default::default()
             });
         }
 
         let header = self.model_menu_header(
             "Select Model and Effort",
-            "Access legacy models by running darwin-code -m <model_name> or in your config.toml",
+            "Access legacy models by running darwin_code -m <model_name> or in your config.toml",
         );
         self.bottom_pane.show_selection_view(SelectionViewParams {
             footer_hint: Some("Press enter to select reasoning effort, or esc to dismiss.".into()),
@@ -7962,6 +7996,21 @@ impl ChatWidget {
             header,
             ..Default::default()
         });
+    }
+
+    fn single_reasoning_effort_choice(preset: &ModelPreset) -> Option<ReasoningEffortConfig> {
+        let mut choices = ReasoningEffortConfig::iter().filter(|effort| {
+            preset
+                .supported_reasoning_efforts
+                .iter()
+                .any(|option| option.effort == *effort)
+        });
+        let first = choices.next();
+        if choices.next().is_some() {
+            return None;
+        }
+
+        Some(first.unwrap_or(preset.default_reasoning_effort))
     }
 
     pub(crate) fn open_collaboration_modes_popup(&mut self) {
@@ -8674,7 +8723,7 @@ impl ChatWidget {
         let mut header_children: Vec<Box<dyn Renderable>> = Vec::new();
         let title_line = Line::from("Enable full access?").bold();
         let info_line = Line::from(vec![
-            "When Darwin-Code runs with full access, it can edit any file on your computer and run commands with network, without your approval. "
+            "When DarwinCode runs with full access, it can edit any file on your computer and run commands with network, without your approval. "
                 .into(),
             "Exercise caution when enabling full access. This significantly increases the risk of data loss, leaks, or unexpected behavior."
                 .fg(Color::Red),
@@ -8878,7 +8927,7 @@ impl ChatWidget {
             header.push(*Box::new(
                 Paragraph::new(vec![
                     line!["Agent mode on Windows uses an experimental sandbox to limit network and filesystem access.".bold()],
-                    line!["Learn more: https://developers.openai.com/darwin-code/windows"],
+                    line!["Learn more: https://developers.openai.com/darwin_code/windows"],
                 ])
                 .wrap(Wrap { trim: false }),
             ));
@@ -8919,7 +8968,7 @@ impl ChatWidget {
         }
 
         self.session_telemetry.counter(
-            "darwin-code.windows_sandbox.elevated_prompt_shown",
+            "darwin_code.windows_sandbox.elevated_prompt_shown",
             /*inc*/ 1,
             &[],
         );
@@ -8927,7 +8976,7 @@ impl ChatWidget {
         let mut header = ColumnRenderable::new();
         header.push(*Box::new(
             Paragraph::new(vec![
-                line!["Set up the Darwin-Code agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/darwin-code/windows>"],
+                line!["Set up the DarwinCode agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/darwin_code/windows>"],
             ])
             .wrap(Wrap { trim: false }),
         ));
@@ -8942,7 +8991,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     accept_otel.counter(
-                        "darwin-code.windows_sandbox.elevated_prompt_accept",
+                        "darwin_code.windows_sandbox.elevated_prompt_accept",
                         /*inc*/ 1,
                         &[],
                     );
@@ -8958,7 +9007,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     legacy_otel.counter(
-                        "darwin-code.windows_sandbox.elevated_prompt_use_legacy",
+                        "darwin_code.windows_sandbox.elevated_prompt_use_legacy",
                         /*inc*/ 1,
                         &[],
                     );
@@ -8974,7 +9023,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     quit_otel.counter(
-                        "darwin-code.windows_sandbox.elevated_prompt_quit",
+                        "darwin_code.windows_sandbox.elevated_prompt_quit",
                         /*inc*/ 1,
                         &[],
                     );
@@ -9007,10 +9056,10 @@ impl ChatWidget {
         ]);
         lines.push(line![""]);
         lines.push(line![
-            "You can still use Darwin-Code in a non-admin sandbox. It carries greater risk if prompt injected."
+            "You can still use DarwinCode in a non-admin sandbox. It carries greater risk if prompt injected."
         ]);
         lines.push(line![
-            "Learn more <https://developers.openai.com/darwin-code/windows>"
+            "Learn more <https://developers.openai.com/darwin_code/windows>"
         ]);
 
         let mut header = ColumnRenderable::new();
@@ -9028,7 +9077,7 @@ impl ChatWidget {
                     let preset = elevated_preset;
                     move |tx| {
                         otel.counter(
-                            "darwin-code.windows_sandbox.fallback_retry_elevated",
+                            "darwin_code.windows_sandbox.fallback_retry_elevated",
                             /*inc*/ 1,
                             &[],
                         );
@@ -9041,14 +9090,14 @@ impl ChatWidget {
                 ..Default::default()
             },
             SelectionItem {
-                name: "Use Darwin-Code with non-admin sandbox".to_string(),
+                name: "Use DarwinCode with non-admin sandbox".to_string(),
                 description: None,
                 actions: vec![Box::new({
                     let otel = self.session_telemetry.clone();
                     let preset = legacy_preset;
                     move |tx| {
                         otel.counter(
-                            "darwin-code.windows_sandbox.fallback_use_legacy",
+                            "darwin_code.windows_sandbox.fallback_use_legacy",
                             /*inc*/ 1,
                             &[],
                         );
@@ -9065,7 +9114,7 @@ impl ChatWidget {
                 description: None,
                 actions: vec![Box::new(move |tx| {
                     quit_otel.counter(
-                        "darwin-code.windows_sandbox.fallback_prompt_quit",
+                        "darwin_code.windows_sandbox.fallback_prompt_quit",
                         /*inc*/ 1,
                         &[],
                     );
@@ -9315,19 +9364,20 @@ impl ChatWidget {
         self.plan_type
     }
 
-    pub(crate) fn has_chatgpt_account(&self) -> bool {
-        self.has_chatgpt_account
+    pub(crate) fn has_account_backed_features(&self) -> bool {
+        self.has_account_backed_features
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn update_account_state(
         &mut self,
         status_account_display: Option<StatusAccountDisplay>,
         plan_type: Option<PlanType>,
-        has_chatgpt_account: bool,
+        has_account_backed_features: bool,
     ) {
         self.status_account_display = status_account_display;
         self.plan_type = plan_type;
-        self.has_chatgpt_account = has_chatgpt_account;
+        self.has_account_backed_features = has_account_backed_features;
         self.bottom_pane
             .set_connectors_enabled(self.connectors_enabled());
     }
@@ -9339,7 +9389,7 @@ impl ChatWidget {
     ) -> bool {
         self.model_supports_fast_mode(model)
             && matches!(service_tier, Some(ServiceTier::Fast))
-            && self.has_chatgpt_account
+            && self.has_account_backed_features
     }
 
     fn fast_mode_enabled(&self) -> bool {
@@ -9671,7 +9721,7 @@ impl ChatWidget {
             && (previous_model != next_model || previous_effort != next_effort)
         {
             let mut message = format!("Model changed to {next_model}");
-            if !next_model.starts_with("darwin-code-auto-") {
+            if !next_model.starts_with("darwin_code-auto-") {
                 let reasoning_label = match next_effort {
                     Some(ReasoningEffortConfig::Minimal) => "minimal",
                     Some(ReasoningEffortConfig::Low) => "low",
@@ -9692,7 +9742,7 @@ impl ChatWidget {
     }
 
     fn connectors_enabled(&self) -> bool {
-        self.config.features.enabled(Feature::Apps) && self.has_chatgpt_account
+        self.config.features.enabled(Feature::Apps) && self.has_account_backed_features
     }
 
     fn connectors_for_mentions(&self) -> Option<&[AppInfo]> {
@@ -9793,7 +9843,7 @@ impl ChatWidget {
 
     fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
         let resume_cmd = crate::legacy_core::util::resume_command(Some(name), thread_id)
-            .unwrap_or_else(|| format!("darwin-code resume {name}"));
+            .unwrap_or_else(|| format!("darwin_code resume {name}"));
         let name = name.to_string();
         let line = vec![
             "• ".into(),
@@ -9955,7 +10005,7 @@ impl ChatWidget {
             let instructions = if connector.is_accessible {
                 "Manage this app in your browser."
             } else {
-                "Install this app in your browser, then reload Darwin-Code."
+                "Install this app in your browser, then reload DarwinCode."
             };
             if let Some(install_url) = connector.install_url.clone() {
                 let app_id = connector.id.clone();
@@ -10301,7 +10351,7 @@ impl ChatWidget {
         ));
     }
 
-    /// Forward a command directly to darwin-code.
+    /// Forward a command directly to darwin_code.
     pub(crate) fn submit_op<T>(&mut self, op: T) -> bool
     where
         T: Into<AppCommand>,
@@ -10803,7 +10853,7 @@ impl Notification {
             }
             Notification::EditApprovalRequested { cwd, changes } => {
                 format!(
-                    "Darwin-Code wants to edit {}",
+                    "DarwinCode wants to edit {}",
                     if changes.len() == 1 {
                         #[allow(clippy::unwrap_used)]
                         display_path_for(changes.first().unwrap(), cwd)
@@ -10893,6 +10943,17 @@ const PLACEHOLDERS: [&str; 8] = [
     "Run /review on my current changes",
     "Use /skills to list available skills",
 ];
+
+#[cfg(test)]
+fn initial_placeholder() -> String {
+    PLACEHOLDERS[0].to_string()
+}
+
+#[cfg(not(test))]
+fn initial_placeholder() -> String {
+    let mut rng = rand::rng();
+    PLACEHOLDERS[rng.random_range(0..PLACEHOLDERS.len())].to_string()
+}
 
 // Extract the first bold (Markdown) element in the form **...** from `s`.
 // Returns the inner text if found; otherwise `None`.

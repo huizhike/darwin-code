@@ -95,8 +95,8 @@ pub fn compute_allow_paths(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
     use std::fs;
     use tempfile::TempDir;
 

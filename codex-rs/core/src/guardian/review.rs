@@ -357,13 +357,7 @@ pub(super) async fn run_guardian_review_session(
     schema: serde_json::Value,
     external_cancel: Option<CancellationToken>,
 ) -> GuardianReviewOutcome {
-    let live_network_config = match session.services.network_proxy.as_ref() {
-        Some(network_proxy) => match network_proxy.proxy().current_cfg().await {
-            Ok(config) => Some(config),
-            Err(err) => return GuardianReviewOutcome::Completed(Err(err)),
-        },
-        None => None,
-    };
+    let live_network_config = None;
     let available_models = session
         .services
         .models_manager
@@ -381,10 +375,9 @@ pub(super) async fn run_guardian_review_session(
         .find(|preset| preset.model == super::GUARDIAN_PREFERRED_MODEL);
     let (guardian_model, guardian_reasoning_effort) = if let Some(preset) = preferred_model {
         let reasoning_effort = preferred_reasoning_effort(
-            preset
-                .supported_reasoning_efforts
-                .iter()
-                .any(|effort| effort.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low),
+            preset.supported_reasoning_efforts.iter().any(|effort| {
+                effort.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low
+            }),
             Some(preset.default_reasoning_effort),
         );
         (
@@ -396,7 +389,9 @@ pub(super) async fn run_guardian_review_session(
             turn.model_info
                 .supported_reasoning_levels
                 .iter()
-                .any(|preset| preset.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low),
+                .any(|preset| {
+                    preset.effort == darwin_code_protocol::openai_models::ReasoningEffort::Low
+                }),
             turn.reasoning_effort
                 .or(turn.model_info.default_reasoning_level),
         );

@@ -7,14 +7,14 @@ use std::path::Path;
 use tempfile::TempDir;
 
 fn darwin_code_command(darwin_code_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?);
+    let mut cmd = assert_cmd::Command::new(darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?);
     cmd.env("DARWIN_CODE_HOME", darwin_code_home);
     Ok(cmd)
 }
 
 fn write_marketplace_source(source: &Path, marker: &str) -> Result<()> {
     std::fs::create_dir_all(source.join(".agents/plugins"))?;
-    std::fs::create_dir_all(source.join("plugins/sample/.darwin-code-plugin"))?;
+    std::fs::create_dir_all(source.join("plugins/sample/.codex-plugin"))?;
     std::fs::write(
         source.join(".agents/plugins/marketplace.json"),
         r#"{
@@ -31,7 +31,7 @@ fn write_marketplace_source(source: &Path, marker: &str) -> Result<()> {
 }"#,
     )?;
     std::fs::write(
-        source.join("plugins/sample/.darwin-code-plugin/plugin.json"),
+        source.join("plugins/sample/.codex-plugin/plugin.json"),
         r#"{"name":"sample"}"#,
     )?;
     std::fs::write(source.join("plugins/sample/marker.txt"), marker)?;

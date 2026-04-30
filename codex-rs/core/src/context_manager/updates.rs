@@ -85,17 +85,7 @@ pub(crate) fn build_realtime_update_item(
         next.realtime_active,
     ) {
         (Some(true), false) => Some(DeveloperInstructions::realtime_end_message("inactive")),
-        (Some(false), true) | (None, true) => Some(
-            if let Some(instructions) = next
-                .config
-                .experimental_realtime_start_instructions
-                .as_deref()
-            {
-                DeveloperInstructions::realtime_start_message_with_instructions(instructions)
-            } else {
-                DeveloperInstructions::realtime_start_message()
-            },
-        ),
+        (Some(false), true) | (None, true) => Some(DeveloperInstructions::realtime_start_message()),
         (Some(true), true) | (Some(false), false) => None,
         (None, false) => previous_turn_settings
             .and_then(|settings| settings.realtime_active)
@@ -190,6 +180,7 @@ fn build_text_message(role: &str, text_sections: Vec<String>) -> Option<Response
         content,
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     })
 }
 

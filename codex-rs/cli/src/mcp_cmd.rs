@@ -31,7 +31,7 @@ use darwin_code_utils_cli::format_env_display;
 /// Subcommands:
 /// - `list`   — list configured servers (with `--json`)
 /// - `get`    — show a single server (with `--json`)
-/// - `add`    — add a server launcher entry to `~/.darwin-code/config.toml`
+/// - `add`    — add a server launcher entry to `~/.darwin_code/config.toml`
 /// - `remove` — delete a server entry
 /// - `login`  — authenticate with MCP server using OAuth
 /// - `logout` — remove OAuth credentials for MCP server
@@ -72,7 +72,7 @@ pub struct GetArgs {
 }
 
 #[derive(Debug, clap::Parser)]
-#[command(override_usage = "darwin-code mcp add [OPTIONS] <NAME> (--url <URL> | -- <COMMAND>...)")]
+#[command(override_usage = "darwin_code mcp add [OPTIONS] <NAME> (--url <URL> | -- <COMMAND>...)")]
 pub struct AddArgs {
     /// Name for the MCP server configuration.
     pub name: String,
@@ -255,7 +255,12 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
     let darwin_code_home = find_darwin_code_home().context("failed to resolve DARWIN_CODE_HOME")?;
     let mut servers = load_global_mcp_servers(&darwin_code_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", darwin_code_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers from {}",
+                darwin_code_home.display()
+            )
+        })?;
 
     let transport = match transport_args {
         AddMcpTransportArgs {
@@ -319,7 +324,12 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         .replace_mcp_servers(&servers)
         .apply()
         .await
-        .with_context(|| format!("failed to write MCP servers to {}", darwin_code_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to write MCP servers to {}",
+                darwin_code_home.display()
+            )
+        })?;
 
     println!("Added global MCP server '{name}'.");
 
@@ -347,7 +357,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         }
         McpOAuthLoginSupport::Unsupported => {}
         McpOAuthLoginSupport::Unknown(_) => println!(
-            "MCP server may or may not require login. Run `darwin-code mcp login {name}` to login."
+            "MCP server may or may not require login. Run `darwin_code mcp login {name}` to login."
         ),
     }
 
@@ -366,7 +376,12 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
     let darwin_code_home = find_darwin_code_home().context("failed to resolve DARWIN_CODE_HOME")?;
     let mut servers = load_global_mcp_servers(&darwin_code_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", darwin_code_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers from {}",
+                darwin_code_home.display()
+            )
+        })?;
 
     let removed = servers.remove(&name).is_some();
 
@@ -375,7 +390,12 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
             .replace_mcp_servers(&servers)
             .apply()
             .await
-            .with_context(|| format!("failed to write MCP servers to {}", darwin_code_home.display()))?;
+            .with_context(|| {
+                format!(
+                    "failed to write MCP servers to {}",
+                    darwin_code_home.display()
+                )
+            })?;
     }
 
     if removed {
@@ -397,7 +417,7 @@ async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs)
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
         config.darwin_code_home.to_path_buf(),
     )));
-    let mcp_servers = mcp_manager.effective_servers(&config, /*auth*/ None).await;
+    let mcp_servers = mcp_manager.effective_servers(&config).await;
 
     let LoginArgs { name, scopes } = login_args;
 
@@ -450,7 +470,7 @@ async fn run_logout(config_overrides: &CliConfigOverrides, logout_args: LogoutAr
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
         config.darwin_code_home.to_path_buf(),
     )));
-    let mcp_servers = mcp_manager.effective_servers(&config, /*auth*/ None).await;
+    let mcp_servers = mcp_manager.effective_servers(&config).await;
 
     let LogoutArgs { name } = logout_args;
 
@@ -482,7 +502,7 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
         config.darwin_code_home.to_path_buf(),
     )));
-    let mcp_servers = mcp_manager.effective_servers(&config, /*auth*/ None).await;
+    let mcp_servers = mcp_manager.effective_servers(&config).await;
 
     let mut entries: Vec<_> = mcp_servers.iter().collect();
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -549,7 +569,7 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
     }
 
     if entries.is_empty() {
-        println!("No MCP servers configured yet. Try `darwin-code mcp add my-tool -- my-command`.");
+        println!("No MCP servers configured yet. Try `darwin_code mcp add my-tool -- my-command`.");
         return Ok(());
     }
 
@@ -733,7 +753,7 @@ async fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Re
     let mcp_manager = McpManager::new(Arc::new(PluginsManager::new(
         config.darwin_code_home.to_path_buf(),
     )));
-    let mcp_servers = mcp_manager.effective_servers(&config, /*auth*/ None).await;
+    let mcp_servers = mcp_manager.effective_servers(&config).await;
 
     let Some(server) = mcp_servers.get(&get_args.name) else {
         bail!("No MCP server named '{name}' found.", name = get_args.name);
@@ -889,7 +909,7 @@ async fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Re
         };
         println!("  default_tools_approval_mode: {approval_mode}");
     }
-    println!("  remove: darwin-code mcp remove {}", get_args.name);
+    println!("  remove: darwin_code mcp remove {}", get_args.name);
 
     Ok(())
 }

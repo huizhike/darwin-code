@@ -4,9 +4,9 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
 
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::load_for_prompt_bytes;
-use codex_utils_template::Template;
+use darwin_code_utils_image::PromptImageMode;
+use darwin_code_utils_image::load_for_prompt_bytes;
+use darwin_code_utils_template::Template;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -26,9 +26,9 @@ use crate::protocol::REALTIME_CONVERSATION_OPEN_TAG;
 use crate::protocol::SandboxPolicy;
 use crate::protocol::WritableRoot;
 use crate::user_input::UserInput;
-use codex_execpolicy::Policy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_image::ImageProcessingError;
+use darwin_code_execpolicy::Policy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_image::ImageProcessingError;
 use schemars::JsonSchema;
 
 use crate::mcp::CallToolResult;
@@ -257,6 +257,9 @@ pub enum ResponseItem {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         phase: Option<MessagePhase>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        reasoning_content: Option<String>,
     },
     Reasoning {
         #[serde(default, skip_serializing)]
@@ -817,6 +820,7 @@ impl From<DeveloperInstructions> for ResponseItem {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         }
     }
 }
@@ -969,6 +973,7 @@ impl From<ResponseInputItem> for ResponseItem {
                 id: None,
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             },
             ResponseInputItem::FunctionCallOutput { call_id, output } => {
                 Self::FunctionCallOutput { call_id, output }
@@ -1502,7 +1507,7 @@ mod tests {
     use crate::protocol::AskForApproval;
     use crate::protocol::GranularApprovalConfig;
     use anyhow::Result;
-    use codex_execpolicy::Policy;
+    use darwin_code_execpolicy::Policy;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -1809,7 +1814,7 @@ mod tests {
         exec_policy
             .add_prefix_rule(
                 &["git".to_string(), "pull".to_string()],
-                codex_execpolicy::Decision::Allow,
+                darwin_code_execpolicy::Decision::Allow,
             )
             .expect("add rule");
         let instructions = DeveloperInstructions::from_permissions_with_network(
@@ -2196,7 +2201,7 @@ mod tests {
             exec_policy
                 .add_prefix_rule(
                     &[format!("tool-{i:03}"), "x".repeat(500)],
-                    codex_execpolicy::Decision::Allow,
+                    darwin_code_execpolicy::Decision::Allow,
                 )
                 .expect("add rule");
         }

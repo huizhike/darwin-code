@@ -20,7 +20,7 @@ from urllib.request import urlopen
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DARWIN_CODE_CLI_ROOT = SCRIPT_DIR.parent
-DEFAULT_WORKFLOW_URL = "https://github.com/openai/darwin-code/actions/runs/17952349351"  # rust-v0.40.0
+DEFAULT_WORKFLOW_URL = "https://github.com/darwin/darwin-code/actions/runs/17952349351"  # rust-v0.40.0
 VENDOR_DIR_NAME = "vendor"
 RG_MANIFEST = DARWIN_CODE_CLI_ROOT / "bin" / "rg"
 BINARY_TARGETS = (
@@ -48,11 +48,6 @@ BINARY_COMPONENTS = {
         artifact_prefix="darwin-code",
         dest_dir="darwin-code",
         binary_basename="darwin-code",
-    ),
-    "darwin-code-responses-api-proxy": BinaryComponent(
-        artifact_prefix="darwin-code-responses-api-proxy",
-        dest_dir="darwin-code-responses-api-proxy",
-        binary_basename="darwin-code-responses-api-proxy",
     ),
     "darwin-code-windows-sandbox-setup": BinaryComponent(
         artifact_prefix="darwin-code-windows-sandbox-setup",
@@ -267,7 +262,7 @@ def _download_artifacts(workflow_id: str, dest_dir: Path) -> None:
         "--dir",
         str(dest_dir),
         "--repo",
-        "openai/darwin-code",
+        "darwin/darwin-code",
         workflow_id,
     ]
     subprocess.check_call(cmd)

@@ -126,7 +126,7 @@ pub(super) fn build_consolidation_prompt(
         .unwrap_or_else(|err| {
             warn!("failed to render memories consolidation prompt template: {err}");
             format!(
-                "## Memory Phase 2 (Consolidation)\nConsolidate Darwin-Code memories in: {memory_root}\n\n{phase2_input_selection}"
+                "## Memory Phase 2 (Consolidation)\nConsolidate DarwinCode memories in: {memory_root}\n\n{phase2_input_selection}"
             )
         })
 }

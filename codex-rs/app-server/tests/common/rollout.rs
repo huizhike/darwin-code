@@ -135,7 +135,7 @@ pub fn create_fake_rollout_with_source(
         forked_from_id: None,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
-        originator: "darwin-code".to_string(),
+        originator: "darwin_code".to_string(),
         cli_version: "0.0.0".to_string(),
         source,
         agent_path: None,
@@ -207,7 +207,11 @@ pub fn create_fake_rollout_with_text_elements(
     let year = &filename_ts[0..4];
     let month = &filename_ts[5..7];
     let day = &filename_ts[8..10];
-    let dir = darwin_code_home.join("sessions").join(year).join(month).join(day);
+    let dir = darwin_code_home
+        .join("sessions")
+        .join(year)
+        .join(month)
+        .join(day);
     fs::create_dir_all(&dir)?;
 
     let file_path = dir.join(format!("rollout-{filename_ts}-{uuid}.jsonl"));
@@ -218,7 +222,7 @@ pub fn create_fake_rollout_with_text_elements(
         forked_from_id: None,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
-        originator: "darwin-code".to_string(),
+        originator: "darwin_code".to_string(),
         cli_version: "0.0.0".to_string(),
         source: SessionSource::Cli,
         agent_path: None,

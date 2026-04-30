@@ -9,9 +9,6 @@ pub(crate) struct Session {
     pub(super) agent_status: watch::Sender<AgentStatus>,
     pub(super) out_of_band_elicitation_paused: watch::Sender<bool>,
     pub(super) state: Mutex<SessionState>,
-    /// Serializes rebuild/apply cycles for the running proxy; each cycle
-    /// rebuilds from the current SessionState while holding this lock.
-    pub(super) managed_network_proxy_refresh_lock: Mutex<()>,
     /// The set of enabled features should be invariant for the lifetime of the
     /// session.
     pub(super) features: ManagedFeatures,
@@ -65,7 +62,7 @@ pub(crate) struct SessionConfiguration {
     /// execution sandbox are resolved against this directory **instead** of
     /// the process-wide current working directory.
     pub(super) cwd: AbsolutePathBuf,
-    /// Directory containing all Darwin-Code state for this session.
+    /// Directory containing all DarwinCode state for this session.
     pub(super) darwin_code_home: AbsolutePathBuf,
     /// Optional user-facing name for the thread, updated during the session.
     pub(super) thread_name: Option<String>,
@@ -210,7 +207,6 @@ impl Session {
     pub(crate) async fn new(
         mut session_configuration: SessionConfiguration,
         config: Arc<Config>,
-        auth_manager: Arc<AuthManager>,
         models_manager: Arc<ModelsManager>,
         exec_policy: Arc<ExecPolicyManager>,
         tx_event: Sender<Event>,
@@ -326,32 +322,28 @@ impl Session {
             otel.name = "session_init.history_metadata",
             session_init.is_subagent = is_subagent,
         ));
-        let auth_manager_clone = Arc::clone(&auth_manager);
         let config_for_mcp = Arc::clone(&config);
         let mcp_manager_for_mcp = Arc::clone(&mcp_manager);
-        let auth_and_mcp_fut = async move {
-            let auth = auth_manager_clone.auth().await;
-            let mcp_servers = mcp_manager_for_mcp
-                .effective_servers(&config_for_mcp, auth.as_ref())
-                .await;
+        let mcp_fut = async move {
+            let mcp_servers = mcp_manager_for_mcp.effective_servers(&config_for_mcp).await;
             let auth_statuses = compute_auth_statuses(
                 mcp_servers.iter(),
                 config_for_mcp.mcp_oauth_credentials_store_mode,
             )
             .await;
-            (auth, mcp_servers, auth_statuses)
+            (mcp_servers, auth_statuses)
         }
         .instrument(info_span!(
-            "session_init.auth_mcp",
-            otel.name = "session_init.auth_mcp",
+            "session_init.mcp",
+            otel.name = "session_init.mcp",
         ));
 
         // Join all independent futures.
         let (
             rollout_recorder_and_state_db,
             (history_log_id, history_entry_count),
-            (auth, mcp_servers, auth_statuses),
-        ) = tokio::join!(rollout_fut, history_meta_fut, auth_and_mcp_fut);
+            (mcp_servers, auth_statuses),
+        ) = tokio::join!(rollout_fut, history_meta_fut, mcp_fut);
 
         let (rollout_recorder, state_db_ctx) = rollout_recorder_and_state_db.map_err(|e| {
             error!("failed to initialize rollout recorder: {e:#}");
@@ -369,19 +361,6 @@ impl Session {
                 msg: EventMsg::DeprecationNotice(DeprecationNoticeEvent {
                     summary: usage.summary.clone(),
                     details: usage.details.clone(),
-                }),
-            });
-        }
-        if crate::config::uses_deprecated_instructions_file(&config.config_layer_stack) {
-            post_session_configured_events.push(Event {
-                id: INITIAL_SUBMIT_ID.to_owned(),
-                msg: EventMsg::DeprecationNotice(DeprecationNoticeEvent {
-                    summary: "`experimental_instructions_file` is deprecated and ignored. Use `model_instructions_file` instead."
-                        .to_string(),
-                    details: Some(
-                        "Move the setting to `model_instructions_file` in config.toml (or under a profile) to load instructions from a file."
-                            .to_string(),
-                    ),
                 }),
             });
         }
@@ -415,17 +394,12 @@ impl Session {
             });
         }
 
-        let auth = auth.as_ref();
-        let auth_mode = auth.map(DarwinCodeAuth::auth_mode).map(TelemetryAuthMode::from);
-        let account_id = auth.and_then(DarwinCodeAuth::get_account_id);
-        let account_email = auth.and_then(DarwinCodeAuth::get_account_email);
+        let account_id = None;
+        let account_email = None;
+        let auth_mode = None;
         let originator = originator().value;
         let terminal_type = user_agent();
         let session_model = session_configuration.collaboration_mode.model().to_string();
-        let auth_env_telemetry = collect_auth_env_telemetry(
-            &session_configuration.provider,
-            auth_manager.darwin_code_api_key_env_enabled(),
-        );
         let mut session_telemetry = SessionTelemetry::new(
             conversation_id,
             session_model.as_str(),
@@ -437,12 +411,11 @@ impl Session {
             config.otel.log_user_prompt,
             terminal_type.clone(),
             session_configuration.session_source.clone(),
-        )
-        .with_auth_env(auth_env_telemetry.to_otel_metadata());
+        );
         if let Some(service_name) = session_configuration.metrics_service_name.as_deref() {
             session_telemetry = session_telemetry.with_metrics_service_name(service_name);
         }
-        let network_proxy_audit_metadata = NetworkProxyAuditMetadata {
+        let _network_access_audit_metadata = NetworkAccessAuditMetadata {
             conversation_id: Some(conversation_id.to_string()),
             app_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             user_account_id: account_id,
@@ -522,73 +495,20 @@ impl Session {
             default_shell.shell_snapshot = rx;
             tx
         };
-        let thread_name =
-            thread_title_from_state_db(state_db_ctx.as_ref(), &config.darwin_code_home, conversation_id)
-                .instrument(info_span!(
-                    "session_init.thread_name_lookup",
-                    otel.name = "session_init.thread_name_lookup",
-                ))
-                .await;
+        let thread_name = thread_title_from_state_db(
+            state_db_ctx.as_ref(),
+            &config.darwin_code_home,
+            conversation_id,
+        )
+        .instrument(info_span!(
+            "session_init.thread_name_lookup",
+            otel.name = "session_init.thread_name_lookup",
+        ))
+        .await;
         session_configuration.thread_name = thread_name.clone();
         let state = SessionState::new(session_configuration.clone());
-        let managed_network_requirements_configured = config
-            .config_layer_stack
-            .requirements_toml()
-            .network
-            .is_some();
-        let managed_network_requirements_enabled = config.managed_network_requirements_enabled();
         let network_approval = Arc::new(NetworkApprovalService::default());
-        // The managed proxy can call back into core for allowlist-miss decisions.
-        let network_policy_decider_session = if managed_network_requirements_configured {
-            config
-                .permissions
-                .network
-                .as_ref()
-                .map(|_| Arc::new(RwLock::new(std::sync::Weak::<Session>::new())))
-        } else {
-            None
-        };
-        let blocked_request_observer = if managed_network_requirements_configured {
-            config
-                .permissions
-                .network
-                .as_ref()
-                .map(|_| build_blocked_request_observer(Arc::clone(&network_approval)))
-        } else {
-            None
-        };
-        let network_policy_decider =
-            network_policy_decider_session
-                .as_ref()
-                .map(|network_policy_decider_session| {
-                    build_network_policy_decider(
-                        Arc::clone(&network_approval),
-                        Arc::clone(network_policy_decider_session),
-                    )
-                });
-        let (network_proxy, session_network_proxy) =
-            if let Some(spec) = config.permissions.network.as_ref() {
-                let current_exec_policy = exec_policy.current();
-                let (network_proxy, session_network_proxy) = Self::start_managed_network_proxy(
-                    spec,
-                    current_exec_policy.as_ref(),
-                    config.permissions.sandbox_policy.get(),
-                    network_policy_decider.as_ref().map(Arc::clone),
-                    blocked_request_observer.as_ref().map(Arc::clone),
-                    managed_network_requirements_configured,
-                    network_proxy_audit_metadata,
-                )
-                .instrument(info_span!(
-                    "session_init.network_proxy",
-                    otel.name = "session_init.network_proxy",
-                    session_init.managed_network_requirements_enabled =
-                        managed_network_requirements_enabled,
-                ))
-                .await?;
-                (Some(network_proxy), Some(session_network_proxy))
-            } else {
-                (None, None)
-            };
+        let session_network_access = None;
 
         let mut hook_shell_argv =
             default_shell.derive_exec_args("", /*use_login_shell*/ false);
@@ -596,7 +516,7 @@ impl Session {
         let _ = hook_shell_argv.pop();
         let hooks = Hooks::new(HooksConfig {
             legacy_notify_argv: config.notify.clone(),
-            feature_enabled: config.features.enabled(Feature::DarwinCodeHooks),
+            feature_enabled: config.features.enabled(Feature::CodexHooks),
             config_layer_stack: Some(config.config_layer_stack.clone()),
             shell_program: Some(hook_shell_program),
             shell_args: hook_shell_argv,
@@ -611,13 +531,8 @@ impl Session {
         }
 
         let installation_id = resolve_installation_id(&config.darwin_code_home).await?;
-        let analytics_events_client = analytics_events_client.unwrap_or_else(|| {
-            AnalyticsEventsClient::new(
-                Arc::clone(&auth_manager),
-                config.chatgpt_base_url.trim_end_matches('/').to_string(),
-                config.analytics_enabled,
-            )
-        });
+        let analytics_events_client = analytics_events_client
+            .unwrap_or_else(|| AnalyticsEventsClient::new(config.analytics_enabled));
         let services = SessionServices {
             // Initialize the MCP connection manager with an uninitialized
             // instance. It will be replaced with one created via
@@ -642,13 +557,11 @@ impl Session {
             user_shell: Arc::new(default_shell),
             agent_identity_manager: Arc::new(AgentIdentityManager::new(
                 config.as_ref(),
-                Arc::clone(&auth_manager),
                 session_configuration.session_source.clone(),
             )),
             shell_snapshot_tx,
             show_raw_agent_reasoning: config.show_raw_agent_reasoning,
             exec_policy,
-            auth_manager: Arc::clone(&auth_manager),
             session_telemetry,
             models_manager: Arc::clone(&models_manager),
             tool_approvals: Mutex::new(ApprovalStore::default()),
@@ -658,12 +571,10 @@ impl Session {
             mcp_manager: Arc::clone(&mcp_manager),
             skills_watcher,
             agent_control,
-            network_proxy,
             network_approval: Arc::clone(&network_approval),
             state_db: state_db_ctx.clone(),
             thread_store: LocalThreadStore::new(RolloutConfig::from_view(config.as_ref())),
             model_client: ModelClient::new(
-                Some(Arc::clone(&auth_manager)),
                 conversation_id,
                 installation_id,
                 session_configuration.provider.clone(),
@@ -695,7 +606,6 @@ impl Session {
             agent_status,
             out_of_band_elicitation_paused,
             state: Mutex::new(state),
-            managed_network_proxy_refresh_lock: Mutex::new(()),
             features: config.features.clone(),
             pending_mcp_server_refresh_config: Mutex::new(None),
             conversation: Arc::new(RealtimeConversationManager::new()),
@@ -708,10 +618,6 @@ impl Session {
             js_repl,
             next_internal_sub_id: AtomicU64::new(0),
         });
-        if let Some(network_policy_decider_session) = network_policy_decider_session {
-            let mut guard = network_policy_decider_session.write().await;
-            *guard = Arc::downgrade(&sess);
-        }
         // Dispatch the SessionConfiguredEvent first and then report any errors.
         // If resuming, include converted initial messages in the payload so UIs can render them immediately.
         let initial_messages = initial_history.get_event_msgs();
@@ -732,11 +638,7 @@ impl Session {
                 history_log_id,
                 history_entry_count,
                 initial_messages,
-                network_proxy: session_network_proxy.filter(|_| {
-                    Self::managed_network_proxy_active_for_sandbox_policy(
-                        session_configuration.sandbox_policy.get(),
-                    )
-                }),
+                network_access: session_network_access,
                 rollout_path,
             }),
         })
@@ -771,7 +673,7 @@ impl Session {
             tx_event.clone(),
             session_configuration.sandbox_policy.get().clone(),
             config.darwin_code_home.to_path_buf(),
-            darwin_code_apps_tools_cache_key(auth),
+            darwin_code_apps_tools_cache_key(),
             tool_plugin_provenance,
         )
         .instrument(info_span!(

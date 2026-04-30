@@ -1,5 +1,6 @@
 #![allow(clippy::expect_used)]
-use darwin_code_login::DARWIN_CODE_API_KEY_ENV_VAR;
+use crate::DARWIN_CODE_API_KEY_ENV_VAR;
+use crate::write_default_byok_test_config;
 use std::path::Path;
 use tempfile::TempDir;
 use wiremock::MockServer;
@@ -12,8 +13,8 @@ pub struct TestDarwinCodeExecBuilder {
 impl TestDarwinCodeExecBuilder {
     pub fn cmd(&self) -> assert_cmd::Command {
         let mut cmd = assert_cmd::Command::new(
-            darwin_code_utils_cargo_bin::cargo_bin("darwin-code-exec")
-                .expect("should find binary for darwin-code-exec"),
+            darwin_code_utils_cargo_bin::cargo_bin("darwin_code-exec")
+                .expect("should find binary for darwin_code-exec"),
         );
         cmd.current_dir(self.cwd.path())
             .env("DARWIN_CODE_HOME", self.home.path())
@@ -24,8 +25,10 @@ impl TestDarwinCodeExecBuilder {
     pub fn cmd_with_server(&self, server: &MockServer) -> assert_cmd::Command {
         let mut cmd = self.cmd();
         let base = format!("{}/v1", server.uri());
-        cmd.arg("-c")
-            .arg(format!("openai_base_url={}", toml_string_literal(&base)));
+        cmd.arg("-c").arg(format!(
+            "providers.openai.base_url={}",
+            toml_string_literal(&base)
+        ));
         cmd
     }
 
@@ -42,8 +45,10 @@ fn toml_string_literal(value: &str) -> String {
 }
 
 pub fn test_darwin_code_exec() -> TestDarwinCodeExecBuilder {
+    let home = TempDir::new().expect("create temp home");
+    write_default_byok_test_config(home.path());
     TestDarwinCodeExecBuilder {
-        home: TempDir::new().expect("create temp home"),
+        home,
         cwd: TempDir::new().expect("create temp cwd"),
     }
 }

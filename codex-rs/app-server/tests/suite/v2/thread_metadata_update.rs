@@ -381,7 +381,7 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
         Some(RolloutGitInfo {
             commit_hash: Some(GitSha::new("abc123")),
             branch: Some("feature/sidebar-pr".to_string()),
-            repository_url: Some("git@example.com:openai/darwin-code.git".to_string()),
+            repository_url: Some("git@example.com:openai/darwin_code.git".to_string()),
         }),
     )?;
     let _state_db = init_state_db(darwin_code_home.path()).await?;
@@ -429,7 +429,8 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
 }
 
 async fn init_state_db(darwin_code_home: &Path) -> Result<Arc<StateRuntime>> {
-    let state_db = StateRuntime::init(darwin_code_home.to_path_buf(), "mock_provider".into()).await?;
+    let state_db =
+        StateRuntime::init(darwin_code_home.to_path_buf(), "mock_provider".into()).await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;

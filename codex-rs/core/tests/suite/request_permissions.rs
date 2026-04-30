@@ -1,6 +1,19 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::skip_if_sandbox;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
 use darwin_code_core::config::Constrained;
 use darwin_code_core::sandboxing::SandboxPermissions;
 use darwin_code_features::Feature;
@@ -19,19 +32,6 @@ use darwin_code_protocol::request_permissions::RequestPermissionProfile;
 use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
 use darwin_code_protocol::user_input::UserInput;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_function_call;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::skip_if_sandbox;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -185,7 +185,7 @@ async fn submit_turn(
     sandbox_policy: SandboxPolicy,
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -208,7 +208,7 @@ async fn submit_turn(
 }
 
 async fn wait_for_completion(test: &TestDarwinCode) {
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -218,7 +218,7 @@ async fn expect_exec_approval(
     test: &TestDarwinCode,
     expected_command: &str,
 ) -> ExecApprovalRequestEvent {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -244,7 +244,7 @@ async fn expect_exec_approval(
 async fn wait_for_exec_approval_or_completion(
     test: &TestDarwinCode,
 ) -> Option<ExecApprovalRequestEvent> {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -263,7 +263,7 @@ async fn expect_request_permissions_event(
     test: &TestDarwinCode,
     expected_call_id: &str,
 ) -> RequestPermissionProfile {
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
@@ -375,7 +375,7 @@ async fn with_additional_permissions_requires_approval_under_on_request() -> Res
         approval.additional_permissions,
         Some(requested_permissions.clone())
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -462,7 +462,7 @@ async fn request_permissions_tool_is_auto_denied_when_granular_request_permissio
     )
     .await?;
 
-    let event = wait_for_event(&test.darwin-code, |event| {
+    let event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
@@ -563,7 +563,7 @@ async fn relative_additional_permissions_resolve_against_tool_workdir() -> Resul
         approval.additional_permissions,
         Some(expected_permissions.clone())
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -657,7 +657,7 @@ async fn read_only_with_additional_permissions_does_not_widen_to_unrequested_cwd
         approval.additional_permissions,
         Some(requested_permissions.clone())
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -758,7 +758,7 @@ async fn read_only_with_additional_permissions_does_not_widen_to_unrequested_tmp
         approval.additional_permissions,
         Some(requested_permissions.clone())
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -866,7 +866,7 @@ async fn workspace_write_with_additional_permissions_can_write_outside_cwd() -> 
         approval.additional_permissions,
         Some(normalized_requested_permissions.into())
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -968,7 +968,7 @@ async fn with_additional_permissions_denied_approval_blocks_execution() -> Resul
         approval.additional_permissions,
         Some(normalized_requested_permissions)
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1082,7 +1082,7 @@ async fn request_permissions_grants_apply_to_later_exec_command_calls() -> Resul
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1097,7 +1097,7 @@ async fn request_permissions_grants_apply_to_later_exec_command_calls() -> Resul
             approval.additional_permissions,
             Some(normalized_requested_permissions.clone().into())
         );
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,
@@ -1196,7 +1196,7 @@ async fn request_permissions_preapprove_explicit_exec_permissions_outside_on_req
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1207,7 +1207,7 @@ async fn request_permissions_preapprove_explicit_exec_permissions_outside_on_req
         .await?;
 
     if let Some(approval) = wait_for_exec_approval_or_completion(&test).await {
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,
@@ -1309,7 +1309,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls() -> Resu
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1320,7 +1320,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls() -> Resu
         .await?;
 
     if let Some(approval) = wait_for_exec_approval_or_completion(&test).await {
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,
@@ -1418,7 +1418,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls_without_i
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1429,7 +1429,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls_without_i
         .await?;
 
     if let Some(approval) = wait_for_exec_approval_or_completion(&test).await {
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,
@@ -1564,7 +1564,7 @@ async fn partial_request_permissions_grants_do_not_preapprove_new_permissions() 
 
     let initial_request = expect_request_permissions_event(&test, "permissions-call").await;
     assert_eq!(initial_request, normalized_requested_permissions);
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1597,7 +1597,7 @@ async fn partial_request_permissions_grants_do_not_preapprove_new_permissions() 
     expected_writes.sort_by_key(|path| path.display().to_string());
 
     assert_eq!(approval_writes, expected_writes);
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -1681,7 +1681,7 @@ async fn request_permissions_grants_do_not_carry_across_turns() -> Result<()> {
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1798,7 +1798,7 @@ async fn request_permissions_session_grants_carry_across_turns() -> Result<()> {
         granted_permissions,
         normalized_requested_permissions.clone()
     );
-    test.darwin-code
+    test.darwin_code
         .submit(Op::RequestPermissionsResponse {
             id: "permissions-call".to_string(),
             response: RequestPermissionsResponse {
@@ -1834,7 +1834,7 @@ async fn request_permissions_session_grants_carry_across_turns() -> Result<()> {
     )
     .await?;
 
-    let completion_event = wait_for_event(&test.darwin-code, |event| {
+    let completion_event = wait_for_event(&test.darwin_code, |event| {
         matches!(
             event,
             EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
@@ -1842,7 +1842,7 @@ async fn request_permissions_session_grants_carry_across_turns() -> Result<()> {
     })
     .await;
     if let EventMsg::ExecApprovalRequest(approval) = completion_event {
-        test.darwin-code
+        test.darwin_code
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
                 turn_id: None,

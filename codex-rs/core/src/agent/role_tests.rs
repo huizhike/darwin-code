@@ -181,8 +181,8 @@ async fn apply_role_preserves_unspecified_keys() {
         TomlValue::String("base-model".to_string()),
     )])
     .await;
-    config.darwin_code_linux_sandbox_exe = Some(PathBuf::from("/tmp/darwin-code-linux-sandbox"));
-    config.main_execve_wrapper_exe = Some(PathBuf::from("/tmp/darwin-code-execve-wrapper"));
+    config.codex_linux_sandbox_exe = Some(PathBuf::from("/tmp/darwin_code-linux-sandbox"));
+    config.main_execve_wrapper_exe = Some(PathBuf::from("/tmp/darwin_code-execve-wrapper"));
     let role_path = write_role_config(
         &home,
         "effort-only.toml",
@@ -205,12 +205,12 @@ async fn apply_role_preserves_unspecified_keys() {
     assert_eq!(config.model.as_deref(), Some("base-model"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::High));
     assert_eq!(
-        config.darwin_code_linux_sandbox_exe,
-        Some(PathBuf::from("/tmp/darwin-code-linux-sandbox"))
+        config.codex_linux_sandbox_exe,
+        Some(PathBuf::from("/tmp/darwin_code-linux-sandbox"))
     );
     assert_eq!(
         config.main_execve_wrapper_exe,
-        Some(PathBuf::from("/tmp/darwin-code-execve-wrapper"))
+        Some(PathBuf::from("/tmp/darwin_code-execve-wrapper"))
     );
 }
 
@@ -223,7 +223,7 @@ async fn apply_role_preserves_active_profile_and_model_provider() {
 [model_providers.test-provider]
 name = "Test Provider"
 base_url = "https://example.com/v1"
-env_key = "TEST_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [profiles.test-profile]
@@ -334,13 +334,13 @@ async fn apply_role_uses_role_profile_instead_of_current_profile() {
 [model_providers.base-provider]
 name = "Base Provider"
 base_url = "https://base.example.com/v1"
-env_key = "BASE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [model_providers.role-provider]
 name = "Role Provider"
 base_url = "https://role.example.com/v1"
-env_key = "ROLE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [profiles.base-profile]
@@ -395,13 +395,13 @@ async fn apply_role_uses_role_model_provider_instead_of_current_profile_provider
 [model_providers.base-provider]
 name = "Base Provider"
 base_url = "https://base.example.com/v1"
-env_key = "BASE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [model_providers.role-provider]
 name = "Role Provider"
 base_url = "https://role.example.com/v1"
-env_key = "ROLE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [profiles.base-profile]
@@ -453,13 +453,13 @@ async fn apply_role_uses_active_profile_model_provider_update() {
 [model_providers.base-provider]
 name = "Base Provider"
 base_url = "https://base.example.com/v1"
-env_key = "BASE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [model_providers.role-provider]
 name = "Role Provider"
 base_url = "https://role.example.com/v1"
-env_key = "ROLE_PROVIDER_API_KEY"
+api_key = "test-direct-api-key"
 wire_api = "responses"
 
 [profiles.base-profile]

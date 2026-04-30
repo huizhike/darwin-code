@@ -174,7 +174,8 @@ async fn websocket_transport_rejects_missing_and_invalid_capability_tokens() -> 
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(darwin_code_home.path(), "ws://127.0.0.1:0", &auth_args).await?;
+        spawn_websocket_server_with_args(darwin_code_home.path(), "ws://127.0.0.1:0", &auth_args)
+            .await?;
 
     assert_websocket_connect_rejected(bind_addr, /*bearer_token*/ None).await?;
     assert_websocket_connect_rejected(bind_addr, Some("wrong-token")).await?;
@@ -205,21 +206,22 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         "--ws-shared-secret-file".to_string(),
         shared_secret_file.display().to_string(),
         "--ws-issuer".to_string(),
-        "darwin-code-enroller".to_string(),
+        "darwin_code-enroller".to_string(),
         "--ws-audience".to_string(),
-        "darwin-code-app-server".to_string(),
+        "darwin_code-app-server".to_string(),
         "--ws-max-clock-skew-seconds".to_string(),
         "1".to_string(),
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(darwin_code_home.path(), "ws://127.0.0.1:0", &auth_args).await?;
+        spawn_websocket_server_with_args(darwin_code_home.path(), "ws://127.0.0.1:0", &auth_args)
+            .await?;
     let expired_token = signed_bearer_token(
         shared_secret.as_bytes(),
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() - 30,
-            "iss": "darwin-code-enroller",
-            "aud": "darwin-code-app-server",
+            "iss": "darwin_code-enroller",
+            "aud": "darwin_code-app-server",
         }),
     )?;
     assert_websocket_connect_rejected(bind_addr, Some(expired_token.as_str())).await?;
@@ -232,8 +234,8 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() + 60,
             "nbf": OffsetDateTime::now_utc().unix_timestamp() + 30,
-            "iss": "darwin-code-enroller",
-            "aud": "darwin-code-app-server",
+            "iss": "darwin_code-enroller",
+            "aud": "darwin_code-app-server",
         }),
     )?;
     assert_websocket_connect_rejected(bind_addr, Some(not_yet_valid_token.as_str())).await?;
@@ -243,7 +245,7 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() + 60,
             "iss": "someone-else",
-            "aud": "darwin-code-app-server",
+            "aud": "darwin_code-app-server",
         }),
     )?;
     assert_websocket_connect_rejected(bind_addr, Some(wrong_issuer_token.as_str())).await?;
@@ -252,7 +254,7 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         shared_secret.as_bytes(),
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() + 60,
-            "iss": "darwin-code-enroller",
+            "iss": "darwin_code-enroller",
             "aud": "wrong-audience",
         }),
     )?;
@@ -262,8 +264,8 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         b"fedcba9876543210fedcba9876543210",
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() + 60,
-            "iss": "darwin-code-enroller",
-            "aud": "darwin-code-app-server",
+            "iss": "darwin_code-enroller",
+            "aud": "darwin_code-app-server",
         }),
     )?;
     assert_websocket_connect_rejected(bind_addr, Some(wrong_signature_token.as_str())).await?;
@@ -272,8 +274,8 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
         shared_secret.as_bytes(),
         json!({
             "exp": OffsetDateTime::now_utc().unix_timestamp() + 60,
-            "iss": "darwin-code-enroller",
-            "aud": "darwin-code-app-server",
+            "iss": "darwin_code-enroller",
+            "aud": "darwin_code-app-server",
         }),
     )?;
     let mut ws = connect_websocket_with_bearer(bind_addr, Some(valid_token.as_str())).await?;
@@ -384,7 +386,7 @@ pub(super) async fn spawn_websocket_server_with_args(
     listen_url: &str,
     extra_args: &[String],
 ) -> Result<(Child, SocketAddr)> {
-    let program = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-app-server")
+    let program = darwin_code_utils_cargo_bin::cargo_bin("darwin_code-app-server")
         .context("should find app-server binary")?;
     let mut cmd = Command::new(program);
     cmd.arg("--listen")
@@ -519,7 +521,7 @@ async fn run_websocket_server_to_completion_with_args(
     listen_url: &str,
     extra_args: &[String],
 ) -> Result<std::process::Output> {
-    let program = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-app-server")
+    let program = darwin_code_utils_cargo_bin::cargo_bin("darwin_code-app-server")
         .context("should find app-server binary")?;
     let mut cmd = Command::new(program);
     cmd.arg("--listen")

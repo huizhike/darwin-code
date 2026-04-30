@@ -5,22 +5,26 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
-use codex_api::AuthProvider;
-use codex_api::Compression;
-use codex_api::Provider;
-use codex_api::ResponsesApiRequest;
-use codex_api::ResponsesClient;
-use codex_api::ResponsesOptions;
-use codex_client::HttpTransport;
-use codex_client::Request;
-use codex_client::RequestBody;
-use codex_client::Response;
-use codex_client::StreamResponse;
-use codex_client::TransportError;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use darwin_code_api::AuthProvider;
+use darwin_code_api::ChatCompletionsApiRequest;
+use darwin_code_api::ChatCompletionsClient;
+use darwin_code_api::ChatCompletionsMessage;
+use darwin_code_api::ChatCompletionsOptions;
+use darwin_code_api::Compression;
+use darwin_code_api::Provider;
+use darwin_code_api::ResponsesApiRequest;
+use darwin_code_api::ResponsesClient;
+use darwin_code_api::ResponsesOptions;
+use darwin_code_client::HttpTransport;
+use darwin_code_client::Request;
+use darwin_code_client::RequestBody;
+use darwin_code_client::Response;
+use darwin_code_client::StreamResponse;
+use darwin_code_client::TransportError;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_protocol::protocol::SubAgentSource;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::StatusCode;
@@ -116,7 +120,7 @@ impl AuthProvider for StaticAuth {
             headers.insert(http::header::AUTHORIZATION, header);
         }
         if let Ok(header) = HeaderValue::from_str(&self.account_id) {
-            headers.insert("ChatGPT-Account-ID", header);
+            headers.insert("X-Darwin-Test-Account-ID", header);
         }
     }
 }
@@ -127,7 +131,7 @@ fn provider(name: &str) -> Provider {
         base_url: "https://example.com/v1".to_string(),
         query_params: None,
         headers: HeaderMap::new(),
-        retry: codex_api::RetryConfig {
+        retry: darwin_code_api::RetryConfig {
             max_attempts: 1,
             base_delay: Duration::from_millis(1),
             retry_429: false,
@@ -218,6 +222,44 @@ async fn responses_client_uses_responses_path() -> Result<()> {
 }
 
 #[tokio::test]
+async fn chat_completions_client_uses_chat_completions_path_and_body() -> Result<()> {
+    let state = RecordingState::default();
+    let transport = RecordingTransport::new(state.clone());
+    let mut provider = provider("deepseek");
+    provider.base_url = "https://api.deepseek.com".to_string();
+    let client = ChatCompletionsClient::new(transport, provider, Arc::new(NoAuth));
+
+    let request = ChatCompletionsApiRequest {
+        model: "deepseek-v4-flash".to_string(),
+        messages: vec![ChatCompletionsMessage::text("user", "hi")],
+        tools: Vec::new(),
+        tool_choice: None,
+        parallel_tool_calls: None,
+        stream: true,
+        thinking: None,
+        reasoning_effort: None,
+    };
+    let _stream = client
+        .stream_request(request, ChatCompletionsOptions::default())
+        .await?;
+
+    let requests = state.take_stream_requests();
+    assert_path_ends_with(&requests, "/chat/completions");
+    let body = requests
+        .first()
+        .and_then(|request| request.body.as_ref())
+        .expect("request body should be present");
+    let RequestBody::Json(body) = body else {
+        panic!("chat completions body should be JSON");
+    };
+    assert!(body.get("messages").is_some());
+    assert!(body.get("input").is_none());
+    assert!(body.get("include").is_none());
+    assert!(body.get("prompt_cache_key").is_none());
+    Ok(())
+}
+
+#[tokio::test]
 async fn streaming_client_adds_auth_headers() -> Result<()> {
     let state = RecordingState::default();
     let transport = RecordingTransport::new(state.clone());
@@ -245,7 +287,7 @@ async fn streaming_client_adds_auth_headers() -> Result<()> {
         Some("Bearer secret-token")
     );
 
-    let account_header = req.headers.get("ChatGPT-Account-ID");
+    let account_header = req.headers.get("X-Darwin-Test-Account-ID");
     assert!(account_header.is_some(), "missing account header");
     assert_eq!(account_header.unwrap().to_str().ok(), Some("acct-1"));
 
@@ -311,6 +353,7 @@ async fn azure_default_store_attaches_ids_and_headers() -> Result<()> {
             content: vec![ContentItem::InputText { text: "hi".into() }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         }],
         tools: Vec::new(),
         tool_choice: "auto".into(),

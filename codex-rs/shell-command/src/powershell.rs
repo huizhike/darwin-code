@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 use crate::shell_detect::ShellType;
 use crate::shell_detect::detect_shell_type;

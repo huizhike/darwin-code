@@ -1,6 +1,6 @@
 use super::*;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
 use pretty_assertions::assert_eq;
 
 use crate::fragment::AGENTS_MD_FRAGMENT;

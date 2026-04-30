@@ -2,65 +2,343 @@
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fmt;
 use std::path::Path;
 
 use crate::permissions_toml::PermissionsToml;
 use crate::profile_toml::ConfigProfile;
-use crate::types::AnalyticsConfigToml;
 use crate::types::ApprovalsReviewer;
 use crate::types::AppsConfigToml;
 use crate::types::AuthCredentialsStoreMode;
-use crate::types::FeedbackConfigToml;
 use crate::types::History;
 use crate::types::MarketplaceConfig;
 use crate::types::McpServerConfig;
 use crate::types::MemoriesToml;
-use crate::types::Notice;
 use crate::types::OAuthCredentialsStoreMode;
-use crate::types::OtelConfigToml;
 use crate::types::PluginConfig;
 use crate::types::SandboxWorkspaceWrite;
 use crate::types::ShellEnvironmentPolicyToml;
 use crate::types::SkillsConfig;
 use crate::types::ToolSuggestConfig;
 use crate::types::Tui;
-use crate::types::UriBasedFileOpener;
 use crate::types::WindowsToml;
-use codex_app_server_protocol::Tools;
-use codex_app_server_protocol::UserSavedConfig;
-use codex_features::FeaturesToml;
-use codex_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WebSearchToolConfig;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ReadOnlyAccess;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path::normalize_for_path_comparison;
+use darwin_code_app_server_protocol::Tools;
+use darwin_code_app_server_protocol::UserSavedConfig;
+use darwin_code_features::FeaturesToml;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::OPENAI_COMPATIBLE_PROVIDER_ID;
+use darwin_code_model_provider_info::OPENAI_PROVIDER_ID;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::config_types::SandboxMode;
+use darwin_code_protocol::config_types::ServiceTier;
+use darwin_code_protocol::config_types::TrustLevel;
+use darwin_code_protocol::config_types::Verbosity;
+use darwin_code_protocol::config_types::WebSearchMode;
+use darwin_code_protocol::config_types::WebSearchToolConfig;
+use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::ReadOnlyAccess;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_path::normalize_for_path_comparison;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 
-const RESERVED_MODEL_PROVIDER_IDS: [&str; 3] = [
-    OPENAI_PROVIDER_ID,
-    OLLAMA_OSS_PROVIDER_ID,
-    LMSTUDIO_OSS_PROVIDER_ID,
-];
+const RESERVED_MODEL_PROVIDER_IDS: [&str; 2] = [OPENAI_PROVIDER_ID, OPENAI_COMPATIBLE_PROVIDER_ID];
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct ModelConfigToml {
+    /// 模型的调用名称，例如 "deepseek-chat"
+    pub name: String,
+    /// 界面显示的友好名称
+    pub display_name: Option<String>,
+    /// 模型的最大上下文容量
+    pub max_tokens: Option<u64>,
+    /// 模型的最大输出长度限制
+    pub max_output_tokens: Option<u64>,
+    /// 显式覆盖的自动总结阈值
+    pub auto_compact_limit: Option<u64>,
+    /// 该模型支持的核心能力标识
+    #[serde(default)]
+    pub capabilities: ModelCapabilitiesToml,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct ModelCapabilitiesToml {
+    #[serde(default)]
+    pub tools: bool,
+    #[serde(default)]
+    pub reasoning: bool,
+    #[serde(default)]
+    pub images: bool,
+}
+
+/// Inline local API key value from config.toml.
+///
+/// This is BYOK-only (the user supplies the key) and is intended for local,
+/// untracked configs. Debug output is redacted because ConfigToml can appear in
+/// test failures and diagnostics.
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[serde(transparent)]
+pub struct ApiKeyToml(String);
+
+impl ApiKeyToml {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    pub fn expose_secret(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ApiKeyToml {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("<redacted>")
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct NativeProviderToml {
+    /// Base URL for the provider's API.
+    pub base_url: Option<String>,
+    /// Inline BYOK API key for local, untracked configs.
+    pub api_key: Option<ApiKeyToml>,
+    /// List of available models provided by this provider.
+    #[serde(default)]
+    pub available_models: Vec<ModelConfigToml>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenAiCompatibleProviderToml {
+    /// Optional named preset for OpenAI-compatible provider defaults.
+    pub preset: Option<String>,
+    /// Friendly display name for the synthesized provider.
+    pub name: Option<String>,
+    /// Base URL for the provider's OpenAI-compatible API.
+    pub base_url: Option<String>,
+    /// Wire API used by this OpenAI-compatible provider. Defaults to Chat
+    /// Completions because most third-party OpenAI-compatible providers expose
+    /// `/chat/completions`, not OpenAI's `/responses`.
+    pub wire_api: Option<WireApi>,
+    /// Inline BYOK API key for local, untracked configs.
+    pub api_key: Option<ApiKeyToml>,
+    /// List of available models provided by this provider.
+    #[serde(default)]
+    pub available_models: Vec<ModelConfigToml>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedOpenAiCompatibleProvider {
+    pub name: String,
+    pub base_url: String,
+    pub wire_api: WireApi,
+    pub api_key: String,
+    pub available_models: Vec<ModelConfigToml>,
+}
+
+impl OpenAiCompatibleProviderToml {
+    pub fn resolve_with_id(&self, id: &str) -> Result<ResolvedOpenAiCompatibleProvider, String> {
+        let field_prefix = format!("openai_compatible.{id}");
+        let preset = self.resolve_preset(&field_prefix)?;
+
+        let name = resolve_optional_string(
+            &format!("{field_prefix}.name"),
+            self.name.as_deref(),
+            preset.as_ref().map(|preset| preset.name),
+            Some("OpenAI-Compatible"),
+        )?
+        .unwrap_or_else(|| "OpenAI-Compatible".to_string());
+        let base_url = resolve_optional_string(
+            &format!("{field_prefix}.base_url"),
+            self.base_url.as_deref(),
+            preset.as_ref().map(|preset| preset.base_url),
+            None,
+        )?
+        .ok_or_else(|| {
+            format!("{field_prefix} requires either `preset` or non-empty `base_url`")
+        })?;
+        let api_key = resolve_optional_string(
+            &format!("{field_prefix}.api_key"),
+            self.api_key.as_ref().map(ApiKeyToml::expose_secret),
+            None,
+            None,
+        )?
+        .ok_or_else(|| format!("{field_prefix} requires non-empty `api_key`"))?;
+        let wire_api = self
+            .wire_api
+            .or_else(|| preset.as_ref().and_then(|preset| preset.wire_api))
+            .unwrap_or(WireApi::ChatCompletions);
+
+        Ok(ResolvedOpenAiCompatibleProvider {
+            name,
+            base_url,
+            wire_api,
+            api_key,
+            available_models: self.available_models.clone(),
+        })
+    }
+
+    fn resolve_preset(
+        &self,
+        field_prefix: &str,
+    ) -> Result<Option<OpenAiCompatiblePresetDefaults>, String> {
+        let Some(raw_preset) = self.preset.as_deref() else {
+            return Ok(None);
+        };
+        let preset = raw_preset.trim();
+        if preset.is_empty() {
+            return Err(format!("{field_prefix}.preset must not be empty"));
+        }
+
+        match preset {
+            "deepseek" => Ok(Some(OpenAiCompatiblePresetDefaults {
+                name: "DeepSeek",
+                base_url: "https://api.deepseek.com",
+                wire_api: Some(WireApi::ChatCompletions),
+            })),
+            _ => Err(format!(
+                "unsupported {field_prefix}.preset `{preset}`; supported presets: deepseek"
+            )),
+        }
+    }
+
+    pub fn validate_with_id(&self, id: &str) -> Result<(), String> {
+        self.resolve_with_id(id).map(|_| ())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct OpenAiCompatiblePresetDefaults {
+    name: &'static str,
+    base_url: &'static str,
+    wire_api: Option<WireApi>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ByokProviderFamily {
+    #[serde(rename = "openai-compatible")]
+    OpenAiCompatible,
+    GeminiNative,
+    ClaudeNative,
+}
+
+impl ByokProviderFamily {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::OpenAiCompatible => "openai-compatible",
+            Self::GeminiNative => "gemini-native",
+            Self::ClaudeNative => "claude-native",
+        }
+    }
+
+    fn default_name(self) -> &'static str {
+        match self {
+            Self::OpenAiCompatible => "OpenAI-Compatible",
+            Self::GeminiNative => "Google Gemini",
+            Self::ClaudeNative => "Anthropic Claude",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct ByokProviderToml {
+    /// Provider protocol family. OpenAI-compatible is runnable today; native
+    /// Gemini/Claude families are accepted as product config targets and fail
+    /// with a clear runtime-gap error until their adapters land.
+    pub family: ByokProviderFamily,
+    /// Friendly display name for the provider.
+    pub name: Option<String>,
+    /// Base URL for the provider endpoint.
+    pub base_url: Option<String>,
+    /// Wire API used by OpenAI-compatible providers. Defaults to Chat
+    /// Completions for `family = "openai-compatible"`.
+    pub wire_api: Option<WireApi>,
+    /// Inline BYOK API key for local, untracked configs.
+    pub api_key: Option<ApiKeyToml>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedByokProvider {
+    pub id: String,
+    pub family: ByokProviderFamily,
+    pub name: String,
+    pub base_url: String,
+    pub wire_api: Option<WireApi>,
+    pub api_key: String,
+}
+
+impl ByokProviderToml {
+    pub fn resolve(&self, id: &str) -> Result<ResolvedByokProvider, String> {
+        let field_prefix = format!("providers.{id}");
+        let name = resolve_optional_string(
+            &format!("{field_prefix}.name"),
+            self.name.as_deref(),
+            None,
+            Some(self.family.default_name()),
+        )?
+        .unwrap_or_else(|| self.family.default_name().to_string());
+        let base_url = resolve_optional_string(
+            &format!("{field_prefix}.base_url"),
+            self.base_url.as_deref(),
+            None,
+            None,
+        )?
+        .ok_or_else(|| format!("{field_prefix} requires non-empty `base_url`"))?;
+        let api_key = resolve_optional_string(
+            &format!("{field_prefix}.api_key"),
+            self.api_key.as_ref().map(ApiKeyToml::expose_secret),
+            None,
+            None,
+        )?
+        .ok_or_else(|| format!("{field_prefix} requires non-empty `api_key`"))?;
+
+        Ok(ResolvedByokProvider {
+            id: id.to_string(),
+            family: self.family,
+            name,
+            base_url,
+            wire_api: self.wire_api,
+            api_key,
+        })
+    }
+
+    pub fn validate(&self, id: &str) -> Result<(), String> {
+        self.resolve(id).map(|_| ())
+    }
+}
+
+fn resolve_optional_string(
+    field: &str,
+    explicit: Option<&str>,
+    preset_default: Option<&str>,
+    fallback: Option<&str>,
+) -> Result<Option<String>, String> {
+    if let Some(value) = explicit {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            return Err(format!("{field} must not be empty"));
+        }
+        return Ok(Some(trimmed.to_string()));
+    }
+    Ok(preset_default.or(fallback).map(ToString::to_string))
+}
 
 /// Base config deserialized from ~/.codex/config.toml.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
@@ -71,7 +349,7 @@ pub struct ConfigToml {
     /// Review model override used by the `/review` feature.
     pub review_model: Option<String>,
 
-    /// Provider to use from the model_providers map.
+    /// Provider id to use.
     pub model_provider: Option<String>,
 
     /// Size of the context window for the model, in tokens.
@@ -79,6 +357,21 @@ pub struct ConfigToml {
 
     /// Token usage threshold triggering auto-compaction of conversation history.
     pub model_auto_compact_token_limit: Option<i64>,
+
+    pub config_version: Option<u32>,
+
+    pub openai: Option<NativeProviderToml>,
+    pub gemini: Option<NativeProviderToml>,
+    pub claude: Option<NativeProviderToml>,
+
+    #[serde(default)]
+    pub openai_compatible: HashMap<String, OpenAiCompatibleProviderToml>,
+
+    #[serde(default)]
+    pub providers: HashMap<String, ByokProviderToml>,
+
+    #[serde(default)]
+    pub model_providers: HashMap<String, ModelProviderInfo>,
 
     /// Default approval policy for executing commands.
     pub approval_policy: Option<AskForApproval>,
@@ -129,9 +422,6 @@ pub struct ConfigToml {
     /// Whether to inject the `<permissions instructions>` developer block.
     pub include_permissions_instructions: Option<bool>,
 
-    /// Whether to inject the `<apps_instructions>` developer block.
-    pub include_apps_instructions: Option<bool>,
-
     /// Whether to inject the `<environment_context>` user block.
     pub include_environment_context: Option<bool>,
 
@@ -148,14 +438,6 @@ pub struct ConfigToml {
     ///
     /// Set to an empty string to disable automatic commit attribution.
     pub commit_attribution: Option<String>,
-
-    /// When set, restricts ChatGPT login to a specific workspace identifier.
-    #[serde(default)]
-    pub forced_chatgpt_workspace_id: Option<String>,
-
-    /// When set, restricts the login mechanism users may use.
-    #[serde(default)]
-    pub forced_login_method: Option<ForcedLoginMethod>,
 
     /// Preferred backend for storing CLI auth credentials.
     /// file (default): Use a file in the Codex home directory.
@@ -187,11 +469,6 @@ pub struct ConfigToml {
     /// of the local listener address. The local callback listener still binds
     /// to 127.0.0.1 (using `mcp_oauth_callback_port` when provided).
     pub mcp_oauth_callback_url: Option<String>,
-
-    /// User-defined provider entries that extend the built-in list. Built-in
-    /// IDs cannot be overridden.
-    #[serde(default, deserialize_with = "deserialize_model_providers")]
-    pub model_providers: HashMap<String, ModelProviderInfo>,
 
     /// Maximum number of bytes to include from an AGENTS.md project doc file.
     pub project_doc_max_bytes: Option<usize>,
@@ -234,10 +511,6 @@ pub struct ConfigToml {
     /// Defaults to `$CODEX_HOME/log`.
     pub log_dir: Option<AbsolutePathBuf>,
 
-    /// Optional URI-based file opener. If set, citations to files in the model
-    /// output will be hyperlinked using the specified URI scheme.
-    pub file_opener: Option<UriBasedFileOpener>,
-
     /// Collection of settings that are specific to the TUI.
     pub tui: Option<Tui>,
 
@@ -268,40 +541,9 @@ pub struct ConfigToml {
     /// Optional explicit service tier preference for new turns (`fast` or `flex`).
     pub service_tier: Option<ServiceTier>,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
-    pub chatgpt_base_url: Option<String>,
-
     /// Base URL override for the built-in `openai` model provider.
     pub openai_base_url: Option<String>,
 
-    /// Machine-local realtime audio device preferences used by realtime voice.
-    #[serde(default)]
-    pub audio: Option<RealtimeAudioToml>,
-
-    /// Experimental / do not use. Overrides only the realtime conversation
-    /// websocket transport base URL (the `Op::RealtimeConversation`
-    /// `/v1/realtime`
-    /// connection) without changing normal provider HTTP requests.
-    pub experimental_realtime_ws_base_url: Option<String>,
-    /// Experimental / do not use. Selects the realtime websocket model/snapshot
-    /// used for the `Op::RealtimeConversation` connection.
-    pub experimental_realtime_ws_model: Option<String>,
-    /// Experimental / do not use. Realtime websocket session selection.
-    /// `version` controls v1/v2 and `type` controls conversational/transcription.
-    #[serde(default)]
-    pub realtime: Option<RealtimeToml>,
-    /// Experimental / do not use. Overrides only the realtime conversation
-    /// websocket transport instructions (the `Op::RealtimeConversation`
-    /// `/ws` session.update instructions) without changing normal prompts.
-    pub experimental_realtime_ws_backend_prompt: Option<String>,
-    /// Experimental / do not use. Replaces the synthesized realtime startup
-    /// context appended to websocket session instructions. An empty string
-    /// disables startup context injection entirely.
-    pub experimental_realtime_ws_startup_context: Option<String>,
-    /// Experimental / do not use. Replaces the built-in realtime start
-    /// instructions inserted into developer messages when realtime becomes
-    /// active.
-    pub experimental_realtime_start_instructions: Option<String>,
     pub projects: Option<HashMap<String, ProjectConfig>>,
 
     /// Controls the web search tool mode: disabled, cached, or live.
@@ -309,6 +551,9 @@ pub struct ConfigToml {
 
     /// Nested tools section for feature toggles
     pub tools: Option<ToolsToml>,
+
+    /// App/connector tool settings keyed by app id.
+    pub apps: Option<AppsConfigToml>,
 
     /// Additional discoverable tools that can be suggested for installation.
     pub tool_suggest: Option<ToolSuggestConfig>,
@@ -336,6 +581,21 @@ pub struct ConfigToml {
     #[schemars(schema_with = "crate::schema::features_schema")]
     pub features: Option<FeaturesToml>,
 
+    /// Machine-local realtime audio device preferences.
+    pub audio: Option<RealtimeAudioToml>,
+
+    /// Realtime voice session configuration.
+    pub realtime: Option<RealtimeToml>,
+
+    /// Test/development override for the realtime websocket endpoint.
+    pub experimental_realtime_ws_base_url: Option<String>,
+
+    /// Test/development override for the realtime backend prompt.
+    pub experimental_realtime_ws_backend_prompt: Option<String>,
+
+    /// Test/development override for the realtime startup context.
+    pub experimental_realtime_ws_startup_context: Option<String>,
+
     /// Suppress warnings about unstable (under development) features.
     pub suppress_unstable_features_warning: Option<bool>,
 
@@ -358,41 +618,12 @@ pub struct ConfigToml {
     /// or placeholder replacement will occur for fast keypress bursts.
     pub disable_paste_burst: Option<bool>,
 
-    /// When `false`, disables analytics across Codex product surfaces in this machine.
-    /// Defaults to `true`.
-    pub analytics: Option<AnalyticsConfigToml>,
-
-    /// When `false`, disables feedback collection across Codex product surfaces.
-    /// Defaults to `true`.
-    pub feedback: Option<FeedbackConfigToml>,
-
-    /// Settings for app-specific controls.
-    #[serde(default)]
-    pub apps: Option<AppsConfigToml>,
-
-    /// OTEL configuration.
-    pub otel: Option<OtelConfigToml>,
-
     /// Windows-specific configuration.
     #[serde(default)]
     pub windows: Option<WindowsToml>,
 
     /// Tracks whether the Windows onboarding screen has been acknowledged.
     pub windows_wsl_setup_acknowledged: Option<bool>,
-
-    /// Collection of in-product notices (different from notifications)
-    /// See [`crate::types::Notice`] for more details
-    pub notice: Option<Notice>,
-
-    /// Legacy, now use features
-    /// Deprecated: ignored. Use `model_instructions_file`.
-    #[schemars(skip)]
-    pub experimental_instructions_file: Option<AbsolutePathBuf>,
-    pub experimental_compact_prompt_file: Option<AbsolutePathBuf>,
-    pub experimental_use_unified_exec_tool: Option<bool>,
-    pub experimental_use_freeform_apply_patch: Option<bool>,
-    /// Preferred OSS provider for local models, e.g. "lmstudio" or "ollama".
-    pub oss_provider: Option<String>,
 }
 
 impl From<ConfigToml> for UserSavedConfig {
@@ -407,8 +638,7 @@ impl From<ConfigToml> for UserSavedConfig {
             approval_policy: config_toml.approval_policy,
             sandbox_mode: config_toml.sandbox_mode,
             sandbox_settings: config_toml.sandbox_workspace_write.map(From::from),
-            forced_chatgpt_workspace_id: config_toml.forced_chatgpt_workspace_id,
-            forced_login_method: config_toml.forced_login_method,
+            forced_login_method: None,
             model: config_toml.model,
             model_reasoning_effort: config_toml.model_reasoning_effort,
             model_reasoning_summary: config_toml.model_reasoning_summary,
@@ -459,8 +689,8 @@ pub enum RealtimeTransport {
     Websocket,
 }
 
-pub use codex_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
-pub use codex_protocol::protocol::RealtimeVoice;
+pub use darwin_code_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
+pub use darwin_code_protocol::protocol::RealtimeVoice;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -784,8 +1014,9 @@ pub fn validate_reserved_model_provider_ids(
         Ok(())
     } else {
         Err(format!(
-            "model_providers contains reserved built-in provider IDs: {}. \
-Built-in providers cannot be overridden. Rename your custom provider (for example, `openai-custom`).",
+            "model_providers contains reserved provider IDs: {}. \
+Reserved providers cannot be overridden. For OpenAI-compatible setup, use \
+`[openai_compatible_provider]` or rename your custom provider (for example, `openai-custom`).",
             conflicts.join(", ")
         ))
     }
@@ -803,29 +1034,7 @@ pub fn validate_model_providers(
     Ok(())
 }
 
-fn deserialize_model_providers<'de, D>(
-    deserializer: D,
-) -> Result<HashMap<String, ModelProviderInfo>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let model_providers = HashMap::<String, ModelProviderInfo>::deserialize(deserializer)?;
-    validate_model_providers(&model_providers).map_err(serde::de::Error::custom)?;
-    Ok(model_providers)
-}
-
-pub fn validate_oss_provider(provider: &str) -> std::io::Result<()> {
-    match provider {
-        LMSTUDIO_OSS_PROVIDER_ID | OLLAMA_OSS_PROVIDER_ID => Ok(()),
-        LEGACY_OLLAMA_CHAT_PROVIDER_ID => Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            OLLAMA_CHAT_PROVIDER_REMOVED_ERROR,
-        )),
-        _ => Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            format!(
-                "Invalid OSS provider '{provider}'. Must be one of: {LMSTUDIO_OSS_PROVIDER_ID}, {OLLAMA_OSS_PROVIDER_ID}"
-            ),
-        )),
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

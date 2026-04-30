@@ -1,17 +1,17 @@
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::find_archived_thread_path_by_id_str;
-use codex_rollout::find_thread_name_by_id;
-use codex_rollout::find_thread_path_by_id_str;
-use codex_rollout::read_session_meta_line;
-use codex_rollout::read_thread_item_from_rollout;
-use codex_state::StateRuntime;
-use codex_state::ThreadMetadata;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_rollout::RolloutRecorder;
+use darwin_code_rollout::find_archived_thread_path_by_id_str;
+use darwin_code_rollout::find_thread_name_by_id;
+use darwin_code_rollout::find_thread_path_by_id_str;
+use darwin_code_rollout::read_session_meta_line;
+use darwin_code_rollout::read_thread_item_from_rollout;
+use darwin_code_state::StateRuntime;
+use darwin_code_state::ThreadMetadata;
 
 use super::LocalThreadStore;
 use super::helpers::git_info_from_parts;
@@ -64,7 +64,7 @@ pub(super) async fn read_thread(
 
 async fn resolve_rollout_path(
     store: &LocalThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
     include_archived: bool,
 ) -> ThreadStoreResult<Option<std::path::PathBuf>> {
     if include_archived {
@@ -94,7 +94,7 @@ async fn resolve_rollout_path(
 
 async fn read_thread_from_rollout_path(
     store: &LocalThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
     path: std::path::PathBuf,
 ) -> ThreadStoreResult<StoredThread> {
     let Some(item) = read_thread_item_from_rollout(path.clone()).await else {
@@ -104,7 +104,7 @@ async fn read_thread_from_rollout_path(
         store
             .config
             .codex_home
-            .join(codex_rollout::ARCHIVED_SESSIONS_SUBDIR),
+            .join(darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR),
     );
     let mut thread =
         stored_thread_from_rollout_item(item, archived, store.config.model_provider_id.as_str())
@@ -125,7 +125,7 @@ async fn read_thread_from_rollout_path(
 
 async fn load_history_items(
     path: &std::path::Path,
-) -> ThreadStoreResult<Vec<codex_protocol::protocol::RolloutItem>> {
+) -> ThreadStoreResult<Vec<darwin_code_protocol::protocol::RolloutItem>> {
     let (items, _, _) = RolloutRecorder::load_rollout_items(path)
         .await
         .map_err(|err| ThreadStoreError::Internal {
@@ -136,7 +136,7 @@ async fn load_history_items(
 
 async fn read_sqlite_metadata(
     store: &LocalThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: darwin_code_protocol::ThreadId,
 ) -> Option<ThreadMetadata> {
     let runtime = StateRuntime::init(
         store.config.sqlite_home.clone(),
@@ -213,7 +213,7 @@ async fn stored_thread_from_session_meta(
         store
             .config
             .codex_home
-            .join(codex_rollout::ARCHIVED_SESSIONS_SUBDIR),
+            .join(darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR),
     );
     Ok(stored_thread_from_meta_line(
         store, meta_line, path, archived,
@@ -305,9 +305,9 @@ mod tests {
     use std::io::Write;
 
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
-    use codex_state::ThreadMetadataBuilder;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_state::ThreadMetadataBuilder;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -455,7 +455,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.model_provider_id.clone(),
         )
@@ -493,7 +493,7 @@ mod tests {
         let uuid = Uuid::from_u128(213);
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        codex_rollout::append_thread_name(home.path(), thread_id, "Legacy title")
+        darwin_code_rollout::append_thread_name(home.path(), thread_id, "Legacy title")
             .await
             .expect("append legacy thread name");
 
@@ -535,7 +535,7 @@ mod tests {
         });
         writeln!(file, "{meta}").expect("write session meta");
 
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.model_provider_id.clone(),
         )
@@ -642,7 +642,7 @@ mod tests {
         let rollout_path = external
             .path()
             .join(format!("rollout-2025-01-03T12-00-00-{uuid}.jsonl"));
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.model_provider_id.clone(),
         )
@@ -700,7 +700,7 @@ mod tests {
         let rollout_path = external
             .path()
             .join(format!("rollout-2025-01-03T12-00-00-{uuid}.jsonl"));
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.model_provider_id.clone(),
         )
@@ -755,7 +755,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T12-00-00", uuid)
             .expect("archived session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.model_provider_id.clone(),
         )

@@ -115,7 +115,7 @@ impl ChatWidget {
             }
             SlashCommand::Rename => {
                 self.session_telemetry
-                    .counter("darwin-code.thread.rename", /*inc*/ 1, &[]);
+                    .counter("darwin_code.thread.rename", /*inc*/ 1, &[]);
                 self.show_rename_prompt();
             }
             SlashCommand::Model => {
@@ -207,7 +207,7 @@ impl ChatWidget {
                     }
 
                     self.session_telemetry.counter(
-                        "darwin-code.windows_sandbox.setup_elevated_sandbox_command",
+                        "darwin_code.windows_sandbox.setup_elevated_sandbox_command",
                         /*inc*/ 1,
                         &[],
                     );
@@ -234,9 +234,7 @@ impl ChatWidget {
             SlashCommand::Quit | SlashCommand::Exit => {
                 self.request_quit_without_confirmation();
             }
-            SlashCommand::Logout => {
-                self.app_event_tx.send(AppEvent::Logout);
-            }
+
             // SlashCommand::Undo => {
             //     self.app_event_tx.send(AppEvent::DarwinCodeOp(Op::Undo));
             // }
@@ -267,19 +265,9 @@ impl ChatWidget {
                 self.open_skills_menu();
             }
             SlashCommand::Status => {
-                if self.should_prefetch_rate_limits() {
-                    let request_id = self.next_status_refresh_request_id;
-                    self.next_status_refresh_request_id =
-                        self.next_status_refresh_request_id.wrapping_add(1);
-                    self.add_status_output(/*refreshing_rate_limits*/ true, Some(request_id));
-                    self.app_event_tx.send(AppEvent::RefreshRateLimits {
-                        origin: RateLimitRefreshOrigin::StatusCommand { request_id },
-                    });
-                } else {
-                    self.add_status_output(
-                        /*refreshing_rate_limits*/ false, /*request_id*/ None,
-                    );
-                }
+                self.add_status_output(
+                    /*refreshing_rate_limits*/ false, /*request_id*/ None,
+                );
             }
             SlashCommand::DebugConfig => {
                 self.add_debug_config_output();
@@ -426,7 +414,7 @@ impl ChatWidget {
             }
             SlashCommand::Rename if !trimmed.is_empty() => {
                 self.session_telemetry
-                    .counter("darwin-code.thread.rename", /*inc*/ 1, &[]);
+                    .counter("darwin_code.thread.rename", /*inc*/ 1, &[]);
                 let Some((prepared_args, _prepared_elements)) = self
                     .bottom_pane
                     .prepare_inline_args_submission(/*record_history*/ false)

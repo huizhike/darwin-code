@@ -1,9 +1,4 @@
 use anyhow::Result;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::user_input::ByteRange;
-use darwin_code_protocol::user_input::TextElement;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_reasoning_item;
@@ -17,6 +12,11 @@ use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::TestDarwinCodeBuilder;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::ByteRange;
+use darwin_code_protocol::user_input::TextElement;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -64,7 +64,7 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
     let server = start_mock_server().await;
     let mut builder = test_darwin_code();
     let initial = builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -84,7 +84,7 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
         Some("<note>".into()),
     )];
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Record some messages".into(),
@@ -95,7 +95,10 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -154,7 +157,7 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
         config.show_raw_agent_reasoning = true;
     });
     let initial = builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -170,7 +173,7 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
     ]);
     mount_sse_once(&server, initial_sse).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Record reasoning messages".into(),
@@ -181,7 +184,10 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -245,7 +251,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -260,7 +266,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
     ]);
     let initial_mock = mount_sse_once(&server, initial_sse).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Record initial instructions".into(),
@@ -270,7 +276,10 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let initial_body = initial_mock.single_request().body_json();
     let initial_instructions = initial_body
@@ -301,7 +310,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
     });
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Resume with different model".into(),
@@ -311,13 +320,13 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
 
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Second turn after resume".into(),
@@ -327,7 +336,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -371,7 +380,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
         config.model = Some("gpt-5.2".to_string());
     });
     let initial = builder.build(&server).await?;
-    let darwin-code = Arc::clone(&initial.darwin-code);
+    let darwin_code = Arc::clone(&initial.darwin_code);
     let home = initial.home.clone();
     let rollout_path = initial
         .session_configured
@@ -388,7 +397,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
         ]),
     )
     .await;
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Record initial instructions".into(),
@@ -398,7 +407,10 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     let _ = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -416,7 +428,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
     });
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -432,7 +444,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
         })
         .await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first turn after override".into(),
@@ -442,7 +454,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |event| {
+    wait_for_event(&resumed.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

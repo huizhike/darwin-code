@@ -12,7 +12,7 @@ if [ -f "$ALLOWED_DOMAINS_FILE" ]; then
     echo "Using domains from file: ${ALLOWED_DOMAINS[*]}"
 else
     # Fallback to default domains
-    ALLOWED_DOMAINS=("api.openai.com")
+    ALLOWED_DOMAINS=("127.0.0.1" "localhost" "example.com")
     echo "Domains file not found, using default: ${ALLOWED_DOMAINS[*]}"
 fi
 
@@ -106,10 +106,13 @@ else
     echo "Firewall verification passed - unable to reach https://example.com as expected"
 fi
 
-# Always verify OpenAI API access is working
-if ! curl --connect-timeout 5 https://api.openai.com >/dev/null 2>&1; then
-    echo "ERROR: Firewall verification failed - unable to reach https://api.openai.com"
-    exit 1
-else
-    echo "Firewall verification passed - able to reach https://api.openai.com as expected"
+# Always verify API access is working (using first allowed domain as test)
+TEST_DOMAIN=${ALLOWED_DOMAINS[0]}
+if [ "$TEST_DOMAIN" != "127.0.0.1" ] && [ "$TEST_DOMAIN" != "localhost" ]; then
+    if ! curl --connect-timeout 5 "https://$TEST_DOMAIN" >/dev/null 2>&1; then
+        echo "ERROR: Firewall verification failed - unable to reach https://$TEST_DOMAIN"
+        exit 1
+    else
+        echo "Firewall verification passed - able to reach https://$TEST_DOMAIN as expected"
+    fi
 fi

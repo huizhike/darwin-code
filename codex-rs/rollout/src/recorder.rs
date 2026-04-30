@@ -11,10 +11,10 @@ use std::sync::Mutex;
 
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::BaseInstructions;
-use codex_utils_string::truncate_middle_chars;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::dynamic_tools::DynamicToolSpec;
+use darwin_code_protocol::models::BaseInstructions;
+use darwin_code_utils_string::truncate_middle_chars;
 use serde_json::Value;
 use time::OffsetDateTime;
 use time::format_description::FormatItem;
@@ -51,19 +51,19 @@ use crate::config::RolloutConfigView;
 use crate::default_client::originator;
 use crate::state_db;
 use crate::state_db::StateDbHandle;
-use codex_git_utils::collect_git_info;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GitInfo as ProtocolGitInfo;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_state::StateRuntime;
-use codex_state::ThreadMetadataBuilder;
-use codex_utils_path as path_utils;
+use darwin_code_git_utils::collect_git_info;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::GitInfo as ProtocolGitInfo;
+use darwin_code_protocol::protocol::InitialHistory;
+use darwin_code_protocol::protocol::ResumedHistory;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::RolloutLine;
+use darwin_code_protocol::protocol::SessionMeta;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_state::StateRuntime;
+use darwin_code_state::ThreadMetadataBuilder;
+use darwin_code_utils_path as path_utils;
 
 /// Records all [`ResponseItem`]s for a session and flushes them to disk after
 /// every update.
@@ -1400,7 +1400,7 @@ async fn sync_thread_state_after_write(
     if new_thread_memory_mode.is_some()
         || items
             .iter()
-            .any(codex_state::rollout_item_affects_thread_metadata)
+            .any(darwin_code_state::rollout_item_affects_thread_metadata)
     {
         state_db::apply_rollout_items(
             state_db_ctx,
@@ -1489,8 +1489,8 @@ impl JsonlWriter {
     }
 }
 
-impl From<codex_state::ThreadsPage> for ThreadsPage {
-    fn from(db_page: codex_state::ThreadsPage) -> Self {
+impl From<darwin_code_state::ThreadsPage> for ThreadsPage {
+    fn from(db_page: darwin_code_state::ThreadsPage) -> Self {
         let items = db_page
             .items
             .into_iter()
@@ -1577,7 +1577,7 @@ async fn resume_candidate_matches_cwd(
 }
 
 async fn select_resume_path_from_db_page(
-    page: &codex_state::ThreadsPage,
+    page: &darwin_code_state::ThreadsPage,
     filter_cwd: Option<&Path>,
     default_provider: &str,
 ) -> Option<PathBuf> {

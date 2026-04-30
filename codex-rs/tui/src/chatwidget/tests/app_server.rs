@@ -521,7 +521,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "permission denied".to_string(),
-                darwin_code_error_info: None,
+                codex_error_info: None,
                 additional_details: None,
             },
             will_retry: false,
@@ -544,7 +544,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
                 status: AppServerTurnStatus::Failed,
                 error: Some(AppServerTurnError {
                     message: "permission denied".to_string(),
-                    darwin_code_error_info: None,
+                    codex_error_info: None,
                     additional_details: None,
                 }),
                 started_at: None,
@@ -584,7 +584,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "Reconnecting... 1/5".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other.into()),
+                codex_error_info: Some(DarwinCodeErrorInfo::Other.into()),
                 additional_details: None,
             },
             will_retry: true,
@@ -641,7 +641,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
         ServerNotification::Error(ErrorNotification {
             error: AppServerTurnError {
                 message: "server overloaded".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::ServerOverloaded.into()),
+                codex_error_info: Some(DarwinCodeErrorInfo::ServerOverloaded.into()),
                 additional_details: None,
             },
             will_retry: false,
@@ -699,7 +699,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
     assert_eq!(cells.len(), 1);
     let rendered = lines_to_single_string(&cells[0]);
     assert!(rendered.contains("Thread renamed to review-fix"));
-    assert!(rendered.contains("darwin-code resume review-fix"));
+    assert!(rendered.contains("darwin_code resume review-fix"));
 }
 
 #[tokio::test]

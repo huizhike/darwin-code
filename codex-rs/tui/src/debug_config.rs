@@ -11,22 +11,22 @@ use crate::legacy_core::config_loader::ResidencyRequirement;
 use crate::legacy_core::config_loader::SandboxModeRequirement;
 use crate::legacy_core::config_loader::WebSearchModeRequirement;
 use darwin_code_app_server_protocol::ConfigLayerSource;
-use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
+use darwin_code_protocol::protocol::SessionNetworkAccessRuntimeRuntime;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use toml::Value as TomlValue;
 
 pub(crate) fn new_debug_config_output(
     config: &Config,
-    session_network_proxy: Option<&SessionNetworkProxyRuntime>,
+    session_network_access: Option<&SessionNetworkAccessRuntimeRuntime>,
 ) -> PlainHistoryCell {
     let mut lines = render_debug_config_lines(&config.config_layer_stack);
 
-    if let Some(proxy) = session_network_proxy {
+    if let Some(proxy) = session_network_access {
         lines.push("".into());
         lines.push("Session runtime:".bold().into());
-        lines.push("  - network_proxy".into());
-        let SessionNetworkProxyRuntime {
+        lines.push("  - network_access".into());
+        let SessionNetworkAccessRuntimeRuntime {
             http_addr,
             socks_addr,
         } = proxy;
@@ -37,7 +37,7 @@ pub(crate) fn new_debug_config_output(
                 .permissions
                 .network
                 .as_ref()
-                .is_some_and(crate::legacy_core::config::NetworkProxySpec::socks_enabled),
+                .is_some_and(crate::legacy_core::config::NetworkAccessSpec::socks_enabled),
         );
         lines.push(format!("    - HTTP_PROXY  = http://{http_addr}").into());
         lines.push(format!("    - ALL_PROXY   = {all_proxy}").into());
@@ -340,10 +340,10 @@ fn format_config_layer_source(source: &ConfigLayerSource) -> String {
         ConfigLayerSource::User { file } => {
             format!("user ({})", file.as_path().display())
         }
-        ConfigLayerSource::Project { dot_darwin_code_folder } => {
+        ConfigLayerSource::Project { dot_codex_folder } => {
             format!(
                 "project ({}/config.toml)",
-                dot_darwin_code_folder.as_path().display()
+                dot_codex_folder.as_path().display()
             )
         }
         ConfigLayerSource::SessionFlags => "session-flags".to_string(),
@@ -521,14 +521,14 @@ mod tests {
     #[test]
     fn debug_config_output_lists_all_layers_including_disabled() {
         let system_file = if cfg!(windows) {
-            absolute_path("C:\\etc\\darwin-code\\config.toml")
+            absolute_path("C:\\etc\\darwin_code\\config.toml")
         } else {
-            absolute_path("/etc/darwin-code/config.toml")
+            absolute_path("/etc/darwin_code/config.toml")
         };
         let project_folder = if cfg!(windows) {
-            absolute_path("C:\\repo\\.darwin-code")
+            absolute_path("C:\\repo\\.darwin_code")
         } else {
-            absolute_path("/repo/.darwin-code")
+            absolute_path("/repo/.darwin_code")
         };
 
         let layers = vec![
@@ -538,7 +538,7 @@ mod tests {
             ),
             ConfigLayerEntry::new_disabled(
                 ConfigLayerSource::Project {
-                    dot_darwin_code_folder: project_folder,
+                    dot_codex_folder: project_folder,
                 },
                 empty_toml_table(),
                 "project is untrusted",
@@ -562,9 +562,9 @@ mod tests {
     #[test]
     fn debug_config_output_lists_requirement_sources() {
         let requirements_file = if cfg!(windows) {
-            absolute_path("C:\\ProgramData\\OpenAI\\Darwin-Code\\requirements.toml")
+            absolute_path("C:\\ProgramData\\OpenAI\\DarwinCode\\requirements.toml")
         } else {
-            absolute_path("/etc/darwin-code/requirements.toml")
+            absolute_path("/etc/darwin_code/requirements.toml")
         };
         let denied_path = if cfg!(windows) {
             absolute_path("C:\\Users\\alice\\.gitconfig")
@@ -575,7 +575,7 @@ mod tests {
         let requirements = ConfigRequirements {
             approval_policy: ConstrainedWithSource::new(
                 Constrained::allow_any(AskForApproval::OnRequest),
-                Some(RequirementSource::CloudRequirements),
+                Some(RequirementSource::ExternalRequirements),
             ),
             approvals_reviewer: ConstrainedWithSource::new(
                 Constrained::allow_any(ApprovalsReviewer::GuardianSubagent),
@@ -592,7 +592,7 @@ mod tests {
                     "docs".to_string(),
                     McpServerRequirement {
                         identity: McpServerIdentity::Command {
-                            command: "darwin-code-mcp".to_string(),
+                            command: "darwin_code-mcp".to_string(),
                         },
                     },
                 )]),
@@ -600,17 +600,17 @@ mod tests {
             )),
             enforce_residency: ConstrainedWithSource::new(
                 Constrained::allow_any(Some(ResidencyRequirement::Us)),
-                Some(RequirementSource::CloudRequirements),
+                Some(RequirementSource::ExternalRequirements),
             ),
             web_search_mode: ConstrainedWithSource::new(
                 Constrained::allow_any(WebSearchMode::Cached),
-                Some(RequirementSource::CloudRequirements),
+                Some(RequirementSource::ExternalRequirements),
             ),
             feature_requirements: Some(Sourced::new(
                 FeatureRequirementsToml {
                     entries: BTreeMap::from([("guardian_approval".to_string(), true)]),
                 },
-                RequirementSource::CloudRequirements,
+                RequirementSource::ExternalRequirements,
             )),
             network: Some(Sourced::new(
                 NetworkConstraints {
@@ -623,7 +623,7 @@ mod tests {
                     }),
                     ..Default::default()
                 },
-                RequirementSource::CloudRequirements,
+                RequirementSource::ExternalRequirements,
             )),
             filesystem: Some(Sourced::new(
                 FilesystemConstraints {
@@ -649,7 +649,7 @@ mod tests {
                 "docs".to_string(),
                 McpServerRequirement {
                     identity: McpServerIdentity::Command {
-                        command: "darwin-code-mcp".to_string(),
+                        command: "darwin_code-mcp".to_string(),
                     },
                 },
             )])),
@@ -661,9 +661,9 @@ mod tests {
         };
 
         let user_file = if cfg!(windows) {
-            absolute_path("C:\\users\\alice\\.darwin-code\\config.toml")
+            absolute_path("C:\\users\\alice\\.darwin_code\\config.toml")
         } else {
-            absolute_path("/home/alice/.darwin-code/config.toml")
+            absolute_path("/home/alice/.darwin_code/config.toml")
         };
         let stack = ConfigLayerStack::new(
             vec![ConfigLayerEntry::new(
@@ -677,7 +677,8 @@ mod tests {
 
         let rendered = render_to_text(&render_debug_config_lines(&stack));
         assert!(
-            rendered.contains("allowed_approval_policies: on-request (source: cloud requirements)")
+            rendered
+                .contains("allowed_approval_policies: on-request (source: external requirements)")
         );
         assert!(rendered.contains(
             "allowed_approvals_reviewers: guardian_subagent (source: MDM managed_config.toml (legacy))"
@@ -691,16 +692,16 @@ mod tests {
                 .as_str(),
             )
         );
-        assert!(
-            rendered.contains(
-                "allowed_web_search_modes: cached, disabled (source: cloud requirements)"
-            )
-        );
-        assert!(rendered.contains("features: guardian_approval=true (source: cloud requirements)"));
-        assert!(rendered.contains("mcp_servers: docs (source: MDM managed_config.toml (legacy))"));
-        assert!(rendered.contains("enforce_residency: us (source: cloud requirements)"));
         assert!(rendered.contains(
-            "experimental_network: enabled=true, domains={example.com=allow} (source: cloud requirements)"
+            "allowed_web_search_modes: cached, disabled (source: external requirements)"
+        ));
+        assert!(
+            rendered.contains("features: guardian_approval=true (source: external requirements)")
+        );
+        assert!(rendered.contains("mcp_servers: docs (source: MDM managed_config.toml (legacy))"));
+        assert!(rendered.contains("enforce_residency: us (source: external requirements)"));
+        assert!(rendered.contains(
+            "experimental_network: enabled=true, domains={example.com=allow} (source: external requirements)"
         ));
         assert!(
             rendered.contains(
@@ -745,7 +746,7 @@ mod tests {
                     unix_sockets: Some(NetworkUnixSocketPermissionsToml {
                         entries: BTreeMap::from([
                             (
-                                "/tmp/darwin-code.sock".to_string(),
+                                "/tmp/darwin_code.sock".to_string(),
                                 NetworkUnixSocketPermissionToml::Allow,
                             ),
                             (
@@ -756,7 +757,7 @@ mod tests {
                     }),
                     ..Default::default()
                 },
-                RequirementSource::CloudRequirements,
+                RequirementSource::ExternalRequirements,
             )),
             ..ConfigRequirements::default()
         };
@@ -767,7 +768,7 @@ mod tests {
 
         let rendered = render_to_text(&render_debug_config_lines(&stack));
         assert!(rendered.contains(
-            "experimental_network: unix_sockets={/tmp/blocked.sock=none, /tmp/darwin-code.sock=allow} (source: cloud requirements)"
+            "experimental_network: unix_sockets={/tmp/blocked.sock=none, /tmp/darwin_code.sock=allow} (source: external requirements)"
         ));
     }
 
@@ -834,7 +835,7 @@ approval_policy = "never"
         let requirements = ConfigRequirements {
             web_search_mode: ConstrainedWithSource::new(
                 Constrained::allow_any(WebSearchMode::Disabled),
-                Some(RequirementSource::CloudRequirements),
+                Some(RequirementSource::ExternalRequirements),
             ),
             ..ConfigRequirements::default()
         };
@@ -859,7 +860,7 @@ approval_policy = "never"
 
         let rendered = render_to_text(&render_debug_config_lines(&stack));
         assert!(
-            rendered.contains("allowed_web_search_modes: disabled (source: cloud requirements)")
+            rendered.contains("allowed_web_search_modes: disabled (source: external requirements)")
         );
     }
 

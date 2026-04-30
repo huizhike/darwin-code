@@ -8,6 +8,7 @@ use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
+use core_test_support::responses;
 use darwin_code_app_server_protocol::JSONRPCError;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::McpServerToolCallParams;
@@ -15,7 +16,6 @@ use darwin_code_app_server_protocol::McpServerToolCallResponse;
 use darwin_code_app_server_protocol::RequestId;
 use darwin_code_app_server_protocol::ThreadStartParams;
 use darwin_code_app_server_protocol::ThreadStartResponse;
-use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::CallToolRequestParams;
@@ -53,7 +53,7 @@ async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
-        /*requires_openai_auth*/ None,
+        /*legacy_auth_marker*/ None,
         "mock_provider",
         "compact",
     )?;

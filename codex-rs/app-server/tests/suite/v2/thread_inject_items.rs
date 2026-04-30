@@ -2,6 +2,7 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use core_test_support::responses;
 use darwin_code_app_server_protocol::JSONRPCResponse;
 use darwin_code_app_server_protocol::RequestId;
 use darwin_code_app_server_protocol::ThreadInjectItemsParams;
@@ -15,7 +16,6 @@ use darwin_code_protocol::models::ContentItem;
 use darwin_code_protocol::models::ResponseItem;
 use darwin_code_protocol::protocol::InitialHistory;
 use darwin_code_protocol::protocol::RolloutItem;
-use core_test_support::responses;
 use serde_json::Value;
 use std::path::Path;
 use tempfile::TempDir;
@@ -61,6 +61,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     let inject_req = mcp
@@ -197,6 +198,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let injected_value = serde_json::to_value(&injected_item)?;
 

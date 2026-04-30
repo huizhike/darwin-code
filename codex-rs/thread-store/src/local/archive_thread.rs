@@ -1,5 +1,5 @@
 use chrono::Utc;
-use codex_rollout::find_thread_path_by_id_str;
+use darwin_code_rollout::find_thread_path_by_id_str;
 
 use super::LocalThreadStore;
 use super::helpers::matching_rollout_file_name;
@@ -24,7 +24,10 @@ pub(super) async fn archive_thread(
             })?;
 
     let canonical_rollout_path = scoped_rollout_path(
-        store.config.codex_home.join(codex_rollout::SESSIONS_SUBDIR),
+        store
+            .config
+            .codex_home
+            .join(darwin_code_rollout::SESSIONS_SUBDIR),
         rollout_path.as_path(),
         "sessions",
     )?;
@@ -37,7 +40,7 @@ pub(super) async fn archive_thread(
     let archive_folder = store
         .config
         .codex_home
-        .join(codex_rollout::ARCHIVED_SESSIONS_SUBDIR);
+        .join(darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR);
     std::fs::create_dir_all(&archive_folder).map_err(|err| ThreadStoreError::Internal {
         message: format!("failed to archive thread: {err}"),
     })?;
@@ -48,7 +51,7 @@ pub(super) async fn archive_thread(
         }
     })?;
 
-    if let Some(ctx) = codex_rollout::state_db::get_state_db(&store.config).await {
+    if let Some(ctx) = darwin_code_rollout::state_db::get_state_db(&store.config).await {
         let _ = ctx
             .mark_archived(thread_id, archived_path.as_path(), Utc::now())
             .await;
@@ -59,9 +62,9 @@ pub(super) async fn archive_thread(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
-    use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_rollout::ARCHIVED_SESSIONS_SUBDIR;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -126,7 +129,7 @@ mod tests {
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = darwin_code_state::StateRuntime::init(
             home.path().to_path_buf(),
             config.model_provider_id.clone(),
         )
@@ -136,7 +139,7 @@ mod tests {
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
             .expect("backfill should be complete");
-        let mut builder = codex_state::ThreadMetadataBuilder::new(
+        let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
             thread_id,
             active_path.clone(),
             Utc::now(),

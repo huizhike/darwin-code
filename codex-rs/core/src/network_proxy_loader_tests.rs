@@ -31,7 +31,7 @@ default_permissions = "workspace"
     )
     .expect("higher layer should parse");
 
-    let mut config = NetworkProxyConfig::default();
+    let mut config = NetworkAccessConfig::default();
     apply_network_tables(
         &mut config,
         network_tables_from_toml(&lower_network).expect("lower layer should deserialize"),
@@ -82,7 +82,7 @@ default_permissions = "workspace"
     )
     .expect("higher layer should parse");
 
-    let mut config = NetworkProxyConfig::default();
+    let mut config = NetworkAccessConfig::default();
     apply_network_tables(
         &mut config,
         network_tables_from_toml(&lower_network).expect("lower layer should deserialize"),
@@ -106,7 +106,7 @@ default_permissions = "workspace"
 
 #[test]
 fn execpolicy_network_rules_overlay_network_lists() {
-    let mut config = NetworkProxyConfig::default();
+    let mut config = NetworkAccessConfig::default();
     config
         .network
         .set_allowed_domains(vec!["config.example.com".to_string()]);
@@ -164,7 +164,7 @@ dangerously_allow_all_unix_sockets = true
     .expect("permissions profile should select a network table")
     .expect("network table should be present");
 
-    let mut constraints = NetworkProxyConstraints::default();
+    let mut constraints = NetworkAccessConstraints::default();
     apply_network_constraints(network, &mut constraints);
 
     assert_eq!(constraints.dangerously_allow_all_unix_sockets, Some(true));
@@ -189,7 +189,7 @@ default_permissions = "workspace"
     .expect("permissions profile should select a network table")
     .expect("network table should be present");
 
-    let mut constraints = NetworkProxyConstraints::default();
+    let mut constraints = NetworkAccessConstraints::default();
     apply_network_constraints(network, &mut constraints);
 
     assert_eq!(
@@ -235,7 +235,7 @@ default_permissions = "workspace"
     .expect("higher layer should select a network table")
     .expect("higher network table should be present");
 
-    let mut constraints = NetworkProxyConstraints::default();
+    let mut constraints = NetworkAccessConstraints::default();
     apply_network_constraints(lower_network, &mut constraints);
     apply_network_constraints(higher_network, &mut constraints);
 

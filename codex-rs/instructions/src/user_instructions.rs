@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::models::ResponseItem;
 
 use crate::fragment::AGENTS_MD_FRAGMENT;
 use crate::fragment::AGENTS_MD_START_MARKER;

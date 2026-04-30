@@ -14,7 +14,7 @@ use crate::session::session::Session;
 use crate::session::session::SessionSettingsUpdate;
 
 use crate::config::Config;
-use crate::config_loader::CloudRequirementsLoader;
+use crate::config_loader::ExternalRequirementsLoader;
 use crate::config_loader::LoaderOverrides;
 use crate::config_loader::load_config_layers_state;
 use crate::realtime_context::REALTIME_TURN_TOKEN_BUDGET;
@@ -102,7 +102,7 @@ pub async fn override_turn_context(sess: &Session, sub_id: String, updates: Sess
             id: sub_id,
             msg: EventMsg::Error(ErrorEvent {
                 message: err.to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             }),
         })
         .await;
@@ -470,12 +470,7 @@ pub async fn reload_user_config(sess: &Arc<Session>) {
 
 pub async fn list_mcp_tools(sess: &Session, config: &Arc<Config>, sub_id: String) {
     let mcp_connection_manager = sess.services.mcp_connection_manager.read().await;
-    let auth = sess.services.auth_manager.auth().await;
-    let mcp_servers = sess
-        .services
-        .mcp_manager
-        .effective_servers(config, auth.as_ref())
-        .await;
+    let mcp_servers = sess.services.mcp_manager.effective_servers(config).await;
     let snapshot = collect_mcp_snapshot_from_manager(
         &mcp_connection_manager,
         compute_auth_statuses(mcp_servers.iter(), config.mcp_oauth_credentials_store_mode).await,
@@ -532,7 +527,7 @@ pub async fn list_skills(sess: &Session, sub_id: String, cwds: Vec<PathBuf>, for
             Some(cwd_abs.clone()),
             empty_cli_overrides,
             LoaderOverrides::default(),
-            CloudRequirementsLoader::default(),
+            ExternalRequirementsLoader::default(),
         )
         .await
         {
@@ -639,7 +634,7 @@ pub async fn drop_memories(sess: &Arc<Session>, config: &Arc<Config>, sub_id: St
         id: sub_id,
         msg: EventMsg::Error(ErrorEvent {
             message: format!("Memory drop completed with errors: {}", errors.join("; ")),
-            darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+            codex_error_info: Some(DarwinCodeErrorInfo::Other),
         }),
     })
     .await;
@@ -668,7 +663,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
             id: sub_id,
             msg: EventMsg::Error(ErrorEvent {
                 message: "num_turns must be >= 1".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
+                codex_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
             }),
         })
         .await;
@@ -681,7 +676,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
             id: sub_id,
             msg: EventMsg::Error(ErrorEvent {
                 message: "Cannot rollback while a turn is in progress.".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
+                codex_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
             }),
         })
         .await;
@@ -699,7 +694,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
                 id: turn_context.sub_id.clone(),
                 msg: EventMsg::Error(ErrorEvent {
                     message: "thread rollback requires a persisted rollout path".to_string(),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
+                    codex_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
                 }),
             })
             .await;
@@ -719,7 +714,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
                     "failed to flush rollout `{}` for rollback replay: {err}",
                     rollout_path.display()
                 ),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
+                codex_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
             }),
         })
         .await;
@@ -736,7 +731,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
                         "failed to load rollout `{}` for rollback replay: {err}",
                         rollout_path.display()
                     ),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
+                    codex_error_info: Some(DarwinCodeErrorInfo::ThreadRollbackFailed),
                 }),
             })
             .await;
@@ -762,7 +757,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
             turn_context.as_ref(),
             EventMsg::Warning(WarningEvent {
                 message: format!(
-                    "Rolled the thread back, but failed to save the rollback marker. Darwin-Code will continue retrying. Error: {err}"
+                    "Rolled the thread back, but failed to save the rollback marker. DarwinCode will continue retrying. Error: {err}"
                 ),
             }),
         )
@@ -838,7 +833,7 @@ pub async fn set_thread_name(sess: &Arc<Session>, sub_id: String, name: String) 
             id: sub_id,
             msg: EventMsg::Error(ErrorEvent {
                 message: "Thread name cannot be empty.".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::BadRequest),
+                codex_error_info: Some(DarwinCodeErrorInfo::BadRequest),
             }),
         };
         sess.send_event_raw(event).await;
@@ -858,7 +853,7 @@ pub async fn set_thread_name(sess: &Arc<Session>, sub_id: String, name: String) 
                 id: sub_id,
                 msg: EventMsg::Error(ErrorEvent {
                     message: err.to_string(),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                    codex_error_info: Some(DarwinCodeErrorInfo::Other),
                 }),
             };
             sess.send_event_raw(event).await;
@@ -900,7 +895,7 @@ pub async fn set_thread_memory_mode(sess: &Arc<Session>, sub_id: String, mode: T
             id: sub_id,
             msg: EventMsg::Error(ErrorEvent {
                 message: err.to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                codex_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         };
         sess.send_event_raw(event).await;
@@ -915,7 +910,7 @@ pub async fn shutdown(sess: &Arc<Session>, sub_id: String) -> bool {
         .terminate_all_processes()
         .await;
     sess.guardian_review_session.shutdown().await;
-    info!("Shutting down Darwin-Code instance");
+    info!("Shutting down DarwinCode instance");
     let history = sess.clone_history().await;
     let turn_count = history
         .raw_items()
@@ -923,7 +918,7 @@ pub async fn shutdown(sess: &Arc<Session>, sub_id: String) -> bool {
         .filter(|item| is_user_turn_boundary(item))
         .count();
     sess.services.session_telemetry.counter(
-        "darwin-code.conversation.turn.count",
+        "darwin_code.conversation.turn.count",
         i64::try_from(turn_count).unwrap_or(0),
         &[],
     );
@@ -942,7 +937,7 @@ pub async fn shutdown(sess: &Arc<Session>, sub_id: String) -> bool {
             id: sub_id.clone(),
             msg: EventMsg::Error(ErrorEvent {
                 message: "Failed to shutdown rollout recorder".to_string(),
-                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                codex_error_info: Some(DarwinCodeErrorInfo::Other),
             }),
         };
         sess.send_event_raw(event).await;
@@ -982,7 +977,7 @@ pub async fn review(
                 id: sub_id,
                 msg: EventMsg::Error(ErrorEvent {
                     message: err.to_string(),
-                    darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                    codex_error_info: Some(DarwinCodeErrorInfo::Other),
                 }),
             };
             sess.send_event(&turn_context, event.msg).await;
@@ -1017,7 +1012,7 @@ pub(super) async fn submission_loop(
                             id: sub.id.clone(),
                             msg: EventMsg::Error(ErrorEvent {
                                 message: err.to_string(),
-                                darwin_code_error_info: Some(DarwinCodeErrorInfo::Other),
+                                codex_error_info: Some(DarwinCodeErrorInfo::Other),
                             }),
                         })
                         .await;
@@ -1210,14 +1205,14 @@ pub(super) fn submission_dispatch_span(sub: &Submission) -> tracing::Span {
                 "submission_dispatch",
                 otel.name = span_name.as_str(),
                 submission.id = sub.id.as_str(),
-                darwin-code.op = op_name
+                darwin_code.op = op_name
             )
         }
         _ => info_span!(
             "submission_dispatch",
             otel.name = span_name.as_str(),
             submission.id = sub.id.as_str(),
-            darwin-code.op = op_name
+            darwin_code.op = op_name
         ),
     };
     if let Some(trace) = sub.trace.as_ref()

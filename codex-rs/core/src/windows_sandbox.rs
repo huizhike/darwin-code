@@ -1,12 +1,12 @@
 use crate::config::Config;
 use crate::config::edit::ConfigEditsBuilder;
+use darwin_code_client::originator;
 use darwin_code_config::config_toml::ConfigToml;
 use darwin_code_config::profile_toml::ConfigProfile;
 use darwin_code_config::types::WindowsSandboxModeToml;
 use darwin_code_features::Feature;
 use darwin_code_features::Features;
 use darwin_code_features::FeaturesToml;
-use darwin_code_login::default_client::originator;
 use darwin_code_otel::sanitize_metric_tag_value;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use darwin_code_protocol::protocol::SandboxPolicy;
@@ -160,9 +160,9 @@ pub fn elevated_setup_failure_metric_name(err: &anyhow::Error) -> &'static str {
             darwin_code_windows_sandbox::SetupErrorCode::OrchestratorHelperLaunchCanceled
         )
     }) {
-        "darwin-code.windows_sandbox.elevated_setup_canceled"
+        "darwin_code.windows_sandbox.elevated_setup_canceled"
     } else {
-        "darwin-code.windows_sandbox.elevated_setup_failure"
+        "darwin_code.windows_sandbox.elevated_setup_failure"
     }
 }
 
@@ -368,7 +368,7 @@ fn emit_windows_sandbox_setup_success_metrics(
     };
     let mode_tag = windows_sandbox_setup_mode_tag(mode);
     let _ = metrics.record_duration(
-        "darwin-code.windows_sandbox.setup_duration_ms",
+        "darwin_code.windows_sandbox.setup_duration_ms",
         duration,
         &[
             ("result", "success"),
@@ -377,7 +377,7 @@ fn emit_windows_sandbox_setup_success_metrics(
         ],
     );
     let _ = metrics.counter(
-        "darwin-code.windows_sandbox.setup_success",
+        "darwin_code.windows_sandbox.setup_success",
         /*inc*/ 1,
         &[("originator", originator_tag), ("mode", mode_tag)],
     );
@@ -394,7 +394,7 @@ fn emit_windows_sandbox_setup_failure_metrics(
     };
     let mode_tag = windows_sandbox_setup_mode_tag(mode);
     let _ = metrics.record_duration(
-        "darwin-code.windows_sandbox.setup_duration_ms",
+        "darwin_code.windows_sandbox.setup_duration_ms",
         duration,
         &[
             ("result", "failure"),
@@ -403,7 +403,7 @@ fn emit_windows_sandbox_setup_failure_metrics(
         ],
     );
     let _ = metrics.counter(
-        "darwin-code.windows_sandbox.setup_failure",
+        "darwin_code.windows_sandbox.setup_failure",
         /*inc*/ 1,
         &[("originator", originator_tag), ("mode", mode_tag)],
     );
@@ -432,7 +432,7 @@ fn emit_windows_sandbox_setup_failure_metrics(
         }
     } else {
         let _ = metrics.counter(
-            "darwin-code.windows_sandbox.legacy_setup_preflight_failed",
+            "darwin_code.windows_sandbox.legacy_setup_preflight_failed",
             /*inc*/ 1,
             &[("originator", originator_tag)],
         );

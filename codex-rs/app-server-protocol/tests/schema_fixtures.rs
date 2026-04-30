@@ -1,8 +1,8 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_app_server_protocol::generate_json_with_experimental;
-use codex_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
-use codex_app_server_protocol::read_schema_fixture_subtree;
+use darwin_code_app_server_protocol::generate_json_with_experimental;
+use darwin_code_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
+use darwin_code_app_server_protocol::read_schema_fixture_subtree;
 use similar::TextDiff;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -107,8 +107,9 @@ Run `just write-app-server-schema` to overwrite with your changes.\n\n{diff}",
 fn schema_root() -> Result<PathBuf> {
     // In Bazel runfiles (especially manifest-only mode), resolving directories is not
     // reliable. Resolve a known file, then walk up to the schema root.
-    let typescript_index = codex_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
-        .context("resolve TypeScript schema index.ts")?;
+    let typescript_index =
+        darwin_code_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+            .context("resolve TypeScript schema index.ts")?;
     let schema_root = typescript_index
         .parent()
         .and_then(|p| p.parent())
@@ -116,13 +117,13 @@ fn schema_root() -> Result<PathBuf> {
         .to_path_buf();
 
     // Sanity check that the JSON fixtures resolve to the same schema root.
-    let json_bundle =
-        codex_utils_cargo_bin::find_resource!("schema/json/codex_app_server_protocol.schemas.json")
-            .context("resolve JSON schema bundle")?;
-    let json_root = json_bundle
-        .parent()
-        .and_then(|p| p.parent())
-        .context("derive schema root from schema/json/codex_app_server_protocol.schemas.json")?;
+    let json_bundle = darwin_code_utils_cargo_bin::find_resource!(
+        "schema/json/darwin_code_app_server_protocol.schemas.json"
+    )
+    .context("resolve JSON schema bundle")?;
+    let json_root = json_bundle.parent().and_then(|p| p.parent()).context(
+        "derive schema root from schema/json/darwin_code_app_server_protocol.schemas.json",
+    )?;
     anyhow::ensure!(
         schema_root == json_root,
         "schema roots disagree: typescript={} json={}",

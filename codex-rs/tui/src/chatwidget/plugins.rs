@@ -106,7 +106,7 @@ impl Renderable for DelayedLoadingHeader {
     }
 }
 
-const APPS_HELP_ARTICLE_URL: &str = "https://help.openai.com/en/articles/11487775-apps-in-chatgpt";
+const APPS_HELP_ARTICLE_URL: &str = "https://example.invalid/darwin-code/apps";
 
 struct PluginDisclosureLine {
     line: Line<'static>,
@@ -482,7 +482,7 @@ impl ChatWidget {
         let status_label = if is_installed {
             "Already installed in this session."
         } else {
-            "Install the required Apps in ChatGPT to continue:"
+            "Install the required external apps to continue:"
         };
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
@@ -498,13 +498,13 @@ impl ChatWidget {
 
         if let Some(install_url) = app.install_url.clone() {
             let install_label = if is_installed {
-                "Manage on ChatGPT"
+                "Manage externally"
             } else {
-                "Install on ChatGPT"
+                "Install externally"
             };
             items.push(SelectionItem {
                 name: install_label.to_string(),
-                description: Some("Open the ChatGPT app management page".to_string()),
+                description: Some("Open the external app management page".to_string()),
                 selected_description: Some("Open the app page in your browser.".to_string()),
                 actions: vec![Box::new(move |tx| {
                     tx.send(AppEvent::OpenUrlInBrowser {
@@ -515,7 +515,7 @@ impl ChatWidget {
             });
         } else {
             items.push(SelectionItem {
-                name: "ChatGPT apps link unavailable".to_string(),
+                name: "External apps link unavailable".to_string(),
                 description: Some("This app did not provide an install/manage URL.".to_string()),
                 is_disabled: true,
                 ..Default::default()

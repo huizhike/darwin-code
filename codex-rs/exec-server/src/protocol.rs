@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use crate::FileSystemSandboxContext;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_config::types::ShellEnvironmentPolicyInherit;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::types::ShellEnvironmentPolicyInherit;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 

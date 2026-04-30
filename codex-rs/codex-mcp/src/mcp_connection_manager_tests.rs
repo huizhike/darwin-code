@@ -1,7 +1,7 @@
 use super::*;
-use codex_protocol::ToolName;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::McpAuthStatus;
+use darwin_code_protocol::ToolName;
+use darwin_code_protocol::protocol::GranularApprovalConfig;
+use darwin_code_protocol::protocol::McpAuthStatus;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonObject;
 use rmcp::model::Meta;
@@ -50,13 +50,13 @@ fn create_test_tool_with_connector(
 fn create_codex_apps_tools_cache_context(
     codex_home: PathBuf,
     account_id: Option<&str>,
-    chatgpt_user_id: Option<&str>,
+    provider_user_id: Option<&str>,
 ) -> CodexAppsToolsCacheContext {
     CodexAppsToolsCacheContext {
         codex_home,
         user_key: CodexAppsToolsCacheKey {
             account_id: account_id.map(ToOwned::to_owned),
-            chatgpt_user_id: chatgpt_user_id.map(ToOwned::to_owned),
+            provider_user_id: provider_user_id.map(ToOwned::to_owned),
             is_workspace_account: false,
         },
     }

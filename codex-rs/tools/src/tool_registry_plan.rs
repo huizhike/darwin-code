@@ -62,8 +62,8 @@ use crate::mcp_tool_to_responses_api_tool;
 use crate::request_permissions_tool_description;
 use crate::request_user_input_tool_description;
 use crate::tool_registry_plan_types::agent_type_description;
-use codex_protocol::openai_models::ApplyPatchToolType;
-use codex_protocol::openai_models::ConfigShellToolType;
+use darwin_code_protocol::openai_models::ApplyPatchToolType;
+use darwin_code_protocol::openai_models::ConfigShellToolType;
 use std::collections::BTreeMap;
 
 pub fn build_tool_registry_plan(
@@ -81,7 +81,7 @@ pub fn build_tool_registry_plan(
             .map(|(namespace, detail)| {
                 (
                     namespace.clone(),
-                    codex_code_mode::ToolNamespaceDescription {
+                    darwin_code_code_mode::ToolNamespaceDescription {
                         name: detail.name.clone(),
                         description: detail.description.clone().unwrap_or_default(),
                     },
@@ -118,7 +118,7 @@ pub fn build_tool_registry_plan(
             config.code_mode_enabled,
         );
         plan.register_handler(
-            codex_code_mode::PUBLIC_TOOL_NAME,
+            darwin_code_code_mode::PUBLIC_TOOL_NAME,
             ToolHandlerKind::CodeModeExecute,
         );
         plan.push_spec(
@@ -127,7 +127,7 @@ pub fn build_tool_registry_plan(
             config.code_mode_enabled,
         );
         plan.register_handler(
-            codex_code_mode::WAIT_TOOL_NAME,
+            darwin_code_code_mode::WAIT_TOOL_NAME,
             ToolHandlerKind::CodeModeWait,
         );
     }
@@ -578,9 +578,9 @@ pub fn build_tool_registry_plan(
 }
 
 fn compare_code_mode_tools(
-    left: &codex_code_mode::ToolDefinition,
-    right: &codex_code_mode::ToolDefinition,
-    namespace_descriptions: &BTreeMap<String, codex_code_mode::ToolNamespaceDescription>,
+    left: &darwin_code_code_mode::ToolDefinition,
+    right: &darwin_code_code_mode::ToolDefinition,
+    namespace_descriptions: &BTreeMap<String, darwin_code_code_mode::ToolNamespaceDescription>,
 ) -> std::cmp::Ordering {
     let left_namespace = code_mode_namespace_name(left, namespace_descriptions);
     let right_namespace = code_mode_namespace_name(right, namespace_descriptions);
@@ -592,8 +592,8 @@ fn compare_code_mode_tools(
 }
 
 fn code_mode_namespace_name<'a>(
-    tool: &codex_code_mode::ToolDefinition,
-    namespace_descriptions: &'a BTreeMap<String, codex_code_mode::ToolNamespaceDescription>,
+    tool: &darwin_code_code_mode::ToolDefinition,
+    namespace_descriptions: &'a BTreeMap<String, darwin_code_code_mode::ToolNamespaceDescription>,
 ) -> Option<&'a str> {
     tool.tool_name
         .namespace

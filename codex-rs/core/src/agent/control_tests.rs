@@ -6,9 +6,9 @@ use crate::config::AgentRoleConfig;
 use crate::config::Config;
 use crate::config::ConfigBuilder;
 use crate::contextual_user_message::SUBAGENT_NOTIFICATION_OPEN_TAG;
+use crate::test_support::ByokTestAuth;
 use assert_matches::assert_matches;
 use darwin_code_features::Feature;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_protocol::AgentPath;
 use darwin_code_protocol::config_types::ModeKind;
 use darwin_code_protocol::models::ContentItem;
@@ -67,6 +67,7 @@ fn assistant_message(text: &str, phase: Option<MessagePhase>) -> ResponseItem {
         }],
         end_turn: None,
         phase,
+        reasoning_content: None,
     }
 }
 
@@ -91,7 +92,7 @@ impl AgentControlHarness {
     async fn new() -> Self {
         let (home, config) = test_config().await;
         let manager = ThreadManager::with_models_provider_and_home_for_tests(
-            DarwinCodeAuth::from_api_key("dummy"),
+            crate::test_support::ByokTestAuth::from_api_key("dummy"),
             config.model_provider.clone(),
             config.darwin_code_home.to_path_buf(),
             std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -176,7 +177,7 @@ async fn wait_for_subagent_notification(parent_thread: &Arc<DarwinCodeThread>) -
     let wait = async {
         loop {
             let history_items = parent_thread
-                .darwin-code
+                .darwin_code
                 .session
                 .clone_history()
                 .await
@@ -197,9 +198,13 @@ async fn persist_thread_for_tree_resume(thread: &Arc<DarwinCodeThread>, message:
     thread
         .inject_user_message_without_turn(message.to_string())
         .await;
-    thread.darwin-code.session.ensure_rollout_materialized().await;
     thread
-        .darwin-code
+        .darwin_code
+        .session
+        .ensure_rollout_materialized()
+        .await;
+    thread
+        .darwin_code
         .session
         .flush_rollout()
         .await
@@ -288,7 +293,7 @@ async fn on_event_updates_status_from_task_complete() {
 async fn on_event_updates_status_from_error() {
     let status = agent_status_from_event(&EventMsg::Error(ErrorEvent {
         message: "boom".to_string(),
-        darwin_code_error_info: None,
+        codex_error_info: None,
     }));
 
     let expected = AgentStatus::Errored("boom".to_string());
@@ -479,7 +484,7 @@ async fn send_inter_agent_communication_without_turn_queues_message_without_trig
 
     timeout(Duration::from_secs(5), async {
         loop {
-            if thread.darwin-code.session.has_pending_input().await {
+            if thread.darwin_code.session.has_pending_input().await {
                 break;
             }
             sleep(Duration::from_millis(10)).await;
@@ -489,7 +494,7 @@ async fn send_inter_agent_communication_without_turn_queues_message_without_trig
     .expect("inter-agent communication should stay pending");
 
     let history_items = thread
-        .darwin-code
+        .darwin_code
         .session
         .clone_history()
         .await
@@ -518,9 +523,10 @@ async fn append_message_records_assistant_message() {
                 content: vec![ContentItem::InputText {
                     text: message.to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         )
         .await
         .expect("append_message should succeed");
@@ -529,7 +535,7 @@ async fn append_message_records_assistant_message() {
     timeout(Duration::from_secs(5), async {
         loop {
             let history_items = thread
-                .darwin-code
+                .darwin_code
                 .session
                 .clone_history()
                 .await
@@ -599,7 +605,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
     parent_thread
         .inject_user_message_without_turn("parent seed context".to_string())
         .await;
-    let turn_context = parent_thread.darwin-code.session.new_default_turn().await;
+    let turn_context = parent_thread.darwin_code.session.new_default_turn().await;
     let parent_spawn_call_id = "spawn-call-history".to_string();
     let trigger_message = InterAgentCommunication::new(
         AgentPath::root(),
@@ -609,7 +615,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         /*trigger_turn*/ true,
     );
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(
             turn_context.as_ref(),
@@ -629,12 +635,12 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         )
         .await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .ensure_rollout_materialized()
         .await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .flush_rollout()
         .await
@@ -667,7 +673,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         .await
         .expect("child thread should be registered");
     assert_ne!(child_thread_id, parent_thread_id);
-    let history = child_thread.darwin-code.session.clone_history().await;
+    let history = child_thread.darwin_code.session.clone_history().await;
     let expected_history = [
         ResponseItem::Message {
             id: None,
@@ -675,9 +681,10 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
             content: vec![ContentItem::InputText {
                 text: "parent seed context".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         assistant_message("parent final answer", Some(MessagePhase::FinalAnswer)),
     ];
     assert_eq!(
@@ -719,10 +726,10 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
 async fn spawn_agent_fork_flushes_parent_rollout_before_loading_history() {
     let harness = AgentControlHarness::new().await;
     let (parent_thread_id, parent_thread) = harness.start_thread().await;
-    let turn_context = parent_thread.darwin-code.session.new_default_turn().await;
+    let turn_context = parent_thread.darwin_code.session.new_default_turn().await;
     let parent_spawn_call_id = "spawn-call-unflushed".to_string();
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(
             turn_context.as_ref(),
@@ -759,7 +766,7 @@ async fn spawn_agent_fork_flushes_parent_rollout_before_loading_history() {
         .get_thread(child_thread_id)
         .await
         .expect("child thread should be registered");
-    let history = child_thread.darwin-code.session.clone_history().await;
+    let history = child_thread.darwin_code.session.clone_history().await;
     assert!(
         history_contains_text(history.raw_items(), "unflushed final answer"),
         "forked child history should include unflushed assistant final answers after flushing the parent rollout"
@@ -791,9 +798,9 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
         "queued message".to_string(),
         /*trigger_turn*/ false,
     );
-    let queued_turn_context = parent_thread.darwin-code.session.new_default_turn().await;
+    let queued_turn_context = parent_thread.darwin_code.session.new_default_turn().await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(
             queued_turn_context.as_ref(),
@@ -808,9 +815,9 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
         "triggered context".to_string(),
         /*trigger_turn*/ true,
     );
-    let triggered_turn_context = parent_thread.darwin-code.session.new_default_turn().await;
+    let triggered_turn_context = parent_thread.darwin_code.session.new_default_turn().await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(
             triggered_turn_context.as_ref(),
@@ -820,10 +827,10 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
     parent_thread
         .inject_user_message_without_turn("current parent task".to_string())
         .await;
-    let spawn_turn_context = parent_thread.darwin-code.session.new_default_turn().await;
+    let spawn_turn_context = parent_thread.darwin_code.session.new_default_turn().await;
     let parent_spawn_call_id = "spawn-call-last-n".to_string();
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(
             spawn_turn_context.as_ref(),
@@ -831,12 +838,12 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
         )
         .await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .ensure_rollout_materialized()
         .await;
     parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .flush_rollout()
         .await
@@ -868,7 +875,7 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
         .get_thread(child_thread_id)
         .await
         .expect("child thread should be registered");
-    let history = child_thread.darwin-code.session.clone_history().await;
+    let history = child_thread.darwin_code.session.clone_history().await;
 
     assert!(
         !history_contains_text(history.raw_items(), "old parent context"),
@@ -907,7 +914,7 @@ async fn spawn_agent_respects_max_threads_limit() {
     )])
     .await;
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -961,7 +968,7 @@ async fn spawn_agent_releases_slot_after_shutdown() {
     )])
     .await;
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -1006,7 +1013,7 @@ async fn spawn_agent_limit_shared_across_clones() {
     )])
     .await;
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -1053,7 +1060,7 @@ async fn resume_agent_respects_max_threads_limit() {
     )])
     .await;
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -1111,7 +1118,7 @@ async fn resume_agent_releases_slot_after_resume_failure() {
     )])
     .await;
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -1218,9 +1225,9 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
         .get_thread(tester_thread_id)
         .await
         .expect("tester thread should exist");
-    let tester_turn = tester_thread.darwin-code.session.new_default_turn().await;
+    let tester_turn = tester_thread.darwin_code.session.new_default_turn().await;
     tester_thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             tester_turn.as_ref(),
@@ -1253,7 +1260,7 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
     );
 
     let root_history_items = root_thread
-        .darwin-code
+        .darwin_code
         .session
         .clone_history()
         .await
@@ -1304,9 +1311,9 @@ async fn multi_agent_v2_completion_queues_message_for_direct_parent() {
         tester_path.to_string(),
         Some(tester_path.clone()),
     );
-    let tester_turn = tester_thread.darwin-code.session.new_default_turn().await;
+    let tester_turn = tester_thread.darwin_code.session.new_default_turn().await;
     tester_thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             tester_turn.as_ref(),
@@ -1353,7 +1360,7 @@ async fn multi_agent_v2_completion_queues_message_for_direct_parent() {
     .expect("completion watcher should queue a direct-parent message");
 
     let root_history_items = root_thread
-        .darwin-code
+        .darwin_code
         .session
         .clone_history()
         .await
@@ -1393,7 +1400,7 @@ async fn completion_watcher_notifies_parent_when_child_is_missing() {
     assert_eq!(wait_for_subagent_notification(&parent_thread).await, true);
 
     let history_items = parent_thread
-        .darwin-code
+        .darwin_code
         .session
         .clone_history()
         .await
@@ -1508,7 +1515,7 @@ async fn resume_thread_subagent_restores_stored_nickname_and_role() {
         .enable(Feature::Sqlite)
         .expect("test config should allow sqlite");
     let manager = ThreadManager::with_models_provider_and_home_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.darwin_code_home.to_path_buf(),
         std::sync::Arc::new(darwin_code_exec_server::EnvironmentManager::new(
@@ -1667,7 +1674,9 @@ async fn resume_agent_from_rollout_reads_archived_rollout_path() {
         .shutdown_live_agent(child_thread_id)
         .await
         .expect("child shutdown should succeed");
-    let store = LocalThreadStore::new(darwin_code_rollout::RolloutConfig::from_view(&harness.config));
+    let store = LocalThreadStore::new(darwin_code_rollout::RolloutConfig::from_view(
+        &harness.config,
+    ));
     store
         .archive_thread(ArchiveThreadParams {
             thread_id: child_thread_id,

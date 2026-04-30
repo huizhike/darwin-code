@@ -12,7 +12,7 @@ fn legacy_landlock_flag_is_included_when_requested() {
         command_cwd,
         cwd,
         /*use_legacy_landlock*/ false,
-        /*allow_network_for_proxy*/ false,
+        /*allow_network_for_network_policy*/ false,
     );
     assert_eq!(
         default_bwrap.contains(&"--use-legacy-landlock".to_string()),
@@ -24,7 +24,7 @@ fn legacy_landlock_flag_is_included_when_requested() {
         command_cwd,
         cwd,
         /*use_legacy_landlock*/ true,
-        /*allow_network_for_proxy*/ false,
+        /*allow_network_for_network_policy*/ false,
     );
     assert_eq!(
         legacy_landlock.contains(&"--use-legacy-landlock".to_string()),
@@ -43,7 +43,7 @@ fn proxy_flag_is_included_when_requested() {
         command_cwd,
         cwd,
         /*use_legacy_landlock*/ true,
-        /*allow_network_for_proxy*/ true,
+        /*allow_network_for_network_policy*/ true,
     );
     assert_eq!(
         args.contains(&"--allow-network-for-proxy".to_string()),
@@ -68,7 +68,7 @@ fn split_policy_flags_are_included() {
         network_sandbox_policy,
         cwd,
         /*use_legacy_landlock*/ true,
-        /*allow_network_for_proxy*/ false,
+        /*allow_network_for_network_policy*/ false,
     );
 
     assert_eq!(
@@ -91,11 +91,11 @@ fn split_policy_flags_are_included() {
 #[test]
 fn proxy_network_requires_managed_requirements() {
     assert_eq!(
-        allow_network_for_proxy(/*enforce_managed_network*/ false),
+        allow_network_for_network_policy(/*enforce_network_policy*/ false),
         false
     );
     assert_eq!(
-        allow_network_for_proxy(/*enforce_managed_network*/ true),
+        allow_network_for_network_policy(/*enforce_network_policy*/ true),
         true
     );
 }

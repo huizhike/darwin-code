@@ -99,10 +99,12 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
             item_id: "item-1".to_string(),
             approval_id: Some("approval-1".to_string()),
             reason: None,
-            network_approval_context: Some(darwin_code_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
-            }),
+            network_approval_context: Some(
+                darwin_code_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: darwin_code_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                },
+            ),
             command: Some("ls".to_string()),
             cwd: Some(test_path_buf("/tmp").abs()),
             command_actions: None,
@@ -214,7 +216,10 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, darwin_code_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                darwin_code_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }

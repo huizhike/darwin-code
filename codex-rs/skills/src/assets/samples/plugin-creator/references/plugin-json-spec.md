@@ -106,7 +106,7 @@
 {
   "name": "openai-curated",
   "interface": {
-    "displayName": "ChatGPT Official"
+    "displayName": "Darwin Official"
   },
   "plugins": [
     {

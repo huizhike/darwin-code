@@ -9,6 +9,7 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use chrono::DateTime;
 use chrono::Utc;
+use core_test_support::responses;
 use darwin_code_app_server_protocol::GitInfo as ApiGitInfo;
 use darwin_code_app_server_protocol::JSONRPCError;
 use darwin_code_app_server_protocol::JSONRPCResponse;
@@ -32,7 +33,6 @@ use darwin_code_protocol::protocol::RolloutItem;
 use darwin_code_protocol::protocol::RolloutLine;
 use darwin_code_protocol::protocol::SessionSource as CoreSessionSource;
 use darwin_code_protocol::protocol::SubAgentSource;
-use core_test_support::responses;
 use pretty_assertions::assert_eq;
 use std::cmp::Reverse;
 use std::fs;
@@ -299,7 +299,10 @@ approval_policy = "never"
     )
 }
 
-fn create_runtime_config(darwin_code_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+fn create_runtime_config(
+    darwin_code_home: &std::path::Path,
+    server_uri: &str,
+) -> std::io::Result<()> {
     let config_toml = darwin_code_home.join("config.toml");
     std::fs::write(
         config_toml,
@@ -571,14 +574,16 @@ sqlite = true
     // `thread/list` applies `search_term` on the sqlite fast path. This test creates
     // rollouts manually, so mark the DB backfill complete and then run an unsearched
     // list large enough to repair every rollout the searched list should find.
-    let state_db =
-        darwin_code_state::StateRuntime::init(darwin_code_home.path().to_path_buf(), "mock_provider".into())
-            .await?;
+    let state_db = darwin_code_state::StateRuntime::init(
+        darwin_code_home.path().to_path_buf(),
+        "mock_provider".into(),
+    )
+    .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
     let rollout_config = darwin_code_rollout::RolloutConfig {
-        darwin_code_home: darwin_code_home.path().to_path_buf(),
+        codex_home: darwin_code_home.path().to_path_buf(),
         sqlite_home: darwin_code_home.path().to_path_buf(),
         cwd: darwin_code_home.path().to_path_buf(),
         model_provider_id: "mock_provider".to_string(),
@@ -1286,7 +1291,12 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         "2025-02-02T00:00:00Z",
     )?;
     set_rollout_mtime(
-        rollout_path(darwin_code_home.path(), "2025-02-01T11-00-00", &id_watermark).as_path(),
+        rollout_path(
+            darwin_code_home.path(),
+            "2025-02-01T11-00-00",
+            &id_watermark,
+        )
+        .as_path(),
         "2025-02-03T00:00:00Z",
     )?;
 
@@ -1531,7 +1541,8 @@ async fn thread_list_archived_filter() -> Result<()> {
 
     let archived_dir = darwin_code_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     fs::create_dir_all(&archived_dir)?;
-    let archived_source = rollout_path(darwin_code_home.path(), "2025-03-01T09-00-00", &archived_id);
+    let archived_source =
+        rollout_path(darwin_code_home.path(), "2025-03-01T09-00-00", &archived_id);
     let archived_dest = archived_dir.join(
         archived_source
             .file_name()

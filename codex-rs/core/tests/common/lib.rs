@@ -2,9 +2,9 @@
 
 use anyhow::Context as _;
 use anyhow::ensure;
+use ctor::ctor;
 use darwin_code_arg0::Arg0PathEntryGuard;
 use darwin_code_utils_cargo_bin::CargoBinError;
-use ctor::ctor;
 use std::sync::OnceLock;
 use tempfile::TempDir;
 
@@ -16,14 +16,45 @@ use darwin_code_utils_absolute_path::AbsolutePathBuf;
 pub use darwin_code_utils_absolute_path::test_support::PathBufExt;
 pub use darwin_code_utils_absolute_path::test_support::PathExt;
 use regex_lite::Regex;
+use std::fs;
 use std::path::PathBuf;
+
+#[derive(Clone, Debug)]
+pub struct ByokTestAuth;
+
+impl ByokTestAuth {
+    pub fn from_api_key(_api_key: impl Into<String>) -> Self {
+        Self
+    }
+
+    pub fn dummy_for_testing() -> Self {
+        Self
+    }
+}
+
+pub const DARWIN_CODE_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
+pub const OPENAI_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
+
+const DEFAULT_BYOK_TEST_CONFIG: &str = r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#;
+
+pub fn write_default_byok_test_config(darwin_code_home: &std::path::Path) {
+    ensure_default_byok_provider_config_path(darwin_code_home);
+}
 
 pub mod apps_test_server;
 pub mod context_snapshot;
 pub mod process;
 pub mod responses;
 pub mod streaming_sse;
+#[path = "test_codex.rs"]
 pub mod test_darwin_code;
+#[path = "test_codex_exec.rs"]
 pub mod test_darwin_code_exec;
 pub mod tracing;
 pub mod zsh_fork;
@@ -37,8 +68,38 @@ fn enable_deterministic_unified_exec_process_ids_for_tests() {
 }
 
 #[ctor]
+fn configure_localhost_no_proxy_for_tests() {
+    let local_hosts = "localhost,127.0.0.1,::1";
+    for key in ["NO_PROXY", "no_proxy"] {
+        match std::env::var(key) {
+            Ok(existing) if existing.contains("127.0.0.1") && existing.contains("localhost") => {}
+            Ok(existing) if existing.trim().is_empty() => unsafe {
+                std::env::set_var(key, local_hosts);
+            },
+            Ok(existing) => unsafe {
+                std::env::set_var(key, format!("{existing},{local_hosts}"));
+            },
+            Err(_) => unsafe {
+                std::env::set_var(key, local_hosts);
+            },
+        }
+    }
+}
+
+#[ctor]
 fn configure_arg0_dispatch_for_test_binaries() {
     let _ = TEST_ARG0_PATH_ENTRY.get_or_init(darwin_code_arg0::arg0_dispatch);
+}
+
+#[ctor]
+fn configure_default_byok_api_key_for_tests() {
+    if std::env::var_os(OPENAI_API_KEY_ENV_VAR).is_some() {
+        return;
+    }
+    // Safety: this ctor runs at process startup before test threads begin.
+    unsafe {
+        std::env::set_var(OPENAI_API_KEY_ENV_VAR, "Test API Key");
+    }
 }
 
 #[ctor]
@@ -49,7 +110,7 @@ fn configure_insta_workspace_root_for_snapshot_tests() {
 
     let workspace_root = darwin_code_utils_cargo_bin::repo_root()
         .ok()
-        .map(|root| root.join("darwin-code-rs"));
+        .map(|root| root.join("darwin_code-rs"));
 
     if let Some(workspace_root) = workspace_root
         && let Ok(workspace_root) = workspace_root.canonicalize()
@@ -117,7 +178,7 @@ impl TempDirExt for TempDir {
 }
 
 pub fn test_tmp_path() -> AbsolutePathBuf {
-    test_absolute_path_with_windows("/tmp", Some(r"C:\Users\darwin-code\AppData\Local\Temp"))
+    test_absolute_path_with_windows("/tmp", Some(r"C:\Users\darwin_code\AppData\Local\Temp"))
 }
 
 pub fn test_tmp_path_buf() -> PathBuf {
@@ -162,8 +223,9 @@ pub fn fetch_dotslash_file(
 
 /// Returns a default `Config` whose on-disk state is confined to the provided
 /// temporary directory. Using a per-test directory keeps tests hermetic and
-/// avoids clobbering a developer’s real `~/.darwin-code`.
+/// avoids clobbering a developer’s real `~/.darwin_code`.
 pub async fn load_default_config_for_test(darwin_code_home: &TempDir) -> Config {
+    ensure_default_byok_provider_config(darwin_code_home);
     ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .harness_overrides(default_test_overrides())
@@ -172,11 +234,29 @@ pub async fn load_default_config_for_test(darwin_code_home: &TempDir) -> Config 
         .expect("defaults for test should always succeed")
 }
 
+fn ensure_default_byok_provider_config(darwin_code_home: &TempDir) {
+    ensure_default_byok_provider_config_path(darwin_code_home.path());
+}
+
+fn ensure_default_byok_provider_config_path(darwin_code_home: &std::path::Path) {
+    let config_path = darwin_code_home.join("config.toml");
+    let mut contents = fs::read_to_string(&config_path).unwrap_or_default();
+    if contents.contains("[providers.") || contents.contains("[openai_compatible_provider]") {
+        return;
+    }
+    if !contents.is_empty() && !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(DEFAULT_BYOK_TEST_CONFIG);
+    fs::write(config_path, contents).expect("write default BYOK test config");
+}
+
 #[cfg(target_os = "linux")]
 fn default_test_overrides() -> ConfigOverrides {
     ConfigOverrides {
-        darwin_code_linux_sandbox_exe: Some(
-            find_darwin_code_linux_sandbox_exe().expect("should find binary for darwin-code-linux-sandbox"),
+        codex_linux_sandbox_exe: Some(
+            find_darwin_code_linux_sandbox_exe()
+                .expect("should find binary for darwin_code-linux-sandbox"),
         ),
         ..ConfigOverrides::default()
     }
@@ -201,7 +281,7 @@ pub fn find_darwin_code_linux_sandbox_exe() -> Result<PathBuf, CargoBinError> {
         return Ok(path);
     }
 
-    darwin_code_utils_cargo_bin::cargo_bin("darwin-code-linux-sandbox")
+    darwin_code_utils_cargo_bin::cargo_bin("darwin_code-linux-sandbox")
 }
 
 /// Builds an SSE stream body from a JSON fixture.
@@ -253,26 +333,26 @@ pub fn load_sse_fixture_with_id_from_str(raw: &str, id: &str) -> String {
 }
 
 pub async fn wait_for_event<F>(
-    darwin-code: &DarwinCodeThread,
+    darwin_code: &DarwinCodeThread,
     predicate: F,
 ) -> darwin_code_protocol::protocol::EventMsg
 where
     F: FnMut(&darwin_code_protocol::protocol::EventMsg) -> bool,
 {
     use tokio::time::Duration;
-    wait_for_event_with_timeout(darwin-code, predicate, Duration::from_secs(1)).await
+    wait_for_event_with_timeout(darwin_code, predicate, Duration::from_secs(1)).await
 }
 
-pub async fn wait_for_event_match<T, F>(darwin-code: &DarwinCodeThread, matcher: F) -> T
+pub async fn wait_for_event_match<T, F>(darwin_code: &DarwinCodeThread, matcher: F) -> T
 where
     F: Fn(&darwin_code_protocol::protocol::EventMsg) -> Option<T>,
 {
-    let ev = wait_for_event(darwin-code, |ev| matcher(ev).is_some()).await;
+    let ev = wait_for_event(darwin_code, |ev| matcher(ev).is_some()).await;
     matcher(&ev).expect("EventMsg should match matcher predicate")
 }
 
 pub async fn wait_for_event_with_timeout<F>(
-    darwin-code: &DarwinCodeThread,
+    darwin_code: &DarwinCodeThread,
     mut predicate: F,
     wait_time: tokio::time::Duration,
 ) -> darwin_code_protocol::protocol::EventMsg
@@ -283,10 +363,13 @@ where
     use tokio::time::timeout;
     loop {
         // Allow a bit more time to accommodate async startup work (e.g. config IO, tool discovery)
-        let ev = timeout(wait_time.max(Duration::from_secs(10)), darwin-code.next_event())
-            .await
-            .expect("timeout waiting for event")
-            .expect("stream ended unexpectedly");
+        let ev = timeout(
+            wait_time.max(Duration::from_secs(10)),
+            darwin_code.next_event(),
+        )
+        .await
+        .expect("timeout waiting for event")
+        .expect("stream ended unexpectedly");
         if predicate(&ev.msg) {
             return ev.msg;
         }
@@ -329,7 +412,8 @@ pub fn get_remote_test_env() -> Option<RemoteEnvConfig> {
 }
 
 pub fn format_with_current_shell(command: &str) -> Vec<String> {
-    darwin_code_core::shell::default_user_shell().derive_exec_args(command, /*use_login_shell*/ true)
+    darwin_code_core::shell::default_user_shell()
+        .derive_exec_args(command, /*use_login_shell*/ true)
 }
 
 pub fn format_with_current_shell_display(command: &str) -> String {
@@ -349,7 +433,8 @@ pub fn format_with_current_shell_display_non_login(command: &str) -> String {
 }
 
 pub fn stdio_server_bin() -> Result<String, CargoBinError> {
-    darwin_code_utils_cargo_bin::cargo_bin("test_stdio_server").map(|p| p.to_string_lossy().to_string())
+    darwin_code_utils_cargo_bin::cargo_bin("test_stdio_server")
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 pub mod fs_wait {
@@ -526,7 +611,7 @@ macro_rules! skip_if_no_network {
     () => {{
         if ::std::env::var($crate::sandbox_network_env_var()).is_ok() {
             println!(
-                "Skipping test because it cannot execute when network is disabled in a Darwin-Code sandbox."
+                "Skipping test because it cannot execute when network is disabled in a DarwinCode sandbox."
             );
             return;
         }
@@ -534,7 +619,7 @@ macro_rules! skip_if_no_network {
     ($return_value:expr $(,)?) => {{
         if ::std::env::var($crate::sandbox_network_env_var()).is_ok() {
             println!(
-                "Skipping test because it cannot execute when network is disabled in a Darwin-Code sandbox."
+                "Skipping test because it cannot execute when network is disabled in a DarwinCode sandbox."
             );
             return $return_value;
         }
@@ -573,7 +658,9 @@ macro_rules! darwin_code_linux_sandbox_exe_or_skip {
             match $crate::find_darwin_code_linux_sandbox_exe() {
                 Ok(path) => Some(path),
                 Err(err) => {
-                    eprintln!("darwin-code-linux-sandbox binary not available, skipping test: {err}");
+                    eprintln!(
+                        "darwin_code-linux-sandbox binary not available, skipping test: {err}"
+                    );
                     return;
                 }
             }
@@ -589,7 +676,9 @@ macro_rules! darwin_code_linux_sandbox_exe_or_skip {
             match $crate::find_darwin_code_linux_sandbox_exe() {
                 Ok(path) => Some(path),
                 Err(err) => {
-                    eprintln!("darwin-code-linux-sandbox binary not available, skipping test: {err}");
+                    eprintln!(
+                        "darwin_code-linux-sandbox binary not available, skipping test: {err}"
+                    );
                     return $return_value;
                 }
             }

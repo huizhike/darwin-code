@@ -22,7 +22,7 @@ fn build_tool_suggestion_elicitation_request_uses_expected_shape() {
         app_metadata: None,
         labels: None,
         install_url: Some(
-            "https://chatgpt.com/apps/google-calendar/connector_2128aebfecb84f64a069897515042a44"
+            "https://apps.darwin-code.local/apps/google-calendar/connector_2128aebfecb84f64a069897515042a44"
                 .to_string(),
         ),
         is_accessible: false,
@@ -54,7 +54,7 @@ fn build_tool_suggestion_elicitation_request_uses_expected_shape() {
                     tool_id: "connector_2128aebfecb84f64a069897515042a44",
                     tool_name: "Google Calendar",
                     install_url: Some(
-                        "https://chatgpt.com/apps/google-calendar/connector_2128aebfecb84f64a069897515042a44"
+                        "https://apps.darwin-code.local/apps/google-calendar/connector_2128aebfecb84f64a069897515042a44"
                     ),
                 })),
                 message: "Plan and reference events from your calendar".to_string(),
@@ -131,7 +131,9 @@ fn build_tool_suggestion_meta_uses_expected_shape() {
         "Find and reference emails from your inbox",
         "connector_68df038e0ba48191908c8434991bbac2",
         "Gmail",
-        Some("https://chatgpt.com/apps/gmail/connector_68df038e0ba48191908c8434991bbac2"),
+        Some(
+            "https://apps.darwin-code.local/apps/gmail/connector_68df038e0ba48191908c8434991bbac2",
+        ),
     );
 
     assert_eq!(
@@ -144,7 +146,7 @@ fn build_tool_suggestion_meta_uses_expected_shape() {
             tool_id: "connector_68df038e0ba48191908c8434991bbac2",
             tool_name: "Gmail",
             install_url: Some(
-                "https://chatgpt.com/apps/gmail/connector_68df038e0ba48191908c8434991bbac2"
+                "https://apps.darwin-code.local/apps/gmail/connector_68df038e0ba48191908c8434991bbac2"
             ),
         },
     );

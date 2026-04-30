@@ -1,15 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use darwin_code_features::Feature;
-use darwin_code_protocol::config_types::CollaborationMode;
-use darwin_code_protocol::config_types::ModeKind;
-use darwin_code_protocol::config_types::Settings;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -19,6 +10,15 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use serde_json::Value;
 use serde_json::json;
 use std::fs;
@@ -42,7 +42,7 @@ async fn submit_user_turn(
     collaboration_mode: Option<CollaborationMode>,
 ) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -123,7 +123,7 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
     .await;
 
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "run shell command".into(),
@@ -143,14 +143,14 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
         })
         .await?;
 
-    let EventMsg::ExecCommandEnd(end) = wait_for_event(&test.darwin-code, |event| {
+    let EventMsg::ExecCommandEnd(end) = wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::ExecCommandEnd(_))
     })
     .await
     else {
         unreachable!()
     };
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -168,12 +168,14 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_command_empty_script_with_collaboration_mode_does_not_panic() -> Result<()> {
     let server = start_mock_server().await;
-    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
-        config
-            .features
-            .enable(Feature::CollaborationModes)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::CollaborationModes)
+                .expect("test config should allow feature update");
+        });
     let test = builder.build(&server).await?;
     let call_id = "shell-empty-script-collab";
     let args = json!({
@@ -209,7 +211,7 @@ async fn shell_command_empty_script_with_collaboration_mode_does_not_panic() -> 
     )
     .await?;
 
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -223,16 +225,18 @@ async fn shell_command_empty_script_with_collaboration_mode_does_not_panic() -> 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unified_exec_empty_script_with_collaboration_mode_does_not_panic() -> Result<()> {
     let server = start_mock_server().await;
-    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
-        config
-            .features
-            .enable(Feature::UnifiedExec)
-            .expect("test config should allow feature update");
-        config
-            .features
-            .enable(Feature::CollaborationModes)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::UnifiedExec)
+                .expect("test config should allow feature update");
+            config
+                .features
+                .enable(Feature::CollaborationModes)
+                .expect("test config should allow feature update");
+        });
     let test = builder.build(&server).await?;
     let call_id = "unified-exec-empty-script-collab";
     let args = json!({
@@ -268,7 +272,7 @@ async fn unified_exec_empty_script_with_collaboration_mode_does_not_panic() -> R
     )
     .await?;
 
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -282,12 +286,14 @@ async fn unified_exec_empty_script_with_collaboration_mode_does_not_panic() -> R
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shell_command_whitespace_script_with_collaboration_mode_does_not_panic() -> Result<()> {
     let server = start_mock_server().await;
-    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
-        config
-            .features
-            .enable(Feature::CollaborationModes)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::CollaborationModes)
+                .expect("test config should allow feature update");
+        });
     let test = builder.build(&server).await?;
     let call_id = "shell-whitespace-script-collab";
     let args = json!({
@@ -323,7 +329,7 @@ async fn shell_command_whitespace_script_with_collaboration_mode_does_not_panic(
     )
     .await?;
 
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;
@@ -337,16 +343,18 @@ async fn shell_command_whitespace_script_with_collaboration_mode_does_not_panic(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unified_exec_whitespace_script_with_collaboration_mode_does_not_panic() -> Result<()> {
     let server = start_mock_server().await;
-    let mut builder = test_darwin_code().with_model("gpt-5").with_config(|config| {
-        config
-            .features
-            .enable(Feature::UnifiedExec)
-            .expect("test config should allow feature update");
-        config
-            .features
-            .enable(Feature::CollaborationModes)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::UnifiedExec)
+                .expect("test config should allow feature update");
+            config
+                .features
+                .enable(Feature::CollaborationModes)
+                .expect("test config should allow feature update");
+        });
     let test = builder.build(&server).await?;
     let call_id = "unified-exec-whitespace-script-collab";
     let args = json!({
@@ -382,7 +390,7 @@ async fn unified_exec_whitespace_script_with_collaboration_mode_does_not_panic()
     )
     .await?;
 
-    wait_for_event(&test.darwin-code, |event| {
+    wait_for_event(&test.darwin_code, |event| {
         matches!(event, EventMsg::TurnComplete(_))
     })
     .await;

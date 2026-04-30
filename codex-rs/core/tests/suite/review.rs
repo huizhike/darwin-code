@@ -1,3 +1,11 @@
+use core_test_support::PathBufExt;
+use core_test_support::load_sse_fixture_with_id_from_str;
+use core_test_support::responses::ResponseMock;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
 use darwin_code_core::DarwinCodeThread;
 use darwin_code_core::REVIEW_PROMPT;
 use darwin_code_core::config::Config;
@@ -17,14 +25,6 @@ use darwin_code_protocol::protocol::ReviewTarget;
 use darwin_code_protocol::protocol::RolloutItem;
 use darwin_code_protocol::protocol::RolloutLine;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::PathBufExt;
-use core_test_support::load_sse_fixture_with_id_from_str;
-use core_test_support::responses::ResponseMock;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ use wiremock::MockServer;
 /// in that order when the model returns a structured review JSON payload.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn review_op_emits_lifecycle_and_review_output() {
-    // Skip under Darwin-Code sandbox network restrictions.
+    // Skip under DarwinCode sandbox network restrictions.
     skip_if_no_network!();
 
     // Start mock Responses API server. Return a single assistant message whose
@@ -73,10 +73,10 @@ async fn review_op_emits_lifecycle_and_review_output() {
     let (server, _request_log) =
         start_responses_server_with_sse(&sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
 
     // Submit review request.
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -89,8 +89,14 @@ async fn review_op_emits_lifecycle_and_review_output() {
         .unwrap();
 
     // Verify lifecycle: Entered -> Exited(Some(review)) -> TurnComplete.
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let closed = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExitedReviewMode(_))).await;
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let closed = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::ExitedReviewMode(_))
+    })
+    .await;
     let review = match closed {
         EventMsg::ExitedReviewMode(ev) => ev
             .review_output
@@ -115,11 +121,12 @@ async fn review_op_emits_lifecycle_and_review_output() {
         overall_confidence_score: 0.8,
     };
     assert_eq!(expected, review);
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Also verify that a user message with the header and a formatted finding
     // was recorded back in the parent session's rollout.
-    let path = darwin-code.rollout_path().expect("rollout path");
+    let path = darwin_code.rollout_path().expect("rollout path");
     let text = std::fs::read_to_string(&path).expect("read rollout file");
 
     let mut saw_header = false;
@@ -196,9 +203,9 @@ async fn review_op_with_plain_text_emits_review_fallback() {
     let (server, _request_log) =
         start_responses_server_with_sse(sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -210,8 +217,14 @@ async fn review_op_with_plain_text_emits_review_fallback() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let closed = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::ExitedReviewMode(_))).await;
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let closed = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::ExitedReviewMode(_))
+    })
+    .await;
     let review = match closed {
         EventMsg::ExitedReviewMode(ev) => ev
             .review_output
@@ -225,7 +238,8 @@ async fn review_op_with_plain_text_emits_review_fallback() {
         ..Default::default()
     };
     assert_eq!(expected, review);
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let _darwin_code_home_guard = darwin_code_home;
     server.verify().await;
@@ -258,9 +272,9 @@ async fn review_filters_agent_message_related_events() {
     let (server, _request_log) =
         start_responses_server_with_sse(sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -276,7 +290,7 @@ async fn review_filters_agent_message_related_events() {
     let mut saw_exited = false;
 
     // Drain until TurnComplete; assert streaming-related events never surface.
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnComplete(_) => true,
         EventMsg::EnteredReviewMode(_) => {
             saw_entered = true;
@@ -341,9 +355,9 @@ async fn review_does_not_emit_agent_message_on_structured_output() {
     let (server, _request_log) =
         start_responses_server_with_sse(&sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -360,7 +374,7 @@ async fn review_does_not_emit_agent_message_on_structured_output() {
     let mut saw_entered = false;
     let mut saw_exited = false;
     let mut agent_messages = 0;
-    wait_for_event(&darwin-code, |event| match event {
+    wait_for_event(&darwin_code, |event| match event {
         EventMsg::TurnComplete(_) => true,
         EventMsg::AgentMessage(_) => {
             agent_messages += 1;
@@ -398,13 +412,13 @@ async fn review_uses_custom_review_model_from_config() {
         start_responses_server_with_sse(sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
     // Choose a review model different from the main model; ensure it is used.
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
         cfg.model = Some("gpt-4.1".to_string());
         cfg.review_model = Some("gpt-5.1".to_string());
     })
     .await;
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -417,8 +431,11 @@ async fn review_uses_custom_review_model_from_config() {
         .unwrap();
 
     // Wait for completion
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _closed = wait_for_event(&darwin-code, |ev| {
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let _closed = wait_for_event(&darwin_code, |ev| {
         matches!(
             ev,
             EventMsg::ExitedReviewMode(ExitedReviewModeEvent {
@@ -427,7 +444,8 @@ async fn review_uses_custom_review_model_from_config() {
         )
     })
     .await;
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Assert the request body model equals the configured review model
     let request = request_log.single_request();
@@ -452,13 +470,13 @@ async fn review_uses_session_model_when_review_model_unset() {
     let (server, request_log) =
         start_responses_server_with_sse(sse_raw, /*expected_requests*/ 1).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
         cfg.model = Some("gpt-4.1".to_string());
         cfg.review_model = None;
     })
     .await;
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -470,8 +488,11 @@ async fn review_uses_session_model_when_review_model_unset() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _closed = wait_for_event(&darwin-code, |ev| {
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let _closed = wait_for_event(&darwin_code, |ev| {
         matches!(
             ev,
             EventMsg::ExitedReviewMode(ExitedReviewModeEvent {
@@ -480,7 +501,8 @@ async fn review_uses_session_model_when_review_model_unset() {
         )
     })
     .await;
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let request = request_log.single_request();
     assert_eq!(request.path(), "/v1/responses");
@@ -538,9 +560,10 @@ async fn review_input_isolated_from_parent_history() {
             content: vec![darwin_code_protocol::models::ContentItem::InputText {
                 text: "parent: earlier user message".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        };
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    };
         let user_json = serde_json::to_value(&user).unwrap();
         let user_line = serde_json::json!({
             "timestamp": "2024-01-01T00:00:01.000Z",
@@ -558,9 +581,10 @@ async fn review_input_isolated_from_parent_history() {
             content: vec![darwin_code_protocol::models::ContentItem::OutputText {
                 text: "parent: assistant reply".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        };
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    };
         let assistant_json = serde_json::to_value(&assistant).unwrap();
         let assistant_line = serde_json::json!({
             "timestamp": "2024-01-01T00:00:02.000Z",
@@ -571,13 +595,17 @@ async fn review_input_isolated_from_parent_history() {
             .await
             .unwrap();
     }
-    let darwin-code =
-        resume_conversation_for_server(&server, darwin_code_home.clone(), session_file.clone(), |_| {})
-            .await;
+    let darwin_code = resume_conversation_for_server(
+        &server,
+        darwin_code_home.clone(),
+        session_file.clone(),
+        |_| {},
+    )
+    .await;
 
     // Submit review request; it must start fresh (no parent history in `input`).
     let review_prompt = "Please review only this".to_string();
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -589,8 +617,11 @@ async fn review_input_isolated_from_parent_history() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _closed = wait_for_event(&darwin-code, |ev| {
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let _closed = wait_for_event(&darwin_code, |ev| {
         matches!(
             ev,
             EventMsg::ExitedReviewMode(ExitedReviewModeEvent {
@@ -599,7 +630,8 @@ async fn review_input_isolated_from_parent_history() {
         )
     })
     .await;
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Assert the request `input` contains the environment context followed by the user review prompt.
     let request = request_log.single_request();
@@ -640,7 +672,7 @@ async fn review_input_isolated_from_parent_history() {
     assert_eq!(instructions, REVIEW_PROMPT);
 
     // Also verify that a user interruption note was recorded in the rollout.
-    let path = darwin-code.rollout_path().expect("rollout path");
+    let path = darwin_code.rollout_path().expect("rollout path");
     let text = std::fs::read_to_string(&path).expect("read rollout file");
     let mut saw_interruption_message = false;
     for line in text.lines() {
@@ -691,10 +723,10 @@ async fn review_history_surfaces_in_parent_session() {
     let (server, request_log) =
         start_responses_server_with_sse(sse_raw, /*expected_requests*/ 2).await;
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
+    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |_| {}).await;
 
     // 1) Run a review turn that produces an assistant message (isolated in child).
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -705,8 +737,11 @@ async fn review_history_surfaces_in_parent_session() {
         })
         .await
         .unwrap();
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _closed = wait_for_event(&darwin-code, |ev| {
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let _closed = wait_for_event(&darwin_code, |ev| {
         matches!(
             ev,
             EventMsg::ExitedReviewMode(ExitedReviewModeEvent {
@@ -715,11 +750,12 @@ async fn review_history_surfaces_in_parent_session() {
         )
     })
     .await;
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // 2) Continue in the parent session; request input must not include any review items.
     let followup = "back to parent".to_string();
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: followup.clone(),
@@ -730,7 +766,8 @@ async fn review_history_surfaces_in_parent_session() {
         })
         .await
         .unwrap();
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     // Inspect the second request (parent turn) input contents.
     // Parent turns include session initial messages (user_instructions, environment_context).
@@ -827,12 +864,13 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
 
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
     let initial_cwd_path = initial_cwd.path().to_path_buf();
-    let darwin-code = new_conversation_for_server(&server, darwin_code_home.clone(), move |config| {
-        config.cwd = initial_cwd_path.abs();
-    })
-    .await;
+    let darwin_code =
+        new_conversation_for_server(&server, darwin_code_home.clone(), move |config| {
+            config.cwd = initial_cwd_path.abs();
+        })
+        .await;
 
-    darwin-code
+    darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: Some(repo_path.to_path_buf()),
             approval_policy: None,
@@ -849,7 +887,7 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
         .await
         .unwrap();
 
-    darwin-code
+    darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::BaseBranch {
@@ -861,8 +899,12 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _complete = wait_for_event(&darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _entered = wait_for_event(&darwin_code, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
+    let _complete =
+        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 1);
@@ -918,7 +960,7 @@ where
         .build(server)
         .await
         .expect("create conversation")
-        .darwin-code
+        .darwin_code
 }
 
 /// Create a conversation resuming from a rollout file, configured to talk to the provided mock server.
@@ -943,5 +985,5 @@ where
         .resume(server, darwin_code_home, resume_path)
         .await
         .expect("resume conversation")
-        .darwin-code
+        .darwin_code
 }

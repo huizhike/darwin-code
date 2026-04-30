@@ -1,0 +1,18 @@
+---
+source: tui/src/chatwidget/tests/mcp_startup.rs
+expression: normalized_backend_snapshot(terminal.backend())
+---
+"                                                                                "
+"╭───────────────────────────────────────╮                                       "
+"│ >_ OpenAI DarwinCode (v0.0.0)         │                                       "
+"│                                       │                                       "
+"│ model:     loading   /model to change │                                       "
+"│ directory: /tmp/project               │                                       "
+"╰───────────────────────────────────────╯                                       "
+"                                                                                "
+"• Booting MCP server: alpha (0s • esc to interrupt)                             "
+"                                                                                "
+"                                                                                "
+"› Explain this codebase                                                         "
+"                                                                                "
+"  gpt-5.3-darwin-code default · /tmp/project                                    "

@@ -1,6 +1,6 @@
 //! Shared in-process app-server client facade for CLI surfaces.
 //!
-//! This crate wraps [`codex_app_server::in_process`] behind a single async API
+//! This crate wraps [`darwin_code_app_server::in_process`] behind a single async API
 //! used by surfaces like TUI and exec. It centralizes:
 //!
 //! - Runtime startup and initialize-capabilities handshake.
@@ -11,7 +11,7 @@
 //! - Bounded graceful shutdown with abort fallback.
 //!
 //! The facade interposes a worker task between the caller and the underlying
-//! [`InProcessClientHandle`](codex_app_server::in_process::InProcessClientHandle),
+//! [`InProcessClientHandle`](darwin_code_app_server::in_process::InProcessClientHandle),
 //! bridging async `mpsc` channels on both sides. Queues are bounded so overload
 //! surfaces as channel-full errors rather than unbounded memory growth.
 
@@ -25,28 +25,29 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use codex_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-pub use codex_app_server::in_process::InProcessServerEvent;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server::in_process::LogDbLayer;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result as JsonRpcResult;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config_loader::CloudRequirementsLoader;
-use codex_core::config_loader::LoaderOverrides;
-pub use codex_exec_server::EnvironmentManager;
-pub use codex_exec_server::ExecServerRuntimePaths;
-use codex_protocol::protocol::SessionSource;
+use codex_feedback::CodexFeedback;
+pub use darwin_code_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+pub use darwin_code_app_server::in_process::InProcessServerEvent;
+use darwin_code_app_server::in_process::InProcessStartArgs;
+use darwin_code_app_server::in_process::LogDbLayer;
+use darwin_code_app_server_protocol::ClientInfo;
+use darwin_code_app_server_protocol::ClientNotification;
+use darwin_code_app_server_protocol::ClientRequest;
+use darwin_code_app_server_protocol::ConfigWarningNotification;
+use darwin_code_app_server_protocol::InitializeCapabilities;
+use darwin_code_app_server_protocol::InitializeParams;
+use darwin_code_app_server_protocol::JSONRPCErrorError;
+use darwin_code_app_server_protocol::RequestId;
+use darwin_code_app_server_protocol::Result as JsonRpcResult;
+use darwin_code_app_server_protocol::ServerNotification;
+use darwin_code_app_server_protocol::ServerRequest;
+use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_core::config::Config;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
+use darwin_code_core::config_loader::LoaderOverrides;
+pub use darwin_code_exec_server::EnvironmentManager;
+pub use darwin_code_exec_server::ExecServerRuntimePaths;
+use darwin_code_protocol::protocol::SessionSource;
 use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -63,80 +64,80 @@ pub use crate::remote::RemoteAppServerConnectArgs;
 /// module exists so clients can remove a direct `codex-core` dependency
 /// while legacy startup/config paths are migrated to RPCs.
 pub mod legacy_core {
-    pub use codex_core::Cursor;
-    pub use codex_core::DEFAULT_AGENTS_MD_FILENAME;
-    pub use codex_core::INTERACTIVE_SESSION_SOURCES;
-    pub use codex_core::LOCAL_AGENTS_MD_FILENAME;
-    pub use codex_core::McpManager;
-    pub use codex_core::PLUGIN_TEXT_MENTION_SIGIL;
-    pub use codex_core::RolloutRecorder;
-    pub use codex_core::TOOL_MENTION_SIGIL;
-    pub use codex_core::ThreadItem;
-    pub use codex_core::ThreadSortKey;
-    pub use codex_core::ThreadsPage;
-    pub use codex_core::append_message_history_entry;
-    pub use codex_core::check_execpolicy_for_warnings;
-    pub use codex_core::find_thread_meta_by_name_str;
-    pub use codex_core::find_thread_name_by_id;
-    pub use codex_core::find_thread_names_by_ids;
-    pub use codex_core::format_exec_policy_error_with_source;
-    pub use codex_core::grant_read_root_non_elevated;
-    pub use codex_core::lookup_message_history_entry;
-    pub use codex_core::message_history_metadata;
-    pub use codex_core::path_utils;
-    pub use codex_core::read_session_meta_line;
-    pub use codex_core::web_search_detail;
+    pub use darwin_code_core::Cursor;
+    pub use darwin_code_core::DEFAULT_AGENTS_MD_FILENAME;
+    pub use darwin_code_core::INTERACTIVE_SESSION_SOURCES;
+    pub use darwin_code_core::LOCAL_AGENTS_MD_FILENAME;
+    pub use darwin_code_core::McpManager;
+    pub use darwin_code_core::PLUGIN_TEXT_MENTION_SIGIL;
+    pub use darwin_code_core::RolloutRecorder;
+    pub use darwin_code_core::TOOL_MENTION_SIGIL;
+    pub use darwin_code_core::ThreadItem;
+    pub use darwin_code_core::ThreadSortKey;
+    pub use darwin_code_core::ThreadsPage;
+    pub use darwin_code_core::append_message_history_entry;
+    pub use darwin_code_core::check_execpolicy_for_warnings;
+    pub use darwin_code_core::find_thread_meta_by_name_str;
+    pub use darwin_code_core::find_thread_name_by_id;
+    pub use darwin_code_core::find_thread_names_by_ids;
+    pub use darwin_code_core::format_exec_policy_error_with_source;
+    pub use darwin_code_core::grant_read_root_non_elevated;
+    pub use darwin_code_core::lookup_message_history_entry;
+    pub use darwin_code_core::message_history_metadata;
+    pub use darwin_code_core::path_utils;
+    pub use darwin_code_core::read_session_meta_line;
+    pub use darwin_code_core::web_search_detail;
 
     pub mod config {
-        pub use codex_core::config::*;
+        pub use darwin_code_core::config::*;
 
         pub mod edit {
-            pub use codex_core::config::edit::*;
+            pub use darwin_code_core::config::edit::*;
         }
     }
 
     pub mod config_loader {
-        pub use codex_core::config_loader::*;
+        pub use darwin_code_core::config_loader::*;
     }
 
     pub mod connectors {
-        pub use codex_core::connectors::*;
+        pub use darwin_code_core::connectors::*;
     }
 
     pub mod otel_init {
-        pub use codex_core::otel_init::*;
+        pub use darwin_code_core::otel_init::*;
     }
 
     pub mod personality_migration {
-        pub use codex_core::personality_migration::*;
+        pub use darwin_code_core::personality_migration::*;
     }
 
     pub mod plugins {
-        pub use codex_core::plugins::*;
+        pub use darwin_code_core::plugins::*;
     }
 
     pub mod review_format {
-        pub use codex_core::review_format::*;
+        pub use darwin_code_core::review_format::*;
     }
 
     pub mod review_prompts {
-        pub use codex_core::review_prompts::*;
+        pub use darwin_code_core::review_prompts::*;
     }
 
     pub mod skills {
-        pub use codex_core::skills::*;
+        pub use darwin_code_core::skills::*;
     }
 
     pub mod test_support {
-        pub use codex_core::test_support::*;
+        pub use darwin_code_core::test_support::*;
     }
 
     pub mod util {
-        pub use codex_core::util::*;
+        pub use darwin_code_core::util::*;
     }
 
     pub mod windows_sandbox {
-        pub use codex_core::windows_sandbox::*;
+        pub use darwin_code_core::windows_sandbox::*;
     }
 }
 
@@ -349,8 +350,8 @@ pub struct InProcessClientStartArgs {
     pub cli_overrides: Vec<(String, TomlValue)>,
     /// Loader override knobs used by config API paths.
     pub loader_overrides: LoaderOverrides,
-    /// Preloaded cloud requirements provider.
-    pub cloud_requirements: CloudRequirementsLoader,
+    /// Preloaded external requirements provider.
+    pub external_requirements: ExternalRequirementsLoader,
     /// Feedback sink used by app-server/core telemetry and logs.
     pub feedback: CodexFeedback,
     /// SQLite tracing layer used to flush recently emitted logs before feedback upload.
@@ -404,13 +405,13 @@ impl InProcessClientStartArgs {
             config: self.config,
             cli_overrides: self.cli_overrides,
             loader_overrides: self.loader_overrides,
-            cloud_requirements: self.cloud_requirements,
+            external_requirements: self.external_requirements,
             feedback: self.feedback,
             log_db: self.log_db,
             environment_manager: self.environment_manager,
             config_warnings: self.config_warnings,
             session_source: self.session_source,
-            enable_codex_api_key_env: self.enable_codex_api_key_env,
+            enable_darwin_code_api_key_env: self.enable_codex_api_key_env,
             initialize,
             channel_capacity: self.channel_capacity,
         }
@@ -449,7 +450,7 @@ enum ClientCommand {
 ///
 /// This type owns a worker task that bridges between:
 /// - caller-facing async `mpsc` channels used by TUI/exec
-/// - [`codex_app_server::in_process::InProcessClientHandle`], which speaks to
+/// - [`darwin_code_app_server::in_process::InProcessClientHandle`], which speaks to
 ///   the embedded `MessageProcessor`
 ///
 /// The facade intentionally preserves the server's request/notification/event
@@ -487,7 +488,7 @@ impl InProcessAppServerClient {
     pub async fn start(args: InProcessClientStartArgs) -> IoResult<Self> {
         let channel_capacity = args.channel_capacity.max(1);
         let mut handle =
-            codex_app_server::in_process::start(args.into_runtime_start_args()).await?;
+            darwin_code_app_server::in_process::start(args.into_runtime_start_args()).await?;
         let request_sender = handle.sender();
         let (command_tx, mut command_rx) = mpsc::channel::<ClientCommand>(channel_capacity);
         let (event_tx, event_rx) = mpsc::channel::<InProcessServerEvent>(channel_capacity);
@@ -548,25 +549,6 @@ impl InProcessAppServerClient {
                         let Some(event) = event else {
                             break;
                         };
-                        if let InProcessServerEvent::ServerRequest(
-                            ServerRequest::ChatgptAuthTokensRefresh { request_id, .. }
-                        ) = &event
-                        {
-                            let send_result = request_sender.fail_server_request(
-                                request_id.clone(),
-                                JSONRPCErrorError {
-                                    code: -32000,
-                                    message: "chatgpt auth token refresh is not supported for in-process app-server clients".to_string(),
-                                    data: None,
-                                },
-                            );
-                            if let Err(err) = send_result {
-                                warn!(
-                                    "failed to reject unsupported chatgpt auth token refresh request: {err}"
-                                );
-                            }
-                            continue;
-                        }
 
                         match forward_in_process_event(
                             &event_tx,
@@ -940,19 +922,17 @@ pub(crate) fn request_method_name(request: &ClientRequest) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::AccountUpdatedNotification;
-    use codex_app_server_protocol::ConfigRequirementsReadResponse;
-    use codex_app_server_protocol::GetAccountResponse;
-    use codex_app_server_protocol::JSONRPCMessage;
-    use codex_app_server_protocol::JSONRPCRequest;
-    use codex_app_server_protocol::JSONRPCResponse;
-    use codex_app_server_protocol::ServerNotification;
-    use codex_app_server_protocol::SessionSource as ApiSessionSource;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_app_server_protocol::ToolRequestUserInputQuestion;
-    use codex_core::config::ConfigBuilder;
+    use darwin_code_app_server_protocol::JSONRPCMessage;
+    use darwin_code_app_server_protocol::JSONRPCRequest;
+    use darwin_code_app_server_protocol::JSONRPCResponse;
+    use darwin_code_app_server_protocol::ModelListResponse;
+    use darwin_code_app_server_protocol::ServerNotification;
+    use darwin_code_app_server_protocol::SessionSource as ApiSessionSource;
+    use darwin_code_app_server_protocol::ThreadStartParams;
+    use darwin_code_app_server_protocol::ThreadStartResponse;
+    use darwin_code_app_server_protocol::ToolRequestUserInputParams;
+    use darwin_code_app_server_protocol::ToolRequestUserInputQuestion;
+    use darwin_code_core::config::ConfigBuilder;
     use futures::SinkExt;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
@@ -983,7 +963,7 @@ mod tests {
             config: Arc::new(build_test_config().await),
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            external_requirements: ExternalRequirementsLoader::default(),
             feedback: CodexFeedback::new(),
             log_db: None,
             environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
@@ -1113,7 +1093,7 @@ mod tests {
 
     fn command_execution_output_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::CommandExecutionOutputDelta(
-            codex_app_server_protocol::CommandExecutionOutputDeltaNotification {
+            darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification {
                 thread_id: "thread".to_string(),
                 turn_id: "turn".to_string(),
                 item_id: "item".to_string(),
@@ -1124,7 +1104,7 @@ mod tests {
 
     fn agent_message_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            darwin_code_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: "thread".to_string(),
                 turn_id: "turn".to_string(),
                 item_id: "item".to_string(),
@@ -1134,31 +1114,35 @@ mod tests {
     }
 
     fn item_completed_notification(text: &str) -> ServerNotification {
-        ServerNotification::ItemCompleted(codex_app_server_protocol::ItemCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn_id: "turn".to_string(),
-            item: codex_app_server_protocol::ThreadItem::AgentMessage {
-                id: "item".to_string(),
-                text: text.to_string(),
-                phase: None,
-                memory_citation: None,
+        ServerNotification::ItemCompleted(
+            darwin_code_app_server_protocol::ItemCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn_id: "turn".to_string(),
+                item: darwin_code_app_server_protocol::ThreadItem::AgentMessage {
+                    id: "item".to_string(),
+                    text: text.to_string(),
+                    phase: None,
+                    memory_citation: None,
+                },
             },
-        })
+        )
     }
 
     fn turn_completed_notification() -> ServerNotification {
-        ServerNotification::TurnCompleted(codex_app_server_protocol::TurnCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn: codex_app_server_protocol::Turn {
-                id: "turn".to_string(),
-                items: Vec::new(),
-                status: codex_app_server_protocol::TurnStatus::Completed,
-                error: None,
-                started_at: None,
-                completed_at: Some(0),
-                duration_ms: Some(1),
+        ServerNotification::TurnCompleted(
+            darwin_code_app_server_protocol::TurnCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn: darwin_code_app_server_protocol::Turn {
+                    id: "turn".to_string(),
+                    items: Vec::new(),
+                    status: darwin_code_app_server_protocol::TurnStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: Some(0),
+                    duration_ms: Some(1),
+                },
             },
-        })
+        )
     }
 
     fn test_remote_connect_args(websocket_url: String) -> RemoteAppServerConnectArgs {
@@ -1176,10 +1160,10 @@ mod tests {
     #[tokio::test]
     async fn typed_request_roundtrip_works() {
         let client = start_test_client(SessionSource::Exec).await;
-        let _response: ConfigRequirementsReadResponse = client
-            .request_typed(ClientRequest::ConfigRequirementsRead {
+        let _response: ModelListResponse = client
+            .request_typed(ClientRequest::ModelList {
                 request_id: RequestId::Integer(1),
-                params: None,
+                params: darwin_code_app_server_protocol::ModelListParams::default(),
             })
             .await
             .expect("typed request should succeed");
@@ -1190,9 +1174,9 @@ mod tests {
     async fn typed_request_reports_json_rpc_errors() {
         let client = start_test_client(SessionSource::Exec).await;
         let err = client
-            .request_typed::<ConfigRequirementsReadResponse>(ClientRequest::ThreadRead {
+            .request_typed::<ModelListResponse>(ClientRequest::ThreadRead {
                 request_id: RequestId::Integer(99),
-                params: codex_app_server_protocol::ThreadReadParams {
+                params: darwin_code_app_server_protocol::ThreadReadParams {
                     thread_id: "missing-thread".to_string(),
                     include_turns: false,
                 },
@@ -1243,10 +1227,10 @@ mod tests {
             .await
             .expect("thread/start should succeed");
         let read = client
-            .request_typed::<codex_app_server_protocol::ThreadReadResponse>(
+            .request_typed::<darwin_code_app_server_protocol::ThreadReadResponse>(
                 ClientRequest::ThreadRead {
                     request_id: RequestId::Integer(4),
-                    params: codex_app_server_protocol::ThreadReadParams {
+                    params: darwin_code_app_server_protocol::ThreadReadParams {
                         thread_id: response.thread.id.clone(),
                         include_turns: false,
                     },
@@ -1263,10 +1247,10 @@ mod tests {
     async fn tiny_channel_capacity_still_supports_request_roundtrip() {
         let client =
             start_test_client_with_capacity(SessionSource::Exec, /*channel_capacity*/ 1).await;
-        let _response: ConfigRequirementsReadResponse = client
-            .request_typed(ClientRequest::ConfigRequirementsRead {
+        let _response: ModelListResponse = client
+            .request_typed(ClientRequest::ModelList {
                 request_id: RequestId::Integer(1),
-                params: None,
+                params: darwin_code_app_server_protocol::ModelListParams::default(),
             })
             .await
             .expect("typed request should succeed");
@@ -1350,14 +1334,14 @@ mod tests {
                 notification
             )) if matches!(
                 &notification.item,
-                codex_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
+                darwin_code_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
             )
         ));
         assert!(matches!(
             &events[4],
             InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
                 notification
-            )) if notification.turn.status == codex_app_server_protocol::TurnStatus::Completed
+            )) if notification.turn.status == darwin_code_app_server_protocol::TurnStatus::Completed
         ));
     }
 
@@ -1367,16 +1351,16 @@ mod tests {
             expect_remote_initialize(&mut websocket).await;
             let JSONRPCMessage::Request(request) = read_websocket_message(&mut websocket).await
             else {
-                panic!("expected account/read request");
+                panic!("expected model/list request");
             };
-            assert_eq!(request.method, "account/read");
+            assert_eq!(request.method, "model/list");
             write_websocket_message(
                 &mut websocket,
                 JSONRPCMessage::Response(JSONRPCResponse {
                     id: request.id,
-                    result: serde_json::to_value(GetAccountResponse {
-                        account: None,
-                        requires_openai_auth: false,
+                    result: serde_json::to_value(ModelListResponse {
+                        data: Vec::new(),
+                        next_cursor: None,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1389,16 +1373,14 @@ mod tests {
             .await
             .expect("remote client should connect");
 
-        let response: GetAccountResponse = client
-            .request_typed(ClientRequest::GetAccount {
+        let response: ModelListResponse = client
+            .request_typed(ClientRequest::ModelList {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
-                    refresh_token: false,
-                },
+                params: darwin_code_app_server_protocol::ModelListParams::default(),
             })
             .await
             .expect("typed request should succeed");
-        assert_eq!(response.account, None);
+        assert_eq!(response.data, Vec::new());
 
         client.shutdown().await.expect("shutdown should complete");
     }
@@ -1463,9 +1445,9 @@ mod tests {
             expect_remote_initialize(&mut websocket).await;
             let JSONRPCMessage::Request(request) = read_websocket_message(&mut websocket).await
             else {
-                panic!("expected account/read request");
+                panic!("expected model/list request");
             };
-            assert_eq!(request.method, "account/read");
+            assert_eq!(request.method, "model/list");
             first_request_seen_tx
                 .send(request.id.clone())
                 .expect("request id should send");
@@ -1482,9 +1464,9 @@ mod tests {
                 &mut websocket,
                 JSONRPCMessage::Response(JSONRPCResponse {
                     id: request.id,
-                    result: serde_json::to_value(GetAccountResponse {
-                        account: None,
-                        requires_openai_auth: false,
+                    result: serde_json::to_value(ModelListResponse {
+                        data: Vec::new(),
+                        next_cursor: None,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1501,11 +1483,9 @@ mod tests {
 
         let first_request = tokio::spawn(async move {
             first_request_handle
-                .request_typed::<GetAccountResponse>(ClientRequest::GetAccount {
+                .request_typed::<ModelListResponse>(ClientRequest::ModelList {
                     request_id: RequestId::Integer(1),
-                    params: codex_app_server_protocol::GetAccountParams {
-                        refresh_token: false,
-                    },
+                    params: darwin_code_app_server_protocol::ModelListParams::default(),
                 })
                 .await
         });
@@ -1516,17 +1496,15 @@ mod tests {
         assert_eq!(first_request_id, RequestId::Integer(1));
 
         let second_err = second_request_handle
-            .request_typed::<GetAccountResponse>(ClientRequest::GetAccount {
+            .request_typed::<ModelListResponse>(ClientRequest::ModelList {
                 request_id: RequestId::Integer(1),
-                params: codex_app_server_protocol::GetAccountParams {
-                    refresh_token: false,
-                },
+                params: darwin_code_app_server_protocol::ModelListParams::default(),
             })
             .await
             .expect_err("duplicate request id should be rejected");
         assert_eq!(
             second_err.to_string(),
-            "account/read transport error: duplicate remote app-server request id `1`"
+            "model/list transport error: duplicate remote app-server request id `1`"
         );
 
         let first_response = first_request
@@ -1535,9 +1513,9 @@ mod tests {
             .expect("first request should succeed");
         assert_eq!(
             first_response,
-            GetAccountResponse {
-                account: None,
-                requires_openai_auth: false,
+            ModelListResponse {
+                data: Vec::new(),
+                next_cursor: None,
             }
         );
 
@@ -1552,13 +1530,8 @@ mod tests {
                 &mut websocket,
                 JSONRPCMessage::Notification(
                     serde_json::from_value(
-                        serde_json::to_value(ServerNotification::AccountUpdated(
-                            AccountUpdatedNotification {
-                                auth_mode: None,
-                                plan_type: None,
-                            },
-                        ))
-                        .expect("notification should serialize"),
+                        serde_json::to_value(turn_completed_notification())
+                            .expect("notification should serialize"),
                     )
                     .expect("notification should convert to JSON-RPC"),
                 ),
@@ -1573,7 +1546,7 @@ mod tests {
         let event = client.next_event().await.expect("event should arrive");
         assert!(matches!(
             event,
-            AppServerEvent::ServerNotification(ServerNotification::AccountUpdated(_))
+            AppServerEvent::ServerNotification(ServerNotification::TurnCompleted(_))
         ));
 
         client.shutdown().await.expect("shutdown should complete");
@@ -1655,7 +1628,7 @@ mod tests {
                     notification,
                 )) if matches!(
                     &notification.item,
-                    codex_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
+                    darwin_code_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
                 ) =>
                 {
                     transcript_event_names.push("item_completed");
@@ -1663,7 +1636,7 @@ mod tests {
                 AppServerEvent::ServerNotification(ServerNotification::TurnCompleted(
                     notification,
                 )) if notification.turn.status
-                    == codex_app_server_protocol::TurnStatus::Completed =>
+                    == darwin_code_app_server_protocol::TurnStatus::Completed =>
                 {
                     transcript_event_names.push("turn_completed");
                 }
@@ -1923,13 +1896,13 @@ mod tests {
     fn event_requires_delivery_marks_transcript_and_terminal_events() {
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::TurnCompleted(
-                    codex_app_server_protocol::TurnCompletedNotification {
+                darwin_code_app_server_protocol::ServerNotification::TurnCompleted(
+                    darwin_code_app_server_protocol::TurnCompletedNotification {
                         thread_id: "thread".to_string(),
-                        turn: codex_app_server_protocol::Turn {
+                        turn: darwin_code_app_server_protocol::Turn {
                             id: "turn".to_string(),
                             items: Vec::new(),
-                            status: codex_app_server_protocol::TurnStatus::Completed,
+                            status: darwin_code_app_server_protocol::TurnStatus::Completed,
                             error: None,
                             started_at: None,
                             completed_at: Some(0),
@@ -1941,8 +1914,8 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::AgentMessageDelta(
-                    codex_app_server_protocol::AgentMessageDeltaNotification {
+                darwin_code_app_server_protocol::ServerNotification::AgentMessageDelta(
+                    darwin_code_app_server_protocol::AgentMessageDeltaNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
                         item_id: "item".to_string(),
@@ -1953,11 +1926,11 @@ mod tests {
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::ItemCompleted(
-                    codex_app_server_protocol::ItemCompletedNotification {
+                darwin_code_app_server_protocol::ServerNotification::ItemCompleted(
+                    darwin_code_app_server_protocol::ItemCompletedNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
-                        item: codex_app_server_protocol::ThreadItem::AgentMessage {
+                        item: darwin_code_app_server_protocol::ThreadItem::AgentMessage {
                             id: "item".to_string(),
                             text: "hello".to_string(),
                             phase: None,
@@ -1972,8 +1945,8 @@ mod tests {
         }));
         assert!(!event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                codex_app_server_protocol::ServerNotification::CommandExecutionOutputDelta(
-                    codex_app_server_protocol::CommandExecutionOutputDeltaNotification {
+                darwin_code_app_server_protocol::ServerNotification::CommandExecutionOutputDelta(
+                    darwin_code_app_server_protocol::CommandExecutionOutputDeltaNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
                         item_id: "item".to_string(),
@@ -1996,7 +1969,7 @@ mod tests {
             config: config.clone(),
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            external_requirements: ExternalRequirementsLoader::default(),
             feedback: CodexFeedback::new(),
             log_db: None,
             environment_manager: environment_manager.clone(),

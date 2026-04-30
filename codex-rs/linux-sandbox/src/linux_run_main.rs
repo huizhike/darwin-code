@@ -15,10 +15,10 @@ use crate::launcher::exec_bwrap;
 use crate::launcher::preferred_bwrap_supports_argv0;
 use crate::proxy_routing::activate_proxy_routes_in_netns;
 use crate::proxy_routing::prepare_host_proxy_route_spec;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use darwin_code_protocol::protocol::FileSystemSandboxPolicy;
+use darwin_code_protocol::protocol::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
 
 #[derive(Debug, Parser)]
 /// CLI surface for the Linux sandbox helper.

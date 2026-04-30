@@ -3,10 +3,10 @@
 //! This crate defines the feature registry plus the logic used to resolve an
 //! effective feature set from config-like inputs.
 
-use codex_otel::SessionTelemetry;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::WarningEvent;
+use darwin_code_otel::SessionTelemetry;
+use darwin_code_protocol::protocol::Event;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::WarningEvent;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -184,7 +184,7 @@ pub enum Feature {
     FastMode,
     /// Enable experimental realtime voice conversation mode in the TUI.
     RealtimeConversation,
-    /// Connect app-server to the ChatGPT remote control service.
+    /// Removed remote-control compatibility flag retained as a no-op.
     RemoteControl,
     /// Removed compatibility flag retained as a no-op so old wrappers can
     /// still pass `--enable image_detail_original`.
@@ -197,7 +197,7 @@ pub enum Feature {
     ResponsesWebsockets,
     /// Legacy rollout flag for Responses API WebSocket transport v2 experiments.
     ResponsesWebsocketsV2,
-    /// Use the agent identity registration flow for ChatGPT-authenticated sessions.
+    /// Removed agent identity registration compatibility flag retained as a no-op.
     UseAgentIdentity,
     /// Enable workspace dependency support.
     WorkspaceDependencies,
@@ -249,15 +249,12 @@ pub struct FeatureOverrides {
 pub struct FeatureConfigSource<'a> {
     pub features: Option<&'a FeaturesToml>,
     pub include_apply_patch_tool: Option<bool>,
-    pub experimental_use_freeform_apply_patch: Option<bool>,
-    pub experimental_use_unified_exec_tool: Option<bool>,
 }
 
 impl FeatureOverrides {
     fn apply(self, features: &mut Features) {
         LegacyFeatureToggles {
             include_apply_patch_tool: self.include_apply_patch_tool,
-            ..Default::default()
         }
         .apply(features);
         if let Some(enabled) = self.web_search_request {
@@ -290,8 +287,8 @@ impl Features {
         self.enabled.contains(&f)
     }
 
-    pub fn apps_enabled_for_auth(&self, has_chatgpt_auth: bool) -> bool {
-        self.enabled(Feature::Apps) && has_chatgpt_auth
+    pub fn apps_enabled(&self) -> bool {
+        self.enabled(Feature::Apps)
     }
 
     pub fn use_legacy_landlock(&self) -> bool {
@@ -416,8 +413,6 @@ impl Features {
         for source in [base, profile] {
             LegacyFeatureToggles {
                 include_apply_patch_tool: source.include_apply_patch_tool,
-                experimental_use_freeform_apply_patch: source.experimental_use_freeform_apply_patch,
-                experimental_use_unified_exec_tool: source.experimental_use_unified_exec_tool,
             }
             .apply(&mut features);
 
@@ -492,7 +487,7 @@ fn legacy_usage_notice(alias: &str, feature: Feature) -> (String, Option<String>
                 None
             } else {
                 Some(format!(
-                    "Enable it with `--enable {canonical}` or `[features].{canonical}` in config.toml. See https://developers.openai.com/codex/config-basic#feature-flags for details."
+                    "Enable it with `--enable {canonical}` or `[features].{canonical}` in config.toml. See https://developers.openai.com/darwin_code/config-basic#feature-flags for details."
                 ))
             };
             (summary, details)
@@ -690,7 +685,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::GeneralAnalytics,
         key: "general_analytics",
         stage: Stage::Stable,
-        default_enabled: true,
+        default_enabled: false,
     },
     FeatureSpec {
         id: Feature::Sqlite,
@@ -814,7 +809,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         id: Feature::Apps,
         key: "apps",
         stage: Stage::Stable,
-        default_enabled: true,
+        default_enabled: false,
     },
     FeatureSpec {
         id: Feature::ToolSearch,

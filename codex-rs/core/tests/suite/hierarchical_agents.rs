@@ -1,10 +1,10 @@
-use darwin_code_features::Feature;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_darwin_code::test_darwin_code;
+use darwin_code_features::Feature;
 
 const HIERARCHICAL_AGENTS_SNIPPET: &str =
     "Files called AGENTS.md commonly appear in many places inside a container";
@@ -34,7 +34,7 @@ async fn hierarchical_agents_appends_to_project_doc_in_user_instructions() {
     let test = builder
         .build_remote_aware(&server)
         .await
-        .expect("build test darwin-code");
+        .expect("build test darwin_code");
 
     test.submit_turn("hello").await.expect("submit turn");
 
@@ -78,7 +78,7 @@ async fn hierarchical_agents_emits_when_no_project_doc() {
     let test = builder
         .build_remote_aware(&server)
         .await
-        .expect("build test darwin-code");
+        .expect("build test darwin_code");
 
     test.submit_turn("hello").await.expect("submit turn");
 

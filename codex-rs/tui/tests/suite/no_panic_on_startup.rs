@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::select;
 use tokio::time::timeout;
 
-/// Regression test for https://github.com/openai/darwin-code/issues/8803.
+/// Regression test for https://github.com/openai/darwin_code/issues/8803.
 #[tokio::test]
 #[ignore = "TODO(mbolin): flaky"]
 async fn malformed_rules_should_not_panic() -> anyhow::Result<()> {
@@ -25,8 +25,14 @@ async fn malformed_rules_should_not_panic() -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let config_contents = format!(
         r#"
-# Pick a local provider so the CLI doesn't prompt for OpenAI auth in this test.
-model_provider = "ollama"
+# Pick a BYOK provider so the CLI stays in local config mode for this test.
+model_provider = "openai"
+
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
 
 [projects]
 "{cwd}" = {{ trust_level = "trusted" }}
@@ -35,10 +41,11 @@ model_provider = "ollama"
     );
     std::fs::write(darwin_code_home.join("config.toml"), config_contents)?;
 
-    let DarwinCodeCliOutput { exit_code, output } = run_darwin_code_cli(darwin_code_home, cwd).await?;
-    assert_ne!(0, exit_code, "Darwin-Code CLI should exit nonzero.");
+    let DarwinCodeCliOutput { exit_code, output } =
+        run_darwin_code_cli(darwin_code_home, cwd).await?;
+    assert_ne!(0, exit_code, "DarwinCode CLI should exit nonzero.");
     assert!(
-        output.contains("ERROR: Failed to initialize darwin-code:"),
+        output.contains("ERROR: Failed to initialize darwin_code:"),
         "expected startup error in output, got: {output}"
     );
     assert!(
@@ -57,7 +64,7 @@ async fn run_darwin_code_cli(
     darwin_code_home: impl AsRef<Path>,
     cwd: impl AsRef<Path>,
 ) -> anyhow::Result<DarwinCodeCliOutput> {
-    let darwin_code_cli = darwin_code_utils_cargo_bin::cargo_bin("darwin-code")?;
+    let darwin_code_cli = darwin_code_utils_cargo_bin::cargo_bin("darwin_code")?;
     let mut env = HashMap::new();
     env.insert(
         "DARWIN_CODE_HOME".to_string(),
@@ -111,7 +118,7 @@ async fn run_darwin_code_cli(
         Ok(Err(err)) => return Err(err.into()),
         Err(_) => {
             session.terminate();
-            anyhow::bail!("timed out waiting for darwin-code CLI to exit");
+            anyhow::bail!("timed out waiting for darwin_code CLI to exit");
         }
     };
     // Drain any output that raced with the exit notification.

@@ -17,7 +17,7 @@ from .errors import (
 from .generated.v2_all import (
     AskForApproval,
     Personality,
-    PlanType,
+    ModeKind,
     ReasoningEffort,
     ReasoningSummary,
     SandboxMode,
@@ -82,7 +82,7 @@ __all__ = [
     "TurnCompletedNotification",
     "AskForApproval",
     "Personality",
-    "PlanType",
+    "ModeKind",
     "ReasoningEffort",
     "ReasoningSummary",
     "SandboxMode",

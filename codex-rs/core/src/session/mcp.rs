@@ -180,7 +180,6 @@ impl Session {
         mcp_servers: HashMap<String, McpServerConfig>,
         store_mode: OAuthCredentialsStoreMode,
     ) {
-        let auth = self.services.auth_manager.auth().await;
         let config = self.get_config().await;
         let mcp_config = config
             .to_mcp_config(self.services.plugins_manager.as_ref())
@@ -190,7 +189,7 @@ impl Session {
             .mcp_manager
             .tool_plugin_provenance(config.as_ref())
             .await;
-        let mcp_servers = with_darwin_code_apps_mcp(mcp_servers, auth.as_ref(), &mcp_config);
+        let mcp_servers = with_darwin_code_apps_mcp(mcp_servers, &mcp_config);
         let auth_statuses = compute_auth_statuses(mcp_servers.iter(), store_mode).await;
         {
             let mut guard = self.services.mcp_startup_cancellation_token.lock().await;
@@ -206,7 +205,7 @@ impl Session {
             self.get_tx_event(),
             turn_context.sandbox_policy.get().clone(),
             config.darwin_code_home.to_path_buf(),
-            darwin_code_apps_tools_cache_key(auth.as_ref()),
+            darwin_code_apps_tools_cache_key(),
             tool_plugin_provenance,
         )
         .await;

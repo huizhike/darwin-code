@@ -1,7 +1,7 @@
 use crate::agent::AgentStatus;
 use crate::config::ConstraintResult;
 use crate::file_watcher::WatchRegistration;
-use crate::session::Darwin-Code;
+use crate::session::DarwinCode;
 use crate::session::SteerInputError;
 use darwin_code_features::Feature;
 use darwin_code_protocol::config_types::ApprovalsReviewer;
@@ -50,22 +50,22 @@ pub struct ThreadConfigSnapshot {
 }
 
 pub struct DarwinCodeThread {
-    pub(crate) darwin-code: Darwin-Code,
+    pub(crate) darwin_code: DarwinCode,
     rollout_path: Option<PathBuf>,
     out_of_band_elicitation_count: Mutex<u64>,
     _watch_registration: WatchRegistration,
 }
 
 /// Conduit for the bidirectional stream of messages that compose a thread
-/// (formerly called a conversation) in Darwin-Code.
+/// (formerly called a conversation) in DarwinCode.
 impl DarwinCodeThread {
     pub(crate) fn new(
-        darwin-code: Darwin-Code,
+        darwin_code: DarwinCode,
         rollout_path: Option<PathBuf>,
         watch_registration: WatchRegistration,
     ) -> Self {
         Self {
-            darwin-code,
+            darwin_code,
             rollout_path,
             out_of_band_elicitation_count: Mutex::new(0),
             _watch_registration: watch_registration,
@@ -73,21 +73,21 @@ impl DarwinCodeThread {
     }
 
     pub async fn submit(&self, op: Op) -> DarwinCodeResult<String> {
-        self.darwin-code.submit(op).await
+        self.darwin_code.submit(op).await
     }
 
     pub async fn shutdown_and_wait(&self) -> DarwinCodeResult<()> {
-        self.darwin-code.shutdown_and_wait().await
+        self.darwin_code.shutdown_and_wait().await
     }
 
     #[doc(hidden)]
     pub async fn ensure_rollout_materialized(&self) {
-        self.darwin-code.session.ensure_rollout_materialized().await;
+        self.darwin_code.session.ensure_rollout_materialized().await;
     }
 
     #[doc(hidden)]
     pub async fn flush_rollout(&self) -> std::io::Result<()> {
-        self.darwin-code.session.flush_rollout().await
+        self.darwin_code.session.flush_rollout().await
     }
 
     pub async fn submit_with_trace(
@@ -95,12 +95,12 @@ impl DarwinCodeThread {
         op: Op,
         trace: Option<W3cTraceContext>,
     ) -> DarwinCodeResult<String> {
-        self.darwin-code.submit_with_trace(op, trace).await
+        self.darwin_code.submit_with_trace(op, trace).await
     }
 
     /// Persist whether this thread is eligible for future memory generation.
     pub async fn set_thread_memory_mode(&self, mode: ThreadMemoryMode) -> anyhow::Result<()> {
-        self.darwin-code.set_thread_memory_mode(mode).await
+        self.darwin_code.set_thread_memory_mode(mode).await
     }
 
     pub async fn steer_input(
@@ -109,7 +109,7 @@ impl DarwinCodeThread {
         expected_turn_id: Option<&str>,
         responsesapi_client_metadata: Option<HashMap<String, String>>,
     ) -> Result<String, SteerInputError> {
-        self.darwin-code
+        self.darwin_code
             .steer_input(input, expected_turn_id, responsesapi_client_metadata)
             .await
     }
@@ -119,30 +119,30 @@ impl DarwinCodeThread {
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> ConstraintResult<()> {
-        self.darwin-code
+        self.darwin_code
             .set_app_server_client_info(app_server_client_name, app_server_client_version)
             .await
     }
 
     /// Use sparingly: this is intended to be removed soon.
     pub async fn submit_with_id(&self, sub: Submission) -> DarwinCodeResult<()> {
-        self.darwin-code.submit_with_id(sub).await
+        self.darwin_code.submit_with_id(sub).await
     }
 
     pub async fn next_event(&self) -> DarwinCodeResult<Event> {
-        self.darwin-code.next_event().await
+        self.darwin_code.next_event().await
     }
 
     pub async fn agent_status(&self) -> AgentStatus {
-        self.darwin-code.agent_status().await
+        self.darwin_code.agent_status().await
     }
 
     pub(crate) fn subscribe_status(&self) -> watch::Receiver<AgentStatus> {
-        self.darwin-code.agent_status.clone()
+        self.darwin_code.agent_status.clone()
     }
 
     pub(crate) async fn total_token_usage(&self) -> Option<TokenUsage> {
-        self.darwin-code.session.total_token_usage().await
+        self.darwin_code.session.total_token_usage().await
     }
 
     /// Returns the complete token usage snapshot currently cached for this thread.
@@ -153,7 +153,7 @@ impl DarwinCodeThread {
     /// `total_token_usage` would drop last-turn usage and make the v2
     /// `thread/tokenUsage/updated` payload incomplete.
     pub async fn token_usage_info(&self) -> Option<TokenUsageInfo> {
-        self.darwin-code.session.token_usage_info().await
+        self.darwin_code.session.token_usage_info().await
     }
 
     /// Records a user-role session-prefix message without creating a new user turn boundary.
@@ -164,6 +164,7 @@ impl DarwinCodeThread {
             content: vec![ContentItem::InputText { text: message }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         };
         let pending_item = match pending_message_input_item(&message) {
             Ok(pending_item) => pending_item,
@@ -173,14 +174,14 @@ impl DarwinCodeThread {
             }
         };
         if self
-            .darwin-code
+            .darwin_code
             .session
             .inject_response_items(vec![pending_item])
             .await
             .is_err()
         {
-            let turn_context = self.darwin-code.session.new_default_turn().await;
-            self.darwin-code
+            let turn_context = self.darwin_code.session.new_default_turn().await;
+            self.darwin_code
                 .session
                 .record_conversation_items(turn_context.as_ref(), &[message])
                 .await;
@@ -197,16 +198,19 @@ impl DarwinCodeThread {
         let submission_id = uuid::Uuid::new_v4().to_string();
         let pending_item = pending_message_input_item(&message)?;
         if let Err(items) = self
-            .darwin-code
+            .darwin_code
             .session
             .inject_response_items(vec![pending_item])
             .await
         {
-            self.darwin-code
+            self.darwin_code
                 .session
                 .queue_response_items_for_next_turn(items)
                 .await;
-            self.darwin-code.session.maybe_start_turn_for_pending_work().await;
+            self.darwin_code
+                .session
+                .maybe_start_turn_for_pending_work()
+                .await;
         }
 
         Ok(submission_id)
@@ -220,18 +224,24 @@ impl DarwinCodeThread {
             ));
         }
 
-        let turn_context = self.darwin-code.session.new_default_turn().await;
-        if self.darwin-code.session.reference_context_item().await.is_none() {
-            self.darwin-code
+        let turn_context = self.darwin_code.session.new_default_turn().await;
+        if self
+            .darwin_code
+            .session
+            .reference_context_item()
+            .await
+            .is_none()
+        {
+            self.darwin_code
                 .session
                 .record_context_updates_and_set_reference_context_item(turn_context.as_ref())
                 .await;
         }
-        self.darwin-code
+        self.darwin_code
             .session
             .record_conversation_items(turn_context.as_ref(), &items)
             .await;
-        self.darwin-code.session.flush_rollout().await?;
+        self.darwin_code.session.flush_rollout().await?;
         Ok(())
     }
 
@@ -240,11 +250,11 @@ impl DarwinCodeThread {
     }
 
     pub fn state_db(&self) -> Option<StateDbHandle> {
-        self.darwin-code.state_db()
+        self.darwin_code.state_db()
     }
 
     pub async fn config_snapshot(&self) -> ThreadConfigSnapshot {
-        self.darwin-code.thread_config_snapshot().await
+        self.darwin_code.thread_config_snapshot().await
     }
 
     pub async fn read_mcp_resource(
@@ -253,7 +263,7 @@ impl DarwinCodeThread {
         uri: &str,
     ) -> anyhow::Result<serde_json::Value> {
         let result = self
-            .darwin-code
+            .darwin_code
             .session
             .read_resource(
                 server,
@@ -274,14 +284,14 @@ impl DarwinCodeThread {
         arguments: Option<serde_json::Value>,
         meta: Option<serde_json::Value>,
     ) -> anyhow::Result<CallToolResult> {
-        self.darwin-code
+        self.darwin_code
             .session
             .call_tool(server, tool, arguments, meta)
             .await
     }
 
     pub fn enabled(&self, feature: Feature) -> bool {
-        self.darwin-code.enabled(feature)
+        self.darwin_code.enabled(feature)
     }
 
     pub async fn increment_out_of_band_elicitation_count(&self) -> DarwinCodeResult<u64> {
@@ -292,7 +302,7 @@ impl DarwinCodeThread {
         })?;
 
         if was_zero {
-            self.darwin-code
+            self.darwin_code
                 .session
                 .set_out_of_band_elicitation_pause_state(/*paused*/ true);
         }
@@ -311,7 +321,7 @@ impl DarwinCodeThread {
         *guard -= 1;
         let now_zero = *guard == 0;
         if now_zero {
-            self.darwin-code
+            self.darwin_code
                 .session
                 .set_out_of_band_elicitation_pause_state(/*paused*/ false);
         }

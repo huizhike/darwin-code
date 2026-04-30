@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::SkillConfig;
-use codex_config::SkillsConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_app_server_protocol::ConfigLayerSource;
+use darwin_code_config::ConfigLayerStack;
+use darwin_code_config::ConfigLayerStackOrdering;
+use darwin_code_config::SkillConfig;
+use darwin_code_config::SkillsConfig;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use tracing::warn;
 
 use crate::SkillMetadata;

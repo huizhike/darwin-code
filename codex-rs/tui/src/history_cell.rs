@@ -1,4 +1,4 @@
-//! Transcript/history cells for the Darwin-Code TUI.
+//! Transcript/history cells for the DarwinCode TUI.
 //!
 //! A `HistoryCell` is the unit of display in the conversation UI, representing both committed
 //! transcript entries and, transiently, an in-flight active cell that can mutate in place while
@@ -530,7 +530,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/openai/darwin-code".cyan().underlined(),
+                "https://github.com/openai/darwin_code".cyan().underlined(),
                 " for installation options."
             ]
         };
@@ -545,7 +545,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             update_instruction,
             "",
             "See full release notes:",
-            "https://github.com/openai/darwin-code/releases/latest"
+            "https://github.com/openai/darwin_code/releases/latest"
                 .cyan()
                 .underlined(),
         ];
@@ -824,7 +824,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " darwin-code to run ".into(),
+                    " darwin_code to run ".into(),
                     snippet,
                     " this time".bold(),
                 ],
@@ -839,7 +839,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " darwin-code to always run commands that start with ".into(),
+                    " darwin_code to always run commands that start with ".into(),
                     snippet,
                 ],
             )
@@ -851,7 +851,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " darwin-code to run ".into(),
+                    " darwin_code to run ".into(),
                     snippet,
                     " every time this session".bold(),
                 ],
@@ -865,7 +865,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "persisted".bold(),
-                    " Darwin-Code network access to ".into(),
+                    " DarwinCode network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                 ],
             ),
@@ -874,7 +874,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "denied".bold(),
-                    " darwin-code network access to ".into(),
+                    " darwin_code network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                     " and saved that rule".into(),
                 ],
@@ -886,13 +886,13 @@ pub fn new_approval_decision_cell(
                 ApprovalDecisionActor::User => vec![
                     actor.subject().into(),
                     "did not approve".bold(),
-                    " darwin-code to run ".into(),
+                    " darwin_code to run ".into(),
                     snippet,
                 ],
                 ApprovalDecisionActor::Guardian => vec![
                     "Request ".into(),
                     "denied".bold(),
-                    " for darwin-code to run ".into(),
+                    " for darwin_code to run ".into(),
                     snippet,
                 ],
             };
@@ -905,7 +905,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     "Review ".into(),
                     "timed out".bold(),
-                    " before darwin-code could run ".into(),
+                    " before darwin_code could run ".into(),
                     snippet,
                 ],
             )
@@ -950,7 +950,7 @@ pub fn new_guardian_denied_patch_request(files: Vec<String>) -> Box<dyn HistoryC
     let mut summary = vec![
         "Request ".into(),
         "denied".bold(),
-        " for darwin-code to apply ".into(),
+        " for darwin_code to apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -992,7 +992,7 @@ pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn Histo
     let mut summary = vec![
         "Review ".into(),
         "timed out".bold(),
-        " before darwin-code could apply ".into(),
+        " before darwin_code could apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -1213,7 +1213,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/init".into(),
-                " - create an AGENTS.md file with instructions for Darwin-Code".dim(),
+                " - create an AGENTS.md file with instructions for DarwinCode".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1223,7 +1223,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/permissions".into(),
-                " - choose what Darwin-Code is allowed to do".dim(),
+                " - choose what DarwinCode is allowed to do".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1389,10 +1389,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
-        // Title line rendered inside the box: ">_ OpenAI Darwin-Code (vX)"
+        // Title line rendered inside the box: ">_ OpenAI DarwinCode (vX)"
         let title_spans: Vec<Span<'static>> = vec![
             Span::from(">_ ").dim(),
-            Span::from("OpenAI Darwin-Code").bold(),
+            Span::from("OpenAI DarwinCode").bold(),
             Span::from(" ").dim(),
             Span::from(format!("(v{})", self.version)).dim(),
         ];
@@ -1777,8 +1777,8 @@ pub(crate) fn new_web_search_call(
 /// exists” affordance separate from the main MCP tool call cell.
 ///
 /// Manual testing tip:
-/// - Run the rmcp stdio test server (`darwin-code-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
-///   register it as an MCP server via `darwin-code mcp add`.
+/// - Run the rmcp stdio test server (`darwin_code-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
+///   register it as an MCP server via `darwin_code mcp add`.
 /// - Use its `image_scenario` tool with cases like `text_then_image`,
 ///   `invalid_base64_then_image`, or `invalid_image_bytes_then_image` to ensure this path triggers
 ///   even when the first block is not a valid image.
@@ -1878,7 +1878,7 @@ pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
         "  • No MCP servers configured.".italic().into(),
         Line::from(vec![
             "    See the ".into(),
-            "\u{1b}]8;;https://developers.openai.com/darwin-code/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
+            "\u{1b}]8;;https://developers.openai.com/darwin_code/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
                 .underlined(),
             " to configure them.".into(),
         ])
@@ -2099,9 +2099,15 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
         lines.push(header.into());
         let auth_status = status
             .map(|status| match status.auth_status {
-                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                darwin_code_app_server_protocol::McpAuthStatus::Unsupported => {
+                    McpAuthStatus::Unsupported
+                }
+                darwin_code_app_server_protocol::McpAuthStatus::NotLoggedIn => {
+                    McpAuthStatus::NotLoggedIn
+                }
+                darwin_code_app_server_protocol::McpAuthStatus::BearerToken => {
+                    McpAuthStatus::BearerToken
+                }
                 darwin_code_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             })
             .unwrap_or(McpAuthStatus::Unsupported);
@@ -2886,7 +2892,13 @@ mod tests {
 
     const SMALL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
     async fn test_config() -> Config {
-        let darwin_code_home = std::env::temp_dir();
+        let darwin_code_home = tempfile::Builder::new()
+            .prefix("history-cell-tests-")
+            .tempdir()
+            .expect("tempdir")
+            .keep();
+        crate::test_support::ensure_default_byok_provider_config(&darwin_code_home)
+            .expect("write BYOK test config");
         ConfigBuilder::default()
             .darwin_code_home(darwin_code_home.clone())
             .build()
@@ -3066,7 +3078,7 @@ mod tests {
             history_log_id: 0,
             history_entry_count: 0,
             initial_messages: None,
-            network_proxy: None,
+            network_access: None,
             rollout_path: Some(PathBuf::new()),
         }
     }
@@ -3458,7 +3470,7 @@ mod tests {
         let summary = Line::from(vec![
             "You ".into(),
             "approved".bold(),
-            " darwin-code to run ".into(),
+            " darwin_code to run ".into(),
             "echo something really long to ensure wrapping happens".dim(),
             " this time".bold(),
         ]);
@@ -3467,9 +3479,10 @@ mod tests {
         assert_eq!(
             rendered,
             vec![
-                "✔ You approved darwin-code to".to_string(),
-                "  run echo something".to_string(),
-                "  really long to ensure".to_string(),
+                "✔ You approved".to_string(),
+                "  darwin_code to run".to_string(),
+                "  echo something really".to_string(),
+                "  long to ensure".to_string(),
                 "  wrapping happens this".to_string(),
                 "  time".to_string(),
             ]
@@ -4173,7 +4186,7 @@ mod tests {
     #[test]
     fn multiline_command_wraps_with_extra_indent_on_subsequent_lines() {
         // Create a completed exec cell with a multiline command
-        let cmd = "set -o pipefail\ncargo test -p darwin-code-tui --quiet".to_string();
+        let cmd = "set -o pipefail\ncargo test -p darwin_code-tui --quiet".to_string();
         let call_id = "c1".to_string();
         let mut cell = ExecCell::new(
             ExecCall {

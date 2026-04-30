@@ -48,7 +48,7 @@ pub fn run_main() -> i32 {
 
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
-    let cwd = match codex_utils_absolute_path::AbsolutePathBuf::current_dir() {
+    let cwd = match darwin_code_utils_absolute_path::AbsolutePathBuf::current_dir() {
         Ok(cwd) => cwd,
         Err(err) => {
             eprintln!("Error: Failed to determine current directory.\n{err}");
@@ -70,7 +70,7 @@ pub fn run_main() -> i32 {
         &cwd,
         &mut stdout,
         &mut stderr,
-        codex_exec_server::LOCAL_FS.as_ref(),
+        darwin_code_exec_server::LOCAL_FS.as_ref(),
         /*sandbox*/ None,
     )) {
         Ok(()) => {

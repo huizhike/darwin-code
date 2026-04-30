@@ -13,6 +13,7 @@ pub(crate) mod exec_events;
 pub use cli::Cli;
 pub use cli::Command;
 pub use cli::ReviewArgs;
+use codex_feedback::CodexFeedback as DarwinCodeFeedback;
 use darwin_code_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 use darwin_code_app_server_client::EnvironmentManager;
 use darwin_code_app_server_client::ExecServerRuntimePaths;
@@ -50,26 +51,22 @@ use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnStartedNotification;
 use darwin_code_arg0::Arg0DispatchPaths;
+use darwin_code_client::set_default_client_residency_requirement;
+use darwin_code_client::set_default_originator;
 use darwin_code_core::check_execpolicy_for_warnings;
 use darwin_code_core::config::Config;
 use darwin_code_core::config::ConfigBuilder;
 use darwin_code_core::config::ConfigOverrides;
 use darwin_code_core::config::find_darwin_code_home;
 use darwin_code_core::config::load_config_as_toml_with_cli_overrides;
-use darwin_code_core::config::resolve_oss_provider;
 use darwin_code_core::config_loader::ConfigLoadError;
+use darwin_code_core::config_loader::ExternalRequirementsLoader;
 use darwin_code_core::config_loader::LoaderOverrides;
 use darwin_code_core::config_loader::format_config_error_with_source;
 use darwin_code_core::find_thread_meta_by_name_str;
 use darwin_code_core::format_exec_policy_error_with_source;
 use darwin_code_core::path_utils;
 use darwin_code_git_utils::get_git_repo_root;
-use darwin_code_login::AuthConfig;
-use darwin_code_login::default_client::set_default_client_residency_requirement;
-use darwin_code_login::default_client::set_default_originator;
-use darwin_code_login::enforce_login_restrictions;
-use darwin_code_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use darwin_code_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 use darwin_code_otel::set_parent_from_context;
 use darwin_code_otel::traceparent_context_from_env;
 use darwin_code_protocol::config_types::SandboxMode;
@@ -84,11 +81,9 @@ use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::user_input::UserInput;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use darwin_code_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use darwin_code_utils_oss::ensure_oss_provider_ready;
-use darwin_code_utils_oss::get_default_model_for_oss_provider;
 use event_processor_with_human_output::EventProcessorWithHumanOutput;
-pub use event_processor_with_jsonl_output::DarwinCodeStatus;
 pub use event_processor_with_jsonl_output::CollectedThreadEvents;
+pub use event_processor_with_jsonl_output::DarwinCodeStatus;
 pub use event_processor_with_jsonl_output::EventProcessorWithJsonOutput;
 pub use exec_events::AgentMessageItem;
 pub use exec_events::CollabAgentState;
@@ -132,7 +127,6 @@ use std::path::PathBuf;
 use supports_color::Stream;
 use tokio::sync::mpsc;
 use tracing::Instrument;
-use tracing::error;
 use tracing::field;
 use tracing::info;
 use tracing::info_span;
@@ -158,9 +152,9 @@ enum InitialOperation {
 
 enum StdinPromptBehavior {
     /// Read stdin only when there is no positional prompt, which is the legacy
-    /// `darwin-code exec` behavior for `darwin-code exec` with piped input.
+    /// `darwin_code exec` behavior for `darwin_code exec` with piped input.
     RequiredIfPiped,
-    /// Always treat stdin as the prompt, used for the explicit `darwin-code exec -`
+    /// Always treat stdin as the prompt, used for the explicit `darwin_code exec -`
     /// sentinel and similar forced-stdin call sites.
     Forced,
     /// If stdin is piped alongside a positional prompt, treat stdin as
@@ -193,8 +187,6 @@ struct ExecRunArgs {
     images: Vec<PathBuf>,
     json_mode: bool,
     last_message_file: Option<PathBuf>,
-    model_provider: Option<String>,
-    oss: bool,
     output_schema_path: Option<PathBuf>,
     prompt: Option<String>,
     skip_git_repo_check: bool,
@@ -203,7 +195,7 @@ struct ExecRunArgs {
 
 fn exec_root_span() -> tracing::Span {
     info_span!(
-        "darwin-code.exec",
+        "darwin_code.exec",
         otel.kind = "internal",
         thread.id = field::Empty,
         turn.id = field::Empty,
@@ -212,15 +204,16 @@ fn exec_root_span() -> tracing::Span {
 
 pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     if let Err(err) = set_default_originator("darwin_code_exec".to_string()) {
-        tracing::warn!(?err, "Failed to set darwin-code exec originator override {err:?}");
+        tracing::warn!(
+            ?err,
+            "Failed to set darwin_code exec originator override {err:?}"
+        );
     }
 
     let Cli {
         command,
         images,
         model: model_cli_arg,
-        oss,
-        oss_provider,
         config_profile,
         full_auto,
         dangerously_bypass_approvals_and_sandbox,
@@ -289,13 +282,13 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     let darwin_code_home = match find_darwin_code_home() {
         Ok(darwin_code_home) => darwin_code_home,
         Err(err) => {
-            eprintln!("Error finding darwin-code home: {err}");
+            eprintln!("Error finding darwin_code home: {err}");
             std::process::exit(1);
         }
     };
 
     #[allow(clippy::print_stderr)]
-    let config_toml = match load_config_as_toml_with_cli_overrides(
+    let _config_toml = match load_config_as_toml_with_cli_overrides(
         &darwin_code_home,
         Some(&config_cwd),
         cli_kv_overrides.clone(),
@@ -320,50 +313,12 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         }
     };
 
-    let chatgpt_base_url = config_toml
-        .chatgpt_base_url
-        .clone()
-        .unwrap_or_else(|| "https://chatgpt.com/backend-api/".to_string());
-    // TODO(gt): Make cloud requirements failures blocking once we can fail-closed.
-    let cloud_requirements = cloud_requirements_loader_for_storage(
-        darwin_code_home.to_path_buf(),
-        /*enable_darwin_code_api_key_env*/ false,
-        config_toml.cli_auth_credentials_store.unwrap_or_default(),
-        chatgpt_base_url,
-    );
+    let external_requirements = ExternalRequirementsLoader::default();
     let run_cli_overrides = cli_kv_overrides.clone();
     let run_loader_overrides = LoaderOverrides::default();
-    let run_cloud_requirements = cloud_requirements.clone();
+    let run_external_requirements = external_requirements.clone();
 
-    let model_provider = if oss {
-        let resolved = resolve_oss_provider(
-            oss_provider.as_deref(),
-            &config_toml,
-            config_profile.clone(),
-        );
-
-        if let Some(provider) = resolved {
-            Some(provider)
-        } else {
-            return Err(anyhow::anyhow!(
-                "No default OSS provider configured. Use --local-provider=provider or set oss_provider to one of: {LMSTUDIO_OSS_PROVIDER_ID}, {OLLAMA_OSS_PROVIDER_ID} in config.toml"
-            ));
-        }
-    } else {
-        None // No OSS mode enabled
-    };
-
-    // When using `--oss`, let the bootstrapper pick the model based on selected provider
-    let model = if let Some(model) = model_cli_arg {
-        Some(model)
-    } else if oss {
-        model_provider
-            .as_ref()
-            .and_then(|provider_id| get_default_model_for_oss_provider(provider_id))
-            .map(std::borrow::ToOwned::to_owned)
-    } else {
-        None // No model specified, will use the default.
-    };
+    let model = model_cli_arg;
 
     // Load configuration and determine approval policy
     let overrides = ConfigOverrides {
@@ -375,10 +330,10 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         approvals_reviewer: None,
         sandbox_mode,
         cwd: resolved_cwd,
-        model_provider: model_provider.clone(),
+        model_provider: None,
         service_tier: None,
-        darwin_code_self_exe: arg0_paths.darwin_code_self_exe.clone(),
-        darwin_code_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
+        darwin_code_self_exe: arg0_paths.codex_self_exe.clone(),
+        codex_linux_sandbox_exe: arg0_paths.darwin_code_linux_sandbox_exe.clone(),
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe.clone(),
         js_repl_node_path: None,
         js_repl_node_module_dirs: None,
@@ -388,7 +343,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         personality: None,
         compact_prompt: None,
         include_apply_patch_tool: None,
-        show_raw_agent_reasoning: oss.then_some(true),
+        show_raw_agent_reasoning: None,
         tools_web_search_request: None,
         ephemeral: ephemeral.then_some(true),
         additional_writable_roots: add_dir,
@@ -397,7 +352,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     let config = ConfigBuilder::default()
         .cli_overrides(cli_kv_overrides)
         .harness_overrides(overrides)
-        .cloud_requirements(cloud_requirements)
+        .external_requirements(external_requirements)
         .build()
         .await?;
 
@@ -414,16 +369,6 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     }
 
     set_default_client_residency_requirement(config.enforce_residency.value());
-
-    if let Err(err) = enforce_login_restrictions(&AuthConfig {
-        darwin_code_home: config.darwin_code_home.to_path_buf(),
-        auth_credentials_store_mode: config.cli_auth_credentials_store_mode,
-        forced_login_method: config.forced_login_method,
-        forced_chatgpt_workspace_id: config.forced_chatgpt_workspace_id.clone(),
-    }) {
-        eprintln!("{err}");
-        std::process::exit(1);
-    }
 
     let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         darwin_code_core::otel_init::build_provider(
@@ -469,7 +414,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         })
         .collect();
     let local_runtime_paths = ExecServerRuntimePaths::from_optional_paths(
-        arg0_paths.darwin_code_self_exe.clone(),
+        arg0_paths.codex_self_exe.clone(),
         arg0_paths.darwin_code_linux_sandbox_exe.clone(),
     )?;
     let in_process_start_args = InProcessClientStartArgs {
@@ -477,7 +422,7 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         config: std::sync::Arc::new(config.clone()),
         cli_overrides: run_cli_overrides,
         loader_overrides: run_loader_overrides,
-        cloud_requirements: run_cloud_requirements,
+        external_requirements: run_external_requirements,
         feedback: DarwinCodeFeedback::new(),
         log_db: None,
         environment_manager: std::sync::Arc::new(EnvironmentManager::from_env_with_runtime_paths(
@@ -485,8 +430,8 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         )),
         config_warnings,
         session_source: SessionSource::Exec,
-        enable_darwin_code_api_key_env: true,
-        client_name: "darwin-code_exec".to_string(),
+        enable_codex_api_key_env: true,
+        client_name: "darwin_code_exec".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         opt_out_notification_methods: Vec::new(),
@@ -501,8 +446,6 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
         images,
         json_mode,
         last_message_file,
-        model_provider,
-        oss,
         output_schema_path,
         prompt,
         skip_git_repo_check,
@@ -522,8 +465,6 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
         images,
         json_mode,
         last_message_file,
-        model_provider,
-        oss,
         output_schema_path,
         prompt,
         skip_git_repo_check,
@@ -538,23 +479,6 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             last_message_file.clone(),
         )),
     };
-    if oss {
-        // We're in the oss section, so provider_id should be Some
-        // Let's handle None case gracefully though just in case
-        let provider_id = match model_provider.as_ref() {
-            Some(id) => id,
-            None => {
-                error!("OSS provider unexpectedly not set when oss flag is used");
-                return Err(anyhow::anyhow!(
-                    "OSS provider not set but oss flag was used"
-                ));
-            }
-        };
-        ensure_oss_provider_ready(provider_id, &config)
-            .await
-            .map_err(|e| anyhow::anyhow!("OSS setup failed: {e}"))?;
-    }
-
     let default_cwd = config.cwd.to_path_buf();
     let default_approval_policy = config.permissions.approval_policy.value();
     let default_sandbox_policy = config.permissions.sandbox_policy.get();
@@ -563,7 +487,8 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     let (initial_operation, prompt_summary) = match (command.as_ref(), prompt, images) {
         (Some(ExecCommand::Review(review_cli)), _, _) => {
             let review_request = build_review_request(review_cli)?;
-            let summary = darwin_code_core::review_prompts::user_facing_hint(&review_request.target);
+            let summary =
+                darwin_code_core::review_prompts::user_facing_hint(&review_request.target);
             (InitialOperation::Review { review_request }, summary)
         }
         (Some(ExecCommand::Resume(args)), root_prompt, imgs) => {
@@ -694,7 +619,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
 
     exec_span.record("thread.id", primary_thread_id_for_span.as_str());
 
-    // Print the effective configuration and initial request so users can see what Darwin-Code
+    // Print the effective configuration and initial request so users can see what DarwinCode
     // is using.
     event_processor.print_config_summary(&config, &prompt_summary, &session_configured);
     if !json_mode
@@ -704,7 +629,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
         event_processor.process_warning(message);
     }
 
-    info!("Darwin-Code initialized with event: {session_configured:?}");
+    info!("DarwinCode initialized with event: {session_configured:?}");
 
     let (interrupt_tx, mut interrupt_rx) = mpsc::unbounded_channel::<()>();
     tokio::spawn(async move {
@@ -1041,7 +966,7 @@ fn session_configured_from_thread_response(
         history_log_id: 0,
         history_entry_count: 0,
         initial_messages: None,
-        network_proxy: None,
+        network_access: None,
         rollout_path,
     })
 }
@@ -1471,15 +1396,6 @@ async fn handle_server_request(
                     "dynamic tool calls are not supported in exec mode for thread `{}`",
                     params.thread_id
                 ),
-            )
-            .await
-        }
-        ServerRequest::ChatgptAuthTokensRefresh { request_id, .. } => {
-            reject_server_request(
-                client,
-                request_id,
-                &method,
-                "chatgpt auth token refresh is not supported in exec mode".to_string(),
             )
             .await
         }

@@ -1,8 +1,6 @@
 use anyhow::Result;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::DEFAULT_CLIENT_NAME;
-use app_test_support::write_chatgpt_auth;
-use darwin_code_config::types::AuthCredentialsStoreMode;
+use app_test_support::ensure_default_byok_provider_config;
 use darwin_code_config::types::OtelExporterKind;
 use darwin_code_config::types::OtelHttpProtocol;
 use darwin_code_core::config::ConfigBuilder;
@@ -33,6 +31,7 @@ fn set_metrics_exporter(config: &mut darwin_code_core::config::Config) {
 #[tokio::test]
 async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
+    ensure_default_byok_provider_config(darwin_code_home.path())?;
     let mut config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .build()
@@ -43,7 +42,7 @@ async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
     let provider = darwin_code_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
-        Some("darwin-code-app-server"),
+        Some("darwin_code-app-server"),
         /*default_analytics_enabled*/ false,
     )
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -58,6 +57,7 @@ async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
 #[tokio::test]
 async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     let darwin_code_home = TempDir::new()?;
+    ensure_default_byok_provider_config(darwin_code_home.path())?;
     let mut config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
         .build()
@@ -68,7 +68,7 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     let provider = darwin_code_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
-        Some("darwin-code-app-server"),
+        Some("darwin_code-app-server"),
         /*default_analytics_enabled*/ true,
     )
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -79,7 +79,10 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn enable_analytics_capture(server: &MockServer, darwin_code_home: &Path) -> Result<()> {
+pub(crate) async fn enable_analytics_capture(
+    server: &MockServer,
+    darwin_code_home: &Path,
+) -> Result<()> {
     let config_path = darwin_code_home.join("config.toml");
     let config_toml = std::fs::read_to_string(&config_path)?;
     if !config_toml.contains("[features]") {
@@ -97,25 +100,20 @@ pub(crate) async fn enable_analytics_capture(server: &MockServer, darwin_code_ho
     mount_analytics_capture(server, darwin_code_home).await
 }
 
-pub(crate) async fn mount_analytics_capture(server: &MockServer, darwin_code_home: &Path) -> Result<()> {
+pub(crate) async fn mount_analytics_capture(
+    server: &MockServer,
+    _darwin_code_home: &Path,
+) -> Result<()> {
     Mock::given(method("POST"))
-        .and(path("/darwin-code/analytics-events/events"))
+        .and(path("/darwin_code/analytics-events/events"))
         .respond_with(ResponseTemplate::new(200))
         .mount(server)
         .await;
 
-    write_chatgpt_auth(
-        darwin_code_home,
-        ChatGptAuthFixture::new("chatgpt-token")
-            .account_id("account-123")
-            .chatgpt_user_id("user-123")
-            .chatgpt_account_id("account-123"),
-        AuthCredentialsStoreMode::File,
-    )?;
-
     Ok(())
 }
 
+#[allow(dead_code)]
 pub(crate) async fn wait_for_analytics_payload(
     server: &MockServer,
     read_timeout: Duration,
@@ -127,7 +125,8 @@ pub(crate) async fn wait_for_analytics_payload(
                 continue;
             };
             if let Some(request) = requests.iter().find(|request| {
-                request.method == "POST" && request.url.path() == "/darwin-code/analytics-events/events"
+                request.method == "POST"
+                    && request.url.path() == "/darwin_code/analytics-events/events"
             }) {
                 break request.body.clone();
             }
@@ -138,6 +137,26 @@ pub(crate) async fn wait_for_analytics_payload(
     serde_json::from_slice(&body).map_err(|err| anyhow::anyhow!("invalid analytics payload: {err}"))
 }
 
+pub(crate) async fn assert_no_analytics_payload(
+    server: &MockServer,
+    wait_duration: Duration,
+) -> Result<()> {
+    tokio::time::sleep(wait_duration).await;
+    let requests = server.received_requests().await.unwrap_or_default();
+    let analytics_requests = requests
+        .iter()
+        .filter(|request| {
+            request.method == "POST" && request.url.path() == "/darwin_code/analytics-events/events"
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        analytics_requests.is_empty(),
+        "BYOK local runtime should not upload hosted analytics events; requests={analytics_requests:?}"
+    );
+    Ok(())
+}
+
+#[allow(dead_code)]
 pub(crate) async fn wait_for_analytics_event(
     server: &MockServer,
     read_timeout: Duration,
@@ -151,7 +170,7 @@ pub(crate) async fn wait_for_analytics_event(
             };
             for request in &requests {
                 if request.method != "POST"
-                    || request.url.path() != "/darwin-code/analytics-events/events"
+                    || request.url.path() != "/darwin_code/analytics-events/events"
                 {
                     continue;
                 }
@@ -173,6 +192,8 @@ pub(crate) async fn wait_for_analytics_event(
     .await?
 }
 
+#[allow(dead_code)]
+#[allow(dead_code)]
 pub(crate) fn thread_initialized_event(payload: &Value) -> Result<&Value> {
     let events = payload["events"]
         .as_array()
@@ -183,6 +204,8 @@ pub(crate) fn thread_initialized_event(payload: &Value) -> Result<&Value> {
         .ok_or_else(|| anyhow::anyhow!("darwin_code_thread_initialized event should be present"))
 }
 
+#[allow(dead_code)]
+#[allow(dead_code)]
 pub(crate) fn assert_basic_thread_initialized_event(
     event: &Value,
     thread_id: &str,

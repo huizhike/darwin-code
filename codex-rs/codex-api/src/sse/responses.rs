@@ -3,11 +3,13 @@ use crate::common::ResponseStream;
 use crate::error::ApiError;
 use crate::rate_limits::parse_all_rate_limits;
 use crate::telemetry::SseTelemetry;
-use codex_client::ByteStream;
-use codex_client::StreamResponse;
-use codex_client::TransportError;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::TokenUsage;
+use darwin_code_client::ByteStream;
+use darwin_code_client::StreamResponse;
+use darwin_code_client::TransportError;
+use darwin_code_protocol::models::LocalShellAction;
+use darwin_code_protocol::models::LocalShellStatus;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::TokenUsage;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
 use futures::TryStreamExt;
@@ -78,7 +80,7 @@ pub fn spawn_response_stream(
     if let Some(turn_state) = turn_state.as_ref()
         && let Some(header_value) = stream_response
             .headers
-            .get("x-codex-turn-state")
+            .get("x-darwin_code-turn-state")
             .and_then(|v| v.to_str().ok())
     {
         let _ = turn_state.set(header_value.to_string());
@@ -241,6 +243,9 @@ pub fn process_responses_event(
     match event.kind.as_str() {
         "response.output_item.done" => {
             if let Some(item_val) = event.item {
+                if let Some(item) = local_shell_call_with_missing_ids(&item_val) {
+                    return Ok(Some(ResponseEvent::OutputItemDone(item)));
+                }
                 if let Ok(item) = serde_json::from_value::<ResponseItem>(item_val) {
                     return Ok(Some(ResponseEvent::OutputItemDone(item)));
                 }
@@ -365,6 +370,32 @@ pub fn process_responses_event(
     }
 
     Ok(None)
+}
+
+fn local_shell_call_with_missing_ids(item_val: &Value) -> Option<ResponseItem> {
+    if item_val.get("type").and_then(Value::as_str) != Some("local_shell_call") {
+        return None;
+    }
+    if item_val
+        .get("call_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .is_some()
+        || item_val
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .is_some()
+    {
+        return None;
+    }
+
+    Some(ResponseItem::LocalShellCall {
+        id: None,
+        call_id: None,
+        status: serde_json::from_value::<LocalShellStatus>(item_val.get("status")?.clone()).ok()?,
+        action: serde_json::from_value::<LocalShellAction>(item_val.get("action")?.clone()).ok()?,
+    })
 }
 
 pub async fn process_sse(
@@ -506,9 +537,9 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use bytes::Bytes;
-    use codex_client::StreamResponse;
-    use codex_protocol::models::MessagePhase;
-    use codex_protocol::models::ResponseItem;
+    use darwin_code_client::StreamResponse;
+    use darwin_code_protocol::models::MessagePhase;
+    use darwin_code_protocol::models::ResponseItem;
     use futures::stream;
     use http::HeaderMap;
     use http::HeaderValue;

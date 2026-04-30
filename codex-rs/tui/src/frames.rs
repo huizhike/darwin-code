@@ -45,7 +45,7 @@ macro_rules! frames_for {
 }
 
 pub(crate) const FRAMES_DEFAULT: [&str; 36] = frames_for!("default");
-pub(crate) const FRAMES_DARWIN_CODE: [&str; 36] = frames_for!("darwin-code");
+pub(crate) const FRAMES_DARWIN_CODE: [&str; 36] = frames_for!("darwin_code");
 pub(crate) const FRAMES_OPENAI: [&str; 36] = frames_for!("openai");
 pub(crate) const FRAMES_BLOCKS: [&str; 36] = frames_for!("blocks");
 pub(crate) const FRAMES_DOTS: [&str; 36] = frames_for!("dots");

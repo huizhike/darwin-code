@@ -8,11 +8,11 @@
 #![expect(clippy::expect_used)]
 
 use anyhow::Result;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
-use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server_protocol::ItemCompletedNotification;
 use darwin_code_app_server_protocol::ItemStartedNotification;
 use darwin_code_app_server_protocol::JSONRPCError;
@@ -28,11 +28,8 @@ use darwin_code_app_server_protocol::TurnCompletedNotification;
 use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::UserInput as V2UserInput;
-use darwin_code_config::types::AuthCredentialsStoreMode;
 use darwin_code_protocol::models::ContentItem;
 use darwin_code_protocol::models::ResponseItem;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use tempfile::TempDir;
@@ -77,7 +74,7 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*use_openai_provider_name_for_remote_compaction*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -136,6 +133,7 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         },
         ResponseItem::Compaction {
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
@@ -157,13 +155,7 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         "mock_provider",
         COMPACT_PROMPT,
     )?;
-    write_chatgpt_auth(
-        darwin_code_home.path(),
-        ChatGptAuthFixture::new("access-chatgpt").plan_type("pro"),
-        AuthCredentialsStoreMode::File,
-    )?;
-
-    let mut mcp = McpProcess::new_with_env(darwin_code_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new(darwin_code_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -212,7 +204,7 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*use_openai_provider_name_for_remote_compaction*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -262,7 +254,7 @@ async fn thread_compact_start_rejects_invalid_thread_id() -> Result<()> {
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*use_openai_provider_name_for_remote_compaction*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -298,7 +290,7 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*use_openai_provider_name_for_remote_compaction*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;

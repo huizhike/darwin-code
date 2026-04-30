@@ -20,39 +20,39 @@ use crate::protocol::v2::TurnError;
 use crate::protocol::v2::TurnStatus;
 use crate::protocol::v2::UserInput;
 use crate::protocol::v2::WebSearchAction;
-use codex_protocol::items::parse_hook_prompt_message;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::protocol::AgentReasoningEvent;
-use codex_protocol::protocol::AgentReasoningRawContentEvent;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::ContextCompactedEvent;
-use codex_protocol::protocol::DynamicToolCallResponseEvent;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::ImageGenerationBeginEvent;
-use codex_protocol::protocol::ImageGenerationEndEvent;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_protocol::protocol::ReviewOutputEvent;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::ThreadRolledBackEvent;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::protocol::ViewImageToolCallEvent;
-use codex_protocol::protocol::WebSearchBeginEvent;
-use codex_protocol::protocol::WebSearchEndEvent;
+use darwin_code_protocol::items::parse_hook_prompt_message;
+use darwin_code_protocol::models::MessagePhase;
+use darwin_code_protocol::protocol::AgentReasoningEvent;
+use darwin_code_protocol::protocol::AgentReasoningRawContentEvent;
+use darwin_code_protocol::protocol::AgentStatus;
+use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use darwin_code_protocol::protocol::CompactedItem;
+use darwin_code_protocol::protocol::ContextCompactedEvent;
+use darwin_code_protocol::protocol::DynamicToolCallResponseEvent;
+use darwin_code_protocol::protocol::ErrorEvent;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::ExecCommandBeginEvent;
+use darwin_code_protocol::protocol::ExecCommandEndEvent;
+use darwin_code_protocol::protocol::GuardianAssessmentEvent;
+use darwin_code_protocol::protocol::GuardianAssessmentStatus;
+use darwin_code_protocol::protocol::ImageGenerationBeginEvent;
+use darwin_code_protocol::protocol::ImageGenerationEndEvent;
+use darwin_code_protocol::protocol::ItemCompletedEvent;
+use darwin_code_protocol::protocol::ItemStartedEvent;
+use darwin_code_protocol::protocol::McpToolCallBeginEvent;
+use darwin_code_protocol::protocol::McpToolCallEndEvent;
+use darwin_code_protocol::protocol::PatchApplyBeginEvent;
+use darwin_code_protocol::protocol::PatchApplyEndEvent;
+use darwin_code_protocol::protocol::ReviewOutputEvent;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::ThreadRolledBackEvent;
+use darwin_code_protocol::protocol::TurnAbortedEvent;
+use darwin_code_protocol::protocol::TurnCompleteEvent;
+use darwin_code_protocol::protocol::TurnStartedEvent;
+use darwin_code_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::protocol::ViewImageToolCallEvent;
+use darwin_code_protocol::protocol::WebSearchBeginEvent;
+use darwin_code_protocol::protocol::WebSearchEndEvent;
 use std::collections::HashMap;
 use tracing::warn;
 use uuid::Uuid;
@@ -66,9 +66,9 @@ use crate::protocol::v2::PatchApplyStatus;
 #[cfg(test)]
 use crate::protocol::v2::PatchChangeKind;
 #[cfg(test)]
-use codex_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
+use darwin_code_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
 #[cfg(test)]
-use codex_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
+use darwin_code_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
 
 /// Convert persisted [`RolloutItem`] entries into a sequence of [`Turn`] values.
 ///
@@ -236,8 +236,8 @@ impl ThreadHistoryBuilder {
         }
     }
 
-    fn handle_response_item(&mut self, item: &codex_protocol::models::ResponseItem) {
-        let codex_protocol::models::ResponseItem::Message {
+    fn handle_response_item(&mut self, item: &darwin_code_protocol::models::ResponseItem) {
+        let darwin_code_protocol::models::ResponseItem::Message {
             role, content, id, ..
         } = item
         else {
@@ -343,7 +343,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_item_started(&mut self, payload: &ItemStartedEvent) {
         match &payload.item {
-            codex_protocol::items::TurnItem::Plan(plan) => {
+            darwin_code_protocol::items::TurnItem::Plan(plan) => {
                 if plan.text.is_empty() {
                     return;
                 }
@@ -352,19 +352,19 @@ impl ThreadHistoryBuilder {
                     ThreadItem::from(payload.item.clone()),
                 );
             }
-            codex_protocol::items::TurnItem::UserMessage(_)
-            | codex_protocol::items::TurnItem::HookPrompt(_)
-            | codex_protocol::items::TurnItem::AgentMessage(_)
-            | codex_protocol::items::TurnItem::Reasoning(_)
-            | codex_protocol::items::TurnItem::WebSearch(_)
-            | codex_protocol::items::TurnItem::ImageGeneration(_)
-            | codex_protocol::items::TurnItem::ContextCompaction(_) => {}
+            darwin_code_protocol::items::TurnItem::UserMessage(_)
+            | darwin_code_protocol::items::TurnItem::HookPrompt(_)
+            | darwin_code_protocol::items::TurnItem::AgentMessage(_)
+            | darwin_code_protocol::items::TurnItem::Reasoning(_)
+            | darwin_code_protocol::items::TurnItem::WebSearch(_)
+            | darwin_code_protocol::items::TurnItem::ImageGeneration(_)
+            | darwin_code_protocol::items::TurnItem::ContextCompaction(_) => {}
         }
     }
 
     fn handle_item_completed(&mut self, payload: &ItemCompletedEvent) {
         match &payload.item {
-            codex_protocol::items::TurnItem::Plan(plan) => {
+            darwin_code_protocol::items::TurnItem::Plan(plan) => {
                 if plan.text.is_empty() {
                     return;
                 }
@@ -373,13 +373,13 @@ impl ThreadHistoryBuilder {
                     ThreadItem::from(payload.item.clone()),
                 );
             }
-            codex_protocol::items::TurnItem::UserMessage(_)
-            | codex_protocol::items::TurnItem::HookPrompt(_)
-            | codex_protocol::items::TurnItem::AgentMessage(_)
-            | codex_protocol::items::TurnItem::Reasoning(_)
-            | codex_protocol::items::TurnItem::WebSearch(_)
-            | codex_protocol::items::TurnItem::ImageGeneration(_)
-            | codex_protocol::items::TurnItem::ContextCompaction(_) => {}
+            darwin_code_protocol::items::TurnItem::UserMessage(_)
+            | darwin_code_protocol::items::TurnItem::HookPrompt(_)
+            | darwin_code_protocol::items::TurnItem::AgentMessage(_)
+            | darwin_code_protocol::items::TurnItem::Reasoning(_)
+            | darwin_code_protocol::items::TurnItem::WebSearch(_)
+            | darwin_code_protocol::items::TurnItem::ImageGeneration(_)
+            | darwin_code_protocol::items::TurnItem::ContextCompaction(_) => {}
         }
     }
 
@@ -464,7 +464,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_dynamic_tool_call_request(
         &mut self,
-        payload: &codex_protocol::dynamic_tools::DynamicToolCallRequest,
+        payload: &darwin_code_protocol::dynamic_tools::DynamicToolCallRequest,
     ) {
         let item = ThreadItem::DynamicToolCall {
             id: payload.call_id.clone(),
@@ -597,7 +597,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_agent_spawn_begin(
         &mut self,
-        payload: &codex_protocol::protocol::CollabAgentSpawnBeginEvent,
+        payload: &darwin_code_protocol::protocol::CollabAgentSpawnBeginEvent,
     ) {
         let item = ThreadItem::CollabAgentToolCall {
             id: payload.call_id.clone(),
@@ -615,7 +615,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_agent_spawn_end(
         &mut self,
-        payload: &codex_protocol::protocol::CollabAgentSpawnEndEvent,
+        payload: &darwin_code_protocol::protocol::CollabAgentSpawnEndEvent,
     ) {
         let has_receiver = payload.new_thread_id.is_some();
         let status = match &payload.status {
@@ -649,7 +649,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_agent_interaction_begin(
         &mut self,
-        payload: &codex_protocol::protocol::CollabAgentInteractionBeginEvent,
+        payload: &darwin_code_protocol::protocol::CollabAgentInteractionBeginEvent,
     ) {
         let item = ThreadItem::CollabAgentToolCall {
             id: payload.call_id.clone(),
@@ -667,7 +667,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_agent_interaction_end(
         &mut self,
-        payload: &codex_protocol::protocol::CollabAgentInteractionEndEvent,
+        payload: &darwin_code_protocol::protocol::CollabAgentInteractionEndEvent,
     ) {
         let status = match &payload.status {
             AgentStatus::Errored(_) | AgentStatus::NotFound => CollabAgentToolCallStatus::Failed,
@@ -690,7 +690,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_waiting_begin(
         &mut self,
-        payload: &codex_protocol::protocol::CollabWaitingBeginEvent,
+        payload: &darwin_code_protocol::protocol::CollabWaitingBeginEvent,
     ) {
         let item = ThreadItem::CollabAgentToolCall {
             id: payload.call_id.clone(),
@@ -712,7 +712,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_waiting_end(
         &mut self,
-        payload: &codex_protocol::protocol::CollabWaitingEndEvent,
+        payload: &darwin_code_protocol::protocol::CollabWaitingEndEvent,
     ) {
         let status = if payload
             .statuses
@@ -746,7 +746,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_close_begin(
         &mut self,
-        payload: &codex_protocol::protocol::CollabCloseBeginEvent,
+        payload: &darwin_code_protocol::protocol::CollabCloseBeginEvent,
     ) {
         let item = ThreadItem::CollabAgentToolCall {
             id: payload.call_id.clone(),
@@ -762,7 +762,10 @@ impl ThreadHistoryBuilder {
         self.upsert_item_in_current_turn(item);
     }
 
-    fn handle_collab_close_end(&mut self, payload: &codex_protocol::protocol::CollabCloseEndEvent) {
+    fn handle_collab_close_end(
+        &mut self,
+        payload: &darwin_code_protocol::protocol::CollabCloseEndEvent,
+    ) {
         let status = match &payload.status {
             AgentStatus::Errored(_) | AgentStatus::NotFound => CollabAgentToolCallStatus::Failed,
             _ => CollabAgentToolCallStatus::Completed,
@@ -789,7 +792,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_resume_begin(
         &mut self,
-        payload: &codex_protocol::protocol::CollabResumeBeginEvent,
+        payload: &darwin_code_protocol::protocol::CollabResumeBeginEvent,
     ) {
         let item = ThreadItem::CollabAgentToolCall {
             id: payload.call_id.clone(),
@@ -807,7 +810,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_collab_resume_end(
         &mut self,
-        payload: &codex_protocol::protocol::CollabResumeEndEvent,
+        payload: &darwin_code_protocol::protocol::CollabResumeEndEvent,
     ) {
         let status = match &payload.status {
             AgentStatus::Errored(_) | AgentStatus::NotFound => CollabAgentToolCallStatus::Failed,
@@ -840,7 +843,10 @@ impl ThreadHistoryBuilder {
             .push(ThreadItem::ContextCompaction { id });
     }
 
-    fn handle_entered_review_mode(&mut self, payload: &codex_protocol::protocol::ReviewRequest) {
+    fn handle_entered_review_mode(
+        &mut self,
+        payload: &darwin_code_protocol::protocol::ReviewRequest,
+    ) {
         let review = payload
             .user_facing_hint
             .clone()
@@ -853,7 +859,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_exited_review_mode(
         &mut self,
-        payload: &codex_protocol::protocol::ExitedReviewModeEvent,
+        payload: &darwin_code_protocol::protocol::ExitedReviewModeEvent,
     ) {
         let review = payload
             .review_output
@@ -1092,16 +1098,16 @@ fn render_review_output_text(output: &ReviewOutputEvent) -> String {
 }
 
 fn convert_dynamic_tool_content_items(
-    items: &[codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem],
+    items: &[darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem],
 ) -> Vec<DynamicToolCallOutputContentItem> {
     items
         .iter()
         .cloned()
         .map(|item| match item {
-            codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText { text } => {
-                DynamicToolCallOutputContentItem::InputText { text }
-            }
-            codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputImage {
+            darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
+                text,
+            } => DynamicToolCallOutputContentItem::InputText { text },
+            darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputImage {
                 image_url,
             } => DynamicToolCallOutputContentItem::InputImage { image_url },
         })
@@ -1186,38 +1192,38 @@ impl From<&PendingTurn> for Turn {
 mod tests {
     use super::*;
     use crate::protocol::v2::CommandExecutionSource;
-    use codex_protocol::ThreadId;
-    use codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
-    use codex_protocol::items::HookPromptFragment as CoreHookPromptFragment;
-    use codex_protocol::items::TurnItem as CoreTurnItem;
-    use codex_protocol::items::UserMessageItem as CoreUserMessageItem;
-    use codex_protocol::items::build_hook_prompt_message;
-    use codex_protocol::mcp::CallToolResult;
-    use codex_protocol::models::MessagePhase as CoreMessagePhase;
-    use codex_protocol::models::WebSearchAction as CoreWebSearchAction;
-    use codex_protocol::parse_command::ParsedCommand;
-    use codex_protocol::protocol::AgentMessageEvent;
-    use codex_protocol::protocol::AgentReasoningEvent;
-    use codex_protocol::protocol::AgentReasoningRawContentEvent;
-    use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-    use codex_protocol::protocol::CodexErrorInfo;
-    use codex_protocol::protocol::CompactedItem;
-    use codex_protocol::protocol::DynamicToolCallResponseEvent;
-    use codex_protocol::protocol::ExecCommandEndEvent;
-    use codex_protocol::protocol::ExecCommandSource;
-    use codex_protocol::protocol::ItemStartedEvent;
-    use codex_protocol::protocol::McpInvocation;
-    use codex_protocol::protocol::McpToolCallEndEvent;
-    use codex_protocol::protocol::PatchApplyBeginEvent;
-    use codex_protocol::protocol::ThreadRolledBackEvent;
-    use codex_protocol::protocol::TurnAbortReason;
-    use codex_protocol::protocol::TurnAbortedEvent;
-    use codex_protocol::protocol::TurnCompleteEvent;
-    use codex_protocol::protocol::TurnStartedEvent;
-    use codex_protocol::protocol::UserMessageEvent;
-    use codex_protocol::protocol::WebSearchEndEvent;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
+    use darwin_code_protocol::items::HookPromptFragment as CoreHookPromptFragment;
+    use darwin_code_protocol::items::TurnItem as CoreTurnItem;
+    use darwin_code_protocol::items::UserMessageItem as CoreUserMessageItem;
+    use darwin_code_protocol::items::build_hook_prompt_message;
+    use darwin_code_protocol::mcp::CallToolResult;
+    use darwin_code_protocol::models::MessagePhase as CoreMessagePhase;
+    use darwin_code_protocol::models::WebSearchAction as CoreWebSearchAction;
+    use darwin_code_protocol::parse_command::ParsedCommand;
+    use darwin_code_protocol::protocol::AgentMessageEvent;
+    use darwin_code_protocol::protocol::AgentReasoningEvent;
+    use darwin_code_protocol::protocol::AgentReasoningRawContentEvent;
+    use darwin_code_protocol::protocol::ApplyPatchApprovalRequestEvent;
+    use darwin_code_protocol::protocol::CodexErrorInfo;
+    use darwin_code_protocol::protocol::CompactedItem;
+    use darwin_code_protocol::protocol::DynamicToolCallResponseEvent;
+    use darwin_code_protocol::protocol::ExecCommandEndEvent;
+    use darwin_code_protocol::protocol::ExecCommandSource;
+    use darwin_code_protocol::protocol::ItemStartedEvent;
+    use darwin_code_protocol::protocol::McpInvocation;
+    use darwin_code_protocol::protocol::McpToolCallEndEvent;
+    use darwin_code_protocol::protocol::PatchApplyBeginEvent;
+    use darwin_code_protocol::protocol::ThreadRolledBackEvent;
+    use darwin_code_protocol::protocol::TurnAbortReason;
+    use darwin_code_protocol::protocol::TurnAbortedEvent;
+    use darwin_code_protocol::protocol::TurnCompleteEvent;
+    use darwin_code_protocol::protocol::TurnStartedEvent;
+    use darwin_code_protocol::protocol::UserMessageEvent;
+    use darwin_code_protocol::protocol::WebSearchEndEvent;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use std::time::Duration;
@@ -1970,7 +1976,7 @@ mod tests {
                 local_images: Vec::new(),
             }),
             EventMsg::DynamicToolCallRequest(
-                codex_protocol::dynamic_tools::DynamicToolCallRequest {
+                darwin_code_protocol::dynamic_tools::DynamicToolCallRequest {
                     call_id: "dyn-1".into(),
                     turn_id: "turn-1".into(),
                     tool: "lookup_ticket".into(),
@@ -2054,7 +2060,7 @@ mod tests {
                 success: false,
                 changes: [(
                     PathBuf::from("README.md"),
-                    codex_protocol::protocol::FileChange::Add {
+                    darwin_code_protocol::protocol::FileChange::Add {
                         content: "hello\n".into(),
                     },
                 )]
@@ -2139,11 +2145,13 @@ mod tests {
                 target_item_id: Some("guardian-exec".into()),
                 turn_id: "turn-1".into(),
                 status: GuardianAssessmentStatus::Denied,
-                risk_level: Some(codex_protocol::protocol::GuardianRiskLevel::High),
-                user_authorization: Some(codex_protocol::protocol::GuardianUserAuthorization::Low),
+                risk_level: Some(darwin_code_protocol::protocol::GuardianRiskLevel::High),
+                user_authorization: Some(
+                    darwin_code_protocol::protocol::GuardianUserAuthorization::Low,
+                ),
                 rationale: Some("Would delete user data.".into()),
                 decision_source: Some(
-                    codex_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
+                    darwin_code_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
                 ),
                 action: serde_json::from_value(serde_json::json!({
                     "type": "command",
@@ -2436,7 +2444,7 @@ mod tests {
                 auto_approved: false,
                 changes: [(
                     PathBuf::from("README.md"),
-                    codex_protocol::protocol::FileChange::Add {
+                    darwin_code_protocol::protocol::FileChange::Add {
                         content: "hello\n".into(),
                     },
                 )]
@@ -2499,7 +2507,7 @@ mod tests {
                 turn_id: turn_id.to_string(),
                 changes: [(
                     PathBuf::from("README.md"),
-                    codex_protocol::protocol::FileChange::Add {
+                    darwin_code_protocol::protocol::FileChange::Add {
                         content: "hello\n".into(),
                     },
                 )]
@@ -2708,7 +2716,7 @@ mod tests {
                 text_elements: Vec::new(),
                 local_images: Vec::new(),
             }),
-            EventMsg::CollabResumeEnd(codex_protocol::protocol::CollabResumeEndEvent {
+            EventMsg::CollabResumeEnd(darwin_code_protocol::protocol::CollabResumeEndEvent {
                 call_id: "resume-1".into(),
                 sender_thread_id: ThreadId::try_from("00000000-0000-0000-0000-000000000001")
                     .expect("valid sender thread id"),
@@ -2764,17 +2772,19 @@ mod tests {
                 text_elements: Vec::new(),
                 local_images: Vec::new(),
             }),
-            EventMsg::CollabAgentSpawnEnd(codex_protocol::protocol::CollabAgentSpawnEndEvent {
-                call_id: "spawn-1".into(),
-                sender_thread_id,
-                new_thread_id: Some(spawned_thread_id),
-                new_agent_nickname: Some("Scout".into()),
-                new_agent_role: Some("explorer".into()),
-                prompt: "inspect the repo".into(),
-                model: "gpt-5.4-mini".into(),
-                reasoning_effort: codex_protocol::openai_models::ReasoningEffort::Medium,
-                status: AgentStatus::Running,
-            }),
+            EventMsg::CollabAgentSpawnEnd(
+                darwin_code_protocol::protocol::CollabAgentSpawnEndEvent {
+                    call_id: "spawn-1".into(),
+                    sender_thread_id,
+                    new_thread_id: Some(spawned_thread_id),
+                    new_agent_nickname: Some("Scout".into()),
+                    new_agent_role: Some("explorer".into()),
+                    prompt: "inspect the repo".into(),
+                    model: "gpt-5.4-mini".into(),
+                    reasoning_effort: darwin_code_protocol::openai_models::ReasoningEffort::Medium,
+                    status: AgentStatus::Running,
+                },
+            ),
         ];
 
         let items = events
@@ -2794,7 +2804,9 @@ mod tests {
                 receiver_thread_ids: vec!["00000000-0000-0000-0000-000000000002".into()],
                 prompt: Some("inspect the repo".into()),
                 model: Some("gpt-5.4-mini".into()),
-                reasoning_effort: Some(codex_protocol::openai_models::ReasoningEffort::Medium),
+                reasoning_effort: Some(
+                    darwin_code_protocol::openai_models::ReasoningEffort::Medium
+                ),
                 agents_states: [(
                     "00000000-0000-0000-0000-000000000002".into(),
                     CollabAgentState {
@@ -2825,7 +2837,7 @@ mod tests {
                 local_images: Vec::new(),
             }),
             EventMsg::CollabAgentInteractionBegin(
-                codex_protocol::protocol::CollabAgentInteractionBeginEvent {
+                darwin_code_protocol::protocol::CollabAgentInteractionBeginEvent {
                     call_id: "send-1".into(),
                     sender_thread_id: sender,
                     receiver_thread_id: receiver,
@@ -2833,7 +2845,7 @@ mod tests {
                 },
             ),
             EventMsg::CollabAgentInteractionEnd(
-                codex_protocol::protocol::CollabAgentInteractionEndEvent {
+                darwin_code_protocol::protocol::CollabAgentInteractionEndEvent {
                     call_id: "send-1".into(),
                     sender_thread_id: sender,
                     receiver_thread_id: receiver,
@@ -3070,14 +3082,15 @@ mod tests {
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::ResponseItem(codex_protocol::models::ResponseItem::Message {
+            RolloutItem::ResponseItem(darwin_code_protocol::models::ResponseItem::Message {
                 id: Some("msg-1".into()),
                 role: "user".into(),
-                content: vec![codex_protocol::models::ContentItem::InputText {
+                content: vec![darwin_code_protocol::models::ContentItem::InputText {
                     text: "plain text".into(),
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }),
             RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
                 turn_id: "turn-a".into(),

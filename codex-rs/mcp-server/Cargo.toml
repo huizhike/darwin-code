@@ -16,13 +16,13 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
+darwin-code-client = { workspace = true }
 anyhow = { workspace = true }
 darwin-code-arg0 = { workspace = true }
 darwin-code-config = { workspace = true }
 darwin-code-core = { workspace = true }
 darwin-code-exec-server = { workspace = true }
 darwin-code-features = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-models-manager = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-utils-cli = { workspace = true }

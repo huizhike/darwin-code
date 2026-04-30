@@ -9,14 +9,25 @@ use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+use core_test_support::ByokTestAuth;
 use darwin_code_config::types::McpServerConfig;
 use darwin_code_config::types::McpServerTransportConfig;
 use darwin_code_core::config::Config;
 use darwin_code_features::Feature;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_mcp::MCP_SANDBOX_STATE_META_CAPABILITY;
 use darwin_code_models_manager::manager::RefreshStrategy;
 
+use core_test_support::assert_regex_match;
+use core_test_support::responses;
+use core_test_support::responses::ev_custom_tool_call;
+use core_test_support::responses::mount_models_once;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::skip_if_no_network;
+use core_test_support::stdio_server_bin;
+use core_test_support::test_darwin_code::TestDarwinCode;
+use core_test_support::test_darwin_code::test_darwin_code;
+use core_test_support::wait_for_event;
+use core_test_support::wait_for_event_with_timeout;
 use darwin_code_protocol::config_types::ReasoningSummary;
 use darwin_code_protocol::openai_models::ConfigShellToolType;
 use darwin_code_protocol::openai_models::InputModality;
@@ -33,17 +44,6 @@ use darwin_code_protocol::protocol::Op;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::user_input::UserInput;
 use darwin_code_utils_cargo_bin::cargo_bin;
-use core_test_support::assert_regex_match;
-use core_test_support::responses;
-use core_test_support::responses::ev_custom_tool_call;
-use core_test_support::responses::mount_models_once;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::skip_if_no_network;
-use core_test_support::stdio_server_bin;
-use core_test_support::test_darwin_code::TestDarwinCode;
-use core_test_support::test_darwin_code::test_darwin_code;
-use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_with_timeout;
 use reqwest::Client;
 use reqwest::StatusCode;
 use serde_json::Value;
@@ -89,9 +89,9 @@ enum McpCallEvent {
 async fn wait_for_mcp_tool(fixture: &TestDarwinCode, tool_name: &str) -> anyhow::Result<()> {
     let tools_ready_deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        fixture.darwin-code.submit(Op::ListMcpTools).await?;
+        fixture.darwin_code.submit(Op::ListMcpTools).await?;
         let list_event = wait_for_event_with_timeout(
-            &fixture.darwin-code,
+            &fixture.darwin_code,
             |ev| matches!(ev, EventMsg::McpListToolsResponse(_)),
             Duration::from_secs(10),
         )
@@ -222,7 +222,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
     let session_model = fixture.session_configured.model.clone();
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp echo tool".into(),
@@ -242,7 +242,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
         })
         .await?;
 
-    let begin_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
@@ -253,7 +253,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
 
-    let end_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
@@ -289,7 +289,10 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
         .expect("env snapshot inserted");
     assert_eq!(env_value, expected_env_value);
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let output_item = final_mock.single_request().function_call_output(call_id);
     let request = call_mock.single_request();
@@ -358,9 +361,9 @@ async fn stdio_mcp_tool_call_includes_sandbox_state_meta() -> anyhow::Result<()>
 
     let tools_ready_deadline = Instant::now() + Duration::from_secs(30);
     loop {
-        fixture.darwin-code.submit(Op::ListMcpTools).await?;
+        fixture.darwin_code.submit(Op::ListMcpTools).await?;
         let list_event = wait_for_event_with_timeout(
-            &fixture.darwin-code,
+            &fixture.darwin_code,
             |ev| matches!(ev, EventMsg::McpListToolsResponse(_)),
             Duration::from_secs(10),
         )
@@ -474,7 +477,7 @@ async fn stdio_mcp_parallel_tool_calls_default_false_runs_serially() -> anyhow::
     let session_model = fixture.session_configured.model.clone();
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp sync tool twice".into(),
@@ -496,7 +499,7 @@ async fn stdio_mcp_parallel_tool_calls_default_false_runs_serially() -> anyhow::
 
     let mut call_events = Vec::new();
     while call_events.len() < 4 {
-        let event = wait_for_event(&fixture.darwin-code, |ev| {
+        let event = wait_for_event(&fixture.darwin_code, |ev| {
             matches!(
                 ev,
                 EventMsg::McpToolCallBegin(_) | EventMsg::McpToolCallEnd(_)
@@ -529,7 +532,10 @@ async fn stdio_mcp_parallel_tool_calls_default_false_runs_serially() -> anyhow::
         "default MCP tool calls should run serially; saw events: {call_events:?}"
     );
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = final_mock.single_request();
     for call_id in [first_call_id, second_call_id] {
@@ -605,7 +611,7 @@ async fn stdio_mcp_parallel_tool_calls_opt_in_runs_concurrently() -> anyhow::Res
     let session_model = fixture.session_configured.model.clone();
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp sync tool twice".into(),
@@ -625,7 +631,10 @@ async fn stdio_mcp_parallel_tool_calls_opt_in_runs_concurrently() -> anyhow::Res
         })
         .await?;
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = final_mock.single_request();
     for call_id in [first_call_id, second_call_id] {
@@ -701,7 +710,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
     wait_for_mcp_tool(&fixture, &tool_name).await?;
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp image tool".into(),
@@ -722,7 +731,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
         .await?;
 
     // Wait for tool begin/end and final completion.
-    let begin_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
@@ -742,7 +751,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
         },
     );
 
-    let end_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
@@ -769,7 +778,10 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
     assert_eq!(entry.get("mimeType"), Some(&json!("image/png")));
     assert_eq!(entry.get("data"), Some(&json!(base64_only)));
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let output_item = final_mock.single_request().function_call_output(call_id);
     assert_eq!(output_item["type"], "function_call_output");
@@ -848,7 +860,7 @@ async fn stdio_image_responses_preserve_original_detail_metadata() -> anyhow::Re
     wait_for_mcp_tool(&fixture, &tool_name).await?;
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp image_scenario tool".into(),
@@ -868,7 +880,10 @@ async fn stdio_image_responses_preserve_original_detail_metadata() -> anyhow::Re
         })
         .await?;
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let output_item = final_mock.single_request().function_call_output(call_id);
     let output = output_item["output"]
@@ -929,11 +944,11 @@ async fn js_repl_emit_image_preserves_original_detail_for_mcp_images() -> anyhow
                 call_id,
                 "js_repl",
                 r#"
-const out = await darwin-code.tool("mcp__rmcp__image_scenario", {
+const out = await darwin_code.tool("mcp__rmcp__image_scenario", {
   scenario: "image_only_original_detail",
 });
 const imageItem = out.output.find((item) => item.type === "input_image");
-await darwin-code.emitImage(imageItem);
+await darwin_code.emitImage(imageItem);
 "#,
             ),
             responses::ev_completed("resp-1"),
@@ -1054,7 +1069,7 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
     let rmcp_test_server_bin = stdio_server_bin()?;
 
     let fixture = test_darwin_code()
-        .with_auth(DarwinCodeAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(ByokTestAuth::dummy_for_testing())
         .with_config(move |config| {
             insert_mcp_server(
                 config,
@@ -1081,7 +1096,7 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
     assert_eq!(models_mock.requests().len(), 1);
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp image tool".into(),
@@ -1101,15 +1116,18 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
         })
         .await?;
 
-    wait_for_event(&fixture.darwin-code, |ev| {
+    wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
-    wait_for_event(&fixture.darwin-code, |ev| {
+    wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let output_item = final_mock.single_request().function_call_output(call_id);
     let output_text = output_item
@@ -1186,7 +1204,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
     let session_model = fixture.session_configured.model.clone();
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp echo tool".into(),
@@ -1206,7 +1224,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
         })
         .await?;
 
-    let begin_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
@@ -1217,7 +1235,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
 
-    let end_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
@@ -1253,7 +1271,10 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
         .expect("env snapshot inserted");
     assert_eq!(env_value, expected_env_value);
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     server.verify().await;
 
@@ -1339,7 +1360,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     let session_model = fixture.session_configured.model.clone();
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp streamable http echo tool".into(),
@@ -1359,7 +1380,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
         })
         .await?;
 
-    let begin_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
@@ -1370,7 +1391,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
 
-    let end_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
@@ -1406,7 +1427,10 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
         .expect("env snapshot inserted");
     assert_eq!(env_value, expected_env_value);
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     server.verify().await;
 
@@ -1519,7 +1543,8 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
         .await?;
 
     let temp_home = Arc::new(tempdir()?);
-    let _darwin_code_home_guard = EnvVarGuard::set("DARWIN_CODE_HOME", temp_home.path().as_os_str());
+    let _darwin_code_home_guard =
+        EnvVarGuard::set("DARWIN_CODE_HOME", temp_home.path().as_os_str());
     write_fallback_oauth_tokens(
         temp_home.path(),
         server_name,
@@ -1555,7 +1580,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     wait_for_mcp_tool(&fixture, &tool_name).await?;
 
     fixture
-        .darwin-code
+        .darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "call the rmcp streamable http oauth echo tool".into(),
@@ -1575,7 +1600,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
         })
         .await?;
 
-    let begin_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let begin_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallBegin(_))
     })
     .await;
@@ -1586,7 +1611,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     assert_eq!(begin.invocation.server, server_name);
     assert_eq!(begin.invocation.tool, "echo");
 
-    let end_event = wait_for_event(&fixture.darwin-code, |ev| {
+    let end_event = wait_for_event(&fixture.darwin_code, |ev| {
         matches!(ev, EventMsg::McpToolCallEnd(_))
     })
     .await;
@@ -1622,7 +1647,10 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
         .expect("env snapshot inserted");
     assert_eq!(env_value, expected_env_value);
 
-    wait_for_event(&fixture.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&fixture.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     server.verify().await;
 

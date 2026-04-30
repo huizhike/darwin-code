@@ -35,9 +35,9 @@ def test_generated_params_models_are_snake_case_and_dump_by_alias() -> None:
     assert dumped == {"searchTerm": "needle", "limit": 5}
 
 
-def test_generated_v2_bundle_has_single_shared_plan_type_definition() -> None:
+def test_generated_v2_bundle_has_single_shared_mode_kind_definition() -> None:
     source = (ROOT / "src" / "codex_app_server" / "generated" / "v2_all.py").read_text()
-    assert source.count("class PlanType(") == 1
+    assert source.count("class ModeKind(") == 1
 
 
 def test_notifications_are_typed_with_canonical_v2_methods() -> None:

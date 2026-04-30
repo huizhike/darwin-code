@@ -151,9 +151,9 @@ fn response_item_records_turn_ttft(item: &ResponseItem) -> bool {
             summary, content, ..
         } => {
             summary.iter().any(|entry| match entry {
-                darwin_code_protocol::models::ReasoningItemReasoningSummary::SummaryText { text } => {
-                    !text.is_empty()
-                }
+                darwin_code_protocol::models::ReasoningItemReasoningSummary::SummaryText {
+                    text,
+                } => !text.is_empty(),
             }) || content.as_ref().is_some_and(|entries| {
                 entries.iter().any(|entry| match entry {
                     darwin_code_protocol::models::ReasoningItemContent::ReasoningText { text }

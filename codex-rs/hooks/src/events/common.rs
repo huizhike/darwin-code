@@ -1,9 +1,9 @@
-use codex_protocol::protocol::HookCompletedEvent;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookOutputEntry;
-use codex_protocol::protocol::HookOutputEntryKind;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookRunSummary;
+use darwin_code_protocol::protocol::HookCompletedEvent;
+use darwin_code_protocol::protocol::HookEventName;
+use darwin_code_protocol::protocol::HookOutputEntry;
+use darwin_code_protocol::protocol::HookOutputEntryKind;
+use darwin_code_protocol::protocol::HookRunStatus;
+use darwin_code_protocol::protocol::HookRunSummary;
 
 use crate::engine::ConfiguredHandler;
 use crate::engine::dispatcher;
@@ -135,7 +135,7 @@ fn is_match_all_matcher(matcher: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::protocol::HookEventName;
+    use darwin_code_protocol::protocol::HookEventName;
     use pretty_assertions::assert_eq;
 
     use super::matcher_pattern_for_event;

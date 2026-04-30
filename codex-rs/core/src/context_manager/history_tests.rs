@@ -42,6 +42,7 @@ fn assistant_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -61,6 +62,7 @@ fn inter_agent_assistant_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -81,6 +83,7 @@ fn user_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -93,6 +96,7 @@ fn user_input_text_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -105,6 +109,7 @@ fn developer_msg(text: &str) -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -120,6 +125,7 @@ fn developer_msg_with_fragments(texts: &[&str]) -> ResponseItem {
             .collect(),
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -143,7 +149,9 @@ fn reference_context_item() -> TurnContextItem {
         user_instructions: None,
         developer_instructions: None,
         final_output_json_schema: None,
-        truncation_policy: Some(darwin_code_protocol::protocol::TruncationPolicy::Tokens(10_000)),
+        truncation_policy: Some(darwin_code_protocol::protocol::TruncationPolicy::Tokens(
+            10_000,
+        )),
     }
 }
 
@@ -200,6 +208,7 @@ fn filters_non_api_messages() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let reasoning = reasoning_msg("thinking...");
     h.record_items([&system, &reasoning, &ResponseItem::Other], policy);
@@ -231,6 +240,7 @@ fn filters_non_api_messages() {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             },
             ResponseItem::Message {
                 id: None,
@@ -240,6 +250,7 @@ fn filters_non_api_messages() {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }
         ]
     );
@@ -389,6 +400,7 @@ fn for_prompt_strips_images_when_model_does_not_support_images() {
             ],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         },
         ResponseItem::FunctionCall {
             id: None,
@@ -452,6 +464,7 @@ fn for_prompt_strips_images_when_model_does_not_support_images() {
             ],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         },
         ResponseItem::FunctionCall {
             id: None,
@@ -510,6 +523,7 @@ fn for_prompt_strips_images_when_model_does_not_support_images() {
         ],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }]);
     let preserved = with_images.for_prompt(&modalities);
     assert_eq!(preserved.len(), 1);
@@ -538,6 +552,7 @@ fn for_prompt_preserves_image_generation_calls_when_images_are_supported() {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         },
     ]);
 
@@ -558,6 +573,7 @@ fn for_prompt_preserves_image_generation_calls_when_images_are_supported() {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             }
         ]
     );
@@ -574,6 +590,7 @@ fn for_prompt_clears_image_generation_result_when_images_are_unsupported() {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         },
         ResponseItem::ImageGenerationCall {
             id: "ig_123".to_string(),
@@ -594,6 +611,7 @@ fn for_prompt_clears_image_generation_result_when_images_are_unsupported() {
                 }],
                 end_turn: None,
                 phase: None,
+                reasoning_content: None,
             },
             ResponseItem::ImageGenerationCall {
                 id: "ig_123".to_string(),
@@ -755,6 +773,7 @@ fn replace_last_turn_images_does_not_touch_user_images() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }];
     let mut history = create_history_with_items(items.clone());
 
@@ -1684,6 +1703,7 @@ fn image_data_url_payload_does_not_dominate_message_estimate() {
         ],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let text_only_item = ResponseItem::Message {
         id: None,
@@ -1693,6 +1713,7 @@ fn image_data_url_payload_does_not_dominate_message_estimate() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     let raw_len = serde_json::to_string(&image_item).unwrap().len() as i64;
@@ -1766,6 +1787,7 @@ fn non_base64_image_urls_are_unchanged() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
     let function_output_item = ResponseItem::FunctionCallOutput {
         call_id: "call-1".to_string(),
@@ -1797,6 +1819,7 @@ fn data_url_without_base64_marker_is_unchanged() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     assert_eq!(
@@ -1835,6 +1858,7 @@ fn mixed_case_data_url_markers_are_adjusted() {
         content: vec![ContentItem::InputImage { image_url }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     let raw_len = serde_json::to_string(&item).unwrap().len() as i64;
@@ -1866,6 +1890,7 @@ fn multiple_inline_images_apply_multiple_fixed_costs() {
         ],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     let raw_len = serde_json::to_string(&item).unwrap().len() as i64;
@@ -1949,6 +1974,7 @@ fn text_only_items_unchanged() {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     };
 
     let estimated = estimate_response_item_model_visible_bytes(&item);

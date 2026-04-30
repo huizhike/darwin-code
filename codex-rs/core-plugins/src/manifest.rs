@@ -1,5 +1,5 @@
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_plugins::find_plugin_manifest_path;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::fs;

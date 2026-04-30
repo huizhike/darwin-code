@@ -3,14 +3,13 @@ use crate::bottom_pane::FeedbackAudience;
 use crate::legacy_core::append_message_history_entry;
 use crate::legacy_core::config::Config;
 use crate::legacy_core::message_history_metadata;
-use crate::status::StatusAccountDisplay;
-use crate::status::plan_type_display_name;
+use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::Result;
+use color_eyre::eyre::WrapErr;
 use darwin_code_app_server_client::AppServerClient;
 use darwin_code_app_server_client::AppServerEvent;
 use darwin_code_app_server_client::AppServerRequestHandle;
 use darwin_code_app_server_client::TypedRequestError;
-use darwin_code_app_server_protocol::Account;
-use darwin_code_app_server_protocol::AuthMode;
 use darwin_code_app_server_protocol::ClientRequest;
 use darwin_code_app_server_protocol::ConfigBatchWriteParams;
 use darwin_code_app_server_protocol::ConfigWriteResponse;
@@ -19,11 +18,7 @@ use darwin_code_app_server_protocol::ExternalAgentConfigDetectResponse;
 use darwin_code_app_server_protocol::ExternalAgentConfigImportParams;
 use darwin_code_app_server_protocol::ExternalAgentConfigImportResponse;
 use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
-use darwin_code_app_server_protocol::GetAccountParams;
-use darwin_code_app_server_protocol::GetAccountRateLimitsResponse;
-use darwin_code_app_server_protocol::GetAccountResponse;
 use darwin_code_app_server_protocol::JSONRPCErrorError;
-use darwin_code_app_server_protocol::LogoutAccountResponse;
 use darwin_code_app_server_protocol::MemoryResetResponse;
 use darwin_code_app_server_protocol::Model as ApiModel;
 use darwin_code_app_server_protocol::ModelListParams;
@@ -79,7 +74,6 @@ use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnSteerParams;
 use darwin_code_app_server_protocol::TurnSteerResponse;
-use darwin_code_otel::TelemetryAuthMode;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::openai_models::ModelAvailabilityNux;
 use darwin_code_protocol::openai_models::ModelPreset;
@@ -90,38 +84,20 @@ use darwin_code_protocol::protocol::ConversationAudioParams;
 use darwin_code_protocol::protocol::ConversationStartParams;
 use darwin_code_protocol::protocol::ConversationStartTransport;
 use darwin_code_protocol::protocol::ConversationTextParams;
-use darwin_code_protocol::protocol::CreditsSnapshot;
-use darwin_code_protocol::protocol::RateLimitSnapshot;
-use darwin_code_protocol::protocol::RateLimitWindow;
 use darwin_code_protocol::protocol::ReviewRequest;
 use darwin_code_protocol::protocol::ReviewTarget as CoreReviewTarget;
 use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::protocol::SessionNetworkProxyRuntime;
+use darwin_code_protocol::protocol::SessionNetworkAccessRuntimeRuntime;
 use darwin_code_utils_absolute_path::AbsolutePathBuf;
-use color_eyre::eyre::ContextCompat;
-use color_eyre::eyre::Result;
-use color_eyre::eyre::WrapErr;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Data collected during the TUI bootstrap phase that the main event loop
-/// needs to configure the UI, telemetry, and initial rate-limit prefetch.
-///
-/// Rate-limit snapshots are intentionally **not** included here; they are
-/// fetched asynchronously after bootstrap returns so that the TUI can render
-/// its first frame without waiting for the rate-limit round-trip.
+/// needs to configure the UI. Hosted account bootstrap has been removed
+/// from the BYOK-only app-server boundary.
 pub(crate) struct AppServerBootstrap {
-    pub(crate) account_email: Option<String>,
-    pub(crate) auth_mode: Option<TelemetryAuthMode>,
-    pub(crate) status_account_display: Option<StatusAccountDisplay>,
-    pub(crate) plan_type: Option<darwin_code_protocol::account::PlanType>,
-    /// Whether the configured model provider needs OpenAI-style auth. Combined
-    /// with `has_chatgpt_account` to decide if a startup rate-limit prefetch
-    /// should be fired.
-    pub(crate) requires_openai_auth: bool,
     pub(crate) default_model: String,
     pub(crate) feedback_audience: FeedbackAudience,
-    pub(crate) has_chatgpt_account: bool,
     pub(crate) available_models: Vec<ModelPreset>,
 }
 
@@ -147,7 +123,7 @@ pub(crate) struct ThreadSessionState {
     pub(crate) reasoning_effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
     pub(crate) history_log_id: u64,
     pub(crate) history_entry_count: u64,
-    pub(crate) network_proxy: Option<SessionNetworkProxyRuntime>,
+    pub(crate) network_access: Option<SessionNetworkAccessRuntimeRuntime>,
     pub(crate) rollout_path: Option<PathBuf>,
 }
 
@@ -194,7 +170,6 @@ impl AppServerSession {
     }
 
     pub(crate) async fn bootstrap(&mut self, config: &Config) -> Result<AppServerBootstrap> {
-        let account = self.read_account().await?;
         let model_request_id = self.next_request_id();
         let models: ModelListResponse = self
             .client
@@ -224,73 +199,12 @@ impl AppServerSession {
             })
             .or_else(|| available_models.first().map(|model| model.model.clone()))
             .wrap_err("model/list returned no models for TUI bootstrap")?;
-
-        let (
-            account_email,
-            auth_mode,
-            status_account_display,
-            plan_type,
-            feedback_audience,
-            has_chatgpt_account,
-        ) = match account.account {
-            Some(Account::ApiKey {}) => (
-                None,
-                Some(TelemetryAuthMode::ApiKey),
-                Some(StatusAccountDisplay::ApiKey),
-                None,
-                FeedbackAudience::External,
-                false,
-            ),
-            Some(Account::Chatgpt { email, plan_type }) => {
-                let feedback_audience = if email.ends_with("@openai.com") {
-                    FeedbackAudience::OpenAiEmployee
-                } else {
-                    FeedbackAudience::External
-                };
-                (
-                    Some(email.clone()),
-                    Some(TelemetryAuthMode::Chatgpt),
-                    Some(StatusAccountDisplay::ChatGpt {
-                        email: Some(email),
-                        plan: Some(plan_type_display_name(plan_type)),
-                    }),
-                    Some(plan_type),
-                    feedback_audience,
-                    true,
-                )
-            }
-            None => (None, None, None, None, FeedbackAudience::External, false),
-        };
         Ok(AppServerBootstrap {
-            account_email,
-            auth_mode,
-            status_account_display,
-            plan_type,
-            requires_openai_auth: account.requires_openai_auth,
             default_model,
-            feedback_audience,
-            has_chatgpt_account,
+            feedback_audience: FeedbackAudience::External,
             available_models,
         })
     }
-
-    /// Fetches the current account info without refreshing the auth token.
-    ///
-    /// Used by both `bootstrap` (to populate the initial UI) and `get_login_status`
-    /// (to check auth mode without the overhead of a full bootstrap).
-    pub(crate) async fn read_account(&mut self) -> Result<GetAccountResponse> {
-        let account_request_id = self.next_request_id();
-        self.client
-            .request_typed(ClientRequest::GetAccount {
-                request_id: account_request_id,
-                params: GetAccountParams {
-                    refresh_token: false,
-                },
-            })
-            .await
-            .wrap_err("account/read failed during TUI bootstrap")
-    }
-
     pub(crate) async fn external_agent_config_detect(
         &mut self,
         params: ExternalAgentConfigDetectParams,
@@ -583,20 +497,6 @@ impl AppServerSession {
             .wrap_err("memory/reset failed in TUI")?;
         Ok(())
     }
-
-    pub(crate) async fn logout_account(&mut self) -> Result<()> {
-        let request_id = self.next_request_id();
-        let _: LogoutAccountResponse = self
-            .client
-            .request_typed(ClientRequest::LogoutAccount {
-                request_id,
-                params: None,
-            })
-            .await
-            .wrap_err("account/logout failed in TUI")?;
-        Ok(())
-    }
-
     pub(crate) async fn thread_unsubscribe(&mut self, thread_id: ThreadId) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ThreadUnsubscribeResponse = self
@@ -847,23 +747,6 @@ impl AppServerSession {
         RequestId::Integer(request_id)
     }
 }
-
-pub(crate) fn status_account_display_from_auth_mode(
-    auth_mode: Option<AuthMode>,
-    plan_type: Option<darwin_code_protocol::account::PlanType>,
-) -> Option<StatusAccountDisplay> {
-    match auth_mode {
-        Some(AuthMode::ApiKey) => Some(StatusAccountDisplay::ApiKey),
-        Some(AuthMode::Chatgpt) | Some(AuthMode::ChatgptAuthTokens) => {
-            Some(StatusAccountDisplay::ChatGpt {
-                email: None,
-                plan: plan_type.map(plan_type_display_name),
-            })
-        }
-        None => None,
-    }
-}
-
 fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
     let upgrade = model.upgrade.map(|upgrade_id| {
         let upgrade_info = model.upgrade_info.clone();
@@ -933,7 +816,9 @@ fn sandbox_mode_from_policy(
         SandboxPolicy::DangerFullAccess => {
             Some(darwin_code_app_server_protocol::SandboxMode::DangerFullAccess)
         }
-        SandboxPolicy::ReadOnly { .. } => Some(darwin_code_app_server_protocol::SandboxMode::ReadOnly),
+        SandboxPolicy::ReadOnly { .. } => {
+            Some(darwin_code_app_server_protocol::SandboxMode::ReadOnly)
+        }
         SandboxPolicy::WorkspaceWrite { .. } => {
             Some(darwin_code_app_server_protocol::SandboxMode::WorkspaceWrite)
         }
@@ -1188,60 +1073,10 @@ async fn thread_session_state_from_thread_response(
         reasoning_effort,
         history_log_id,
         history_entry_count,
-        network_proxy: None,
+        network_access: None,
         rollout_path,
     })
 }
-
-pub(crate) fn app_server_rate_limit_snapshots_to_core(
-    response: GetAccountRateLimitsResponse,
-) -> Vec<RateLimitSnapshot> {
-    let mut snapshots = Vec::new();
-    snapshots.push(app_server_rate_limit_snapshot_to_core(response.rate_limits));
-    if let Some(by_limit_id) = response.rate_limits_by_limit_id {
-        snapshots.extend(
-            by_limit_id
-                .into_values()
-                .map(app_server_rate_limit_snapshot_to_core),
-        );
-    }
-    snapshots
-}
-
-pub(crate) fn app_server_rate_limit_snapshot_to_core(
-    snapshot: darwin_code_app_server_protocol::RateLimitSnapshot,
-) -> RateLimitSnapshot {
-    RateLimitSnapshot {
-        limit_id: snapshot.limit_id,
-        limit_name: snapshot.limit_name,
-        primary: snapshot.primary.map(app_server_rate_limit_window_to_core),
-        secondary: snapshot.secondary.map(app_server_rate_limit_window_to_core),
-        credits: snapshot.credits.map(app_server_credits_snapshot_to_core),
-        plan_type: snapshot.plan_type,
-        rate_limit_reached_type: snapshot.rate_limit_reached_type.map(Into::into),
-    }
-}
-
-fn app_server_rate_limit_window_to_core(
-    window: darwin_code_app_server_protocol::RateLimitWindow,
-) -> RateLimitWindow {
-    RateLimitWindow {
-        used_percent: window.used_percent as f64,
-        window_minutes: window.window_duration_mins,
-        resets_at: window.resets_at,
-    }
-}
-
-fn app_server_credits_snapshot_to_core(
-    snapshot: darwin_code_app_server_protocol::CreditsSnapshot,
-) -> CreditsSnapshot {
-    CreditsSnapshot {
-        has_credits: snapshot.has_credits,
-        unlimited: snapshot.unlimited,
-        balance: snapshot.balance,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1255,6 +1090,8 @@ mod tests {
     use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> Config {
+        crate::test_support::ensure_default_byok_provider_config(temp_dir.path())
+            .expect("write BYOK test config");
         ConfigBuilder::default()
             .darwin_code_home(temp_dir.path().to_path_buf())
             .build()
@@ -1494,32 +1331,5 @@ mod tests {
         .expect("session should map");
 
         assert_eq!(session.forked_from_id, Some(forked_from_id));
-    }
-
-    #[test]
-    fn status_account_display_from_auth_mode_uses_remapped_plan_labels() {
-        let business = status_account_display_from_auth_mode(
-            Some(AuthMode::Chatgpt),
-            Some(darwin_code_protocol::account::PlanType::EnterpriseCbpUsageBased),
-        );
-        assert!(matches!(
-            business,
-            Some(StatusAccountDisplay::ChatGpt {
-                email: None,
-                plan: Some(ref plan),
-            }) if plan == "Enterprise"
-        ));
-
-        let team = status_account_display_from_auth_mode(
-            Some(AuthMode::Chatgpt),
-            Some(darwin_code_protocol::account::PlanType::SelfServeBusinessUsageBased),
-        );
-        assert!(matches!(
-            team,
-            Some(StatusAccountDisplay::ChatGpt {
-                email: None,
-                plan: Some(ref plan),
-            }) if plan == "Business"
-        ));
     }
 }

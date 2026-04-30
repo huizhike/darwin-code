@@ -1,11 +1,8 @@
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::PROXY_URL_ENV_KEYS;
-use codex_network_proxy::has_proxy_url_env_vars;
-use codex_network_proxy::proxy_url_env_value;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use crate::NetworkAccessRuntime;
+use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
+use darwin_code_protocol::permissions::NetworkSandboxPolicy;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -40,9 +37,17 @@ fn proxy_scheme_default_port(scheme: &str) -> u16 {
 }
 
 fn proxy_loopback_ports_from_env(env: &HashMap<String, String>) -> Vec<u16> {
+    const PROXY_URL_ENV_KEYS: &[&str] = &[
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ];
     let mut ports = BTreeSet::new();
     for key in PROXY_URL_ENV_KEYS {
-        let Some(proxy_url) = proxy_url_env_value(env, key) else {
+        let Some(proxy_url) = env.get(*key).cloned() else {
             continue;
         };
         let trimmed = proxy_url.trim();
@@ -75,7 +80,7 @@ fn proxy_loopback_ports_from_env(env: &HashMap<String, String>) -> Vec<u16> {
 }
 
 #[derive(Debug, Default)]
-struct ProxyPolicyInputs {
+struct SandboxNetworkPolicyInputs {
     ports: Vec<u16>,
     has_proxy_config: bool,
     allow_local_binding: bool,
@@ -102,9 +107,9 @@ struct UnixSocketPathParam {
 }
 
 fn proxy_policy_inputs(
-    network: Option<&NetworkProxy>,
+    network: Option<&NetworkAccessRuntime>,
     extra_allow_unix_sockets: &[AbsolutePathBuf],
-) -> ProxyPolicyInputs {
+) -> SandboxNetworkPolicyInputs {
     let extra_allowed = extra_allow_unix_sockets
         .iter()
         .filter_map(|socket_path| normalize_path_for_sandbox(socket_path.as_path()))
@@ -135,14 +140,14 @@ fn proxy_policy_inputs(
                 allowed.extend(extra_allowed);
                 UnixDomainSocketPolicy::Restricted { allowed }
             };
-            ProxyPolicyInputs {
+            SandboxNetworkPolicyInputs {
                 ports: proxy_loopback_ports_from_env(&env),
-                has_proxy_config: has_proxy_url_env_vars(&env),
+                has_proxy_config: !proxy_loopback_ports_from_env(&env).is_empty(),
                 allow_local_binding: network.allow_local_binding(),
                 unix_domain_socket_policy,
             }
         }
-        None => ProxyPolicyInputs {
+        None => SandboxNetworkPolicyInputs {
             unix_domain_socket_policy: UnixDomainSocketPolicy::Restricted {
                 allowed: extra_allowed,
             },
@@ -167,7 +172,7 @@ fn normalize_path_for_sandbox(path: &Path) -> Option<AbsolutePathBuf> {
     normalized_path.or(Some(absolute_path))
 }
 
-fn unix_socket_path_params(proxy: &ProxyPolicyInputs) -> Vec<UnixSocketPathParam> {
+fn unix_socket_path_params(proxy: &SandboxNetworkPolicyInputs) -> Vec<UnixSocketPathParam> {
     let mut deduped_paths: BTreeMap<String, AbsolutePathBuf> = BTreeMap::new();
     let UnixDomainSocketPolicy::Restricted { allowed } = &proxy.unix_domain_socket_policy else {
         return vec![];
@@ -189,7 +194,7 @@ fn unix_socket_path_param_key(index: usize) -> String {
     format!("UNIX_SOCKET_PATH_{index}")
 }
 
-fn unix_socket_dir_params(proxy: &ProxyPolicyInputs) -> Vec<(String, PathBuf)> {
+fn unix_socket_dir_params(proxy: &SandboxNetworkPolicyInputs) -> Vec<(String, PathBuf)> {
     unix_socket_path_params(proxy)
         .into_iter()
         .map(|param| {
@@ -204,7 +209,7 @@ fn unix_socket_dir_params(proxy: &ProxyPolicyInputs) -> Vec<(String, PathBuf)> {
 /// Returns zero or more complete Seatbelt policy lines for unix socket rules.
 /// When non-empty, the returned string is newline-terminated so callers can
 /// append it directly to larger policy blocks.
-fn unix_socket_policy(proxy: &ProxyPolicyInputs) -> String {
+fn unix_socket_policy(proxy: &SandboxNetworkPolicyInputs) -> String {
     let socket_params = unix_socket_path_params(proxy);
     let has_unix_socket_access = matches!(
         proxy.unix_domain_socket_policy,
@@ -243,20 +248,20 @@ fn unix_socket_policy(proxy: &ProxyPolicyInputs) -> String {
 #[cfg_attr(not(test), allow(dead_code))]
 fn dynamic_network_policy(
     sandbox_policy: &SandboxPolicy,
-    enforce_managed_network: bool,
-    proxy: &ProxyPolicyInputs,
+    enforce_network_policy: bool,
+    proxy: &SandboxNetworkPolicyInputs,
 ) -> String {
     dynamic_network_policy_for_network(
         NetworkSandboxPolicy::from(sandbox_policy),
-        enforce_managed_network,
+        enforce_network_policy,
         proxy,
     )
 }
 
 fn dynamic_network_policy_for_network(
     network_policy: NetworkSandboxPolicy,
-    enforce_managed_network: bool,
-    proxy: &ProxyPolicyInputs,
+    enforce_network_policy: bool,
+    proxy: &SandboxNetworkPolicyInputs,
 ) -> String {
     let has_some_unix_socket_access = match &proxy.unix_domain_socket_policy {
         UnixDomainSocketPolicy::AllowAll => true,
@@ -264,7 +269,7 @@ fn dynamic_network_policy_for_network(
     };
     let should_use_restricted_network_policy = !proxy.ports.is_empty()
         || proxy.has_proxy_config
-        || enforce_managed_network
+        || enforce_network_policy
         || (!network_policy.is_enabled() && has_some_unix_socket_access);
     if should_use_restricted_network_policy {
         let mut policy = String::new();
@@ -297,7 +302,7 @@ fn dynamic_network_policy_for_network(
         return String::new();
     }
 
-    if enforce_managed_network {
+    if enforce_network_policy {
         // Managed network requirements are active but no usable proxy endpoints
         // are available. Fail closed for network access.
         return String::new();
@@ -529,8 +534,8 @@ fn create_seatbelt_command_args_for_legacy_policy(
     command: Vec<String>,
     sandbox_policy: &SandboxPolicy,
     sandbox_policy_cwd: &Path,
-    enforce_managed_network: bool,
-    network: Option<&NetworkProxy>,
+    enforce_network_policy: bool,
+    network: Option<&NetworkAccessRuntime>,
 ) -> Vec<String> {
     let file_system_sandbox_policy =
         FileSystemSandboxPolicy::from_legacy_sandbox_policy(sandbox_policy, sandbox_policy_cwd);
@@ -539,7 +544,7 @@ fn create_seatbelt_command_args_for_legacy_policy(
         file_system_sandbox_policy: &file_system_sandbox_policy,
         network_sandbox_policy: NetworkSandboxPolicy::from(sandbox_policy),
         sandbox_policy_cwd,
-        enforce_managed_network,
+        enforce_network_policy,
         network,
         extra_allow_unix_sockets: &[],
     })
@@ -551,8 +556,8 @@ pub struct CreateSeatbeltCommandArgsParams<'a> {
     pub file_system_sandbox_policy: &'a FileSystemSandboxPolicy,
     pub network_sandbox_policy: NetworkSandboxPolicy,
     pub sandbox_policy_cwd: &'a Path,
-    pub enforce_managed_network: bool,
-    pub network: Option<&'a NetworkProxy>,
+    pub enforce_network_policy: bool,
+    pub network: Option<&'a NetworkAccessRuntime>,
     pub extra_allow_unix_sockets: &'a [AbsolutePathBuf],
 }
 
@@ -562,7 +567,7 @@ pub fn create_seatbelt_command_args(args: CreateSeatbeltCommandArgsParams<'_>) -
         file_system_sandbox_policy,
         network_sandbox_policy,
         sandbox_policy_cwd,
-        enforce_managed_network,
+        enforce_network_policy,
         network,
         extra_allow_unix_sockets,
     } = args;
@@ -652,7 +657,7 @@ pub fn create_seatbelt_command_args(args: CreateSeatbeltCommandArgsParams<'_>) -
 
     let proxy = proxy_policy_inputs(network, extra_allow_unix_sockets);
     let network_policy =
-        dynamic_network_policy_for_network(network_sandbox_policy, enforce_managed_network, &proxy);
+        dynamic_network_policy_for_network(network_sandbox_policy, enforce_network_policy, &proxy);
 
     let include_platform_defaults = file_system_sandbox_policy.include_platform_defaults();
     let deny_read_policy =

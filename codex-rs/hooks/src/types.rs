@@ -3,9 +3,9 @@ use std::sync::Arc;
 use chrono::DateTime;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::models::SandboxPermissions;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::models::SandboxPermissions;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use futures::future::BoxFuture;
 use serde::Serialize;
 use serde::Serializer;
@@ -161,10 +161,10 @@ pub enum HookEvent {
 mod tests {
     use chrono::TimeZone;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::models::SandboxPermissions;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::models::SandboxPermissions;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 

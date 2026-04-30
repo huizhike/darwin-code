@@ -1,6 +1,6 @@
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeTranscriptDelta;
-use codex_protocol::protocol::RealtimeTranscriptDone;
+use darwin_code_protocol::protocol::RealtimeEvent;
+use darwin_code_protocol::protocol::RealtimeTranscriptDelta;
+use darwin_code_protocol::protocol::RealtimeTranscriptDone;
 use serde_json::Value;
 use tracing::debug;
 

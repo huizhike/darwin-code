@@ -7,10 +7,10 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use codex_state::log_db;
+//! use darwin_code_state::log_db;
 //! use tracing_subscriber::prelude::*;
 //!
-//! # async fn example(state_db: std::sync::Arc<codex_state::StateRuntime>) {
+//! # async fn example(state_db: std::sync::Arc<darwin_code_state::StateRuntime>) {
 //! let layer = log_db::start(state_db);
 //! let _ = tracing_subscriber::registry()
 //!     .with(layer)

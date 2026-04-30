@@ -3,13 +3,13 @@
 use super::*;
 use crate::config::RolloutConfig;
 use chrono::TimeZone;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::protocol::AgentMessageEvent;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_protocol::protocol::UserMessageEvent;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::fs::File;
@@ -411,7 +411,7 @@ async fn list_threads_db_enabled_drops_missing_rollout_paths() -> std::io::Resul
         "sessions/2099/01/01/rollout-2099-01-01T00-00-00-{uuid}.jsonl"
     ));
 
-    let runtime = codex_state::StateRuntime::init(
+    let runtime = darwin_code_state::StateRuntime::init(
         home.path().to_path_buf(),
         config.model_provider_id.clone(),
     )
@@ -425,7 +425,7 @@ async fn list_threads_db_enabled_drops_missing_rollout_paths() -> std::io::Resul
         .with_ymd_and_hms(2025, 1, 3, 13, 0, 0)
         .single()
         .expect("valid datetime");
-    let mut builder = codex_state::ThreadMetadataBuilder::new(
+    let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
         thread_id,
         stale_path,
         created_at,
@@ -474,7 +474,7 @@ async fn list_threads_db_enabled_repairs_stale_rollout_paths() -> std::io::Resul
         "sessions/2099/01/01/rollout-2099-01-01T00-00-00-{uuid}.jsonl"
     ));
 
-    let runtime = codex_state::StateRuntime::init(
+    let runtime = darwin_code_state::StateRuntime::init(
         home.path().to_path_buf(),
         config.model_provider_id.clone(),
     )
@@ -488,7 +488,7 @@ async fn list_threads_db_enabled_repairs_stale_rollout_paths() -> std::io::Resul
         .with_ymd_and_hms(2025, 1, 3, 13, 0, 0)
         .single()
         .expect("valid datetime");
-    let mut builder = codex_state::ThreadMetadataBuilder::new(
+    let mut builder = darwin_code_state::ThreadMetadataBuilder::new(
         thread_id,
         stale_path,
         created_at,

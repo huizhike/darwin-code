@@ -13,6 +13,8 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server_protocol::CommandAction;
 use darwin_code_app_server_protocol::CommandExecutionApprovalDecision;
 use darwin_code_app_server_protocol::CommandExecutionRequestApprovalResponse;
@@ -32,8 +34,6 @@ use darwin_code_app_server_protocol::TurnStatus;
 use darwin_code_app_server_protocol::UserInput as V2UserInput;
 use darwin_code_features::FEATURES;
 use darwin_code_features::Feature;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -534,13 +534,15 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
             }],
             cwd: Some(workspace.clone()),
             approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::UnlessTrusted),
-            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                writable_roots: vec![workspace.clone().try_into()?],
-                read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
-                network_access: false,
-                exclude_tmpdir_env_var: false,
-                exclude_slash_tmp: false,
-            }),
+            sandbox_policy: Some(
+                darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![workspace.clone().try_into()?],
+                    read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
+                    network_access: false,
+                    exclude_tmpdir_env_var: false,
+                    exclude_slash_tmp: false,
+                },
+            ),
             model: Some("mock-model".to_string()),
             effort: Some(darwin_code_protocol::openai_models::ReasoningEffort::Medium),
             summary: Some(darwin_code_protocol::config_types::ReasoningSummary::Auto),
@@ -739,7 +741,10 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     Ok(())
 }
 
-async fn create_zsh_test_mcp_process(darwin_code_home: &Path, zdotdir: &Path) -> Result<McpProcess> {
+async fn create_zsh_test_mcp_process(
+    darwin_code_home: &Path,
+    zdotdir: &Path,
+) -> Result<McpProcess> {
     let zdotdir = zdotdir.to_string_lossy().into_owned();
     McpProcess::new_with_env(darwin_code_home, &[("ZDOTDIR", Some(zdotdir.as_str()))]).await
 }
@@ -797,7 +802,7 @@ stream_max_retries = 0
 
 fn find_test_zsh_path() -> Result<Option<std::path::PathBuf>> {
     let repo_root = darwin_code_utils_cargo_bin::repo_root()?;
-    let dotslash_zsh = repo_root.join("darwin-code-rs/app-server/tests/suite/zsh");
+    let dotslash_zsh = repo_root.join("darwin_code-rs/app-server/tests/suite/zsh");
     if !dotslash_zsh.is_file() {
         eprintln!(
             "skipping zsh fork test: shared zsh DotSlash file not found at {}",

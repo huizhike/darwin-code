@@ -1,7 +1,7 @@
-use codex_client::Request;
-use codex_client::RequestCompression;
-use codex_client::RetryOn;
-use codex_client::RetryPolicy;
+use darwin_code_client::Request;
+use darwin_code_client::RequestCompression;
+use darwin_code_client::RetryOn;
+use darwin_code_client::RetryPolicy;
 use http::Method;
 use http::header::HeaderMap;
 use std::collections::HashMap;

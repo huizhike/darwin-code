@@ -49,7 +49,7 @@ pub use code_mode::collect_code_mode_tool_definitions;
 pub use code_mode::create_code_mode_tool;
 pub use code_mode::create_wait_tool;
 pub use code_mode::tool_spec_to_code_mode_tool_definition;
-pub use codex_protocol::ToolName;
+pub use darwin_code_protocol::ToolName;
 pub use dynamic_tool::parse_dynamic_tool;
 pub use image_detail::can_request_original_image_detail;
 pub use image_detail::normalize_output_image_detail;

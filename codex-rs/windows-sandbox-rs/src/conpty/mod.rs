@@ -14,7 +14,7 @@ use crate::winutil::format_last_error;
 use crate::winutil::quote_windows_arg;
 use crate::winutil::to_wide;
 use anyhow::Result;
-use codex_utils_pty::RawConPty;
+use darwin_code_utils_pty::RawConPty;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::path::Path;

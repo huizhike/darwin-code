@@ -2,6 +2,8 @@ use super::*;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_QUESTION_ID_PREFIX;
 use async_channel::bounded;
+use core_test_support::PathBufExt;
+use core_test_support::test_path_buf;
 use darwin_code_protocol::config_types::ApprovalsReviewer;
 use darwin_code_protocol::models::NetworkPermissions;
 use darwin_code_protocol::models::ResponseItem;
@@ -23,8 +25,6 @@ use darwin_code_protocol::request_permissions::RequestPermissionsResponse;
 use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
 use darwin_code_protocol::request_user_input::RequestUserInputEvent;
 use darwin_code_protocol::request_user_input::RequestUserInputQuestion;
-use core_test_support::PathBufExt;
-use core_test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ async fn forward_events_cancelled_while_send_blocked_shuts_down_delegate() {
     let (tx_sub, rx_sub) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
     let (session, ctx, _rx_evt) = crate::session::tests::make_session_and_context_with_rx().await;
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event: rx_events,
         agent_status,
@@ -62,7 +62,7 @@ async fn forward_events_cancelled_while_send_blocked_shuts_down_delegate() {
 
     let cancel = CancellationToken::new();
     let forward = tokio::spawn(forward_events(
-        Arc::clone(&darwin-code),
+        Arc::clone(&darwin_code),
         tx_out.clone(),
         session,
         ctx,
@@ -115,7 +115,7 @@ async fn forward_ops_preserves_submission_trace_context() {
     let (_tx_events, rx_events) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
     let (session, _ctx, _rx_evt) = crate::session::tests::make_session_and_context_with_rx().await;
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event: rx_events,
         agent_status,
@@ -124,7 +124,7 @@ async fn forward_ops_preserves_submission_trace_context() {
     });
     let (tx_ops, rx_ops) = bounded(1);
     let cancel = CancellationToken::new();
-    let forward = tokio::spawn(forward_ops(Arc::clone(&darwin-code), rx_ops, cancel));
+    let forward = tokio::spawn(forward_ops(Arc::clone(&darwin_code), rx_ops, cancel));
 
     let submission = Submission {
         id: "sub-1".to_string(),
@@ -162,7 +162,7 @@ async fn handle_request_permissions_uses_tool_call_id_for_round_trip() {
     let (tx_sub, rx_sub) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_tx_events, rx_events_child) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event: rx_events_child,
         agent_status,
@@ -184,13 +184,13 @@ async fn handle_request_permissions_uses_tool_call_id_for_round_trip() {
     let request_call_id = call_id.clone();
 
     let handle = tokio::spawn({
-        let darwin-code = Arc::clone(&darwin-code);
+        let darwin_code = Arc::clone(&darwin_code);
         let parent_session = Arc::clone(&parent_session);
         let parent_ctx = Arc::clone(&parent_ctx);
         let cancel_token = cancel_token.clone();
         async move {
             handle_request_permissions(
-                darwin-code.as_ref(),
+                darwin_code.as_ref(),
                 &parent_session,
                 &parent_ctx,
                 RequestPermissionsEvent {
@@ -258,7 +258,7 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
     let (tx_sub, rx_sub) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_tx_events, rx_events_child) = bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (_agent_status_tx, agent_status) = watch::channel(AgentStatus::PendingInit);
-    let darwin-code = Arc::new(Darwin-Code {
+    let darwin_code = Arc::new(DarwinCode {
         tx_sub,
         rx_event: rx_events_child,
         agent_status,
@@ -268,13 +268,13 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
 
     let cancel_token = CancellationToken::new();
     let handle = tokio::spawn({
-        let darwin-code = Arc::clone(&darwin-code);
+        let darwin_code = Arc::clone(&darwin_code);
         let parent_session = Arc::clone(&parent_session);
         let parent_ctx = Arc::clone(&parent_ctx);
         let cancel_token = cancel_token.clone();
         async move {
             handle_exec_approval(
-                darwin-code.as_ref(),
+                darwin_code.as_ref(),
                 "child-turn-1".to_string(),
                 &parent_session,
                 &parent_ctx,

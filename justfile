@@ -10,6 +10,11 @@ alias c := codex
 codex *args:
     cargo run --bin codex -- "$@"
 
+# `darwin-code`
+alias d := darwin-code
+darwin-code *args:
+    cargo run -p darwin-code-cli --bin darwin-code -- "$@"
+
 # `codex exec`
 exec *args:
     cargo run --bin codex -- exec "$@"
@@ -89,7 +94,7 @@ mcp-server-run *args:
 
 # Regenerate the json schema for config.toml from the current config types.
 write-config-schema:
-    cargo run -p codex-core --bin codex-write-config-schema
+    cargo run -p darwin-code-core --bin darwin-code-write-config-schema
 
 # Regenerate vendored app-server protocol schema artifacts.
 write-app-server-schema *args:

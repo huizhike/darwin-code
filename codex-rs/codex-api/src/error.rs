@@ -1,5 +1,5 @@
 use crate::rate_limits::RateLimitError;
-use codex_client::TransportError;
+use darwin_code_client::TransportError;
 use http::StatusCode;
 use std::time::Duration;
 use thiserror::Error;

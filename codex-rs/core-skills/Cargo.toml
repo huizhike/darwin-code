@@ -14,11 +14,11 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+codex-analytics = { workspace = true }
 darwin-code-app-server-protocol = { workspace = true }
 darwin-code-config = { workspace = true }
 darwin-code-exec-server = { workspace = true }
 darwin-code-instructions = { workspace = true }
-darwin-code-login = { workspace = true }
 darwin-code-otel = { workspace = true }
 darwin-code-protocol = { workspace = true }
 darwin-code-skills = { workspace = true }
@@ -34,7 +34,6 @@ shlex = { workspace = true }
 tokio = { workspace = true, features = ["fs", "macros", "rt"] }
 toml = { workspace = true }
 tracing = { workspace = true }
-zip = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

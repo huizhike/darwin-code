@@ -8,12 +8,29 @@ use opentelemetry::trace::TraceId;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use pretty_assertions::assert_eq;
+use std::path::Path;
 use tempfile::tempdir;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+const DEFAULT_BYOK_TEST_CONFIG: &str = r#"
+[providers.openai]
+family = "openai-compatible"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+api_key = "test-direct-api-key"
+"#;
+
+fn write_default_byok_test_config(darwin_code_home: &Path) {
+    std::fs::write(
+        darwin_code_home.join("config.toml"),
+        DEFAULT_BYOK_TEST_CONFIG,
+    )
+    .expect("write BYOK test config");
+}
+
 fn test_tracing_subscriber() -> impl tracing::Subscriber + Send + Sync {
     let provider = SdkTracerProvider::builder().build();
-    let tracer = provider.tracer("darwin-code-exec-tests");
+    let tracer = provider.tracer("darwin_code-exec-tests");
     tracing_subscriber::registry().with(tracing_opentelemetry::layer().with_tracer(tracer))
 }
 
@@ -208,7 +225,8 @@ fn lagged_event_warning_message_is_explicit() {
 
 #[tokio::test]
 async fn resume_lookup_model_providers_filters_only_last_lookup() {
-    let darwin_code_home = tempdir().expect("create temp darwin-code home");
+    let darwin_code_home = tempdir().expect("create temp darwin_code home");
+    write_default_byok_test_config(darwin_code_home.path());
     let cwd = tempdir().expect("create temp cwd");
     let mut config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
@@ -303,8 +321,8 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 
 #[test]
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
-    let notification =
-        ServerNotification::TurnCompleted(darwin_code_app_server_protocol::TurnCompletedNotification {
+    let notification = ServerNotification::TurnCompleted(
+        darwin_code_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: darwin_code_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
@@ -315,7 +333,8 @@ fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
                 completed_at: None,
                 duration_ms: None,
             },
-        });
+        },
+    );
 
     assert!(!should_backfill_turn_completed_items(
         /*thread_ephemeral*/ true,
@@ -342,7 +361,8 @@ fn canceled_mcp_server_elicitation_response_uses_cancel_action() {
 
 #[tokio::test]
 async fn thread_start_params_include_review_policy_when_review_policy_is_manual_only() {
-    let darwin_code_home = tempdir().expect("create temp darwin-code home");
+    let darwin_code_home = tempdir().expect("create temp darwin_code home");
+    write_default_byok_test_config(darwin_code_home.path());
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())
@@ -365,7 +385,8 @@ async fn thread_start_params_include_review_policy_when_review_policy_is_manual_
 
 #[tokio::test]
 async fn thread_start_params_include_review_policy_when_auto_review_is_enabled() {
-    let darwin_code_home = tempdir().expect("create temp darwin-code home");
+    let darwin_code_home = tempdir().expect("create temp darwin_code home");
+    write_default_byok_test_config(darwin_code_home.path());
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
         .darwin_code_home(darwin_code_home.path().to_path_buf())

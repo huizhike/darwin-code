@@ -2,17 +2,17 @@
 
 mod common;
 
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_exec_server::ExecResponse;
-use codex_exec_server::InitializeParams;
-use codex_exec_server::InitializeResponse;
-use codex_exec_server::ProcessId;
-use codex_exec_server::ReadResponse;
-use codex_exec_server::TerminateResponse;
-use codex_exec_server::WriteResponse;
-use codex_exec_server::WriteStatus;
 use common::exec_server::exec_server;
+use darwin_code_app_server_protocol::JSONRPCMessage;
+use darwin_code_app_server_protocol::JSONRPCResponse;
+use darwin_code_exec_server::ExecResponse;
+use darwin_code_exec_server::InitializeParams;
+use darwin_code_exec_server::InitializeResponse;
+use darwin_code_exec_server::ProcessId;
+use darwin_code_exec_server::ReadResponse;
+use darwin_code_exec_server::TerminateResponse;
+use darwin_code_exec_server::WriteResponse;
+use darwin_code_exec_server::WriteStatus;
 use pretty_assertions::assert_eq;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -31,7 +31,7 @@ async fn exec_server_starts_process_over_websocket() -> anyhow::Result<()> {
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &initialize_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == initialize_id
             )
         })
         .await?;
@@ -58,7 +58,7 @@ async fn exec_server_starts_process_over_websocket() -> anyhow::Result<()> {
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &process_start_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == process_start_id
             )
         })
         .await?;
@@ -94,7 +94,7 @@ async fn exec_server_defaults_omitted_pipe_stdin_to_closed_stdin() -> anyhow::Re
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &initialize_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == initialize_id
             )
         })
         .await?;
@@ -124,7 +124,7 @@ async fn exec_server_defaults_omitted_pipe_stdin_to_closed_stdin() -> anyhow::Re
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &process_start_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == process_start_id
             )
         })
         .await?;
@@ -152,7 +152,7 @@ async fn exec_server_defaults_omitted_pipe_stdin_to_closed_stdin() -> anyhow::Re
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &write_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == write_id
             )
         })
         .await?;
@@ -187,7 +187,7 @@ async fn exec_server_resumes_detached_session_without_killing_processes() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &initialize_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == initialize_id
             )
         })
         .await?;
@@ -218,7 +218,7 @@ async fn exec_server_resumes_detached_session_without_killing_processes() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &process_start_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == process_start_id
             )
         })
         .await?;
@@ -239,7 +239,7 @@ async fn exec_server_resumes_detached_session_without_killing_processes() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &resume_initialize_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == resume_initialize_id
             )
         })
         .await?;
@@ -268,7 +268,7 @@ async fn exec_server_resumes_detached_session_without_killing_processes() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &process_read_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == process_read_id
             )
         })
         .await?;
@@ -292,7 +292,7 @@ async fn exec_server_resumes_detached_session_without_killing_processes() -> any
         .wait_for_event(|event| {
             matches!(
                 event,
-                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if id == &terminate_id
+                JSONRPCMessage::Response(JSONRPCResponse { id, .. }) if *id == terminate_id
             )
         })
         .await?;

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(
     version,
-    override_usage = "darwin-code exec [OPTIONS] [PROMPT]\n       darwin-code exec [OPTIONS] <COMMAND> [ARGS]"
+    override_usage = "darwin_code exec [OPTIONS] [PROMPT]\n       darwin_code exec [OPTIONS] <COMMAND> [ARGS]"
 )]
 pub struct Cli {
     /// Action to perform. If omitted, runs a new non-interactive session.
@@ -28,15 +28,6 @@ pub struct Cli {
     /// Model the agent should use.
     #[arg(long, short = 'm', global = true)]
     pub model: Option<String>,
-
-    /// Use open-source provider.
-    #[arg(long = "oss", default_value_t = false)]
-    pub oss: bool,
-
-    /// Specify which local provider to use (lmstudio or ollama).
-    /// If not specified with --oss, will use config default or show selection.
-    #[arg(long = "local-provider")]
-    pub oss_provider: Option<String>,
 
     /// Select the sandbox policy to use when executing model-generated shell
     /// commands.
@@ -66,7 +57,7 @@ pub struct Cli {
     #[clap(long = "cd", short = 'C', value_name = "DIR")]
     pub cwd: Option<PathBuf>,
 
-    /// Allow running Darwin-Code outside a Git repository.
+    /// Allow running DarwinCode outside a Git repository.
     #[arg(long = "skip-git-repo-check", global = true, default_value_t = false)]
     pub skip_git_repo_check: bool,
 
@@ -126,7 +117,7 @@ pub enum Command {
 #[derive(Args, Debug)]
 struct ResumeArgsRaw {
     // Note: This is the direct clap shape. We reinterpret the positional when --last is set
-    // so "darwin-code resume --last <prompt>" treats the positional as a prompt, not a session id.
+    // so "darwin_code resume --last <prompt>" treats the positional as a prompt, not a session id.
     /// Conversation/session id (UUID) or thread name. UUIDs take precedence if it parses.
     /// If omitted, use --last to pick the most recent recorded session.
     #[arg(value_name = "SESSION_ID")]

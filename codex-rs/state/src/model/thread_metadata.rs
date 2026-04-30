@@ -1,11 +1,11 @@
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::openai_models::ReasoningEffort;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionSource;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 use std::path::PathBuf;
@@ -468,8 +468,8 @@ mod tests {
     use super::ThreadRow;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::openai_models::ReasoningEffort;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::openai_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 

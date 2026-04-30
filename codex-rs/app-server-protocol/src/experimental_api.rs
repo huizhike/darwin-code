@@ -59,6 +59,8 @@ impl<K: Ord, V: ExperimentalApi> ExperimentalApi for BTreeMap<K, V> {
 mod tests {
     use std::collections::HashMap;
 
+    use codex_experimental_api_macros::ExperimentalApi;
+
     use super::ExperimentalApi as ExperimentalApiTrait;
     use pretty_assertions::assert_eq;
 

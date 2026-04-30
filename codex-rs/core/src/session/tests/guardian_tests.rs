@@ -10,6 +10,15 @@ use crate::guardian::GUARDIAN_REVIEWER_NAME;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::context::FunctionToolOutput;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::PathExt;
+use core_test_support::TempDirExt;
+use core_test_support::darwin_code_linux_sandbox_exe_or_skip;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
 use darwin_code_app_server_protocol::ConfigLayerSource;
 use darwin_code_exec_server::EnvironmentManager;
 use darwin_code_execpolicy::Decision;
@@ -25,15 +34,6 @@ use darwin_code_protocol::models::function_call_output_content_items_to_text;
 use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
 use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_protocol::protocol::AskForApproval;
-use core_test_support::PathExt;
-use core_test_support::TempDirExt;
-use core_test_support::darwin_code_linux_sandbox_exe_or_skip;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -68,7 +68,7 @@ async fn guardian_allows_shell_additional_permissions_requests_past_policy_valid
     .await;
 
     let (mut session, mut turn_context_raw) = make_session_and_context().await;
-    turn_context_raw.darwin_code_linux_sandbox_exe = darwin_code_linux_sandbox_exe_or_skip!();
+    turn_context_raw.codex_linux_sandbox_exe = darwin_code_linux_sandbox_exe_or_skip!();
     turn_context_raw
         .approval_policy
         .set(AskForApproval::OnRequest)
@@ -97,15 +97,11 @@ async fn guardian_allows_shell_additional_permissions_requests_past_policy_valid
     let config = Arc::new(config);
     let models_manager = Arc::new(crate::test_support::models_manager_with_provider(
         config.darwin_code_home.to_path_buf(),
-        Arc::clone(&session.services.auth_manager),
         config.model_provider.clone(),
     ));
     session.services.models_manager = models_manager;
     turn_context_raw.config = Arc::clone(&config);
-    turn_context_raw.provider = create_model_provider(
-        config.model_provider.clone(),
-        turn_context_raw.auth_manager.clone(),
-    );
+    turn_context_raw.provider = create_model_provider(config.model_provider.clone());
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context_raw);
     let expiration_ms: u64 = if cfg!(windows) { 2_500 } else { 1_000 };
@@ -260,18 +256,20 @@ async fn process_compacted_history_preserves_separate_guardian_developer_message
                 content: vec![ContentItem::InputText {
                     text: "stale developer message".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
             ResponseItem::Message {
                 id: None,
                 role: "user".to_string(),
                 content: vec![ContentItem::InputText {
                     text: "summary".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            },
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    },
         ],
         InitialContextInjection::BeforeLastUserMessage,
     )
@@ -376,7 +374,7 @@ async fn shell_handler_allows_sticky_turn_permissions_without_inline_request_per
 
 #[tokio::test]
 async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
-    let darwin_code_home = tempdir().expect("create darwin-code home");
+    let darwin_code_home = tempdir().expect("create darwin_code home");
     let project_dir = tempdir().expect("create project dir");
     let rules_dir = project_dir.path().join("rules");
     fs::create_dir_all(&rules_dir).expect("create rules dir");
@@ -391,7 +389,7 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
     config.config_layer_stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_darwin_code_folder: project_dir.path().abs(),
+                dot_codex_folder: project_dir.path().abs(),
             },
             toml::Value::Table(Default::default()),
         )],
@@ -418,11 +416,8 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
             }],
         }
     );
-
-    let auth_manager = AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("Test API Key"));
     let models_manager = Arc::new(ModelsManager::new(
         config.darwin_code_home.to_path_buf(),
-        auth_manager.clone(),
         /*model_catalog*/ None,
         CollaborationModesConfig::default(),
     ));
@@ -434,9 +429,8 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
     let skills_watcher = Arc::new(SkillsWatcher::noop());
 
-    let DarwinCodeSpawnOk { darwin-code, .. } = Darwin-Code::spawn(DarwinCodeSpawnArgs {
+    let DarwinCodeSpawnOk { darwin_code, .. } = DarwinCode::spawn(DarwinCodeSpawnArgs {
         config,
-        auth_manager,
         models_manager,
         environment_manager: Arc::new(EnvironmentManager::new(/*exec_server_url*/ None)),
         skills_manager,
@@ -461,7 +455,7 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
     .expect("spawn guardian subagent");
 
     assert_eq!(
-        darwin-code
+        darwin_code
             .session
             .services
             .exec_policy
@@ -476,5 +470,5 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         }
     );
 
-    drop(darwin-code);
+    drop(darwin_code);
 }

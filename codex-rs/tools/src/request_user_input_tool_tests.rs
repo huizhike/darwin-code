@@ -1,6 +1,6 @@
 use super::*;
 use crate::JsonSchema;
-use codex_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::ModeKind;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 

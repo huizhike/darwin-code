@@ -1,12 +1,4 @@
 use anyhow::Result;
-use darwin_code_protocol::config_types::CollaborationMode;
-use darwin_code_protocol::config_types::ModeKind;
-use darwin_code_protocol::config_types::Settings;
-use darwin_code_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
-use darwin_code_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -15,6 +7,14 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
+use darwin_code_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
@@ -77,7 +77,7 @@ async fn no_collaboration_instructions_by_default() -> Result<()> {
 
     let test = test_darwin_code().build(&server).await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -87,7 +87,10 @@ async fn no_collaboration_instructions_by_default() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     assert_eq!(developer_message_count(&input), 1);
@@ -121,7 +124,7 @@ async fn user_input_includes_collaboration_instructions_after_override() -> Resu
 
     let collab_text = "collab instructions";
     let collaboration_mode = collab_mode_with_instructions(Some(collab_text));
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -137,7 +140,7 @@ async fn user_input_includes_collaboration_instructions_after_override() -> Resu
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -147,7 +150,10 @@ async fn user_input_includes_collaboration_instructions_after_override() -> Resu
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -172,7 +178,7 @@ async fn collaboration_instructions_added_on_user_turn() -> Result<()> {
     let collab_text = "turn instructions";
     let collaboration_mode = collab_mode_with_instructions(Some(collab_text));
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -195,7 +201,10 @@ async fn collaboration_instructions_added_on_user_turn() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -220,7 +229,7 @@ async fn override_then_next_turn_uses_updated_collaboration_instructions() -> Re
     let collab_text = "override instructions";
     let collaboration_mode = collab_mode_with_instructions(Some(collab_text));
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -236,7 +245,7 @@ async fn override_then_next_turn_uses_updated_collaboration_instructions() -> Re
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -246,7 +255,10 @@ async fn override_then_next_turn_uses_updated_collaboration_instructions() -> Re
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -273,7 +285,7 @@ async fn user_turn_overrides_collaboration_instructions_after_override() -> Resu
     let turn_text = "turn override";
     let turn_mode = collab_mode_with_instructions(Some(turn_text));
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -289,7 +301,7 @@ async fn user_turn_overrides_collaboration_instructions_after_override() -> Resu
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -312,7 +324,10 @@ async fn user_turn_overrides_collaboration_instructions_after_override() -> Resu
             personality: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -344,7 +359,7 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
     let first_text = "first instructions";
     let second_text = "second instructions";
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -360,7 +375,7 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -370,9 +385,12 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -388,7 +406,7 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -398,7 +416,10 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -429,7 +450,7 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
     let test = test_darwin_code().build(&server).await?;
     let collab_text = "same instructions";
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -445,7 +466,7 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -455,9 +476,12 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -473,7 +497,7 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -483,7 +507,10 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -513,7 +540,7 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
     let default_text = "default mode instructions";
     let plan_text = "plan mode instructions";
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -532,7 +559,7 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -542,9 +569,12 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -563,7 +593,7 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -573,7 +603,10 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -604,7 +637,7 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
     let test = test_darwin_code().build(&server).await?;
     let collab_text = "mode-stable instructions";
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -623,7 +656,7 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -633,9 +666,12 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -654,7 +690,7 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -664,7 +700,10 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -701,7 +740,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
 
     let collab_text = "resume instructions";
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -718,7 +757,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
         .await?;
 
     initial
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -728,11 +767,14 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
-        .darwin-code
+        .darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -742,7 +784,10 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -766,7 +811,7 @@ async fn empty_collaboration_instructions_are_ignored() -> Result<()> {
     let test = test_darwin_code().build(&server).await?;
     let current_model = test.session_configured.model.clone();
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::OverrideTurnContext {
             cwd: None,
             approval_policy: None,
@@ -789,7 +834,7 @@ async fn empty_collaboration_instructions_are_ignored() -> Result<()> {
         })
         .await?;
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -799,7 +844,10 @@ async fn empty_collaboration_instructions_are_ignored() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     assert_eq!(developer_message_count(&input), 1);

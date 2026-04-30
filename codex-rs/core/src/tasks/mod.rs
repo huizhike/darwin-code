@@ -5,6 +5,7 @@ mod review;
 mod undo;
 mod user_shell;
 
+use codex_analytics::TurnTokenUsageFact;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -30,11 +31,10 @@ use crate::session::turn_context::TurnContext;
 use crate::state::ActiveTurn;
 use crate::state::RunningTask;
 use crate::state::TaskKind;
-use darwin_code_login::AuthManager;
 use darwin_code_models_manager::manager::ModelsManager;
 use darwin_code_otel::SessionTelemetry;
 use darwin_code_otel::TURN_E2E_DURATION_METRIC;
-use darwin_code_otel::TURN_NETWORK_PROXY_METRIC;
+use darwin_code_otel::TURN_NETWORK_ACCESS_METRIC;
 use darwin_code_otel::TURN_TOKEN_USAGE_METRIC;
 use darwin_code_otel::TURN_TOOL_CALL_METRIC;
 use darwin_code_protocol::models::ContentItem;
@@ -49,8 +49,8 @@ use darwin_code_protocol::protocol::TurnCompleteEvent;
 use darwin_code_protocol::protocol::WarningEvent;
 use darwin_code_protocol::user_input::UserInput;
 
-use darwin_code_features::Feature;
 pub(crate) use compact::CompactTask;
+use darwin_code_features::Feature;
 pub(crate) use ghost_snapshot::GhostSnapshotTask;
 pub(crate) use regular::RegularTask;
 pub(crate) use review::ReviewTask;
@@ -75,21 +75,22 @@ pub(crate) fn interrupted_turn_history_marker() -> ResponseItem {
         }],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
-fn emit_turn_network_proxy_metric(
+fn emit_turn_network_access_metric(
     session_telemetry: &SessionTelemetry,
-    network_proxy_active: bool,
+    network_access_active: bool,
     tmp_mem: (&str, &str),
 ) {
-    let active = if network_proxy_active {
+    let active = if network_access_active {
         "true"
     } else {
         "false"
     };
     session_telemetry.counter(
-        TURN_NETWORK_PROXY_METRIC,
+        TURN_NETWORK_ACCESS_METRIC,
         /*inc*/ 1,
         &[("active", active), tmp_mem],
     );
@@ -110,10 +111,6 @@ impl SessionTaskContext {
         Arc::clone(&self.session)
     }
 
-    pub(crate) fn auth_manager(&self) -> Arc<AuthManager> {
-        Arc::clone(&self.session.services.auth_manager)
-    }
-
     pub(crate) fn models_manager(&self) -> Arc<ModelsManager> {
         Arc::clone(&self.session.services.models_manager)
     }
@@ -121,7 +118,7 @@ impl SessionTaskContext {
 
 /// Async task that drives a [`Session`] turn.
 ///
-/// Implementations encapsulate a specific Darwin-Code workflow (regular chat,
+/// Implementations encapsulate a specific DarwinCode workflow (regular chat,
 /// reviews, ghost snapshots, etc.). Each task instance is owned by a
 /// [`Session`] and executed on a background Tokio task. The trait is
 /// intentionally small: implementers identify themselves via
@@ -309,7 +306,7 @@ impl Session {
                         ctx_for_finish.as_ref(),
                         EventMsg::Warning(WarningEvent {
                             message: format!(
-                                "Failed to save the conversation transcript; Darwin-Code will continue retrying. Error: {err}"
+                                "Failed to save the conversation transcript; DarwinCode will continue retrying. Error: {err}"
                             ),
                         }),
                     )
@@ -455,23 +452,10 @@ impl Session {
                     "false"
                 },
             );
-            let network_proxy_active = match self.services.network_proxy.as_ref() {
-                Some(started_network_proxy) => {
-                    match started_network_proxy.proxy().current_cfg().await {
-                        Ok(config) => config.network.enabled,
-                        Err(err) => {
-                            warn!(
-                                "failed to read managed network proxy state for turn metrics: {err:#}"
-                            );
-                            false
-                        }
-                    }
-                }
-                None => false,
-            };
-            emit_turn_network_proxy_metric(
+            let network_access_active = false;
+            emit_turn_network_access_metric(
                 &self.services.session_telemetry,
-                network_proxy_active,
+                network_access_active,
                 tmp_mem,
             );
             self.services.session_telemetry.histogram(

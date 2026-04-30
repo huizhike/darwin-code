@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_protocol::protocol::McpAuthStatus;
-use codex_rmcp_client::OAuthProviderError;
-use codex_rmcp_client::determine_streamable_http_auth_status;
-use codex_rmcp_client::discover_streamable_http_oauth;
+use darwin_code_config::types::OAuthCredentialsStoreMode;
+use darwin_code_protocol::protocol::McpAuthStatus;
+use darwin_code_rmcp_client::OAuthProviderError;
+use darwin_code_rmcp_client::determine_streamable_http_auth_status;
+use darwin_code_rmcp_client::discover_streamable_http_oauth;
 use futures::future::join_all;
 use tracing::warn;
 
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
+use darwin_code_config::McpServerConfig;
+use darwin_code_config::McpServerTransportConfig;
 
 #[derive(Debug, Clone)]
 pub struct McpOAuthLoginConfig {

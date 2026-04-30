@@ -1,5 +1,5 @@
 use super::ConfiguredGitMarketplace;
-use codex_config::types::MarketplaceSourceType;
+use darwin_code_config::types::MarketplaceSourceType;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;

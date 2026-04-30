@@ -1,11 +1,6 @@
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
-use darwin_code_features::Feature;
-use darwin_code_protocol::ThreadId;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SessionSource;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -19,6 +14,11 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_features::Feature;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SessionSource;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
@@ -205,7 +205,7 @@ async fn memories_startup_phase2_prunes_old_extension_resources_and_reports_them
     )
     .await;
 
-    let darwin-code = build_test_darwin_code(&server, home.clone()).await?;
+    let darwin_code = build_test_darwin_code(&server, home.clone()).await?;
     let request = wait_for_single_request(&phase2).await;
     let prompt = phase2_prompt_text(&request);
 
@@ -237,7 +237,7 @@ async fn memories_startup_phase2_prunes_old_extension_resources_and_reports_them
         "recent extension resource should be retained"
     );
 
-    shutdown_test_darwin_code(&darwin-code).await?;
+    shutdown_test_darwin_code(&darwin_code).await?;
     Ok(())
 }
 
@@ -276,7 +276,7 @@ async fn memories_startup_phase2_processes_old_extension_resources_without_stage
     )
     .await;
 
-    let darwin-code = build_test_darwin_code(&server, home.clone()).await?;
+    let darwin_code = build_test_darwin_code(&server, home.clone()).await?;
     let request = wait_for_single_request(&phase2).await;
     let prompt = phase2_prompt_text(&request);
 
@@ -294,7 +294,7 @@ async fn memories_startup_phase2_processes_old_extension_resources_without_stage
     );
     wait_for_file_removed(&old_file).await?;
 
-    shutdown_test_darwin_code(&darwin-code).await?;
+    shutdown_test_darwin_code(&darwin_code).await?;
     Ok(())
 }
 
@@ -304,18 +304,20 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     let home = Arc::new(TempDir::new()?);
     let db = init_state_db(&home).await?;
 
-    let mut initial_builder = test_darwin_code().with_home(home.clone()).with_config(|config| {
-        config
-            .features
-            .enable(Feature::Sqlite)
-            .expect("test config should allow feature update");
-        config
-            .features
-            .enable(Feature::MemoryTool)
-            .expect("test config should allow feature update");
-        config.memories.max_raw_memories_for_consolidation = 1;
-        config.memories.disable_on_external_context = true;
-    });
+    let mut initial_builder = test_darwin_code()
+        .with_home(home.clone())
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::Sqlite)
+                .expect("test config should allow feature update");
+            config
+                .features
+                .enable(Feature::MemoryTool)
+                .expect("test config should allow feature update");
+            config.memories.max_raw_memories_for_consolidation = 1;
+            config.memories.disable_on_external_context = true;
+        });
     let initial = initial_builder.build(&server).await?;
     mount_sse_once(
         &server,
@@ -376,18 +378,20 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     )
     .await;
 
-    let mut resumed_builder = test_darwin_code().with_home(home.clone()).with_config(|config| {
-        config
-            .features
-            .enable(Feature::Sqlite)
-            .expect("test config should allow feature update");
-        config
-            .features
-            .enable(Feature::MemoryTool)
-            .expect("test config should allow feature update");
-        config.memories.max_raw_memories_for_consolidation = 1;
-        config.memories.disable_on_external_context = true;
-    });
+    let mut resumed_builder = test_darwin_code()
+        .with_home(home.clone())
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::Sqlite)
+                .expect("test config should allow feature update");
+            config
+                .features
+                .enable(Feature::MemoryTool)
+                .expect("test config should allow feature update");
+            config.memories.max_raw_memories_for_consolidation = 1;
+            config.memories.disable_on_external_context = true;
+        });
     let resumed = resumed_builder
         .resume(&server, home.clone(), rollout_path.clone())
         .await?;
@@ -464,7 +468,10 @@ async fn web_search_pollution_moves_selected_thread_into_removed_phase2_inputs()
     Ok(())
 }
 
-async fn build_test_darwin_code(server: &wiremock::MockServer, home: Arc<TempDir>) -> Result<TestDarwinCode> {
+async fn build_test_darwin_code(
+    server: &wiremock::MockServer,
+    home: Arc<TempDir>,
+) -> Result<TestDarwinCode> {
     #[allow(clippy::expect_used)]
     let mut builder = test_darwin_code().with_home(home).with_config(|config| {
         config
@@ -482,7 +489,8 @@ async fn build_test_darwin_code(server: &wiremock::MockServer, home: Arc<TempDir
 
 async fn init_state_db(home: &Arc<TempDir>) -> Result<Arc<darwin_code_state::StateRuntime>> {
     let db =
-        darwin_code_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+        darwin_code_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into())
+            .await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
@@ -636,7 +644,10 @@ async fn read_rollout_summary_bodies(memory_root: &Path) -> Result<Vec<String>> 
 }
 
 async fn shutdown_test_darwin_code(test: &TestDarwinCode) -> Result<()> {
-    test.darwin-code.submit(Op::Shutdown {}).await?;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    test.darwin_code.submit(Op::Shutdown {}).await?;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::ShutdownComplete)
+    })
+    .await;
     Ok(())
 }

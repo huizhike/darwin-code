@@ -86,11 +86,16 @@ impl ShellSnapshot {
         let snapshot_span = info_span!("shell_snapshot", thread_id = %session_id);
         tokio::spawn(
             async move {
-                let timer = session_telemetry.start_timer("darwin-code.shell_snapshot.duration_ms", &[]);
-                let snapshot =
-                    ShellSnapshot::try_new(&darwin_code_home, session_id, &session_cwd, &snapshot_shell)
-                        .await
-                        .map(Arc::new);
+                let timer =
+                    session_telemetry.start_timer("darwin_code.shell_snapshot.duration_ms", &[]);
+                let snapshot = ShellSnapshot::try_new(
+                    &darwin_code_home,
+                    session_id,
+                    &session_cwd,
+                    &snapshot_shell,
+                )
+                .await
+                .map(Arc::new);
                 let success = snapshot.is_ok();
                 let success_tag = if success { "true" } else { "false" };
                 let _ = timer.map(|timer| timer.record(&[("success", success_tag)]));
@@ -98,7 +103,11 @@ impl ShellSnapshot {
                 if let Some(failure_reason) = snapshot.as_ref().err() {
                     counter_tags.push(("failure_reason", *failure_reason));
                 }
-                session_telemetry.counter("darwin-code.shell_snapshot", /*inc*/ 1, &counter_tags);
+                session_telemetry.counter(
+                    "darwin_code.shell_snapshot",
+                    /*inc*/ 1,
+                    &counter_tags,
+                );
                 let _ = shell_snapshot_tx.send(snapshot.ok());
             }
             .instrument(snapshot_span),

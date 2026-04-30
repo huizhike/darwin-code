@@ -9,6 +9,7 @@ use crate::session_prefix::format_subagent_notification_message;
 use crate::state::TaskKind;
 use crate::tasks::SessionTask;
 use crate::tasks::SessionTaskContext;
+use crate::test_support::ByokTestAuth;
 use crate::tools::context::ToolOutput;
 use crate::tools::handlers::multi_agents_v2::CloseAgentHandler as CloseAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::FollowupTaskHandler as FollowupTaskHandlerV2;
@@ -17,12 +18,11 @@ use crate::tools::handlers::multi_agents_v2::SendMessageHandler as SendMessageHa
 use crate::tools::handlers::multi_agents_v2::SpawnAgentHandler as SpawnAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::WaitAgentHandler as WaitAgentHandlerV2;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::TempDirExt;
 use darwin_code_config::types::ShellEnvironmentPolicy;
 use darwin_code_features::Feature;
-use darwin_code_login::AuthManager;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider::create_model_provider;
-use darwin_code_model_provider_info::built_in_model_providers;
+use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_protocol::AgentPath;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::models::BaseInstructions;
@@ -47,7 +47,6 @@ use darwin_code_protocol::protocol::TurnAbortReason;
 use darwin_code_protocol::protocol::TurnAbortedEvent;
 use darwin_code_protocol::protocol::TurnCompleteEvent;
 use darwin_code_protocol::user_input::UserInput;
-use core_test_support::TempDirExt;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::json;
@@ -87,8 +86,8 @@ fn parse_agent_id(id: &str) -> ThreadId {
 
 fn thread_manager() -> ThreadManager {
     ThreadManager::with_models_provider_for_tests(
-        DarwinCodeAuth::from_api_key("dummy"),
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone(),
+        crate::test_support::ByokTestAuth::from_api_key("dummy"),
+        ModelProviderInfo::create_openai_provider(None, None),
     )
 }
 
@@ -96,7 +95,7 @@ async fn install_role_with_model_override(turn: &mut TurnContext) -> String {
     let role_name = "fork-context-role".to_string();
     tokio::fs::create_dir_all(&turn.config.darwin_code_home)
         .await
-        .expect("darwin-code home should be created");
+        .expect("darwin_code home should be created");
     let role_config_path = turn
         .config
         .darwin_code_home
@@ -105,7 +104,7 @@ async fn install_role_with_model_override(turn: &mut TurnContext) -> String {
     tokio::fs::write(
         &role_config_path,
         r#"model = "gpt-5-role-override"
-model_provider = "ollama"
+model_provider = "openai"
 model_reasoning_effort = "minimal"
 "#,
     )
@@ -183,7 +182,7 @@ async fn wait_for_redirected_envelope_in_history(
     timeout(Duration::from_secs(5), async {
         loop {
             let history_items = thread
-                .darwin-code
+                .darwin_code
                 .session
                 .clone_history()
                 .await
@@ -354,9 +353,8 @@ async fn spawn_agent_uses_explorer_role_and_preserves_approval_policy() {
     let manager = thread_manager();
     session.services.agent_control = manager.agent_control();
     let mut config = (*turn.config).clone();
-    let provider_info =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["ollama"].clone();
-    config.model_provider_id = "ollama".to_string();
+    let provider_info = ModelProviderInfo::create_openai_provider(None, None);
+    config.model_provider_id = "openai".to_string();
     config.model_provider = provider_info.clone();
     config
         .permissions
@@ -366,7 +364,7 @@ async fn spawn_agent_uses_explorer_role_and_preserves_approval_policy() {
     turn.approval_policy
         .set(AskForApproval::OnRequest)
         .expect("approval policy should be set");
-    turn.provider = create_model_provider(provider_info, turn.auth_manager.clone());
+    turn.provider = create_model_provider(provider_info);
     turn.config = Arc::new(config);
 
     let invocation = invocation(
@@ -399,7 +397,7 @@ async fn spawn_agent_uses_explorer_role_and_preserves_approval_policy() {
         .config_snapshot()
         .await;
     assert_eq!(snapshot.approval_policy, AskForApproval::OnRequest);
-    assert_eq!(snapshot.model_provider_id, "ollama");
+    assert_eq!(snapshot.model_provider_id, "openai");
 }
 
 #[tokio::test]
@@ -607,7 +605,7 @@ async fn multi_agent_v2_spawn_partial_fork_turns_allows_agent_type_override() {
         .await;
 
     assert_eq!(snapshot.model, "gpt-5-role-override");
-    assert_eq!(snapshot.model_provider_id, "ollama");
+    assert_eq!(snapshot.model_provider_id, "openai");
     assert_eq!(snapshot.reasoning_effort, Some(ReasoningEffort::Minimal));
 }
 
@@ -1144,9 +1142,9 @@ async fn multi_agent_v2_list_agents_returns_completed_status_and_last_task_messa
         .get_thread(agent_id)
         .await
         .expect("child thread should exist");
-    let child_turn = child_thread.darwin-code.session.new_default_turn().await;
+    let child_turn = child_thread.darwin_code.session.new_default_turn().await;
     child_thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             child_turn.as_ref(),
@@ -1517,10 +1515,10 @@ async fn multi_agent_v2_followup_task_interrupts_busy_child_without_losing_messa
         .await
         .expect("worker thread should exist");
 
-    let active_turn = thread.darwin-code.session.new_default_turn().await;
+    let active_turn = thread.darwin_code.session.new_default_turn().await;
     let interrupted_turn_id = active_turn.sub_id.clone();
     thread
-        .darwin-code
+        .darwin_code
         .session
         .spawn_task(
             Arc::clone(&active_turn),
@@ -1622,9 +1620,9 @@ async fn multi_agent_v2_followup_task_completion_notifies_parent_on_every_turn()
         .expect("worker thread should exist");
     let worker_path = AgentPath::try_from("/root/worker").expect("worker path");
 
-    let first_turn = thread.darwin-code.session.new_default_turn().await;
+    let first_turn = thread.darwin_code.session.new_default_turn().await;
     thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             first_turn.as_ref(),
@@ -1650,9 +1648,9 @@ async fn multi_agent_v2_followup_task_completion_notifies_parent_on_every_turn()
         .await
         .expect("followup_task should succeed");
 
-    let second_turn = thread.darwin-code.session.new_default_turn().await;
+    let second_turn = thread.darwin_code.session.new_default_turn().await;
     thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             second_turn.as_ref(),
@@ -1807,9 +1805,9 @@ async fn multi_agent_v2_interrupted_turn_does_not_notify_parent() {
         .await
         .expect("worker thread should exist");
 
-    let aborted_turn = thread.darwin-code.session.new_default_turn().await;
+    let aborted_turn = thread.darwin_code.session.new_default_turn().await;
     thread
-        .darwin-code
+        .darwin_code
         .session
         .send_event(
             aborted_turn.as_ref(),
@@ -2004,7 +2002,7 @@ async fn spawn_agent_reapplies_runtime_sandbox_after_role_config() {
         .get_thread(agent_id)
         .await
         .expect("spawned agent thread should exist");
-    let child_turn = child_thread.darwin-code.session.new_default_turn().await;
+    let child_turn = child_thread.darwin_code.session.new_default_turn().await;
     assert_eq!(
         child_turn.file_system_sandbox_policy,
         expected_file_system_sandbox_policy
@@ -2355,10 +2353,10 @@ async fn resume_agent_restores_closed_agent_and_accepts_send_input() {
                 content: vec![ContentItem::InputText {
                     text: "materialized".to_string(),
                 }],
-                end_turn: None,
-                phase: None,
-            })]),
-            AuthManager::from_auth_for_testing(DarwinCodeAuth::from_api_key("dummy")),
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    })]),
             /*persist_extended_history*/ false,
             /*parent_trace*/ None,
         )
@@ -3278,7 +3276,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
         .await
         .expect("parent thread should start");
     let parent_thread_id = parent.thread_id;
-    let parent_session = parent.thread.darwin-code.session.clone();
+    let parent_session = parent.thread.darwin_code.session.clone();
 
     let child_spawn_output = SpawnAgentHandler
         .handle(invocation(
@@ -3304,7 +3302,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
         .get_thread(child_thread_id)
         .await
         .expect("child thread should exist");
-    let child_session = child_thread.darwin-code.session.clone();
+    let child_session = child_thread.darwin_code.session.clone();
     let grandchild_spawn_output = SpawnAgentHandler
         .handle(invocation(
             child_session.clone(),
@@ -3408,7 +3406,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
         .start_thread(config)
         .await
         .expect("operator thread should start");
-    let operator_session = operator.thread.darwin-code.session.clone();
+    let operator_session = operator.thread.darwin_code.session.clone();
     let _ = manager
         .agent_control()
         .shutdown_live_agent(parent_thread_id)
@@ -3422,7 +3420,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
     let parent_resume_output = ResumeAgentHandler
         .handle(invocation(
             operator_session,
-            operator.thread.darwin-code.session.new_default_turn().await,
+            operator.thread.darwin_code.session.new_default_turn().await,
             "resume_agent",
             function_payload(json!({"id": parent_thread_id.to_string()})),
         ))
@@ -3485,7 +3483,7 @@ async fn build_agent_spawn_config_uses_turn_context_values() {
     };
     let temp_dir = tempfile::tempdir().expect("temp dir");
     turn.cwd = temp_dir.abs();
-    turn.darwin_code_linux_sandbox_exe = Some(PathBuf::from("/bin/echo"));
+    turn.codex_linux_sandbox_exe = Some(PathBuf::from("/bin/echo"));
     let sandbox_policy = pick_allowed_sandbox_policy(
         &turn.config.permissions.sandbox_policy,
         turn.config.permissions.sandbox_policy.get().clone(),
@@ -3512,7 +3510,7 @@ async fn build_agent_spawn_config_uses_turn_context_values() {
     expected.developer_instructions = turn.developer_instructions.clone();
     expected.compact_prompt = turn.compact_prompt.clone();
     expected.permissions.shell_environment_policy = turn.shell_environment_policy.clone();
-    expected.darwin_code_linux_sandbox_exe = turn.darwin_code_linux_sandbox_exe.clone();
+    expected.codex_linux_sandbox_exe = turn.codex_linux_sandbox_exe.clone();
     expected.cwd = turn.cwd.clone();
     expected
         .permissions
@@ -3566,7 +3564,7 @@ async fn build_agent_resume_config_clears_base_instructions() {
     expected.developer_instructions = turn.developer_instructions.clone();
     expected.compact_prompt = turn.compact_prompt.clone();
     expected.permissions.shell_environment_policy = turn.shell_environment_policy.clone();
-    expected.darwin_code_linux_sandbox_exe = turn.darwin_code_linux_sandbox_exe.clone();
+    expected.codex_linux_sandbox_exe = turn.codex_linux_sandbox_exe.clone();
     expected.cwd = turn.cwd.clone();
     expected
         .permissions

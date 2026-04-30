@@ -115,17 +115,6 @@
       ],
       "type": "object"
     },
-    "CancelLoginAccountParams": {
-      "properties": {
-        "loginId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "loginId"
-      ],
-      "type": "object"
-    },
     "ClientInfo": {
       "properties": {
         "name": {
@@ -965,16 +954,6 @@
       ],
       "type": "object"
     },
-    "GetAccountParams": {
-      "properties": {
-        "refreshToken": {
-          "default": false,
-          "description": "When `true`, requests a proactive token refresh before returning.\n\nIn managed auth mode this triggers the normal refresh-token flow. In external auth mode this flag is ignored. Clients should refresh tokens themselves and call `account/login/start` with `chatgptAuthTokens`.",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
     "GhostCommit": {
       "description": "Details of a ghost commit created from a repository state.",
       "properties": {
@@ -1153,96 +1132,6 @@
         "incomplete"
       ],
       "type": "string"
-    },
-    "LoginAccountParams": {
-      "oneOf": [
-        {
-          "properties": {
-            "apiKey": {
-              "type": "string"
-            },
-            "type": {
-              "enum": [
-                "apiKey"
-              ],
-              "title": "ApiKeyLoginAccountParamsType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "apiKey",
-            "type"
-          ],
-          "title": "ApiKeyLoginAccountParams",
-          "type": "object"
-        },
-        {
-          "properties": {
-            "type": {
-              "enum": [
-                "chatgpt"
-              ],
-              "title": "ChatgptLoginAccountParamsType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "title": "ChatgptLoginAccountParams",
-          "type": "object"
-        },
-        {
-          "properties": {
-            "type": {
-              "enum": [
-                "chatgptDeviceCode"
-              ],
-              "title": "ChatgptDeviceCodeLoginAccountParamsType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "title": "ChatgptDeviceCodeLoginAccountParams",
-          "type": "object"
-        },
-        {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.",
-          "properties": {
-            "accessToken": {
-              "description": "Access token (JWT) supplied by the client. This token is used for backend API requests and email extraction.",
-              "type": "string"
-            },
-            "chatgptAccountId": {
-              "description": "Workspace/account identifier supplied by the client.",
-              "type": "string"
-            },
-            "chatgptPlanType": {
-              "description": "Optional plan type supplied by the client.\n\nWhen `null`, Codex attempts to derive the plan type from access-token claims. If unavailable, the plan defaults to `unknown`.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "type": {
-              "enum": [
-                "chatgptAuthTokens"
-              ],
-              "title": "ChatgptAuthTokensLoginAccountParamsType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "accessToken",
-            "chatgptAccountId",
-            "type"
-          ],
-          "title": "ChatgptAuthTokensLoginAccountParams",
-          "type": "object"
-        }
-      ]
     },
     "MarketplaceAddParams": {
       "properties": {
@@ -4895,100 +4784,6 @@
         },
         "method": {
           "enum": [
-            "account/login/start"
-          ],
-          "title": "Account/login/startRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/definitions/LoginAccountParams"
-        }
-      },
-      "required": [
-        "id",
-        "method",
-        "params"
-      ],
-      "title": "Account/login/startRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "account/login/cancel"
-          ],
-          "title": "Account/login/cancelRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/definitions/CancelLoginAccountParams"
-        }
-      },
-      "required": [
-        "id",
-        "method",
-        "params"
-      ],
-      "title": "Account/login/cancelRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "account/logout"
-          ],
-          "title": "Account/logoutRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "type": "null"
-        }
-      },
-      "required": [
-        "id",
-        "method"
-      ],
-      "title": "Account/logoutRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "account/rateLimits/read"
-          ],
-          "title": "Account/rateLimits/readRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "type": "null"
-        }
-      },
-      "required": [
-        "id",
-        "method"
-      ],
-      "title": "Account/rateLimits/readRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
             "feedback/upload"
           ],
           "title": "Feedback/uploadRequestMethod",
@@ -5224,53 +5019,6 @@
         "params"
       ],
       "title": "Config/batchWriteRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "configRequirements/read"
-          ],
-          "title": "ConfigRequirements/readRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "type": "null"
-        }
-      },
-      "required": [
-        "id",
-        "method"
-      ],
-      "title": "ConfigRequirements/readRequest",
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/RequestId"
-        },
-        "method": {
-          "enum": [
-            "account/read"
-          ],
-          "title": "Account/readRequestMethod",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/definitions/GetAccountParams"
-        }
-      },
-      "required": [
-        "id",
-        "method",
-        "params"
-      ],
-      "title": "Account/readRequest",
       "type": "object"
     },
     {

@@ -4,25 +4,13 @@
 //!
 //! Each test sets up a mocked SSE conversation and drives the conversation through
 //! a specific sequence of operations. After every operation we capture the
-//! request payload that Darwin-Code would send to the model and assert that the
+//! request payload that DarwinCode would send to the model and assert that the
 //! model-visible history matches the expected sequence of messages.
 
 use super::compact::COMPACT_WARNING_MESSAGE;
 use super::compact::FIRST_REPLY;
 use super::compact::SUMMARY_TEXT;
 use anyhow::Result;
-use darwin_code_core::DarwinCodeThread;
-use darwin_code_core::ThreadManager;
-use darwin_code_core::compact::SUMMARIZATION_PROMPT;
-use darwin_code_core::config::Config;
-use darwin_code_core::spawn::DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use darwin_code_protocol::config_types::CollaborationMode;
-use darwin_code_protocol::config_types::ModeKind;
-use darwin_code_protocol::config_types::Settings;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::WarningEvent;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -35,6 +23,18 @@ use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_core::DarwinCodeThread;
+use darwin_code_core::ThreadManager;
+use darwin_code_core::compact::SUMMARIZATION_PROMPT;
+use darwin_code_core::config::Config;
+use darwin_code_core::spawn::DARWIN_CODE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::WarningEvent;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -783,7 +783,12 @@ async fn mount_second_compact_sequence(server: &MockServer) -> ResponseMock {
 async fn start_test_conversation(
     server: &MockServer,
     model: Option<&str>,
-) -> (Arc<TempDir>, Config, Arc<ThreadManager>, Arc<DarwinCodeThread>) {
+) -> (
+    Arc<TempDir>,
+    Config,
+    Arc<ThreadManager>,
+    Arc<DarwinCodeThread>,
+) {
     let base_url = format!("{}/v1", server.uri());
     let model = model.map(str::to_string);
     let mut builder = test_darwin_code().with_config(move |config| {
@@ -797,7 +802,12 @@ async fn start_test_conversation(
     let test = Box::pin(builder.build(server))
         .await
         .expect("create conversation");
-    (test.home, test.config, test.thread_manager, test.darwin-code)
+    (
+        test.home,
+        test.config,
+        test.thread_manager,
+        test.darwin_code,
+    )
 }
 
 async fn user_turn(conversation: &Arc<DarwinCodeThread>, text: &str) {
@@ -843,18 +853,10 @@ async fn resume_conversation(
     config: &Config,
     path: std::path::PathBuf,
 ) -> Arc<DarwinCodeThread> {
-    let auth_manager = darwin_code_core::test_support::auth_manager_from_auth(
-        darwin_code_login::DarwinCodeAuth::from_api_key("dummy"),
-    );
-    Box::pin(manager.resume_thread_from_rollout(
-        config.clone(),
-        path,
-        auth_manager,
-        /*parent_trace*/ None,
-    ))
-    .await
-    .expect("resume conversation")
-    .thread
+    Box::pin(manager.resume_thread_from_rollout(config.clone(), path, /*parent_trace*/ None))
+        .await
+        .expect("resume conversation")
+        .thread
 }
 
 #[cfg(test)]

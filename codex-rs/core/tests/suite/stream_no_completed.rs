@@ -1,12 +1,6 @@
 //! Verifies that the agent retries when the SSE stream terminates before
 //! delivering a `response.completed` event.
 
-use darwin_code_model_provider_info::ModelProviderInfo;
-use darwin_code_model_provider_info::WireApi;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::user_input::UserInput;
-use darwin_code_utils_cargo_bin::find_resource;
 use core_test_support::load_sse_fixture;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
@@ -15,6 +9,12 @@ use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::user_input::UserInput;
+use darwin_code_utils_cargo_bin::find_resource;
 
 fn sse_incomplete() -> String {
     let fixture = find_resource!("tests/fixtures/incomplete_sse.json")
@@ -50,8 +50,9 @@ async fn retries_on_early_close() {
         // Environment variable that should exist in the test environment.
         // ModelClient will return an error if the environment variable for the
         // provider is not set.
-        env_key: Some("PATH".into()),
-        env_key_instructions: None,
+        api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
+            "test-direct-api-key".to_string(),
+        )),
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -67,7 +68,7 @@ async fn retries_on_early_close() {
         supports_websockets: false,
     };
 
-    let TestDarwinCode { darwin-code, .. } = test_darwin_code()
+    let TestDarwinCode { darwin_code, .. } = test_darwin_code()
         .with_config(move |config| {
             config.model_provider = model_provider;
         })
@@ -75,7 +76,7 @@ async fn retries_on_early_close() {
         .await
         .unwrap();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -88,7 +89,10 @@ async fn retries_on_early_close() {
         .unwrap();
 
     // Wait until TurnComplete (should succeed after retry).
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = server.requests().await;
     assert_eq!(

@@ -10,8 +10,8 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_mcp_server::CodexToolCallParam;
 use codex_terminal_detection::user_agent;
+use darwin_code_mcp_server::CodexToolCallParam;
 
 use pretty_assertions::assert_eq;
 use rmcp::model::CallToolRequestParams;
@@ -57,14 +57,14 @@ impl McpProcess {
         codex_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-mcp-server")
-            .context("should find binary for codex-mcp-server")?;
+        let program = codex_utils_cargo_bin::cargo_bin("darwin-code-mcp-server")
+            .context("should find binary for darwin-code-mcp-server")?;
         let mut cmd = Command::new(program);
 
         cmd.stdin(Stdio::piped());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        cmd.env("CODEX_HOME", codex_home);
+        cmd.env("DARWIN_CODE_HOME", codex_home);
         cmd.env("RUST_LOG", "debug");
 
         for (k, v) in env_overrides {
@@ -81,7 +81,7 @@ impl McpProcess {
         let mut process = cmd
             .kill_on_drop(true)
             .spawn()
-            .context("codex-mcp-server proc should start")?;
+            .context("darwin-code-mcp-server proc should start")?;
         let stdin = process
             .stdin
             .take()
@@ -151,7 +151,7 @@ impl McpProcess {
         let initialized = self.read_jsonrpc_message().await?;
         let os_info = os_info::get();
         let build_version = env!("CARGO_PKG_VERSION");
-        let originator = codex_login::default_client::originator().value;
+        let originator = darwin_code_client::originator().value;
         let user_agent = format!(
             "{originator}/{build_version} ({} {}; {}) {} (elicitation test; 0.0.0)",
             os_info.os_type(),
@@ -178,7 +178,7 @@ impl McpProcess {
                     },
                 },
                 "serverInfo": {
-                    "name": "codex-mcp-server",
+                    "name": "darwin-code-mcp-server",
                     "title": "Codex",
                     "version": "0.0.0",
                     "user_agent": user_agent
@@ -371,7 +371,7 @@ impl McpProcess {
 
 impl Drop for McpProcess {
     fn drop(&mut self) {
-        // These tests spawn a `codex-mcp-server` child process.
+        // These tests spawn a `darwin-code-mcp-server` child process.
         //
         // We keep that child alive for the test and rely on Tokio's `kill_on_drop(true)` when this
         // helper is dropped. Tokio documents kill-on-drop as best-effort: dropping requests

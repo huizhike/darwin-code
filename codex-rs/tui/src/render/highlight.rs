@@ -67,7 +67,7 @@ fn syntax_set() -> &'static SyntaxSet {
 // time — long before it reaches users.  A runtime warning would be
 // unactionable noise since users can't fix upstream themes.
 
-/// Set the user-configured syntax theme override and darwin-code home path.
+/// Set the user-configured syntax theme override and darwin_code home path.
 ///
 /// Call this with the **final resolved config** (after onboarding, resume, and
 /// fork reloads complete). The first call persists `name` and `darwin_code_home` in
@@ -102,7 +102,10 @@ pub(crate) fn set_theme_override(
 
 /// Check whether a theme name resolves to a bundled theme or a custom
 /// `.tmTheme` file.  Returns a user-facing warning when it does not.
-pub(crate) fn validate_theme_name(name: Option<&str>, darwin_code_home: Option<&Path>) -> Option<String> {
+pub(crate) fn validate_theme_name(
+    name: Option<&str>,
+    darwin_code_home: Option<&Path>,
+) -> Option<String> {
     let name = name?;
     let custom_theme_path_display = darwin_code_home
         .map(|home| custom_theme_path(name, home).display().to_string())
@@ -173,7 +176,9 @@ fn parse_theme_name(name: &str) -> Option<EmbeddedThemeName> {
 
 /// Build the expected path for a custom theme file.
 fn custom_theme_path(name: &str, darwin_code_home: &Path) -> PathBuf {
-    darwin_code_home.join("themes").join(format!("{name}.tmTheme"))
+    darwin_code_home
+        .join("themes")
+        .join(format!("{name}.tmTheme"))
 }
 
 /// Try to load a custom `.tmTheme` file from `{darwin_code_home}/themes/{name}.tmTheme`.

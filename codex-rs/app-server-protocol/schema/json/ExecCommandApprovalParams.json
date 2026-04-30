@@ -125,7 +125,7 @@
       ]
     },
     "callId": {
-      "description": "Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent] and [codex_protocol::protocol::ExecCommandEndEvent].",
+      "description": "Use to correlate this with [darwin_code_protocol::protocol::ExecCommandBeginEvent] and [darwin_code_protocol::protocol::ExecCommandEndEvent].",
       "type": "string"
     },
     "command": {

@@ -9,21 +9,21 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_state::BackfillState;
-use codex_state::BackfillStats;
-use codex_state::BackfillStatus;
-use codex_state::DB_ERROR_METRIC;
-use codex_state::DB_METRIC_BACKFILL;
-use codex_state::DB_METRIC_BACKFILL_DURATION_MS;
-use codex_state::ExtractionOutcome;
-use codex_state::ThreadMetadataBuilder;
-use codex_state::apply_rollout_item;
+use darwin_code_protocol::ThreadId;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::SessionSource;
+use darwin_code_state::BackfillState;
+use darwin_code_state::BackfillStats;
+use darwin_code_state::BackfillStatus;
+use darwin_code_state::DB_ERROR_METRIC;
+use darwin_code_state::DB_METRIC_BACKFILL;
+use darwin_code_state::DB_METRIC_BACKFILL_DURATION_MS;
+use darwin_code_state::ExtractionOutcome;
+use darwin_code_state::ThreadMetadataBuilder;
+use darwin_code_state::apply_rollout_item;
 use std::path::Path;
 use std::path::PathBuf;
 use tracing::info;
@@ -134,10 +134,10 @@ pub async fn extract_metadata_from_rollout(
 }
 
 pub(crate) async fn backfill_sessions(
-    runtime: &codex_state::StateRuntime,
+    runtime: &darwin_code_state::StateRuntime,
     config: &impl RolloutConfigView,
 ) {
-    let metric_client = codex_otel::global();
+    let metric_client = darwin_code_otel::global();
     let timer = metric_client
         .as_ref()
         .and_then(|otel| otel.start_timer(DB_METRIC_BACKFILL_DURATION_MS, &[]).ok());

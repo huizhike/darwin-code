@@ -23,6 +23,10 @@ fn recall_latest_after_clearing(chat: &mut ChatWidget) -> String {
     chat.bottom_pane.composer_text()
 }
 
+fn drain_app_events(rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>) -> Vec<AppEvent> {
+    std::iter::from_fn(|| rx.try_recv().ok()).collect::<Vec<_>>()
+}
+
 #[tokio::test]
 async fn slash_compact_eagerly_queues_follow_up_before_turn_start() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
@@ -81,7 +85,7 @@ async fn slash_init_skips_when_project_doc_exists() {
 
     match op_rx.try_recv() {
         Err(TryRecvError::Empty) => {}
-        other => panic!("expected no Darwin-Code op to be sent, got {other:?}"),
+        other => panic!("expected no DarwinCode op to be sent, got {other:?}"),
     }
 
     let cells = drain_insert_history(&mut rx);
@@ -159,7 +163,7 @@ async fn slash_rename_without_existing_thread_name_starts_empty() {
 
 #[tokio::test]
 async fn usage_error_slash_command_is_available_from_local_recall() {
-    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     submit_composer_text(&mut chat, "/fast maybe");
@@ -245,15 +249,6 @@ async fn slash_quit_requests_exit() {
     chat.dispatch_command(SlashCommand::Quit);
 
     assert_matches!(rx.try_recv(), Ok(AppEvent::Exit(ExitMode::ShutdownFirst)));
-}
-
-#[tokio::test]
-async fn slash_logout_requests_app_server_logout() {
-    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-
-    chat.dispatch_command(SlashCommand::Logout);
-
-    assert_matches!(rx.try_recv(), Ok(AppEvent::Logout));
 }
 
 #[tokio::test]
@@ -571,7 +566,21 @@ async fn slash_mcp_requests_inventory_via_app_server() {
     chat.dispatch_command(SlashCommand::Mcp);
 
     assert!(active_blob(&chat).contains("Loading MCP inventory"));
-    assert_matches!(rx.try_recv(), Ok(AppEvent::FetchMcpInventory));
+    loop {
+        match rx.try_recv() {
+            Ok(AppEvent::InsertHistoryCell(cell))
+                if cell
+                    .as_any()
+                    .is::<crate::history_cell::SessionHeaderHistoryCell>() =>
+            {
+                continue;
+            }
+            other => {
+                assert_matches!(other, Ok(AppEvent::FetchMcpInventory));
+                break;
+            }
+        }
+    }
     assert!(op_rx.try_recv().is_err(), "expected no core op to be sent");
 }
 
@@ -646,7 +655,7 @@ async fn slash_fork_requests_current_fork() {
 #[tokio::test]
 async fn slash_rollout_displays_current_path() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let rollout_path = PathBuf::from("/tmp/darwin-code-test-rollout.jsonl");
+    let rollout_path = PathBuf::from("/tmp/darwin_code-test-rollout.jsonl");
     chat.current_rollout_path = Some(rollout_path.clone());
 
     chat.dispatch_command(SlashCommand::Rollout);
@@ -771,8 +780,189 @@ async fn undo_started_hides_interrupt_hint() {
 }
 
 #[tokio::test]
+async fn model_picker_single_effort_selection_closes_without_reasoning_popup() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
+    set_fast_mode_test_catalog(&mut chat);
+    let mut preset = get_available_model(&chat, "gpt-5.4");
+    preset.model = "single-effort-test".to_string();
+    preset.id = preset.model.clone();
+    preset.display_name = preset.model.clone();
+    let expected_effort = Some(preset.default_reasoning_effort);
+
+    chat.open_all_models_popup(vec![preset.clone()]);
+    assert!(!chat.no_modal_or_popup_active());
+
+    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+    let events = drain_app_events(&mut rx);
+
+    assert!(
+        chat.no_modal_or_popup_active(),
+        "single-effort model selection should close the picker"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::OpenReasoningPopup { .. })),
+        "single-effort selection should not open a no-op reasoning popup: {events:?}"
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::UpdateModel(model) if model == "single-effort-test"
+        )),
+        "expected model update event, got {events:?}"
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::UpdateReasoningEffort(effort) if *effort == expected_effort
+        )),
+        "expected reasoning effort update event, got {events:?}"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                AppEvent::PersistModelSelection { model, effort }
+                    if model == "single-effort-test" && *effort == expected_effort
+            ))
+            .count(),
+        1,
+        "expected exactly one persisted model selection, got {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn model_picker_default_effort_selection_closes_when_catalog_has_no_choices() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
+    set_fast_mode_test_catalog(&mut chat);
+    let mut preset = get_available_model(&chat, "gpt-5.4");
+    preset.model = "deepseek-v4-flash".to_string();
+    preset.id = preset.model.clone();
+    preset.display_name = preset.model.clone();
+    preset.supported_reasoning_efforts.clear();
+    let expected_effort = Some(preset.default_reasoning_effort);
+
+    chat.open_all_models_popup(vec![preset]);
+    assert!(!chat.no_modal_or_popup_active());
+
+    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+    let events = drain_app_events(&mut rx);
+
+    assert!(
+        chat.no_modal_or_popup_active(),
+        "default-effort model selection should close the picker when no choices are advertised"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::OpenReasoningPopup { .. })),
+        "empty-choice selection should not leave a parent picker waiting for a child: {events:?}"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
+                AppEvent::PersistModelSelection { model, effort }
+                    if model == "deepseek-v4-flash" && *effort == expected_effort
+            ))
+            .count(),
+        1,
+        "expected exactly one persisted model selection, got {events:?}"
+    );
+
+    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+    let follow_up_events = drain_app_events(&mut rx);
+    assert!(
+        !follow_up_events
+            .iter()
+            .any(|event| matches!(event, AppEvent::PersistModelSelection { .. })),
+        "second Enter should not re-select a stale model picker: {follow_up_events:?}"
+    );
+}
+
+#[tokio::test]
+async fn model_picker_multi_effort_selection_still_opens_reasoning_popup() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
+    set_fast_mode_test_catalog(&mut chat);
+    let mut preset = get_available_model(&chat, "gpt-5.4");
+    preset.model = "multi-effort-test".to_string();
+    preset.id = preset.model.clone();
+    preset.display_name = preset.model.clone();
+    preset.supported_reasoning_efforts.push(
+        darwin_code_protocol::openai_models::ReasoningEffortPreset {
+            effort: ReasoningEffortConfig::High,
+            description: "high".to_string(),
+        },
+    );
+
+    chat.open_all_models_popup(vec![preset]);
+    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+    let events = drain_app_events(&mut rx);
+
+    assert!(
+        !chat.no_modal_or_popup_active(),
+        "multi-effort model selection should keep the parent until the child effort popup accepts"
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::OpenReasoningPopup { model } if model.model == "multi-effort-test"
+        )),
+        "multi-effort selection should still open reasoning popup, got {events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::PersistModelSelection { .. })),
+        "multi-effort model should not persist until an effort is selected: {events:?}"
+    );
+}
+
+#[tokio::test]
+async fn model_picker_single_effort_plan_mode_opens_scope_prompt() {
+    let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
+    set_fast_mode_test_catalog(&mut chat);
+    let plan_mask =
+        collaboration_modes::plan_mask(chat.model_catalog.as_ref()).expect("plan mode preset");
+    chat.set_collaboration_mask(plan_mask);
+    let mut preset = get_available_model(&chat, "gpt-5.4");
+    preset.supported_reasoning_efforts =
+        vec![darwin_code_protocol::openai_models::ReasoningEffortPreset {
+            effort: ReasoningEffortConfig::High,
+            description: "high".to_string(),
+        }];
+    preset.default_reasoning_effort = ReasoningEffortConfig::High;
+
+    chat.open_all_models_popup(vec![preset]);
+    chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
+    let events = drain_app_events(&mut rx);
+
+    assert!(
+        !chat.no_modal_or_popup_active(),
+        "Plan-mode scope prompt should leave the parent available until the child resolves"
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::OpenPlanReasoningScopePrompt { model, effort }
+                if model == "gpt-5.4" && *effort == Some(ReasoningEffortConfig::High)
+        )),
+        "single-effort Plan-mode selection should open scope prompt, got {events:?}"
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::PersistModelSelection { .. })),
+        "Plan-mode scope prompt should defer persistence until scope is selected: {events:?}"
+    );
+}
+
+#[tokio::test]
 async fn fast_slash_command_updates_and_persists_local_service_tier() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     chat.dispatch_command(SlashCommand::Fast);
@@ -803,9 +993,9 @@ async fn fast_slash_command_updates_and_persists_local_service_tier() {
 
 #[tokio::test]
 async fn user_turn_carries_service_tier_after_fast_toggle() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
     chat.thread_id = Some(ThreadId::new());
-    set_chatgpt_auth(&mut chat);
+    set_byok_model_catalog(&mut chat);
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     chat.dispatch_command(SlashCommand::Fast);
@@ -827,9 +1017,9 @@ async fn user_turn_carries_service_tier_after_fast_toggle() {
 
 #[tokio::test]
 async fn user_turn_clears_service_tier_after_fast_is_turned_off() {
-    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin-code")).await;
+    let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
     chat.thread_id = Some(ThreadId::new());
-    set_chatgpt_auth(&mut chat);
+    set_byok_model_catalog(&mut chat);
     chat.set_feature_enabled(Feature::FastMode, /*enabled*/ true);
 
     chat.dispatch_command(SlashCommand::Fast);
@@ -872,7 +1062,7 @@ async fn compact_queues_user_messages_snapshot() {
         id: "steer-rejected".into(),
         msg: EventMsg::Error(ErrorEvent {
             message: "cannot steer a compact turn".to_string(),
-            darwin_code_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
+            codex_error_info: Some(DarwinCodeErrorInfo::ActiveTurnNotSteerable {
                 turn_kind: NonSteerableTurnKind::Compact,
             }),
         }),

@@ -21,10 +21,10 @@ pub enum PersonalityMigrationStatus {
 }
 
 pub async fn maybe_migrate_personality(
-    darwin_code_home: &Path,
+    codex_home: &Path,
     config_toml: &ConfigToml,
 ) -> io::Result<PersonalityMigrationStatus> {
-    let marker_path = darwin_code_home.join(PERSONALITY_MIGRATION_FILENAME);
+    let marker_path = codex_home.join(PERSONALITY_MIGRATION_FILENAME);
     if tokio::fs::try_exists(&marker_path).await? {
         return Ok(PersonalityMigrationStatus::SkippedMarker);
     }
@@ -42,12 +42,12 @@ pub async fn maybe_migrate_personality(
         .or_else(|| config_toml.model_provider.clone())
         .unwrap_or_else(|| "openai".to_string());
 
-    if !has_recorded_sessions(darwin_code_home, model_provider_id.as_str()).await? {
+    if !has_recorded_sessions(codex_home, model_provider_id.as_str()).await? {
         create_marker(&marker_path).await?;
         return Ok(PersonalityMigrationStatus::SkippedNoSessions);
     }
 
-    ConfigEditsBuilder::new(darwin_code_home)
+    ConfigEditsBuilder::new(codex_home)
         .set_personality(Some(Personality::Pragmatic))
         .apply()
         .await
@@ -59,11 +59,11 @@ pub async fn maybe_migrate_personality(
     Ok(PersonalityMigrationStatus::Applied)
 }
 
-async fn has_recorded_sessions(darwin_code_home: &Path, default_provider: &str) -> io::Result<bool> {
+async fn has_recorded_sessions(codex_home: &Path, default_provider: &str) -> io::Result<bool> {
     let store = LocalThreadStore::new(darwin_code_rollout::RolloutConfig {
-        darwin_code_home: darwin_code_home.to_path_buf(),
-        sqlite_home: darwin_code_home.to_path_buf(),
-        cwd: darwin_code_home.to_path_buf(),
+        codex_home: codex_home.to_path_buf(),
+        sqlite_home: codex_home.to_path_buf(),
+        cwd: codex_home.to_path_buf(),
         model_provider_id: default_provider.to_string(),
         generate_memories: false,
     });

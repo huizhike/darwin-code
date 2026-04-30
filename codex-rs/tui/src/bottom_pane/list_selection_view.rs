@@ -1251,14 +1251,14 @@ mod tests {
         let items = vec![
             SelectionItem {
                 name: "Read Only".to_string(),
-                description: Some("Darwin-Code can read files".to_string()),
+                description: Some("DarwinCode can read files".to_string()),
                 is_current: true,
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
                 name: "Full Access".to_string(),
-                description: Some("Darwin-Code can edit files".to_string()),
+                description: Some("DarwinCode can edit files".to_string()),
                 is_current: false,
                 dismiss_on_select: true,
                 ..Default::default()
@@ -1366,7 +1366,7 @@ mod tests {
 
     #[test]
     fn renders_blank_line_between_subtitle_and_items() {
-        let view = make_selection_view(Some("Switch between Darwin-Code approval presets"));
+        let view = make_selection_view(Some("Switch between DarwinCode approval presets"));
         assert_snapshot!("list_selection_spacing_with_subtitle", render_lines(&view));
     }
 
@@ -1375,7 +1375,7 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let home = dirs::home_dir().expect("home directory should be available");
-        let darwin_code_home = home.join(".darwin-code");
+        let darwin_code_home = home.join(".darwin_code");
         let params = crate::theme_picker::build_theme_picker_params(
             /*current_name*/ None,
             Some(&darwin_code_home),
@@ -1449,7 +1449,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Darwin-Code can read files".to_string()),
+            description: Some("DarwinCode can read files".to_string()),
             is_current: true,
             dismiss_on_select: true,
             ..Default::default()
@@ -1481,7 +1481,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let items = vec![SelectionItem {
             name: "Read Only".to_string(),
-            description: Some("Darwin-Code can read files".to_string()),
+            description: Some("DarwinCode can read files".to_string()),
             is_current: false,
             dismiss_on_select: true,
             ..Default::default()
@@ -1878,7 +1878,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-darwin-code".to_string(),
                 description: Some(
-                    "Optimized for Darwin-Code. Balance of reasoning quality and coding ability."
+                    "Optimized for DarwinCode. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -1888,13 +1888,13 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-darwin-code-mini".to_string(),
                 description: Some(
-                    "Optimized for Darwin-Code. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for DarwinCode. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-4.1-darwin-code".to_string(),
+                name: "gpt-4.1-darwin_code".to_string(),
                 description: Some(
                     "Legacy model. Use when you need compatibility with older automations."
                         .to_string(),
@@ -1960,7 +1960,7 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-darwin-code".to_string(),
                 description: Some(
-                    "Optimized for Darwin-Code. Balance of reasoning quality and coding ability."
+                    "Optimized for DarwinCode. Balance of reasoning quality and coding ability."
                         .to_string(),
                 ),
                 is_current: true,
@@ -1970,13 +1970,13 @@ mod tests {
             SelectionItem {
                 name: "gpt-5.1-darwin-code-mini".to_string(),
                 description: Some(
-                    "Optimized for Darwin-Code. Cheaper, faster, but less capable.".to_string(),
+                    "Optimized for DarwinCode. Cheaper, faster, but less capable.".to_string(),
                 ),
                 dismiss_on_select: true,
                 ..Default::default()
             },
             SelectionItem {
-                name: "gpt-4.1-darwin-code".to_string(),
+                name: "gpt-4.1-darwin_code".to_string(),
                 description: Some(
                     "Legacy model. Use when you need compatibility with older automations."
                         .to_string(),

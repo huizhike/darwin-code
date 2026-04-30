@@ -1,5 +1,4 @@
 use anyhow::Result;
-use app_test_support::DEFAULT_CLIENT_NAME;
 use app_test_support::McpProcess;
 use app_test_support::create_apply_patch_sse_response;
 use app_test_support::create_exec_command_sse_response;
@@ -10,8 +9,10 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
-use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
+use app_test_support::write_mock_responses_config_toml_with_base_url;
 use app_test_support::write_models_cache;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
 use darwin_code_app_server::INPUT_TOO_LARGE_ERROR_CODE;
 use darwin_code_app_server::INVALID_PARAMS_ERROR_CODE;
 use darwin_code_app_server_protocol::ByteRange;
@@ -58,8 +59,6 @@ use darwin_code_protocol::config_types::ReasoningSummary;
 use darwin_code_protocol::config_types::Settings;
 use darwin_code_protocol::openai_models::ReasoningEffort;
 use darwin_code_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -68,9 +67,9 @@ use std::path::Path;
 use tempfile::TempDir;
 use tokio::time::timeout;
 
+use super::analytics::assert_no_analytics_payload;
 use super::analytics::enable_analytics_capture;
 use super::analytics::mount_analytics_capture;
-use super::analytics::wait_for_analytics_event;
 
 #[cfg(windows)]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
@@ -103,7 +102,7 @@ async fn turn_start_sends_originator_header() -> Result<()> {
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
             name: TEST_ORIGINATOR.to_string(),
-            title: Some("Darwin-Code VS Code Extension".to_string()),
+            title: Some("DarwinCode VS Code Extension".to_string()),
             version: "0.1.0".to_string(),
         }),
     )
@@ -442,12 +441,12 @@ async fn thread_start_omits_empty_instruction_overrides_from_model_request() -> 
 }
 
 #[tokio::test]
-async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
+async fn turn_start_drops_hosted_turn_event_analytics_in_byok_runtime() -> Result<()> {
     let responses = vec![create_final_assistant_message_sse_response("Done")?];
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
     let darwin_code_home = TempDir::new()?;
-    write_mock_responses_config_toml_with_chatgpt_base_url(
+    write_mock_responses_config_toml_with_base_url(
         darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
@@ -492,37 +491,8 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
     )
     .await??;
 
-    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "darwin_code_turn_event").await?;
-    assert_eq!(event["event_params"]["thread_id"], thread.id);
-    assert_eq!(event["event_params"]["turn_id"], turn.id);
-    assert_eq!(
-        event["event_params"]["app_server_client"]["product_client_id"],
-        DEFAULT_CLIENT_NAME
-    );
-    assert_eq!(event["event_params"]["model"], "mock-model");
-    assert_eq!(event["event_params"]["model_provider"], "mock_provider");
-    assert_eq!(event["event_params"]["sandbox_policy"], "read_only");
-    assert_eq!(event["event_params"]["ephemeral"], false);
-    assert_eq!(event["event_params"]["thread_source"], "user");
-    assert_eq!(event["event_params"]["initialization_mode"], "new");
-    assert_eq!(
-        event["event_params"]["subagent_source"],
-        serde_json::Value::Null
-    );
-    assert_eq!(
-        event["event_params"]["parent_thread_id"],
-        serde_json::Value::Null
-    );
-    assert_eq!(event["event_params"]["num_input_images"], 1);
-    assert_eq!(event["event_params"]["status"], "completed");
-    assert!(event["event_params"]["started_at"].as_u64().is_some());
-    assert!(event["event_params"]["completed_at"].as_u64().is_some());
-    assert!(event["event_params"]["duration_ms"].as_u64().is_some());
-    assert_eq!(event["event_params"]["input_tokens"], 0);
-    assert_eq!(event["event_params"]["cached_input_tokens"], 0);
-    assert_eq!(event["event_params"]["output_tokens"], 0);
-    assert_eq!(event["event_params"]["reasoning_output_tokens"], 0);
-    assert_eq!(event["event_params"]["total_tokens"], 0);
+    let _ = (thread, turn);
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
 
     Ok(())
 }
@@ -533,7 +503,7 @@ async fn turn_start_does_not_track_turn_event_analytics_without_feature() -> Res
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
 
     let darwin_code_home = TempDir::new()?;
-    write_mock_responses_config_toml_with_chatgpt_base_url(
+    write_mock_responses_config_toml_with_base_url(
         darwin_code_home.path(),
         &server.uri(),
         &server.uri(),
@@ -585,16 +555,7 @@ async fn turn_start_does_not_track_turn_event_analytics_without_feature() -> Res
     )
     .await??;
 
-    let turn_event = wait_for_analytics_event(
-        &server,
-        std::time::Duration::from_millis(250),
-        "darwin_code_turn_event",
-    )
-    .await;
-    assert!(
-        turn_event.is_err(),
-        "turn analytics should be gated off when general_analytics is disabled"
-    );
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
     Ok(())
 }
 
@@ -738,7 +699,7 @@ async fn turn_start_rejects_combined_oversized_text_input() -> Result<()> {
 #[tokio::test]
 async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<()> {
     // Provide a mock server and config so model wiring is valid.
-    // Three Darwin-Code turns hit the mock model (session start + two turn/start calls).
+    // Three DarwinCode turns hit the mock model (session start + two turn/start calls).
     let responses = vec![
         create_final_assistant_message_sse_response("Done")?,
         create_final_assistant_message_sse_response("Done")?,
@@ -894,7 +855,7 @@ async fn turn_start_accepts_collaboration_mode_override_v2() -> Result<()> {
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-darwin-code".to_string()),
+            model: Some("gpt-5.3-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1268,7 +1229,7 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
 
     let thread_req = mcp
         .send_thread_start_request(ThreadStartParams {
-            model: Some("gpt-5.2-darwin-code".to_string()),
+            model: Some("gpt-5.3-darwin-code".to_string()),
             ..Default::default()
         })
         .await?;
@@ -1315,7 +1276,7 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
 
 #[tokio::test]
 async fn turn_start_accepts_local_image_input() -> Result<()> {
-    // Two Darwin-Code turns hit the mock model (session start + turn/start).
+    // Two DarwinCode turns hit the mock model (session start + turn/start).
     let responses = vec![
         create_final_assistant_message_sse_response("Done")?,
         create_final_assistant_message_sse_response("Done")?,
@@ -1741,13 +1702,15 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             cwd: Some(first_cwd.clone()),
             approval_policy: Some(darwin_code_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                writable_roots: vec![first_cwd.try_into()?],
-                read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
-                network_access: false,
-                exclude_tmpdir_env_var: false,
-                exclude_slash_tmp: false,
-            }),
+            sandbox_policy: Some(
+                darwin_code_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![first_cwd.try_into()?],
+                    read_only_access: darwin_code_app_server_protocol::ReadOnlyAccess::FullAccess,
+                    network_access: false,
+                    exclude_tmpdir_env_var: false,
+                    exclude_slash_tmp: false,
+                },
+            ),
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
             summary: Some(ReasoningSummary::Auto),

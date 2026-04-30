@@ -5,10 +5,10 @@ pub(crate) mod dispatcher;
 pub(crate) mod output_parser;
 pub(crate) mod schema_loader;
 
-use codex_config::ConfigLayerStack;
-use codex_protocol::protocol::HookRunSummary;
-use codex_protocol::protocol::HookSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::ConfigLayerStack;
+use darwin_code_protocol::protocol::HookRunSummary;
+use darwin_code_protocol::protocol::HookSource;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 use crate::events::permission_request::PermissionRequestOutcome;
 use crate::events::permission_request::PermissionRequestRequest;
@@ -31,7 +31,7 @@ pub(crate) struct CommandShell {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConfiguredHandler {
-    pub event_name: codex_protocol::protocol::HookEventName,
+    pub event_name: darwin_code_protocol::protocol::HookEventName,
     pub matcher: Option<String>,
     pub command: String,
     pub timeout_sec: u64,
@@ -53,12 +53,14 @@ impl ConfiguredHandler {
 
     fn event_name_label(&self) -> &'static str {
         match self.event_name {
-            codex_protocol::protocol::HookEventName::PreToolUse => "pre-tool-use",
-            codex_protocol::protocol::HookEventName::PermissionRequest => "permission-request",
-            codex_protocol::protocol::HookEventName::PostToolUse => "post-tool-use",
-            codex_protocol::protocol::HookEventName::SessionStart => "session-start",
-            codex_protocol::protocol::HookEventName::UserPromptSubmit => "user-prompt-submit",
-            codex_protocol::protocol::HookEventName::Stop => "stop",
+            darwin_code_protocol::protocol::HookEventName::PreToolUse => "pre-tool-use",
+            darwin_code_protocol::protocol::HookEventName::PermissionRequest => {
+                "permission-request"
+            }
+            darwin_code_protocol::protocol::HookEventName::PostToolUse => "post-tool-use",
+            darwin_code_protocol::protocol::HookEventName::SessionStart => "session-start",
+            darwin_code_protocol::protocol::HookEventName::UserPromptSubmit => "user-prompt-submit",
+            darwin_code_protocol::protocol::HookEventName::Stop => "stop",
         }
     }
 }

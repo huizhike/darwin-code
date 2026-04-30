@@ -10,7 +10,7 @@ pushd "$SCRIPT_DIR/.." >> /dev/null || {
 }
 pnpm install
 pnpm run build
-rm -rf ./dist/openai-darwin-code-*.tgz
+rm -rf ./dist/darwin-darwin-code-*.tgz
 pnpm pack --pack-destination ./dist
-mv ./dist/openai-darwin-code-*.tgz ./dist/darwin-code.tgz
+mv ./dist/darwin-darwin-code-*.tgz ./dist/darwin-code.tgz
 docker build -t darwin-code -f "./Dockerfile" .

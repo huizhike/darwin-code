@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use darwin_code_exec_server::EnvironmentManager;
 use darwin_code_features::Feature;
-use darwin_code_login::AuthManager;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_protocol::error::Result as DarwinCodeResult;
 use darwin_code_protocol::models::ResponseInputItem;
@@ -26,12 +25,8 @@ pub async fn build_prompt_input(
 ) -> DarwinCodeResult<Vec<ResponseItem>> {
     config.ephemeral = true;
 
-    let auth_manager =
-        AuthManager::shared_from_config(&config, /*enable_darwin_code_api_key_env*/ false);
-
     let thread_manager = ThreadManager::new(
         &config,
-        Arc::clone(&auth_manager),
         SessionSource::Exec,
         CollaborationModesConfig {
             default_mode_request_user_input: config
@@ -43,7 +38,8 @@ pub async fn build_prompt_input(
     );
     let thread = thread_manager.start_thread(config).await?;
 
-    let output = build_prompt_input_from_session(thread.thread.darwin-code.session.as_ref(), input).await;
+    let output =
+        build_prompt_input_from_session(thread.thread.darwin_code.session.as_ref(), input).await;
     let shutdown = thread.thread.shutdown_and_wait().await;
     let _removed = thread_manager.remove_thread(&thread.thread_id).await;
 
@@ -104,11 +100,11 @@ mod tests {
 
     #[tokio::test]
     async fn build_prompt_input_includes_context_and_user_message() {
-        let darwin_code_home = tempfile::tempdir().expect("create darwin-code home");
+        let darwin_code_home = tempfile::tempdir().expect("create darwin_code home");
         let cwd = tempfile::tempdir().expect("create cwd");
         let mut config = test_config().await;
-        config.darwin_code_home =
-            AbsolutePathBuf::from_absolute_path(darwin_code_home.path()).expect("darwin-code home is absolute");
+        config.darwin_code_home = AbsolutePathBuf::from_absolute_path(darwin_code_home.path())
+            .expect("darwin_code home is absolute");
         config.cwd = AbsolutePathBuf::try_from(cwd.path().to_path_buf()).expect("absolute cwd");
         config.user_instructions = Some("Project-specific test instructions".to_string());
 
@@ -128,9 +124,10 @@ mod tests {
             content: vec![ContentItem::InputText {
                 text: "hello from debug prompt".to_string(),
             }],
-            end_turn: None,
-            phase: None,
-        };
+        end_turn: None,
+        phase: None,
+        reasoning_content: None,
+    };
         assert_eq!(input.last(), Some(&expected_user_message));
         assert!(input.iter().any(|item| {
             let ResponseItem::Message { content, .. } = item else {

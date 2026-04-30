@@ -15,7 +15,7 @@ pub(crate) fn write_file(path: &Path, contents: &str) {
 pub(crate) fn write_curated_plugin(root: &Path, plugin_name: &str) {
     let plugin_root = root.join("plugins").join(plugin_name);
     write_file(
-        &plugin_root.join(".darwin-code-plugin/plugin.json"),
+        &plugin_root.join(".codex-plugin/plugin.json"),
         &format!(
             r#"{{
   "name": "{plugin_name}",
@@ -87,7 +87,10 @@ pub(crate) fn write_curated_plugin_sha(darwin_code_home: &Path) {
 }
 
 pub(crate) fn write_curated_plugin_sha_with(darwin_code_home: &Path, sha: &str) {
-    write_file(&darwin_code_home.join(".tmp/plugins.sha"), &format!("{sha}\n"));
+    write_file(
+        &darwin_code_home.join(".tmp/plugins.sha"),
+        &format!("{sha}\n"),
+    );
 }
 
 pub(crate) fn write_plugins_feature_config(darwin_code_home: &Path) {

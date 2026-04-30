@@ -316,14 +316,17 @@ impl ToolEmitter {
                 };
                 (event, result)
             }
-            Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Timeout { output })))
-            | Err(ToolError::Darwin-Code(DarwinCodeErr::Sandbox(SandboxErr::Denied { output, .. }))) => {
+            Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(SandboxErr::Timeout { output })))
+            | Err(ToolError::DarwinCode(DarwinCodeErr::Sandbox(SandboxErr::Denied {
+                output,
+                ..
+            }))) => {
                 let response = self.format_exec_output_for_model(&output, ctx);
                 let event = ToolEventStage::Failure(ToolEventFailure::Output(*output));
                 let result = Err(FunctionCallError::RespondToModel(response));
                 (event, result)
             }
-            Err(ToolError::Darwin-Code(err)) => {
+            Err(ToolError::DarwinCode(err)) => {
                 let message = format!("execution error: {err:?}");
                 let event = ToolEventStage::Failure(ToolEventFailure::Message(message.clone()));
                 let result = Err(FunctionCallError::RespondToModel(message));

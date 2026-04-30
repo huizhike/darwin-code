@@ -1,11 +1,11 @@
 use crate::error::ApiError;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::Verbosity as VerbosityConfig;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::W3cTraceContext;
+use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use darwin_code_protocol::config_types::Verbosity as VerbosityConfig;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use darwin_code_protocol::protocol::RateLimitSnapshot;
+use darwin_code_protocol::protocol::TokenUsage;
+use darwin_code_protocol::protocol::W3cTraceContext;
 use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
@@ -179,6 +179,90 @@ pub struct ResponsesApiRequest {
     pub client_metadata: Option<HashMap<String, String>>,
 }
 
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ChatCompletionsThinkingConfig {
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effort: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ChatCompletionsApiRequest {
+    pub model: String,
+    pub messages: Vec<ChatCompletionsMessage>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
+    pub stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<ReasoningEffortConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ChatCompletionsThinkingConfig>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ChatCompletionsMessage {
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ChatCompletionsToolCall>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+}
+
+impl ChatCompletionsMessage {
+    pub fn text(role: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: role.into(),
+            content: Some(content.into()),
+            reasoning_content: None,
+            tool_calls: Vec::new(),
+            tool_call_id: None,
+        }
+    }
+
+    pub fn assistant_tool_calls(tool_calls: Vec<ChatCompletionsToolCall>) -> Self {
+        Self {
+            role: "assistant".to_string(),
+            content: None,
+            reasoning_content: None,
+            tool_calls,
+            tool_call_id: None,
+        }
+    }
+
+    pub fn tool_output(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: "tool".to_string(),
+            content: Some(content.into()),
+            reasoning_content: None,
+            tool_calls: Vec::new(),
+            tool_call_id: Some(tool_call_id.into()),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ChatCompletionsToolCall {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub r#type: String,
+    pub function: ChatCompletionsFunctionCall,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct ChatCompletionsFunctionCall {
+    pub name: String,
+    pub arguments: String,
+}
+
 impl From<&ResponsesApiRequest> for ResponseCreateWsRequest {
     fn from(request: &ResponsesApiRequest) -> Self {
         Self {
@@ -273,7 +357,7 @@ pub fn create_text_param_for_request(
             r#type: TextFormatType::JsonSchema,
             strict: true,
             schema: schema.clone(),
-            name: "codex_output_schema".to_string(),
+            name: "darwin_code_output_schema".to_string(),
         }),
     })
 }

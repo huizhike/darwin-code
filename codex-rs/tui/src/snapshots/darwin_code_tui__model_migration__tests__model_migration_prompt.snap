@@ -1,0 +1,19 @@
+---
+source: tui/src/model_migration.rs
+expression: terminal.backend()
+---
+
+> DarwinCode just got an upgrade. Introducing gpt-5.1-darwin
+
+  Upgrade to gpt-5.2-darwin-code for the latest and greatest
+  agentic coding model.
+
+  You can continue using gpt-5.1-darwin-code-mini if you
+  prefer.
+
+  Choose how you'd like DarwinCode to proceed.
+
+› 1. Try new model
+  2. Use existing model
+
+  Use ↑/↓ to move, press enter to confirm

@@ -2,14 +2,10 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fs;
+use std::path::Path;
 use std::time::Duration;
 use std::time::Instant;
 
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -25,6 +21,11 @@ use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -33,7 +34,7 @@ use tokio::sync::oneshot;
 async fn run_turn(test: &TestDarwinCode, prompt: &str) -> anyhow::Result<()> {
     let session_model = test.session_configured.model.clone();
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: prompt.into(),
@@ -53,7 +54,10 @@ async fn run_turn(test: &TestDarwinCode, prompt: &str) -> anyhow::Result<()> {
         })
         .await?;
 
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     Ok(())
 }
@@ -65,7 +69,9 @@ async fn run_turn_and_measure(test: &TestDarwinCode, prompt: &str) -> anyhow::Re
 }
 
 #[allow(clippy::expect_used)]
-async fn build_darwin_code_with_test_tool(server: &wiremock::MockServer) -> anyhow::Result<TestDarwinCode> {
+async fn build_darwin_code_with_test_tool(
+    server: &wiremock::MockServer,
+) -> anyhow::Result<TestDarwinCode> {
     let mut builder = test_darwin_code().with_model("test-gpt-5.1-darwin-code");
     builder.build(server).await
 }
@@ -76,6 +82,75 @@ fn assert_parallel_duration(actual: Duration) {
         actual < Duration::from_millis(1_600),
         "expected parallel execution to finish quickly, got {actual:?}"
     );
+}
+
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn shell_span_command(output_path: &Path, label: &str) -> String {
+    let script = r#"my ($path, $label) = @ARGV;
+open(my $fh, ">>", $path) or die $!;
+print $fh "$label start ".int(time()*1000)."\n";
+close($fh);
+sleep(0.4);
+open($fh, ">>", $path) or die $!;
+print $fh "$label end ".int(time()*1000)."\n";
+close($fh);"#;
+    format!(
+        "perl -MTime::HiRes=time,sleep -e {} -- {} {}",
+        shell_quote(script),
+        shell_quote(&output_path.display().to_string()),
+        shell_quote(label)
+    )
+}
+
+fn read_shell_span(output_path: &Path, label: &str) -> anyhow::Result<(i64, i64)> {
+    let contents = fs::read_to_string(output_path)?;
+    let mut start = None;
+    let mut end = None;
+
+    for line in contents.lines() {
+        let parts = line.split_whitespace().collect::<Vec<_>>();
+        if parts.len() != 3 || parts[0] != label {
+            continue;
+        }
+
+        let timestamp = parts[2]
+            .parse::<i64>()
+            .map_err(|err| anyhow::anyhow!("invalid timestamp in {line:?}: {err}"))?;
+
+        match parts[1] {
+            "start" => start = Some(timestamp),
+            "end" => end = Some(timestamp),
+            _ => {}
+        }
+    }
+
+    Ok((
+        start.ok_or_else(|| anyhow::anyhow!("missing start timestamp for {label}"))?,
+        end.ok_or_else(|| anyhow::anyhow!("missing end timestamp for {label}"))?,
+    ))
+}
+
+fn assert_shell_spans_overlap(first: (i64, i64), second: (i64, i64)) -> anyhow::Result<()> {
+    let (first_start, first_end) = first;
+    let (second_start, second_end) = second;
+
+    anyhow::ensure!(
+        first_start <= first_end,
+        "first shell span is invalid: start={first_start}, end={first_end}"
+    );
+    anyhow::ensure!(
+        second_start <= second_end,
+        "second shell span is invalid: start={second_start}, end={second_end}"
+    );
+    anyhow::ensure!(
+        first_start < second_end && second_start < first_end,
+        "shell commands did not overlap: first=({first_start}, {first_end}), second=({second_start}, {second_end})"
+    );
+
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -147,15 +222,23 @@ async fn shell_tools_run_in_parallel() -> anyhow::Result<()> {
     let server = start_mock_server().await;
     let mut builder = test_darwin_code().with_model("gpt-5.1");
     let test = builder.build(&server).await?;
+    let output_file = tempfile::NamedTempFile::new()?;
+    let output_path = output_file.path();
 
-    let shell_args = json!({
-        "command": "sleep 0.25",
-        // Avoid user-specific shell startup cost (e.g. zsh profile scripts) in timing assertions.
+    let shell_args_one = json!({
+        "command": shell_span_command(output_path, "one"),
+        // Avoid user-specific shell startup cost (e.g. zsh profile scripts) in overlap assertions.
         "login": false,
-        "timeout_ms": 1_000,
+        "timeout_ms": 2_000,
     });
-    let args_one = serde_json::to_string(&shell_args)?;
-    let args_two = serde_json::to_string(&shell_args)?;
+    let shell_args_two = json!({
+        "command": shell_span_command(output_path, "two"),
+        // Avoid user-specific shell startup cost (e.g. zsh profile scripts) in overlap assertions.
+        "login": false,
+        "timeout_ms": 2_000,
+    });
+    let args_one = serde_json::to_string(&shell_args_one)?;
+    let args_two = serde_json::to_string(&shell_args_two)?;
 
     let first_response = sse(vec![
         json!({"type": "response.created", "response": {"id": "resp-1"}}),
@@ -169,8 +252,11 @@ async fn shell_tools_run_in_parallel() -> anyhow::Result<()> {
     ]);
     mount_sse_sequence(&server, vec![first_response, second_response]).await;
 
-    let duration = run_turn_and_measure(&test, "run shell_command twice").await?;
-    assert_parallel_duration(duration);
+    run_turn(&test, "run shell_command twice").await?;
+
+    let one = read_shell_span(output_path, "one")?;
+    let two = read_shell_span(output_path, "two")?;
+    assert_shell_spans_overlap(one, two)?;
 
     Ok(())
 }
@@ -350,7 +436,7 @@ async fn shell_tools_start_before_response_completed_when_stream_delayed() -> an
         .await?;
 
     let session_model = test.session_configured.model.clone();
-    test.darwin-code
+    test.darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "stream delayed completion".into(),
@@ -394,7 +480,10 @@ async fn shell_tools_start_before_response_completed_when_stream_delayed() -> an
     .await??;
 
     let _ = completion_gate_tx.send(());
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let mut completion_iter = completion_receivers.into_iter();
     let completed_at = completion_iter

@@ -9,6 +9,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
+use crate::ByokTestAuth;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -21,9 +22,7 @@ use darwin_code_exec_server::CreateDirectoryOptions;
 use darwin_code_exec_server::ExecutorFileSystem;
 use darwin_code_exec_server::RemoveOptions;
 use darwin_code_features::Feature;
-use darwin_code_login::DarwinCodeAuth;
 use darwin_code_model_provider_info::ModelProviderInfo;
-use darwin_code_model_provider_info::built_in_model_providers;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use darwin_code_protocol::config_types::ServiceTier;
@@ -76,7 +75,8 @@ impl TestEnv {
     pub async fn local() -> Result<Self> {
         let local_cwd_temp_dir = Arc::new(TempDir::new()?);
         let cwd = local_cwd_temp_dir.abs();
-        let environment = darwin_code_exec_server::Environment::create(/*exec_server_url*/ None).await?;
+        let environment =
+            darwin_code_exec_server::Environment::create(/*exec_server_url*/ None).await?;
         Ok(Self {
             environment,
             cwd,
@@ -115,7 +115,8 @@ pub async fn test_env() -> Result<TestEnv> {
     match get_remote_test_env() {
         Some(remote_env) => {
             let websocket_url = remote_exec_server_url()?;
-            let environment = darwin_code_exec_server::Environment::create(Some(websocket_url)).await?;
+            let environment =
+                darwin_code_exec_server::Environment::create(Some(websocket_url)).await?;
             let cwd = remote_aware_cwd_path();
             environment
                 .get_filesystem()
@@ -138,7 +139,7 @@ pub async fn test_env() -> Result<TestEnv> {
 
 fn remote_aware_cwd_path() -> AbsolutePathBuf {
     PathBuf::from(format!(
-        "/tmp/darwin-code-core-test-cwd-{}",
+        "/tmp/darwin_code-core-test-cwd-{}",
         remote_test_instance_id()
     ))
     .abs()
@@ -199,7 +200,7 @@ pub enum ShellModelOutput {
 
 pub struct TestDarwinCodeBuilder {
     config_mutators: Vec<Box<ConfigMutator>>,
-    auth: DarwinCodeAuth,
+    auth: ByokTestAuth,
     pre_build_hooks: Vec<Box<PreBuildHook>>,
     workspace_setups: Vec<Box<WorkspaceSetup>>,
     home: Option<Arc<TempDir>>,
@@ -215,7 +216,7 @@ impl TestDarwinCodeBuilder {
         self
     }
 
-    pub fn with_auth(mut self, auth: DarwinCodeAuth) -> Self {
+    pub fn with_auth(mut self, auth: ByokTestAuth) -> Self {
         self.auth = auth;
         self
     }
@@ -320,7 +321,6 @@ impl TestDarwinCodeBuilder {
         self.config_mutators.push(Box::new(move |config| {
             config.model_provider.base_url = Some(base_url_clone);
             config.model_provider.supports_websockets = true;
-            config.experimental_realtime_ws_model = Some("realtime-test-model".to_string());
             config.realtime.version = RealtimeWsVersion::V1;
         }));
         let test_env = TestEnv::local().await?;
@@ -384,7 +384,6 @@ impl TestDarwinCodeBuilder {
         let thread_manager = if config.model_catalog.is_some() {
             ThreadManager::new(
                 &config,
-                darwin_code_core::test_support::auth_manager_from_auth(auth.clone()),
                 SessionSource::Exec,
                 CollaborationModesConfig::default(),
                 Arc::clone(&environment_manager),
@@ -402,25 +401,19 @@ impl TestDarwinCodeBuilder {
         let user_shell_override = self.user_shell_override.clone();
 
         let new_conversation = match (resume_from, user_shell_override) {
-            (Some(path), Some(user_shell_override)) => {
-                let auth_manager = darwin_code_core::test_support::auth_manager_from_auth(auth);
-                Box::pin(
-                    darwin_code_core::test_support::resume_thread_from_rollout_with_user_shell_override(
-                        thread_manager.as_ref(),
-                        config.clone(),
-                        path,
-                        auth_manager,
-                        user_shell_override,
-                    ),
-                )
-                .await?
-            }
+            (Some(path), Some(user_shell_override)) => Box::pin(
+                darwin_code_core::test_support::resume_thread_from_rollout_with_user_shell_override(
+                    thread_manager.as_ref(),
+                    config.clone(),
+                    path,
+                    user_shell_override,
+                ),
+            )
+            .await?,
             (Some(path), None) => {
-                let auth_manager = darwin_code_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(thread_manager.resume_thread_from_rollout(
                     config.clone(),
                     path,
-                    auth_manager,
                     /*parent_trace*/ None,
                 ))
                 .await?
@@ -442,7 +435,7 @@ impl TestDarwinCodeBuilder {
             home,
             cwd,
             config,
-            darwin-code: new_conversation.thread,
+            darwin_code: new_conversation.thread,
             session_configured: new_conversation.session_configured,
             thread_manager,
             _test_env: test_env,
@@ -460,7 +453,7 @@ impl TestDarwinCodeBuilder {
             // Most core tests use SSE-only mock servers, so keep websocket transport off unless
             // a test explicitly opts into websocket coverage.
             supports_websockets: false,
-            ..built_in_model_providers(/*openai_base_url*/ None)["openai"].clone()
+            ..ModelProviderInfo::create_openai_provider(None, None)
         };
         let cwd = Arc::new(TempDir::new()?);
         let mut config = load_default_config_for_test(home).await;
@@ -469,19 +462,19 @@ impl TestDarwinCodeBuilder {
         for hook in self.pre_build_hooks.drain(..) {
             hook(home.path());
         }
-        if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code") {
+        if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin_code") {
             config.darwin_code_self_exe = Some(path);
-        } else if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin-code-exec") {
-            // `darwin-code-exec` also supports `--darwin-code-run-as-apply-patch`, so use it
+        } else if let Ok(path) = darwin_code_utils_cargo_bin::cargo_bin("darwin_code-exec") {
+            // `darwin_code-exec` also supports `--darwin_code-run-as-apply-patch`, so use it
             // when the multitool binary is not available in test builds.
             config.darwin_code_self_exe = Some(path);
         } else if let Ok(exe) = std::env::current_exe()
             && let Some(bin_dir) = exe.parent().and_then(|parent| parent.parent())
         {
-            let darwin-code = bin_dir.join("darwin-code");
-            let darwin_code_exec = bin_dir.join("darwin-code-exec");
-            if darwin-code.is_file() {
-                config.darwin_code_self_exe = Some(darwin-code);
+            let darwin_code = bin_dir.join("darwin_code");
+            let darwin_code_exec = bin_dir.join("darwin_code-exec");
+            if darwin_code.is_file() {
+                config.darwin_code_self_exe = Some(darwin_code);
             } else if darwin_code_exec.is_file() {
                 config.darwin_code_self_exe = Some(darwin_code_exec);
             }
@@ -505,9 +498,7 @@ impl TestDarwinCodeBuilder {
 }
 
 fn ensure_test_model_catalog(config: &mut Config) -> Result<()> {
-    if config.model.as_deref() != Some(TEST_MODEL_WITH_EXPERIMENTAL_TOOLS)
-        || config.model_catalog.is_some()
-    {
+    if config.model.as_deref() != Some(TEST_MODEL_WITH_EXPERIMENTAL_TOOLS) {
         return Ok(());
     }
 
@@ -522,16 +513,25 @@ fn ensure_test_model_catalog(config: &mut Config) -> Result<()> {
     model.slug = TEST_MODEL_WITH_EXPERIMENTAL_TOOLS.to_string();
     model.display_name = TEST_MODEL_WITH_EXPERIMENTAL_TOOLS.to_string();
     model.experimental_supported_tools = vec!["test_sync_tool".to_string()];
-    config.model_catalog = Some(ModelsResponse {
-        models: vec![model],
-    });
+    let catalog = config
+        .model_catalog
+        .get_or_insert_with(|| ModelsResponse { models: Vec::new() });
+    if let Some(existing) = catalog
+        .models
+        .iter_mut()
+        .find(|candidate| candidate.slug == TEST_MODEL_WITH_EXPERIMENTAL_TOOLS)
+    {
+        *existing = model;
+    } else {
+        catalog.models.push(model);
+    }
     Ok(())
 }
 
 pub struct TestDarwinCode {
     pub home: Arc<TempDir>,
     pub cwd: Arc<TempDir>,
-    pub darwin-code: Arc<DarwinCodeThread>,
+    pub darwin_code: Arc<DarwinCodeThread>,
     pub session_configured: SessionConfiguredEvent,
     pub config: Config,
     pub thread_manager: Arc<ThreadManager>,
@@ -614,7 +614,7 @@ impl TestDarwinCode {
         service_tier: Option<Option<ServiceTier>>,
     ) -> Result<()> {
         let session_model = self.session_configured.model.clone();
-        self.darwin-code
+        self.darwin_code
             .submit(Op::UserTurn {
                 items: vec![UserInput::Text {
                     text: prompt.into(),
@@ -634,13 +634,13 @@ impl TestDarwinCode {
             })
             .await?;
 
-        let turn_id = wait_for_event_match(&self.darwin-code, |event| match event {
+        let turn_id = wait_for_event_match(&self.darwin_code, |event| match event {
             EventMsg::TurnStarted(event) => Some(event.turn_id.clone()),
             _ => None,
         })
         .await;
         wait_for_event_with_timeout(
-            &self.darwin-code,
+            &self.darwin_code,
             |event| match event {
                 EventMsg::TurnComplete(event) => event.turn_id == turn_id,
                 _ => false,
@@ -880,7 +880,7 @@ fn function_call_output<'a>(bodies: &'a [Value], call_id: &str) -> &'a Value {
 pub fn test_darwin_code() -> TestDarwinCodeBuilder {
     TestDarwinCodeBuilder {
         config_mutators: vec![],
-        auth: DarwinCodeAuth::from_api_key("dummy"),
+        auth: ByokTestAuth::from_api_key("dummy"),
         pre_build_hooks: vec![],
         workspace_setups: vec![],
         home: None,

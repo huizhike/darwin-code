@@ -1,11 +1,9 @@
 use anyhow::Result;
-use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::create_fake_rollout;
 use app_test_support::create_fake_rollout_with_token_usage;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use app_test_support::write_chatgpt_auth;
 use darwin_code_app_server_protocol::JSONRPCError;
 use darwin_code_app_server_protocol::JSONRPCMessage;
 use darwin_code_app_server_protocol::JSONRPCResponse;
@@ -26,24 +24,16 @@ use darwin_code_app_server_protocol::TurnStartParams;
 use darwin_code_app_server_protocol::TurnStartResponse;
 use darwin_code_app_server_protocol::TurnStatus;
 use darwin_code_app_server_protocol::UserInput;
-use darwin_code_config::types::AuthCredentialsStoreMode;
-use darwin_code_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
 use std::path::Path;
 use tempfile::TempDir;
 use tokio::time::timeout;
-use wiremock::Mock;
 use wiremock::MockServer;
-use wiremock::ResponseTemplate;
-use wiremock::matchers::method;
-use wiremock::matchers::path;
 
-use super::analytics::assert_basic_thread_initialized_event;
+use super::analytics::assert_no_analytics_payload;
 use super::analytics::enable_analytics_capture;
-use super::analytics::thread_initialized_event;
-use super::analytics::wait_for_analytics_payload;
 
 #[cfg(windows)]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(25);
@@ -242,13 +232,12 @@ async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()>
 }
 
 #[tokio::test]
-async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
+async fn thread_fork_drops_hosted_thread_initialized_analytics_in_byok_runtime() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
 
     let darwin_code_home = TempDir::new()?;
-    create_config_toml_with_chatgpt_base_url(
+    create_config_toml_with_base_url(
         darwin_code_home.path(),
-        &server.uri(),
         &server.uri(),
         /*general_analytics_enabled*/ true,
     )?;
@@ -277,11 +266,9 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let _ = to_response::<ThreadForkResponse>(fork_resp)?;
 
-    let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
-    let event = thread_initialized_event(&payload)?;
-    assert_basic_thread_initialized_event(event, &thread.id, "mock-model", "forked");
+    assert_no_analytics_payload(&server, std::time::Duration::from_millis(250)).await?;
     Ok(())
 }
 
@@ -325,103 +312,6 @@ async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
             .contains("no rollout found for thread id"),
         "unexpected fork error: {}",
         fork_err.error.message
-    );
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn thread_fork_surfaces_cloud_requirements_load_errors() -> Result<()> {
-    let server = MockServer::start().await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/wham/config/requirements"))
-        .respond_with(
-            ResponseTemplate::new(401)
-                .insert_header("content-type", "text/html")
-                .set_body_string("<html>nope</html>"),
-        )
-        .mount(&server)
-        .await;
-    Mock::given(method("POST"))
-        .and(path("/oauth/token"))
-        .respond_with(ResponseTemplate::new(401).set_body_json(json!({
-            "error": { "code": "refresh_token_invalidated" }
-        })))
-        .mount(&server)
-        .await;
-
-    let darwin_code_home = TempDir::new()?;
-    let model_server = create_mock_responses_server_repeating_assistant("Done").await;
-    let chatgpt_base_url = format!("{}/backend-api", server.uri());
-    create_config_toml_with_chatgpt_base_url(
-        darwin_code_home.path(),
-        &model_server.uri(),
-        &chatgpt_base_url,
-        /*general_analytics_enabled*/ false,
-    )?;
-    write_chatgpt_auth(
-        darwin_code_home.path(),
-        ChatGptAuthFixture::new("chatgpt-token")
-            .refresh_token("stale-refresh-token")
-            .plan_type("business")
-            .chatgpt_user_id("user-123")
-            .chatgpt_account_id("account-123")
-            .account_id("account-123"),
-        AuthCredentialsStoreMode::File,
-    )?;
-
-    let conversation_id = create_fake_rollout(
-        darwin_code_home.path(),
-        "2025-01-05T12-00-00",
-        "2025-01-05T12:00:00Z",
-        "Saved user message",
-        Some("mock_provider"),
-        /*git_info*/ None,
-    )?;
-
-    let refresh_token_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
-        darwin_code_home.path(),
-        &[
-            ("OPENAI_API_KEY", None),
-            (
-                REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
-                Some(refresh_token_url.as_str()),
-            ),
-        ],
-    )
-    .await?;
-    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-
-    let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id,
-            ..Default::default()
-        })
-        .await?;
-    let fork_err: JSONRPCError = timeout(
-        DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_error_message(RequestId::Integer(fork_id)),
-    )
-    .await??;
-
-    assert!(
-        fork_err
-            .error
-            .message
-            .contains("failed to load configuration"),
-        "unexpected fork error: {}",
-        fork_err.error.message
-    );
-    assert_eq!(
-        fork_err.error.data,
-        Some(json!({
-            "reason": "cloudRequirements",
-            "errorCode": "Auth",
-            "action": "relogin",
-            "statusCode": 401,
-            "detail": "Your access token could not be refreshed because your refresh token was revoked. Please log out and sign in again.",
-        }))
     );
 
     Ok(())
@@ -615,10 +505,9 @@ stream_max_retries = 0
     )
 }
 
-fn create_config_toml_with_chatgpt_base_url(
+fn create_config_toml_with_base_url(
     darwin_code_home: &Path,
     server_uri: &str,
-    chatgpt_base_url: &str,
     general_analytics_enabled: bool,
 ) -> std::io::Result<()> {
     let general_analytics_toml = if general_analytics_enabled {
@@ -634,8 +523,6 @@ fn create_config_toml_with_chatgpt_base_url(
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-chatgpt_base_url = "{chatgpt_base_url}"
-
 model_provider = "mock_provider"
 
 [features]

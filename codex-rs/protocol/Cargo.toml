@@ -16,7 +16,6 @@ chardetng = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 darwin-code-async-utils = { workspace = true }
 darwin-code-execpolicy = { workspace = true }
-darwin-code-network-proxy = { workspace = true }
 darwin-code-utils-absolute-path = { workspace = true }
 darwin-code-utils-image = { workspace = true }
 darwin-code-utils-string = { workspace = true }

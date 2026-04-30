@@ -10,6 +10,8 @@ use super::format_section;
 use super::format_startup_context_blob;
 use chrono::TimeZone;
 use chrono::Utc;
+use core_test_support::PathBufExt;
+use core_test_support::PathExt;
 use darwin_code_git_utils::GitSha;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::models::ContentItem;
@@ -19,8 +21,6 @@ use darwin_code_protocol::protocol::GitInfo;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_thread_store::StoredThread;
-use core_test_support::PathBufExt;
-use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::PathBuf;
@@ -72,6 +72,7 @@ fn message(role: &str, content: ContentItem) -> ResponseItem {
         content: vec![content],
         end_turn: None,
         phase: None,
+        reasoning_content: None,
     }
 }
 
@@ -181,12 +182,12 @@ fn current_thread_section_keeps_latest_turns_when_history_exceeds_budget() {
 
 #[test]
 fn startup_context_blob_is_wrapped_in_tags_without_final_truncation() {
-    let body = "Startup context from Darwin-Code.\n## Current Thread\nhello";
+    let body = "Startup context from DarwinCode.\n## Current Thread\nhello";
     let wrapped = format_startup_context_blob(body);
 
     assert_eq!(
         wrapped,
-        "<startup_context>\nStartup context from Darwin-Code.\n## Current Thread\nhello\n</startup_context>"
+        "<startup_context>\nStartup context from DarwinCode.\n## Current Thread\nhello\n</startup_context>"
     );
 }
 

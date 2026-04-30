@@ -2,17 +2,6 @@
 
 use std::collections::HashMap;
 
-use darwin_code_features::Feature;
-use darwin_code_protocol::config_types::CollaborationMode;
-use darwin_code_protocol::config_types::ModeKind;
-use darwin_code_protocol::config_types::Settings;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::SandboxPolicy;
-use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
-use darwin_code_protocol::request_user_input::RequestUserInputResponse;
-use darwin_code_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -26,6 +15,17 @@ use core_test_support::test_darwin_code::TestDarwinCode;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use darwin_code_features::Feature;
+use darwin_code_protocol::config_types::CollaborationMode;
+use darwin_code_protocol::config_types::ModeKind;
+use darwin_code_protocol::config_types::Settings;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::SandboxPolicy;
+use darwin_code_protocol::request_user_input::RequestUserInputAnswer;
+use darwin_code_protocol::request_user_input::RequestUserInputResponse;
+use darwin_code_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -81,7 +81,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
     let builder = test_darwin_code();
     #[allow(clippy::expect_used)]
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         ..
@@ -129,7 +129,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
 
     let session_model = session_configured.model.clone();
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please confirm".into(),
@@ -156,7 +156,7 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
         })
         .await?;
 
-    let request = wait_for_event_match(&darwin-code, |event| match event {
+    let request = wait_for_event_match(&darwin_code, |event| match event {
         EventMsg::RequestUserInput(request) => Some(request.clone()),
         _ => None,
     })
@@ -173,14 +173,17 @@ async fn request_user_input_round_trip_for_mode(mode: ModeKind) -> anyhow::Resul
         },
     );
     let response = RequestUserInputResponse { answers };
-    darwin-code
+    darwin_code
         .submit(Op::UserInputAnswer {
             id: request.turn_id.clone(),
             response,
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let req = second_mock.single_request();
     let output_text = call_output(&req, call_id);
@@ -207,7 +210,7 @@ where
 
     let mut builder = test_darwin_code();
     let TestDarwinCode {
-        darwin-code,
+        darwin_code,
         cwd,
         session_configured,
         ..
@@ -247,7 +250,7 @@ where
     let session_model = session_configured.model.clone();
     let collaboration_mode = build_mode(session_model.clone());
 
-    darwin-code
+    darwin_code
         .submit(Op::UserTurn {
             items: vec![UserInput::Text {
                 text: "please confirm".into(),
@@ -267,7 +270,10 @@ where
         })
         .await?;
 
-    wait_for_event(&darwin-code, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&darwin_code, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let req = second_mock.single_request();
     let (output, success) = call_output_content_and_success(&req, &call_id);

@@ -7,12 +7,12 @@ use crate::selection_list::selection_option_row_with_dim;
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
-use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
-use darwin_code_app_server_protocol::PluginsMigration;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+use darwin_code_app_server_protocol::PluginsMigration;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
@@ -764,12 +764,12 @@ mod tests {
     use crate::custom_terminal::Terminal;
     use crate::test_backend::VT100Backend;
     use crate::tui::FrameRequester;
-    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
-    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
-    use darwin_code_app_server_protocol::PluginsMigration;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyModifiers;
+    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItem;
+    use darwin_code_app_server_protocol::ExternalAgentConfigMigrationItemType;
+    use darwin_code_app_server_protocol::PluginsMigration;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use ratatui::layout::Rect;
@@ -780,7 +780,7 @@ mod tests {
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Config,
                 description:
-                    "Migrate /Users/alex/.claude/settings.json into /Users/alex/.darwin-code/config.toml"
+                    "Migrate /Users/alex/.claude/settings.json into /Users/alex/.darwin_code/config.toml"
                         .to_string(),
                 cwd: None,
                 details: None,

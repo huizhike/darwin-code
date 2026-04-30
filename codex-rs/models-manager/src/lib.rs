@@ -5,14 +5,11 @@ pub mod manager;
 pub mod model_info;
 pub mod model_presets;
 
-pub use darwin_code_app_server_protocol::AuthMode;
-pub use darwin_code_login::AuthManager;
-pub use darwin_code_login::DarwinCodeAuth;
+pub use config::ModelsManagerConfig;
 pub use darwin_code_model_provider_info::ModelProviderInfo;
 pub use darwin_code_model_provider_info::WireApi;
-pub use config::ModelsManagerConfig;
 
-/// Load the bundled model catalog shipped with `darwin-code-models-manager`.
+/// Load the bundled model catalog shipped with `darwin_code-models-manager`.
 pub fn bundled_models_response()
 -> std::result::Result<darwin_code_protocol::openai_models::ModelsResponse, serde_json::Error> {
     serde_json::from_str(include_str!("../models.json"))

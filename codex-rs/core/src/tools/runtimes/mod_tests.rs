@@ -1,9 +1,9 @@
 use super::*;
 use crate::shell::ShellType;
 use crate::shell_snapshot::ShellSnapshot;
-use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::process::Command;
@@ -313,7 +313,10 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_darwin_code_thread_id_from_env() {
         &session_shell,
         &dir.path().abs(),
         &HashMap::new(),
-        &HashMap::from([("DARWIN_CODE_THREAD_ID".to_string(), "nested-thread".to_string())]),
+        &HashMap::from([(
+            "DARWIN_CODE_THREAD_ID".to_string(),
+            "nested-thread".to_string(),
+        )]),
     );
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])

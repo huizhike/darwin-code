@@ -1,5 +1,5 @@
 use anyhow::Result;
-pub use codex_protocol::protocol::SandboxPolicy;
+pub use darwin_code_protocol::protocol::SandboxPolicy;
 
 pub fn parse_policy(value: &str) -> Result<SandboxPolicy> {
     match value {
@@ -39,8 +39,8 @@ mod tests {
     #[test]
     fn rejects_external_sandbox_json() {
         let payload = serde_json::to_string(
-            &codex_protocol::protocol::SandboxPolicy::ExternalSandbox {
-                network_access: codex_protocol::protocol::NetworkAccess::Enabled,
+            &darwin_code_protocol::protocol::SandboxPolicy::ExternalSandbox {
+                network_access: darwin_code_protocol::protocol::NetworkAccess::Enabled,
             },
         )
         .unwrap();

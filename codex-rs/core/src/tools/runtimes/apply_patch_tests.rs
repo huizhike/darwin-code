@@ -1,5 +1,6 @@
 use super::*;
 use crate::tools::sandboxing::SandboxAttempt;
+use core_test_support::PathBufExt;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use darwin_code_protocol::models::FileSystemPermissions;
 use darwin_code_protocol::models::PermissionProfile;
@@ -12,7 +13,6 @@ use darwin_code_protocol::protocol::GranularApprovalConfig;
 use darwin_code_protocol::protocol::SandboxPolicy;
 use darwin_code_sandboxing::SandboxManager;
 use darwin_code_sandboxing::SandboxType;
-use core_test_support::PathBufExt;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 
@@ -114,10 +114,10 @@ fn file_system_sandbox_context_uses_active_attempt() {
         policy: &sandbox_policy,
         file_system_policy: &file_system_policy,
         network_policy: NetworkSandboxPolicy::Restricted,
-        enforce_managed_network: false,
+        enforce_network_policy: false,
         manager: &manager,
         sandbox_cwd: &path,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         use_legacy_landlock: true,
         windows_sandbox_level: WindowsSandboxLevel::RestrictedToken,
         windows_sandbox_private_desktop: true,
@@ -166,10 +166,10 @@ fn file_system_sandbox_context_omits_legacy_equivalent_policy() {
         policy: &sandbox_policy,
         file_system_policy: &file_system_policy,
         network_policy: NetworkSandboxPolicy::Restricted,
-        enforce_managed_network: false,
+        enforce_network_policy: false,
         manager: &manager,
         sandbox_cwd: &path,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         use_legacy_landlock: true,
         windows_sandbox_level: WindowsSandboxLevel::RestrictedToken,
         windows_sandbox_private_desktop: true,
@@ -206,10 +206,10 @@ fn no_sandbox_attempt_has_no_file_system_context() {
         policy: &sandbox_policy,
         file_system_policy: &file_system_policy,
         network_policy: NetworkSandboxPolicy::Enabled,
-        enforce_managed_network: false,
+        enforce_network_policy: false,
         manager: &manager,
         sandbox_cwd: &path,
-        darwin_code_linux_sandbox_exe: None,
+        codex_linux_sandbox_exe: None,
         use_legacy_landlock: false,
         windows_sandbox_level: WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,

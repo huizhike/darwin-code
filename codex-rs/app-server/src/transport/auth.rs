@@ -4,8 +4,8 @@ use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use clap::Args;
 use clap::ValueEnum;
-use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use constant_time_eq::constant_time_eq_32;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use jsonwebtoken::Algorithm;
 use jsonwebtoken::DecodingKey;
 use jsonwebtoken::Validation;
@@ -87,11 +87,11 @@ pub enum AppServerWebsocketCapabilityTokenSource {
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WebsocketAuthPolicy {
-    pub(crate) mode: Option<WebsocketAuthMode>,
+    pub(crate) mode: Option<WebsocketCredentialMode>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum WebsocketAuthMode {
+pub(crate) enum WebsocketCredentialMode {
     CapabilityToken {
         token_sha256: [u8; 32],
     },
@@ -226,12 +226,12 @@ pub(crate) fn policy_from_settings(
         Some(AppServerWebsocketAuthConfig::CapabilityToken { source }) => match source {
             AppServerWebsocketCapabilityTokenSource::TokenFile { token_file } => {
                 let token = read_trimmed_secret(token_file.as_ref())?;
-                Some(WebsocketAuthMode::CapabilityToken {
+                Some(WebsocketCredentialMode::CapabilityToken {
                     token_sha256: sha256_digest(token.as_bytes()),
                 })
             }
             AppServerWebsocketCapabilityTokenSource::TokenSha256 { token_sha256 } => {
-                Some(WebsocketAuthMode::CapabilityToken {
+                Some(WebsocketCredentialMode::CapabilityToken {
                     token_sha256: *token_sha256,
                 })
             }
@@ -250,7 +250,7 @@ pub(crate) fn policy_from_settings(
                     "websocket auth clock skew must fit in a signed 64-bit integer",
                 )
             })?;
-            Some(WebsocketAuthMode::SignedBearerToken {
+            Some(WebsocketCredentialMode::SignedBearerToken {
                 shared_secret,
                 issuer: issuer.clone(),
                 audience: audience.clone(),
@@ -280,7 +280,7 @@ pub(crate) fn authorize_upgrade(
 
     let token = bearer_token_from_headers(headers)?;
     match mode {
-        WebsocketAuthMode::CapabilityToken { token_sha256 } => {
+        WebsocketCredentialMode::CapabilityToken { token_sha256 } => {
             let actual_sha256 = sha256_digest(token.as_bytes());
             if constant_time_eq_32(token_sha256, &actual_sha256) {
                 Ok(())
@@ -288,7 +288,7 @@ pub(crate) fn authorize_upgrade(
                 Err(unauthorized("invalid websocket bearer token"))
             }
         }
-        WebsocketAuthMode::SignedBearerToken {
+        WebsocketCredentialMode::SignedBearerToken {
             shared_secret,
             issuer,
             audience,
@@ -495,7 +495,7 @@ mod tests {
         assert!(!should_warn_about_unauthenticated_non_loopback_listener(
             "0.0.0.0:8765".parse().unwrap(),
             &WebsocketAuthPolicy {
-                mode: Some(WebsocketAuthMode::CapabilityToken {
+                mode: Some(WebsocketCredentialMode::CapabilityToken {
                     token_sha256: [0u8; 32],
                 }),
             },

@@ -1,11 +1,11 @@
 use crate::model::ThreadMetadata;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-use codex_protocol::protocol::UserMessageEvent;
+use darwin_code_protocol::models::ResponseItem;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::RolloutItem;
+use darwin_code_protocol::protocol::SessionMetaLine;
+use darwin_code_protocol::protocol::TurnContextItem;
+use darwin_code_protocol::protocol::USER_MESSAGE_BEGIN;
+use darwin_code_protocol::protocol::UserMessageEvent;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -147,22 +147,22 @@ mod tests {
     use crate::model::ThreadMetadata;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::config_types::ReasoningSummary;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadNameUpdatedEvent;
-    use codex_protocol::protocol::TurnContextItem;
-    use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-    use codex_protocol::protocol::UserMessageEvent;
+    use darwin_code_protocol::ThreadId;
+    use darwin_code_protocol::config_types::ReasoningSummary;
+    use darwin_code_protocol::models::ContentItem;
+    use darwin_code_protocol::models::ResponseItem;
+    use darwin_code_protocol::openai_models::ReasoningEffort;
+    use darwin_code_protocol::protocol::AskForApproval;
+    use darwin_code_protocol::protocol::EventMsg;
+    use darwin_code_protocol::protocol::RolloutItem;
+    use darwin_code_protocol::protocol::SandboxPolicy;
+    use darwin_code_protocol::protocol::SessionMeta;
+    use darwin_code_protocol::protocol::SessionMetaLine;
+    use darwin_code_protocol::protocol::SessionSource;
+    use darwin_code_protocol::protocol::ThreadNameUpdatedEvent;
+    use darwin_code_protocol::protocol::TurnContextItem;
+    use darwin_code_protocol::protocol::USER_MESSAGE_BEGIN;
+    use darwin_code_protocol::protocol::UserMessageEvent;
 
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
@@ -179,6 +179,7 @@ mod tests {
             }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         });
 
         apply_rollout_item(&mut metadata, &item, "test-provider");

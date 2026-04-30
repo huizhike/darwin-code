@@ -1,12 +1,3 @@
-use darwin_code_core::config::Constrained;
-use darwin_code_core::sandboxing::SandboxPermissions;
-use darwin_code_protocol::protocol::AskForApproval;
-use darwin_code_protocol::protocol::EventMsg;
-use darwin_code_protocol::protocol::Op;
-use darwin_code_protocol::protocol::ReviewDecision;
-use darwin_code_protocol::protocol::ReviewRequest;
-use darwin_code_protocol::protocol::ReviewTarget;
-use darwin_code_protocol::protocol::SandboxPolicy;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -20,6 +11,15 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_darwin_code::test_darwin_code;
 use core_test_support::wait_for_event;
+use darwin_code_core::config::Constrained;
+use darwin_code_core::sandboxing::SandboxPermissions;
+use darwin_code_protocol::protocol::AskForApproval;
+use darwin_code_protocol::protocol::EventMsg;
+use darwin_code_protocol::protocol::Op;
+use darwin_code_protocol::protocol::ReviewDecision;
+use darwin_code_protocol::protocol::ReviewRequest;
+use darwin_code_protocol::protocol::ReviewTarget;
+use darwin_code_protocol::protocol::SandboxPolicy;
 use pretty_assertions::assert_eq;
 
 /// Delegate should surface ExecApprovalRequest from sub-agent and proceed
@@ -62,15 +62,20 @@ async fn darwin_code_delegate_forwards_exec_approval_and_proceeds_on_approval() 
 
     // Build a conversation configured to require approvals so the delegate
     // routes ExecApprovalRequest via the parent.
-    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
-        config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
-        config.permissions.sandbox_policy =
-            Constrained::allow_any(SandboxPolicy::new_read_only_policy());
-    });
-    let test = builder.build(&server).await.expect("build test darwin-code");
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1")
+        .with_config(|config| {
+            config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
+            config.permissions.sandbox_policy =
+                Constrained::allow_any(SandboxPolicy::new_read_only_policy());
+        });
+    let test = builder
+        .build(&server)
+        .await
+        .expect("build test darwin_code");
 
     // Kick off review (sub-agent starts internally).
-    test.darwin-code
+    test.darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -83,13 +88,13 @@ async fn darwin_code_delegate_forwards_exec_approval_and_proceeds_on_approval() 
         .expect("submit review");
 
     // Lifecycle: Entered -> ExecApprovalRequest -> Exited(Some) -> TurnComplete.
-    wait_for_event(&test.darwin-code, |ev| {
+    wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::EnteredReviewMode(_))
     })
     .await;
 
     // Expect parent-side approval request (forwarded by delegate).
-    let approval_event = wait_for_event(&test.darwin-code, |ev| {
+    let approval_event = wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::ExecApprovalRequest(_))
     })
     .await;
@@ -98,7 +103,7 @@ async fn darwin_code_delegate_forwards_exec_approval_and_proceeds_on_approval() 
     };
 
     // Approve via parent using the emitted approval call ID.
-    test.darwin-code
+    test.darwin_code
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
             turn_id: None,
@@ -107,11 +112,14 @@ async fn darwin_code_delegate_forwards_exec_approval_and_proceeds_on_approval() 
         .await
         .expect("submit exec approval");
 
-    wait_for_event(&test.darwin-code, |ev| {
+    wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 }
 
 /// Delegate should surface ApplyPatchApprovalRequest and honor parent decision
@@ -144,16 +152,21 @@ async fn darwin_code_delegate_forwards_patch_approval_and_proceeds_on_decision()
     let server = start_mock_server().await;
     mount_sse_sequence(&server, vec![sse1, sse2]).await;
 
-    let mut builder = test_darwin_code().with_model("gpt-5.1").with_config(|config| {
-        config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
-        // Use a restricted sandbox so patch approval is required
-        config.permissions.sandbox_policy =
-            Constrained::allow_any(SandboxPolicy::new_read_only_policy());
-        config.include_apply_patch_tool = true;
-    });
-    let test = builder.build(&server).await.expect("build test darwin-code");
+    let mut builder = test_darwin_code()
+        .with_model("gpt-5.1")
+        .with_config(|config| {
+            config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
+            // Use a restricted sandbox so patch approval is required
+            config.permissions.sandbox_policy =
+                Constrained::allow_any(SandboxPolicy::new_read_only_policy());
+            config.include_apply_patch_tool = true;
+        });
+    let test = builder
+        .build(&server)
+        .await
+        .expect("build test darwin_code");
 
-    test.darwin-code
+    test.darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -165,11 +178,11 @@ async fn darwin_code_delegate_forwards_patch_approval_and_proceeds_on_decision()
         .await
         .expect("submit review");
 
-    wait_for_event(&test.darwin-code, |ev| {
+    wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::EnteredReviewMode(_))
     })
     .await;
-    let approval_event = wait_for_event(&test.darwin-code, |ev| {
+    let approval_event = wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::ApplyPatchApprovalRequest(_))
     })
     .await;
@@ -178,7 +191,7 @@ async fn darwin_code_delegate_forwards_patch_approval_and_proceeds_on_decision()
     };
 
     // Deny via parent so delegate can continue, using the emitted approval call ID.
-    test.darwin-code
+    test.darwin_code
         .submit(Op::PatchApproval {
             id: approval.call_id,
             decision: ReviewDecision::Denied,
@@ -186,11 +199,14 @@ async fn darwin_code_delegate_forwards_patch_approval_and_proceeds_on_decision()
         .await
         .expect("submit patch approval");
 
-    wait_for_event(&test.darwin-code, |ev| {
+    wait_for_event(&test.darwin_code, |ev| {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.darwin-code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.darwin_code, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -209,10 +225,13 @@ async fn darwin_code_delegate_ignores_legacy_deltas() {
     mount_sse_sequence(&server, vec![sse_stream]).await;
 
     let mut builder = test_darwin_code();
-    let test = builder.build(&server).await.expect("build test darwin-code");
+    let test = builder
+        .build(&server)
+        .await
+        .expect("build test darwin_code");
 
     // Kick off review (delegated).
-    test.darwin-code
+    test.darwin_code
         .submit(Op::Review {
             review_request: ReviewRequest {
                 target: ReviewTarget::Custom {
@@ -228,7 +247,7 @@ async fn darwin_code_delegate_ignores_legacy_deltas() {
     let mut legacy_reasoning_delta_count = 0;
 
     loop {
-        let ev = wait_for_event(&test.darwin-code, |_| true).await;
+        let ev = wait_for_event(&test.darwin_code, |_| true).await;
         match ev {
             EventMsg::ReasoningContentDelta(_) => reasoning_delta_count += 1,
             EventMsg::AgentReasoningDelta(_) => legacy_reasoning_delta_count += 1,

@@ -328,7 +328,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.conversation_starts",
+                event.name = "darwin_code.conversation_starts",
                 provider_name = %provider_name,
                 auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
                 auth.env_codex_api_key_present = self.metadata.auth_env.codex_api_key_env_present,
@@ -423,7 +423,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.api_request",
+                event.name = "darwin_code.api_request",
                 duration_ms = %duration.as_millis(),
                 http.response.status_code = status,
                 error.message = error,
@@ -476,7 +476,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.websocket_connect",
+                event.name = "darwin_code.websocket_connect",
                 duration_ms = %duration.as_millis(),
                 http.response.status_code = status,
                 success = success_str,
@@ -524,7 +524,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.websocket_request",
+                event.name = "darwin_code.websocket_request",
                 duration_ms = %duration.as_millis(),
                 success = success_str,
                 error.message = error,
@@ -557,7 +557,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.auth_recovery",
+                event.name = "darwin_code.auth_recovery",
                 auth.mode = mode,
                 auth.step = step,
                 auth.outcome = outcome,
@@ -658,7 +658,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.websocket_event",
+                event.name = "darwin_code.websocket_event",
                 event.kind = %kind_str,
                 duration_ms = %duration.as_millis(),
                 success = success_str,
@@ -733,7 +733,7 @@ impl SessionTelemetry {
         );
         log_event!(
             self,
-            event.name = "codex.sse_event",
+            event.name = "darwin_code.sse_event",
             event.kind = %kind,
             duration_ms = %duration.as_millis(),
         );
@@ -757,21 +757,21 @@ impl SessionTelemetry {
         match kind {
             Some(kind) => log_event!(
                 self,
-                event.name = "codex.sse_event",
+                event.name = "darwin_code.sse_event",
                 event.kind = %kind,
                 duration_ms = %duration.as_millis(),
                 error.message = %error,
             ),
             None => log_event!(
                 self,
-                event.name = "codex.sse_event",
+                event.name = "darwin_code.sse_event",
                 duration_ms = %duration.as_millis(),
                 error.message = %error,
             ),
         }
         trace_event!(
             self,
-            event.name = "codex.sse_event",
+            event.name = "darwin_code.sse_event",
             event.kind = %kind_str,
             duration_ms = %duration.as_millis(),
             error.message = %error,
@@ -785,7 +785,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.sse_event",
+                event.name = "darwin_code.sse_event",
                 event.kind = %"response.completed",
                 error.message = %error,
             },
@@ -805,7 +805,7 @@ impl SessionTelemetry {
         log_and_trace_event!(
             self,
             common: {
-                event.name = "codex.sse_event",
+                event.name = "darwin_code.sse_event",
                 event.kind = %"response.completed",
                 input_token_count = %input_token_count,
                 output_token_count = %output_token_count,
@@ -847,13 +847,13 @@ impl SessionTelemetry {
 
         log_event!(
             self,
-            event.name = "codex.user_prompt",
+            event.name = "darwin_code.user_prompt",
             prompt_length = %prompt.chars().count(),
             prompt = %prompt_to_log,
         );
         trace_event!(
             self,
-            event.name = "codex.user_prompt",
+            event.name = "darwin_code.user_prompt",
             prompt_length = %prompt.chars().count(),
             text_input_count = text_input_count as i64,
             image_input_count = image_input_count as i64,
@@ -870,7 +870,7 @@ impl SessionTelemetry {
     ) {
         log_event!(
             self,
-            event.name = "codex.tool_decision",
+            event.name = "darwin_code.tool_decision",
             tool_name = %tool_name,
             call_id = %call_id,
             decision = %decision.clone().to_string().to_lowercase(),
@@ -921,7 +921,7 @@ impl SessionTelemetry {
     pub fn log_tool_failed(&self, tool_name: &str, error: &str) {
         log_event!(
             self,
-            event.name = "codex.tool_result",
+            event.name = "darwin_code.tool_result",
             tool_name = %tool_name,
             duration_ms = %Duration::ZERO.as_millis(),
             success = %false,
@@ -931,7 +931,7 @@ impl SessionTelemetry {
         );
         trace_event!(
             self,
-            event.name = "codex.tool_result",
+            event.name = "darwin_code.tool_result",
             tool_name = %tool_name,
             duration_ms = %Duration::ZERO.as_millis(),
             success = %false,
@@ -966,7 +966,7 @@ impl SessionTelemetry {
         let mcp_server_origin = mcp_server_origin.unwrap_or("");
         log_event!(
             self,
-            event.name = "codex.tool_result",
+            event.name = "darwin_code.tool_result",
             tool_name = %tool_name,
             call_id = %call_id,
             arguments = %arguments,
@@ -978,7 +978,7 @@ impl SessionTelemetry {
         );
         trace_event!(
             self,
-            event.name = "codex.tool_result",
+            event.name = "darwin_code.tool_result",
             tool_name = %tool_name,
             call_id = %call_id,
             duration_ms = %duration.as_millis(),

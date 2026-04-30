@@ -22,14 +22,13 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::darwin_code_delegate::run_darwin_code_thread_interactive;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
-use crate::config::NetworkProxySpec;
 use crate::config::Permissions;
+use crate::darwin_code_delegate::run_darwin_code_thread_interactive;
 use crate::rollout::recorder::RolloutRecorder;
-use crate::session::Darwin-Code;
+use crate::session::DarwinCode;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use darwin_code_config::types::McpServerConfig;
@@ -88,7 +87,7 @@ struct GuardianReviewSessionState {
 }
 
 struct GuardianReviewSession {
-    darwin-code: Darwin-Code,
+    darwin_code: DarwinCode,
     cancel_token: CancellationToken,
     reuse_key: GuardianReviewSessionReuseKey,
     review_lock: Mutex<()>,
@@ -132,7 +131,7 @@ struct GuardianReviewSessionReuseKey {
     compact_prompt: Option<String>,
     cwd: AbsolutePathBuf,
     mcp_servers: Constrained<HashMap<String, McpServerConfig>>,
-    darwin_code_linux_sandbox_exe: Option<PathBuf>,
+    codex_linux_sandbox_exe: Option<PathBuf>,
     main_execve_wrapper_exe: Option<PathBuf>,
     js_repl_node_path: Option<PathBuf>,
     js_repl_node_module_dirs: Vec<PathBuf>,
@@ -159,7 +158,7 @@ impl GuardianReviewSessionReuseKey {
             compact_prompt: spawn_config.compact_prompt.clone(),
             cwd: spawn_config.cwd.clone(),
             mcp_servers: spawn_config.mcp_servers.clone(),
-            darwin_code_linux_sandbox_exe: spawn_config.darwin_code_linux_sandbox_exe.clone(),
+            codex_linux_sandbox_exe: spawn_config.codex_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: spawn_config.main_execve_wrapper_exe.clone(),
             js_repl_node_path: spawn_config.js_repl_node_path.clone(),
             js_repl_node_module_dirs: spawn_config.js_repl_node_module_dirs.clone(),
@@ -174,7 +173,7 @@ impl GuardianReviewSessionReuseKey {
 impl GuardianReviewSession {
     async fn shutdown(&self) {
         self.cancel_token.cancel();
-        let _ = self.darwin-code.shutdown_and_wait().await;
+        let _ = self.darwin_code.shutdown_and_wait().await;
     }
 
     fn shutdown_in_background(self: &Arc<Self>) {
@@ -189,7 +188,7 @@ impl GuardianReviewSession {
     }
 
     async fn refresh_last_committed_fork_snapshot(&self) {
-        match load_rollout_items_for_fork(&self.darwin-code.session).await {
+        match load_rollout_items_for_fork(&self.darwin_code.session).await {
             Ok(Some(items)) if !items.is_empty() => {
                 let mut state = self.state.lock().await;
                 let prior_review_count = state.prior_review_count;
@@ -367,13 +366,13 @@ impl GuardianReviewSessionManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn cache_for_test(&self, darwin-code: Darwin-Code) {
+    pub(crate) async fn cache_for_test(&self, darwin_code: DarwinCode) {
         let reuse_key = GuardianReviewSessionReuseKey::from_spawn_config(
-            darwin-code.session.get_config().await.as_ref(),
+            darwin_code.session.get_config().await.as_ref(),
         );
         self.state.lock().await.trunk = Some(Arc::new(GuardianReviewSession {
             reuse_key,
-            darwin-code,
+            darwin_code,
             cancel_token: CancellationToken::new(),
             review_lock: Mutex::new(()),
             state: Mutex::new(GuardianReviewState {
@@ -385,9 +384,9 @@ impl GuardianReviewSessionManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn register_ephemeral_for_test(&self, darwin-code: Darwin-Code) {
+    pub(crate) async fn register_ephemeral_for_test(&self, darwin_code: DarwinCode) {
         let reuse_key = GuardianReviewSessionReuseKey::from_spawn_config(
-            darwin-code.session.get_config().await.as_ref(),
+            darwin_code.session.get_config().await.as_ref(),
         );
         self.state
             .lock()
@@ -395,7 +394,7 @@ impl GuardianReviewSessionManager {
             .ephemeral_reviews
             .push(Arc::new(GuardianReviewSession {
                 reuse_key,
-                darwin-code,
+                darwin_code,
                 cancel_token: CancellationToken::new(),
                 review_lock: Mutex::new(()),
                 state: Mutex::new(GuardianReviewState {
@@ -515,9 +514,8 @@ async fn spawn_guardian_review_session(
         ),
         None => (None, 0, None),
     };
-    let darwin-code = Box::pin(run_darwin_code_thread_interactive(
+    let darwin_code = Box::pin(run_darwin_code_thread_interactive(
         spawn_config,
-        params.parent_session.services.auth_manager.clone(),
         params.parent_session.services.models_manager.clone(),
         Arc::clone(&params.parent_session),
         Arc::clone(&params.parent_turn),
@@ -528,7 +526,7 @@ async fn spawn_guardian_review_session(
     .await?;
 
     Ok(GuardianReviewSession {
-        darwin-code,
+        darwin_code,
         cancel_token,
         reuse_key,
         review_lock: Mutex::new(()),
@@ -572,7 +570,7 @@ async fn run_review_on_session(
                 .services
                 .network_approval
                 .sync_session_approved_hosts_to(
-                    &review_session.darwin-code.session.services.network_approval,
+                    &review_session.darwin_code.session.services.network_approval,
                 )
                 .await;
 
@@ -585,7 +583,7 @@ async fn run_review_on_session(
             .await?;
 
             review_session
-                .darwin-code
+                .darwin_code
                 .submit(Op::UserTurn {
                     items: prompt_items.items,
                     cwd: params.parent_turn.cwd.to_path_buf(),
@@ -628,11 +626,11 @@ async fn run_review_on_session(
 }
 
 async fn append_guardian_followup_reminder(review_session: &GuardianReviewSession) {
-    let turn_context = review_session.darwin-code.session.new_default_turn().await;
+    let turn_context = review_session.darwin_code.session.new_default_turn().await;
     let reminder: ResponseItem =
         DeveloperInstructions::new(GUARDIAN_FOLLOWUP_REVIEW_REMINDER).into();
     review_session
-        .darwin-code
+        .darwin_code
         .session
         .record_conversation_items(turn_context.as_ref(), std::slice::from_ref(&reminder))
         .await;
@@ -661,7 +659,7 @@ async fn wait_for_guardian_review(
     loop {
         tokio::select! {
             _ = &mut timeout => {
-                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin-code).await.is_ok();
+                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin_code).await.is_ok();
                 return (GuardianReviewSessionOutcome::TimedOut, keep_review_session);
             }
             _ = async {
@@ -671,10 +669,10 @@ async fn wait_for_guardian_review(
                     std::future::pending::<()>().await;
                 }
             } => {
-                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin-code).await.is_ok();
+                let keep_review_session = interrupt_and_drain_turn(&review_session.darwin_code).await.is_ok();
                 return (GuardianReviewSessionOutcome::Aborted, keep_review_session);
             }
-            event = review_session.darwin-code.next_event() => {
+            event = review_session.darwin_code.next_event() => {
                 match event {
                     Ok(event) => match event.msg {
                         EventMsg::TurnComplete(turn_complete) => {
@@ -713,7 +711,7 @@ async fn wait_for_guardian_review(
 
 pub(crate) fn build_guardian_review_session_config(
     parent_config: &Config,
-    live_network_config: Option<darwin_code_network_proxy::NetworkProxyConfig>,
+    live_network_config: Option<darwin_code_config::permissions_toml::NetworkAccessConfig>,
     active_model: &str,
     reasoning_effort: Option<darwin_code_protocol::openai_models::ReasoningEffort>,
 ) -> anyhow::Result<Config> {
@@ -730,25 +728,11 @@ pub(crate) fn build_guardian_review_session_config(
     guardian_config.permissions.approval_policy = Constrained::allow_only(AskForApproval::Never);
     guardian_config.permissions.sandbox_policy =
         Constrained::allow_only(SandboxPolicy::new_read_only_policy());
-    if let Some(live_network_config) = live_network_config
-        && guardian_config.permissions.network.is_some()
-    {
-        let network_constraints = guardian_config
-            .config_layer_stack
-            .requirements()
-            .network
-            .as_ref()
-            .map(|network| network.value.clone());
-        guardian_config.permissions.network = Some(NetworkProxySpec::from_config_and_constraints(
-            live_network_config,
-            network_constraints,
-            &SandboxPolicy::new_read_only_policy(),
-        )?);
-    }
+    let _ = live_network_config;
     for feature in [
         Feature::SpawnCsv,
         Feature::Collab,
-        Feature::DarwinCodeHooks,
+        Feature::CodexHooks,
         Feature::WebSearchRequest,
         Feature::WebSearchCached,
     ] {
@@ -799,12 +783,12 @@ async fn run_before_review_deadline_with_cancel<T>(
     result
 }
 
-async fn interrupt_and_drain_turn(darwin-code: &Darwin-Code) -> anyhow::Result<()> {
-    let _ = darwin-code.submit(Op::Interrupt).await;
+async fn interrupt_and_drain_turn(darwin_code: &DarwinCode) -> anyhow::Result<()> {
+    let _ = darwin_code.submit(Op::Interrupt).await;
 
     tokio::time::timeout(GUARDIAN_INTERRUPT_DRAIN_TIMEOUT, async {
         loop {
-            let event = darwin-code.next_event().await?;
+            let event = darwin_code.next_event().await?;
             if matches!(
                 event.msg,
                 EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_)
@@ -860,7 +844,7 @@ mod tests {
         let mut parent_config = crate::config::test_config().await;
         parent_config
             .features
-            .enable(Feature::DarwinCodeHooks)
+            .enable(Feature::CodexHooks)
             .expect("enable hooks on parent config");
 
         let guardian_config = build_guardian_review_session_config(
@@ -871,7 +855,7 @@ mod tests {
         )
         .expect("guardian config");
 
-        assert!(!guardian_config.features.enabled(Feature::DarwinCodeHooks));
+        assert!(!guardian_config.features.enabled(Feature::CodexHooks));
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::SkillLoadOutcome;
 use crate::SkillMetadata;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 
 pub(crate) fn build_implicit_skill_path_indexes(
     skills: Vec<SkillMetadata>,

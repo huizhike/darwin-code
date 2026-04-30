@@ -1,6 +1,6 @@
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use darwin_code_config::ConfigLayerStack;
+use darwin_code_config::ConfigLayerStackOrdering;
+use darwin_code_utils_absolute_path::AbsolutePathBuf;
 use std::fs;
 
 use super::ConfiguredHandler;
@@ -9,8 +9,8 @@ use super::config::HooksFile;
 use super::config::MatcherGroup;
 use crate::events::common::matcher_pattern_for_event;
 use crate::events::common::validate_matcher_pattern;
-use codex_config::ConfigLayerSource;
-use codex_protocol::protocol::HookSource;
+use darwin_code_config::ConfigLayerSource;
+use darwin_code_protocol::protocol::HookSource;
 
 pub(crate) struct DiscoveryResult {
     pub handlers: Vec<ConfiguredHandler>,
@@ -74,26 +74,26 @@ pub(crate) fn discover_handlers(config_layer_stack: Option<&ConfigLayerStack>) -
 
         for (event_name, groups) in [
             (
-                codex_protocol::protocol::HookEventName::PreToolUse,
+                darwin_code_protocol::protocol::HookEventName::PreToolUse,
                 pre_tool_use,
             ),
             (
-                codex_protocol::protocol::HookEventName::PermissionRequest,
+                darwin_code_protocol::protocol::HookEventName::PermissionRequest,
                 permission_request,
             ),
             (
-                codex_protocol::protocol::HookEventName::PostToolUse,
+                darwin_code_protocol::protocol::HookEventName::PostToolUse,
                 post_tool_use,
             ),
             (
-                codex_protocol::protocol::HookEventName::SessionStart,
+                darwin_code_protocol::protocol::HookEventName::SessionStart,
                 session_start,
             ),
             (
-                codex_protocol::protocol::HookEventName::UserPromptSubmit,
+                darwin_code_protocol::protocol::HookEventName::UserPromptSubmit,
                 user_prompt_submit,
             ),
-            (codex_protocol::protocol::HookEventName::Stop, stop),
+            (darwin_code_protocol::protocol::HookEventName::Stop, stop),
         ] {
             append_matcher_groups(
                 &mut handlers,
@@ -116,7 +116,7 @@ fn append_matcher_groups(
     display_order: &mut i64,
     source_path: &AbsolutePathBuf,
     source: HookSource,
-    event_name: codex_protocol::protocol::HookEventName,
+    event_name: darwin_code_protocol::protocol::HookEventName,
     groups: Vec<MatcherGroup>,
 ) {
     for group in groups {
@@ -195,12 +195,12 @@ fn hook_source_for_config_layer_source(source: &ConfigLayerSource) -> HookSource
 
 #[cfg(test)]
 mod tests {
-    use codex_config::ConfigLayerSource;
-    use codex_protocol::protocol::HookEventName;
-    use codex_protocol::protocol::HookSource;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use darwin_code_config::ConfigLayerSource;
+    use darwin_code_protocol::protocol::HookEventName;
+    use darwin_code_protocol::protocol::HookSource;
+    use darwin_code_utils_absolute_path::AbsolutePathBuf;
+    use darwin_code_utils_absolute_path::test_support::PathBufExt;
+    use darwin_code_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     use super::ConfiguredHandler;

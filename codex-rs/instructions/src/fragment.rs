@@ -1,5 +1,5 @@
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
+use darwin_code_protocol::models::ContentItem;
+use darwin_code_protocol::models::ResponseItem;
 
 pub(crate) const AGENTS_MD_START_MARKER: &str = "# AGENTS.md instructions for ";
 pub(crate) const AGENTS_MD_END_MARKER: &str = "</INSTRUCTIONS>";
@@ -51,6 +51,7 @@ impl ContextualUserFragmentDefinition {
             content: vec![ContentItem::InputText { text }],
             end_turn: None,
             phase: None,
+            reasoning_content: None,
         }
     }
 }
