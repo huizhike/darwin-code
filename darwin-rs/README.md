@@ -1,9 +1,8 @@
 # Darwin Code Rust Workspace
 
-This directory is the Rust implementation of Darwin Code. The currently tested
-install path is source-based. The public npm registry package is not available
-yet, so do not document `npm i -g @darwin-code/darwin-code` as a working user install
-until the package has been published and verified.
+This directory is the Rust implementation of Darwin Code. Use source runs for
+local development, or install the published npm wrapper from
+`@darwin-code/darwin-code` for a user-level command.
 
 ## Run from source
 
@@ -35,26 +34,30 @@ Do not use `cargo install --debug` for a normal user install; it is fast for
 smoke tests but can create a very large binary. Remove an unwanted user install
 with `rm -f ~/.local/bin/darwin-code`.
 
-## npm package status
+## npm package install
 
-`npm i -g @darwin-code/darwin-code` currently fails because the package is not present
-in the public npm registry. To make that command work, publish the package under
-the `@darwin-code` scope first:
+The npm package is published under the `@darwin-code` scope. Install and
+verify it with:
 
 ```shell
-cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-cli
-npm login
-npm publish --access public
-npm view @darwin-code/darwin-code version
+npm install -g @darwin-code/darwin-code
+darwin-code --version
+darwin-code --help
 ```
 
-Publishing under `@darwin-code` requires an npm account with permission to that scope
-(or an npm organization/user scope that owns it). The package must include a
-working platform binary payload before publishing; otherwise the JavaScript
-wrapper installs but cannot launch `darwin-code`.
+After install, edit the packaged template config or copy it into a user config
+directory before running the TUI with real BYOK provider keys:
 
-For a local npm-wrapper smoke test before publishing, stage a built binary into
-the wrapper package and install from that staged folder:
+```shell
+$EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
+# Or:
+mkdir -p ~/.darwin
+cp "$(npm root -g)/@darwin-code/darwin-code/config.toml" ~/.darwin/config.toml
+$EDITOR ~/.darwin/config.toml
+```
+
+For a local npm-wrapper smoke test without the public registry, stage a built
+binary into the wrapper package and install from that staged folder:
 
 ```shell
 cd /home/xklab/01-darwin/dcode/70-darwin-code

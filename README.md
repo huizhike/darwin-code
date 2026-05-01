@@ -8,6 +8,20 @@ BYOK-only execution engine for Darwin's autonomous coding pipeline.
 - `darwin-rs/` — Rust sandbox runtime (`darwin-code-exec`, `darwin-code-core`, `darwin-code-tui`)
 - `docs/` — Documentation
 
+## Install from npm
+
+```bash
+npm install -g @darwin-code/darwin-code
+darwin-code --version
+darwin-code --help
+```
+
+Then edit the packaged config template and replace placeholder API keys:
+
+```bash
+$EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
+```
+
 ## Run from Source
 
 > **Warning: build artifact size and disk usage**
