@@ -1,0 +1,9 @@
+---
+source: tui/src/chatwidget/tests.rs
+expression: terminal.backend()
+---
+"                                                                                "
+"                                                                                "
+"› Ask Darwin-Code to do anything                                                      "
+"                                                                                "
+"  gpt-5.3-darwin-code medium                          Plan mode (shift+tab to cycle)  "

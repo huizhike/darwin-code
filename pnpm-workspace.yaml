@@ -1,0 +1,10 @@
+packages:
+  - darwin-cli
+
+ignoredBuiltDependencies:
+  - esbuild
+
+minimumReleaseAge: 10080
+
+blockExoticSubdeps: true
+strictDepBuilds: true

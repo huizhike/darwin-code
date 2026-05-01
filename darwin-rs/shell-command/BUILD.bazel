@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "shell-command",
+    crate_name = "darwin_code_shell_command",
+    compile_data = ["src/command_safety/powershell_parser.ps1"],
+)

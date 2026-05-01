@@ -1,0 +1,110 @@
+[package]
+name = "darwin-code-app-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "darwin-code-app-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "darwin-code-app-server-test-notify-capture"
+path = "src/bin/notify_capture.rs"
+
+[lib]
+name = "darwin_code_app_server"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-client = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+base64 = { workspace = true }
+axum = { workspace = true, default-features = false, features = [
+    "http1",
+    "json",
+    "tokio",
+    "ws",
+] }
+darwin-code-analytics = { workspace = true }
+darwin-code-feedback = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-core = { workspace = true }
+darwin-code-core-plugins = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-shell-command = { workspace = true }
+darwin-code-utils-cli = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
+darwin-code-file-search = { workspace = true }
+darwin-code-mcp = { workspace = true }
+darwin-code-models-manager = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-rmcp-client = { workspace = true }
+darwin-code-rollout = { workspace = true }
+darwin-code-sandboxing = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-thread-store = { workspace = true }
+darwin-code-tools = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-json-to-toml = { workspace = true }
+darwin-code-utils-rustls-provider = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+constant_time_eq = { workspace = true }
+futures = { workspace = true }
+gethostname = { workspace = true }
+hmac = { workspace = true }
+jsonwebtoken = { workspace = true }
+owo-colors = { workspace = true, features = ["supports-colors"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+time = { workspace = true }
+toml = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "signal",
+] }
+tokio-util = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
+url = { workspace = true }
+uuid = { workspace = true, features = ["serde", "v7"] }
+
+[dev-dependencies]
+base64 = { workspace = true }
+axum = { workspace = true, default-features = false, features = [
+    "http1",
+    "json",
+    "tokio",
+] }
+core_test_support = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+pretty_assertions = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] }
+rmcp = { workspace = true, default-features = false, features = [
+    "elicitation",
+    "server",
+    "transport-streamable-http-server",
+] }
+serial_test = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+wiremock = { workspace = true }
+shlex = { workspace = true }

@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "model-provider-info",
+    crate_name = "darwin_code_model_provider_info",
+)

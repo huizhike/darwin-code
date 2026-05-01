@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "stdio-to-uds",
+    crate_name = "darwin_code_stdio_to_uds",
+)

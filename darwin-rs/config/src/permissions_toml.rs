@@ -1,0 +1,366 @@
+use std::collections::BTreeMap;
+
+use darwin_code_protocol::permissions::FileSystemAccessMode;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Serialize;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkMode {
+    #[default]
+    Limited,
+    Full,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkDomainPermission {
+    Allow,
+    Deny,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NetworkUnixSocketPermission {
+    Allow,
+    None,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NetworkDomainPermissions {
+    pub entries: BTreeMap<String, NetworkDomainPermission>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NetworkUnixSocketPermissions {
+    pub entries: BTreeMap<String, NetworkUnixSocketPermission>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NetworkAccessRuntimeConfig {
+    pub enabled: bool,
+    pub proxy_url: String,
+    pub enable_socks5: bool,
+    pub socks_url: String,
+    pub enable_socks5_udp: bool,
+    pub allow_upstream_proxy: bool,
+    pub dangerously_allow_non_loopback_proxy: bool,
+    pub dangerously_allow_all_unix_sockets: bool,
+    pub mode: NetworkMode,
+    pub domains: Option<NetworkDomainPermissions>,
+    pub unix_sockets: Option<NetworkUnixSocketPermissions>,
+    pub allow_local_binding: bool,
+}
+
+impl Default for NetworkAccessRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            proxy_url: "http://127.0.0.1:3128".to_string(),
+            enable_socks5: false,
+            socks_url: "socks5://127.0.0.1:1080".to_string(),
+            enable_socks5_udp: false,
+            allow_upstream_proxy: false,
+            dangerously_allow_non_loopback_proxy: false,
+            dangerously_allow_all_unix_sockets: false,
+            mode: NetworkMode::Limited,
+            domains: None,
+            unix_sockets: None,
+            allow_local_binding: false,
+        }
+    }
+}
+
+impl NetworkAccessRuntimeConfig {
+    pub fn allowed_domains(&self) -> Option<Vec<String>> {
+        self.domains.as_ref().and_then(|domains| {
+            let values = domains
+                .entries
+                .iter()
+                .filter(|(_, permission)| matches!(permission, NetworkDomainPermission::Allow))
+                .map(|(domain, _)| domain.clone())
+                .collect::<Vec<_>>();
+            (!values.is_empty()).then_some(values)
+        })
+    }
+
+    pub fn denied_domains(&self) -> Option<Vec<String>> {
+        self.domains.as_ref().and_then(|domains| {
+            let values = domains
+                .entries
+                .iter()
+                .filter(|(_, permission)| matches!(permission, NetworkDomainPermission::Deny))
+                .map(|(domain, _)| domain.clone())
+                .collect::<Vec<_>>();
+            (!values.is_empty()).then_some(values)
+        })
+    }
+
+    pub fn set_allowed_domains(&mut self, domains: Vec<String>) {
+        let mut entries = self.domains.take().map(|d| d.entries).unwrap_or_default();
+        entries.retain(|_, permission| !matches!(permission, NetworkDomainPermission::Allow));
+        for domain in domains {
+            entries.insert(normalize_host(&domain), NetworkDomainPermission::Allow);
+        }
+        self.domains = (!entries.is_empty()).then_some(NetworkDomainPermissions { entries });
+    }
+
+    pub fn set_denied_domains(&mut self, domains: Vec<String>) {
+        let mut entries = self.domains.take().map(|d| d.entries).unwrap_or_default();
+        entries.retain(|_, permission| !matches!(permission, NetworkDomainPermission::Deny));
+        for domain in domains {
+            entries.insert(normalize_host(&domain), NetworkDomainPermission::Deny);
+        }
+        self.domains = (!entries.is_empty()).then_some(NetworkDomainPermissions { entries });
+    }
+
+    pub fn set_allow_unix_sockets(&mut self, sockets: Vec<String>) {
+        let entries = sockets
+            .into_iter()
+            .map(|socket| (socket, NetworkUnixSocketPermission::Allow))
+            .collect::<BTreeMap<_, _>>();
+        self.unix_sockets =
+            (!entries.is_empty()).then_some(NetworkUnixSocketPermissions { entries });
+    }
+
+    pub fn upsert_domain_permission(
+        &mut self,
+        pattern: String,
+        permission: NetworkDomainPermission,
+    ) {
+        let mut entries = self.domains.take().map(|d| d.entries).unwrap_or_default();
+        entries.insert(normalize_host(&pattern), permission);
+        self.domains = (!entries.is_empty()).then_some(NetworkDomainPermissions { entries });
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NetworkAccessConfig {
+    pub network: NetworkAccessRuntimeConfig,
+}
+
+pub fn normalize_host(host: &str) -> String {
+    host.trim().trim_end_matches('.').to_ascii_lowercase()
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct PermissionsToml {
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, PermissionProfileToml>,
+}
+
+impl PermissionsToml {
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct PermissionProfileToml {
+    pub filesystem: Option<FilesystemPermissionsToml>,
+    pub network: Option<NetworkToml>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct FilesystemPermissionsToml {
+    /// Optional maximum depth for expanding unreadable glob patterns on
+    /// platforms that snapshot glob matches before sandbox startup.
+    #[schemars(range(min = 1))]
+    pub glob_scan_max_depth: Option<usize>,
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, FilesystemPermissionToml>,
+}
+
+impl FilesystemPermissionsToml {
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(untagged)]
+pub enum FilesystemPermissionToml {
+    Access(FileSystemAccessMode),
+    Scoped(BTreeMap<String, FileSystemAccessMode>),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct NetworkDomainPermissionsToml {
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, NetworkDomainPermissionToml>,
+}
+
+impl NetworkDomainPermissionsToml {
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn allowed_domains(&self) -> Option<Vec<String>> {
+        let allowed_domains: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|(_, permission)| matches!(permission, NetworkDomainPermissionToml::Allow))
+            .map(|(pattern, _)| pattern.clone())
+            .collect();
+        (!allowed_domains.is_empty()).then_some(allowed_domains)
+    }
+
+    pub fn denied_domains(&self) -> Option<Vec<String>> {
+        let denied_domains: Vec<String> = self
+            .entries
+            .iter()
+            .filter(|(_, permission)| matches!(permission, NetworkDomainPermissionToml::Deny))
+            .map(|(pattern, _)| pattern.clone())
+            .collect();
+        (!denied_domains.is_empty()).then_some(denied_domains)
+    }
+}
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkDomainPermissionToml {
+    Allow,
+    Deny,
+}
+
+impl std::fmt::Display for NetworkDomainPermissionToml {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let permission = match self {
+            Self::Allow => "allow",
+            Self::Deny => "deny",
+        };
+        f.write_str(permission)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+pub struct NetworkUnixSocketPermissionsToml {
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, NetworkUnixSocketPermissionToml>,
+}
+
+impl NetworkUnixSocketPermissionsToml {
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    pub fn allow_unix_sockets(&self) -> Vec<String> {
+        self.entries
+            .iter()
+            .filter(|(_, permission)| matches!(permission, NetworkUnixSocketPermissionToml::Allow))
+            .map(|(path, _)| path.clone())
+            .collect()
+    }
+}
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum NetworkUnixSocketPermissionToml {
+    Allow,
+    None,
+}
+
+impl std::fmt::Display for NetworkUnixSocketPermissionToml {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let permission = match self {
+            Self::Allow => "allow",
+            Self::None => "none",
+        };
+        f.write_str(permission)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct NetworkToml {
+    pub enabled: Option<bool>,
+    pub proxy_url: Option<String>,
+    pub enable_socks5: Option<bool>,
+    pub socks_url: Option<String>,
+    pub enable_socks5_udp: Option<bool>,
+    pub allow_upstream_proxy: Option<bool>,
+    pub dangerously_allow_non_loopback_proxy: Option<bool>,
+    pub dangerously_allow_all_unix_sockets: Option<bool>,
+    pub mode: Option<NetworkMode>,
+    pub domains: Option<NetworkDomainPermissionsToml>,
+    pub unix_sockets: Option<NetworkUnixSocketPermissionsToml>,
+    pub allow_local_binding: Option<bool>,
+}
+
+impl NetworkToml {
+    pub fn apply_to_network_access_config(&self, config: &mut NetworkAccessConfig) {
+        if let Some(enabled) = self.enabled {
+            config.network.enabled = enabled;
+        }
+        if let Some(proxy_url) = self.proxy_url.as_ref() {
+            config.network.proxy_url = proxy_url.clone();
+        }
+        if let Some(enable_socks5) = self.enable_socks5 {
+            config.network.enable_socks5 = enable_socks5;
+        }
+        if let Some(socks_url) = self.socks_url.as_ref() {
+            config.network.socks_url = socks_url.clone();
+        }
+        if let Some(enable_socks5_udp) = self.enable_socks5_udp {
+            config.network.enable_socks5_udp = enable_socks5_udp;
+        }
+        if let Some(allow_upstream_proxy) = self.allow_upstream_proxy {
+            config.network.allow_upstream_proxy = allow_upstream_proxy;
+        }
+        if let Some(dangerously_allow_non_loopback_proxy) =
+            self.dangerously_allow_non_loopback_proxy
+        {
+            config.network.dangerously_allow_non_loopback_proxy =
+                dangerously_allow_non_loopback_proxy;
+        }
+        if let Some(dangerously_allow_all_unix_sockets) = self.dangerously_allow_all_unix_sockets {
+            config.network.dangerously_allow_all_unix_sockets = dangerously_allow_all_unix_sockets;
+        }
+        if let Some(mode) = self.mode {
+            config.network.mode = mode;
+        }
+        if let Some(domains) = self.domains.as_ref() {
+            overlay_network_domain_permissions(config, domains);
+        }
+        if let Some(unix_sockets) = self.unix_sockets.as_ref() {
+            let mut proxy_unix_sockets = config.network.unix_sockets.take().unwrap_or_default();
+            for (path, permission) in &unix_sockets.entries {
+                let permission = match permission {
+                    NetworkUnixSocketPermissionToml::Allow => NetworkUnixSocketPermission::Allow,
+                    NetworkUnixSocketPermissionToml::None => NetworkUnixSocketPermission::None,
+                };
+                proxy_unix_sockets.entries.insert(path.clone(), permission);
+            }
+            config.network.unix_sockets =
+                (!proxy_unix_sockets.entries.is_empty()).then_some(proxy_unix_sockets);
+        }
+        if let Some(allow_local_binding) = self.allow_local_binding {
+            config.network.allow_local_binding = allow_local_binding;
+        }
+    }
+
+    pub fn to_network_access_config(&self) -> NetworkAccessConfig {
+        let mut config = NetworkAccessConfig::default();
+        self.apply_to_network_access_config(&mut config);
+        config
+    }
+}
+
+pub fn overlay_network_domain_permissions(
+    config: &mut NetworkAccessConfig,
+    domains: &NetworkDomainPermissionsToml,
+) {
+    for (pattern, permission) in &domains.entries {
+        let permission = match permission {
+            NetworkDomainPermissionToml::Allow => NetworkDomainPermission::Allow,
+            NetworkDomainPermissionToml::Deny => NetworkDomainPermission::Deny,
+        };
+        config
+            .network
+            .upsert_domain_permission(pattern.clone(), permission);
+    }
+}

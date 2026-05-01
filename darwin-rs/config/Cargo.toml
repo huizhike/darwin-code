@@ -1,0 +1,36 @@
+[package]
+name = "darwin-code-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-execpolicy = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-path = { workspace = true }
+futures = { workspace = true, features = ["alloc", "std"] }
+multimap = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_path_to_error = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
+toml = { workspace = true }
+toml_edit = { workspace = true }
+tracing = { workspace = true }
+wildmatch = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }

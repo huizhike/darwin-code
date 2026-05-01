@@ -1,0 +1,53 @@
+[package]
+name = "darwin-code-mcp-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "darwin-code-mcp-server"
+path = "src/main.rs"
+
+[lib]
+name = "darwin_code_mcp_server"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-client = { workspace = true }
+anyhow = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-core = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-models-manager = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-cli = { workspace = true }
+darwin-code-utils-json-to-toml = { workspace = true }
+rmcp = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "signal",
+] }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-shell-command = { workspace = true }
+core_test_support = { workspace = true }
+mcp_test_support = { workspace = true }
+os_info = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

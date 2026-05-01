@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "sandbox-summary",
+    crate_name = "darwin_code_utils_sandbox_summary",
+)

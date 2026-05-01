@@ -1,0 +1,17 @@
+[package]
+name = "darwin-code-utils-sandbox-summary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-core = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-protocol = { workspace = true }
+
+[dev-dependencies]
+darwin-code-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }

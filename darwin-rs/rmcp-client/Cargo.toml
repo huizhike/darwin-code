@@ -1,0 +1,62 @@
+[package]
+name = "darwin-code-rmcp-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1"
+axum = { workspace = true, default-features = false, features = [
+    "http1",
+    "tokio",
+] }
+darwin-code-client = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-pty = { workspace = true }
+darwin-code-utils-home-dir = { workspace = true }
+futures = { workspace = true, default-features = false, features = ["std"] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "rustls-tls",
+] }
+rmcp = { workspace = true, default-features = false, features = [
+    "auth",
+    "base64",
+    "client",
+    "macros",
+    "schemars",
+    "server",
+    "transport-child-process",
+    "transport-streamable-http-client-reqwest",
+    "transport-streamable-http-server",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sse-stream = "0.2.1"
+thiserror = { workspace = true }
+tiny_http = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "sync",
+    "io-std",
+    "time",
+] }
+tracing = { workspace = true, features = ["log"] }
+urlencoding = { workspace = true }
+webbrowser = { workspace = true }
+which = { workspace = true }
+
+[dev-dependencies]
+darwin-code-utils-cargo-bin = { workspace = true }
+pretty_assertions = { workspace = true }
+serial_test = { workspace = true }
+tempfile = { workspace = true }

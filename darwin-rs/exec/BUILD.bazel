@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "exec",
+    crate_name = "darwin_code_exec",
+    test_tags = ["no-sandbox"],
+)

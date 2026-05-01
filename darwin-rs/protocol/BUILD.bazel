@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "protocol",
+    crate_name = "darwin_code_protocol",
+    compile_data = glob(["src/prompts/**/*.md"]),
+)

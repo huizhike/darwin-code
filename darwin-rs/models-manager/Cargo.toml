@@ -1,0 +1,42 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-models-manager"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "darwin_code_models_manager"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = { workspace = true, features = ["serde"] }
+darwin-code-collaboration-mode-templates = { workspace = true }
+darwin-code-api = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-client = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-model-provider-info = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-model-provider = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-output-truncation = { workspace = true }
+darwin-code-utils-template = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "sync", "time"] }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+darwin-code-utils-absolute-path = { workspace = true }
+core_test_support = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
+wiremock = { workspace = true }

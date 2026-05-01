@@ -1,0 +1,30 @@
+{
+  "name": "@darwin-code/darwin-code",
+  "version": "0.0.1",
+  "license": "Apache-2.0",
+  "bin": {
+    "darwin-code": "bin/darwin-code.js"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "bin",
+    "vendor",
+    "config.toml",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darwin/darwin-code.git",
+    "directory": "darwin-code-cli"
+  },
+  "packageManager": "pnpm@10.29.3+sha512.498e1fb4cca5aa06c1dcf2611e6fafc50972ffe7189998c409e90de74566444298ffe43e6cd2acdc775ba1aa7cc5e092a8b7054c811ba8c5770f84693d33d2dc",
+  "scripts": {
+    "prepack": "node scripts/copy-config-template.mjs",
+    "postpack": "node scripts/remove-packaged-config.mjs"
+  }
+}

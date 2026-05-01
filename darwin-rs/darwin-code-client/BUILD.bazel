@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "darwin-client",
+    crate_name = "darwin_code_client",
+    compile_data = glob(["tests/fixtures/**"]),
+)

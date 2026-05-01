@@ -1,0 +1,10 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "models-manager",
+    crate_name = "darwin_code_models_manager",
+    compile_data = [
+        "models.json",
+        "prompt.md",
+    ],
+)

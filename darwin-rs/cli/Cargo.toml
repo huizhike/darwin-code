@@ -1,0 +1,72 @@
+[package]
+name = "darwin-code-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+
+[[bin]]
+name = "darwin-code"
+path = "src/main.rs"
+
+[lib]
+name = "darwin_code_cli"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap_complete = { workspace = true }
+darwin-code-app-server = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-arg0 = { workspace = true }
+darwin-code-api = { workspace = true }
+darwin-code-client = { workspace = true }
+darwin-code-utils-cli = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-core = { workspace = true }
+darwin-code-exec = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-execpolicy = { workspace = true }
+darwin-code-features = { workspace = true }
+darwin-code-mcp = { workspace = true }
+darwin-code-mcp-server = { workspace = true }
+darwin-code-model-provider = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-rmcp-client = { workspace = true }
+darwin-code-sandboxing = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-stdio-to-uds = { workspace = true }
+darwin-code-terminal-detection = { workspace = true }
+darwin-code-tui = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-path = { workspace = true }
+libc = { workspace = true }
+owo-colors = { workspace = true }
+regex-lite = { workspace = true }
+serde_json = { workspace = true }
+supports-color = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "signal",
+] }
+toml = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+darwin_code_windows_sandbox = { package = "darwin-code-windows-sandbox", path = "../windows-sandbox-rs" }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+assert_matches = { workspace = true }
+darwin-code-utils-cargo-bin = { workspace = true }
+predicates = { workspace = true }
+pretty_assertions = { workspace = true }
+sqlx = { workspace = true }

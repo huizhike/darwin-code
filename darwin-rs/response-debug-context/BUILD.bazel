@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "response-debug-context",
+    crate_name = "darwin_code_response_debug_context",
+)

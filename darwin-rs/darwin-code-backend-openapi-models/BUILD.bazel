@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "darwin-code-backend-openapi-models",
+    crate_name = "darwin_code_backend_openapi_models",
+)

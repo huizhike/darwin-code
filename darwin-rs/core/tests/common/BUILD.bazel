@@ -1,0 +1,10 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "common",
+    crate_name = "core_test_support",
+    crate_srcs = glob(["*.rs"]),
+    lib_data_extra = [
+        "//darwin-code-rs/core:model_availability_nux_fixtures",
+    ],
+)

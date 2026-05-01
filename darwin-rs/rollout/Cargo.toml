@@ -1,0 +1,49 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-rollout"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "darwin_code_rollout"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+darwin-code-file-search = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-client = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-state = { workspace = true }
+darwin-code-utils-path = { workspace = true }
+darwin-code-utils-string = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+time = { workspace = true, features = [
+    "formatting",
+    "local-offset",
+    "macros",
+    "parsing",
+] }
+tokio = { workspace = true, features = [
+    "fs",
+    "io-util",
+    "macros",
+    "process",
+    "rt",
+    "sync",
+    "time",
+] }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

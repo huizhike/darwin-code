@@ -1,0 +1,269 @@
+# DarwinCode default config template
+#
+# Usage:
+#   cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
+#   cargo run -p darwin-code-cli --bin darwin-code
+#
+# Notes:
+# - This is a parseable example template. Commented settings keep runtime defaults.
+# - Copy or rename this file to config.toml. When running from the source checkout
+#   root without DARWIN_CODE_HOME, Darwin Code reads config.toml from that root.
+# - Set DARWIN_CODE_HOME explicitly if you want a different config directory.
+# - Darwin Code is BYOK by default: users configure provider, model, base_url,
+#   and api_key explicitly.
+# - Fill real api_key values only in config.toml. Do not commit real keys.
+
+# =============================================================================
+# 1. Active provider/model
+# =============================================================================
+
+# DeepSeek and Qwen are separate providers. Select the active provider/model here.
+model_provider = "qwen"
+model = "qwen3.6-plus"
+approvals_reviewer = "user"
+model_reasoning_effort = "none"
+
+# =============================================================================
+# 2. BYOK providers
+# =============================================================================
+
+[openai_compatible.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+wire_api = "chat-completions"
+# For local TUI runs, write the real key in config.toml only. Do not commit it.
+# api_key = "YOUR_DEEPSEEK_API_KEY"
+api_key = "YOUR_DEEPSEEK_API_KEY"
+
+[openai_compatible.deepseek.models."deepseek-v4-flash"]
+display_name = "DeepSeek v4 Flash"
+description = "DeepSeek OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
+
+[openai_compatible.deepseek.models."deepseek-v4-pro"]
+display_name = "DeepSeek v4 Pro"
+description = "DeepSeek OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
+
+[openai_compatible.qwen]
+name = "Qwen"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+wire_api = "chat-completions"
+api_key = "YOUR_QWEN_API_KEY"
+
+[openai_compatible.qwen.models."qwen3.6-plus"]
+display_name = "Qwen 3.6 Plus"
+description = "Qwen OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
+
+[projects."/home/xklab/01-darwin/dcode/70-darwin-code"]
+trust_level = "trusted"
+
+# [openai]
+# base_url = "https://api.openai.com/v1"
+# api_key = "YOUR_PROVIDER_API_KEY"
+
+# [openai_compatible.deepseek]
+# name = "DeepSeek"
+# base_url = "https://api.deepseek.com"
+# wire_api = "chat-completions"
+# api_key = "YOUR_PROVIDER_API_KEY"
+
+# Generic OpenAI-compatible gateway example. Company gateways and local proxies
+# should be configured as standard endpoints.
+# [openai_compatible.my-gateway]
+# name = "My Gateway"
+# base_url = "http://127.0.0.1:8080/v1"
+# wire_api = "responses"
+# api_key = "YOUR_PROVIDER_API_KEY"
+
+# Gemini and Claude native providers are target protocol families. If the runtime
+# adapter is not implemented yet, selecting them should fail clearly. For a
+# temporary Gemini/Claude OpenAI-compatible gateway, configure it under
+# [openai_compatible.<id>] instead.
+# [gemini]
+# base_url = "https://generativelanguage.googleapis.com/v1beta"
+# api_key = "YOUR_PROVIDER_API_KEY"
+#
+# [claude]
+# base_url = "https://api.anthropic.com"
+# api_key = "YOUR_PROVIDER_API_KEY"
+
+# =============================================================================
+# 3. Top-level config defaults
+# =============================================================================
+
+# model = "gpt-5.5"                         # Optional model for direct BYOK providers
+# model_provider = "openai"
+# model_context_window = 200000
+# model_auto_compact_token_limit = 180000
+# plan_mode_reasoning_effort = "medium"
+# model_reasoning_summary = "auto"           # Options: "auto"/"concise"/"detailed"/"none"
+# model_verbosity = "medium"                 # Options: "low"/"medium"/"high"
+# model_supports_reasoning_summaries = true
+# model_instructions_file = "/absolute/path/to/instructions.md"
+# instructions = ""
+# developer_instructions = ""
+# compact_prompt = ""
+# personality = "none"
+# service_tier = "auto"                      # Options: "auto"/"default"/"flex"
+
+# approval_policy = "untrusted"              # Common: "untrusted"/"on-failure"/"on-request"/"never"
+# approvals_reviewer = "user"
+# sandbox_mode = "workspace-write"           # Common: "read-only"/"workspace-write"/"danger-full-access"
+# allow_login_shell = true                    # Default: true
+# default_permissions = "default"
+
+# include_permissions_instructions = true
+# include_environment_context = true
+# hide_agent_reasoning = false
+# show_raw_agent_reasoning = false
+# disable_paste_burst = false
+# suppress_unstable_features_warning = false
+# check_for_update_on_startup = true
+# windows_wsl_setup_acknowledged = false
+
+# openai_base_url = "https://api.openai.com/v1"  # Optional endpoint override when model_provider = "openai"
+
+# project_doc_max_bytes = 32768
+# project_doc_fallback_filenames = ["AGENTS.md"]
+# project_root_markers = [".git"]
+# tool_output_token_limit = 20000
+# background_terminal_max_timeout = 300000       # ms, default: 5 minutes
+# js_repl_node_path = "/absolute/path/to/node"
+# js_repl_node_module_dirs = ["/absolute/path/to/node_modules"]
+# zsh_path = "/absolute/path/to/zsh"
+# sqlite_home = "/absolute/path/to/sqlite-home"
+# log_dir = "/absolute/path/to/log"
+# commit_attribution = ""
+# notify = ["terminal-notifier", "DarwinCode finished"]
+
+# =============================================================================
+# 4. Subtable defaults
+# =============================================================================
+
+# [shell_environment_policy]
+# inherit = "all"                              # Options: "all"/"core"/"none"
+# ignore_default_excludes = false
+# include_only = []
+# exclude = []
+# set = {}
+# experimental_use_profile = false
+
+# [sandbox_workspace_write]
+# writable_roots = []
+# network_access = false
+# exclude_tmpdir_env_var = false
+# exclude_slash_tmp = false
+
+# [permissions]
+# # Define named permission profiles here. default_permissions points to a profile name.
+#
+# [permissions.default]
+# # See the generated schema for exact fields. Commented settings keep runtime defaults.
+
+# [history]
+# persistence = "save-all"                     # Common: "save-all"/"none"
+# max_bytes = 10485760
+
+# [tui]
+# alternate_screen = "auto"
+# notifications = true
+
+# [web_search]
+# mode = "cached"                              # Options: "disabled"/"cached"/"live"
+
+# [tools]
+# web_search = "cached"
+# view_image = true
+
+# [tool_suggest]
+# enabled = true
+
+# [agents]
+# max_threads = 8
+# max_depth = 4
+# job_max_runtime_seconds = 3600
+
+# [memories]
+# enabled = true
+
+# [skills]
+# enabled = true
+
+# [features]
+# # Feature flags live here. Commented settings keep default feature states.
+
+# [ghost_snapshot]
+# enabled = false
+
+# [windows]
+# level = "none"
+
+# [projects]
+# # Use absolute project paths as keys for project-local trust and state.
+#
+# [projects."/absolute/path/to/project"]
+# trust_level = "trusted"
+
+# [profiles]
+# # Named profiles can be selected with profile = "work".
+#
+# [profiles.work]
+# model_provider = "openai"
+# model = "gpt-5"
+# approval_policy = "untrusted"
+
+# [mcp_servers]
+# # MCP server example.
+#
+# [mcp_servers.example]
+# command = "example-mcp-server"
+# args = []
+# env = {}
+# supports_parallel_tool_calls = false
+
+# [plugins]
+# # Plugin config keyed by plugin name.
+
+# [marketplaces]
+# # Plugin marketplace config keyed by marketplace name.
+
+# [model_providers]
+# # Advanced compatibility entry. Darwin Code product configs should prefer
+# # [openai_compatible.<id>].
+#
+# [model_providers.openai-custom]
+# name = "OpenAI custom"
+# base_url = "https://api.openai.com/v1"
+# api_key = "YOUR_PROVIDER_API_KEY"
+# wire_api = "responses"
+# request_max_retries = 4
+# stream_max_retries = 10
+# stream_idle_timeout_ms = 300000
+# BYOK only: do not configure experimental_bearer_token, [auth],
+# requires_openai_auth, or supports_websockets.
+
+# [openai_compatible_provider]
+# # Legacy single-provider migration entry. New configs should use
+# # [openai_compatible.<id>].
+# preset = "deepseek"
+# name = "DeepSeek"
+# base_url = "https://api.deepseek.com"
+# wire_api = "chat-completions"
+# api_key = "YOUR_PROVIDER_API_KEY"

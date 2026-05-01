@@ -1,0 +1,17 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+exports_files(
+    ["repo_root.marker"],
+    visibility = ["//visibility:public"],
+)
+
+darwin_code_rust_crate(
+    name = "cargo-bin",
+    crate_name = "darwin_code_utils_cargo_bin",
+    compile_data = ["repo_root.marker"],
+    lib_data_extra = ["repo_root.marker"],
+    test_data_extra = ["repo_root.marker"],
+    rustc_env = {
+        "DARWIN_CODE_REPO_ROOT_MARKER": "$(rlocationpath :repo_root.marker)",
+    },
+)

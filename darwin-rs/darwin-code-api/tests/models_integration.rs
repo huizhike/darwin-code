@@ -1,0 +1,130 @@
+use darwin_code_api::AuthProvider;
+use darwin_code_api::ModelsClient;
+use darwin_code_api::Provider;
+use darwin_code_api::RetryConfig;
+use darwin_code_client::ReqwestTransport;
+use darwin_code_protocol::config_types::ReasoningSummary;
+use darwin_code_protocol::model_metadata::ConfigShellToolType;
+use darwin_code_protocol::model_metadata::ModelInfo;
+use darwin_code_protocol::model_metadata::ModelVisibility;
+use darwin_code_protocol::model_metadata::ModelsResponse;
+use darwin_code_protocol::model_metadata::ReasoningEffort;
+use darwin_code_protocol::model_metadata::ReasoningEffortPreset;
+use darwin_code_protocol::model_metadata::TruncationPolicyConfig;
+use darwin_code_protocol::model_metadata::default_input_modalities;
+use http::HeaderMap;
+use http::Method;
+use std::sync::Arc;
+use wiremock::Mock;
+use wiremock::MockServer;
+use wiremock::ResponseTemplate;
+use wiremock::matchers::method;
+use wiremock::matchers::path;
+
+#[derive(Clone, Default)]
+struct DummyAuth;
+
+impl AuthProvider for DummyAuth {
+    fn add_auth_headers(&self, _headers: &mut HeaderMap) {}
+}
+
+fn provider(base_url: &str) -> Provider {
+    Provider {
+        name: "test".to_string(),
+        base_url: base_url.to_string(),
+        query_params: None,
+        headers: HeaderMap::new(),
+        retry: RetryConfig {
+            max_attempts: 1,
+            base_delay: std::time::Duration::from_millis(1),
+            retry_429: false,
+            retry_5xx: true,
+            retry_transport: true,
+        },
+        stream_idle_timeout: std::time::Duration::from_secs(1),
+    }
+}
+
+#[tokio::test]
+async fn models_client_hits_models_endpoint() {
+    let server = MockServer::start().await;
+    let base_url = format!("{}/api/darwin", server.uri());
+
+    let response = ModelsResponse {
+        models: vec![ModelInfo {
+            slug: "gpt-test".to_string(),
+            provider_id: None,
+            display_name: "gpt-test".to_string(),
+            description: Some("desc".to_string()),
+            default_reasoning_level: Some(ReasoningEffort::Medium),
+            supported_reasoning_levels: vec![
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::Low,
+                    description: ReasoningEffort::Low.to_string(),
+                },
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::Medium,
+                    description: ReasoningEffort::Medium.to_string(),
+                },
+                ReasoningEffortPreset {
+                    effort: ReasoningEffort::High,
+                    description: ReasoningEffort::High.to_string(),
+                },
+            ],
+            shell_type: ConfigShellToolType::ShellCommand,
+            visibility: ModelVisibility::List,
+            supported_in_api: true,
+            priority: 1,
+            additional_speed_tiers: Vec::new(),
+            upgrade: None,
+            base_instructions: "base instructions".to_string(),
+            model_messages: None,
+            supports_reasoning_summaries: false,
+            default_reasoning_summary: ReasoningSummary::Auto,
+            support_verbosity: false,
+            default_verbosity: None,
+            availability_nux: None,
+            apply_patch_tool_type: None,
+            web_search_tool_type: Default::default(),
+            truncation_policy: TruncationPolicyConfig::bytes(/*limit*/ 10_000),
+            supports_parallel_tool_calls: false,
+            supports_image_detail_original: false,
+            context_window: Some(272_000),
+            auto_compact_token_limit: None,
+            effective_context_window_percent: 95,
+            experimental_supported_tools: Vec::new(),
+            input_modalities: default_input_modalities(),
+            used_fallback_model_metadata: false,
+            supports_search_tool: false,
+        }],
+    };
+
+    Mock::given(method("GET"))
+        .and(path("/api/darwin/models"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_json(&response),
+        )
+        .mount(&server)
+        .await;
+
+    let transport = ReqwestTransport::new(reqwest::Client::new());
+    let client = ModelsClient::new(transport, provider(&base_url), Arc::new(DummyAuth));
+
+    let (models, _) = client
+        .list_models("0.1.0", HeaderMap::new())
+        .await
+        .expect("models request should succeed");
+
+    assert_eq!(models.len(), 1);
+    assert_eq!(models[0].slug, "gpt-test");
+
+    let received = server
+        .received_requests()
+        .await
+        .expect("should capture requests");
+    assert_eq!(received.len(), 1);
+    assert_eq!(received[0].method, Method::GET.as_str());
+    assert_eq!(received[0].url.path(), "/api/darwin/models");
+}

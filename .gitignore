@@ -1,0 +1,144 @@
+# deps
+# Node.js dependencies
+node_modules
+.pnpm-store
+.pnpm-debug.log
+
+# Keep pnpm-lock.yaml
+!pnpm-lock.yaml
+
+# build
+dist/
+bazel-*
+user.bazelrc
+build/
+out/
+storybook-static/
+
+# ignore README for publishing
+darwin-cli/README.md
+
+# ignore Nix derivation results
+result
+
+# editor
+.vscode/
+.idea/
+.history/
+.zed/
+*.swp
+*~
+
+# cli tools
+CLAUDE.md
+.claude/
+.codex/
+AGENTS.md
+AGENTS.override.md
+
+# local devcontainer setup
+.devcontainer/
+
+# caches
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.nyc_output/
+.jest/
+*.tsbuildinfo
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+log/
+
+# env
+.env*
+!.env.example
+.venv/
+
+# package
+*.tgz
+
+# ci
+.vercel/
+.netlify/
+
+# patches
+apply_patch/
+
+# coverage
+coverage/
+
+# personal files
+personal/
+
+# os
+.DS_Store
+Thumbs.db
+Icon?
+.Spotlight-V100/
+
+# Unwanted package managers
+.yarn/
+yarn.lock
+
+# release
+package.json-e
+session.ts-e
+CHANGELOG.ignore.md
+
+# nix related
+.direnv
+.envrc
+
+# Python bytecode files
+__pycache__/
+*.pyc
+
+# local one-off analysis helpers
+scan_telemetry_impact*.sh
+
+# generated app-server protocol schemas
+darwin-rs/app-server-protocol/schema/json/
+darwin-rs/app-server-protocol/schema/typescript/
+
+# local Codex/Darwin runtime hooks
+.omx/
+.darwin/*
+!.darwin/agents/
+!.darwin/agents/**
+!.darwin/skills/
+!.darwin/skills/**
+.darwin/skills/.system/**
+!.darwin/prompts/
+!.darwin/prompts/**
+
+# local Darwin Code runtime state
+CHANGELOG.md
+config.toml
+history.jsonl
+installation_id
+.personality_migration
+.tmp/
+memories/
+sessions/
+shell_snapshots/
+skills/
+state_*.sqlite
+state_*.sqlite-*
+logs_*.sqlite
+logs_*.sqlite-*
+model-catalog.*.json
+rules/
+sdk/
+
+# test/sandbox marker files created inside crates
+darwin-rs/**/.darwin
+darwin-rs/**/.darwin_code
+
+# local model catalog experiments
+/model-catalog*.json
