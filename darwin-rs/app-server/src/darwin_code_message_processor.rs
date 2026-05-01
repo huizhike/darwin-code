@@ -6059,10 +6059,7 @@ impl DarwinCodeMessageProcessor {
                 })?
         };
 
-        let mut config = self.config.as_ref().clone();
-        if let Some(review_model) = &config.review_model {
-            config.model = Some(review_model.clone());
-        }
+        let config = self.config.as_ref().clone();
 
         let NewThread {
             thread_id,

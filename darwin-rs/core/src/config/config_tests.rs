@@ -1852,6 +1852,183 @@ api_key = "test-direct-key"
 }
 
 #[tokio::test]
+async fn provider_scoped_models_build_flat_catalog_and_provider_index() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model_provider = "qwen"
+model = "qwen3.6-plus"
+
+[openai_compatible.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+wire_api = "chat-completions"
+api_key = "deepseek-key"
+
+[openai_compatible.deepseek.models."deepseek-v4-flash"]
+display_name = "DeepSeek v4 Flash"
+context_window = 128000
+max_output_tokens = 8192
+
+[openai_compatible.deepseek.models."deepseek-v4-pro"]
+display_name = "DeepSeek v4 Pro"
+context_window = 128000
+max_output_tokens = 8192
+
+[openai_compatible.qwen]
+name = "Qwen"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+wire_api = "chat-completions"
+api_key = "qwen-key"
+
+[openai_compatible.qwen.models."qwen3.6-plus"]
+display_name = "Qwen 3.6 Plus"
+context_window = 128000
+max_output_tokens = 8192
+"#,
+    )
+    .expect("provider-scoped models should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "qwen");
+    assert_eq!(config.model.as_deref(), Some("qwen3.6-plus"));
+    assert_eq!(
+        config.model_provider_by_model.get("qwen3.6-plus"),
+        Some(&"qwen".to_string())
+    );
+    assert_eq!(
+        config.model_provider_by_model.get("deepseek-v4-pro"),
+        Some(&"deepseek".to_string())
+    );
+
+    let catalog = config
+        .model_catalog
+        .as_ref()
+        .expect("provider-scoped models should become the flat /model catalog");
+    let listed: Vec<_> = catalog
+        .models
+        .iter()
+        .map(|model| (model.slug.as_str(), model.provider_id.as_deref()))
+        .collect();
+    assert_eq!(
+        listed,
+        vec![
+            ("deepseek-v4-flash", Some("deepseek")),
+            ("deepseek-v4-pro", Some("deepseek")),
+            ("qwen3.6-plus", Some("qwen")),
+        ]
+    );
+    let qwen = catalog
+        .models
+        .iter()
+        .find(|model| model.slug == "qwen3.6-plus")
+        .expect("qwen model is listed");
+    assert!(
+        qwen.supported_reasoning_levels.is_empty(),
+        "OpenAI-compatible configured models do not advertise reasoning effort choices yet"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn provider_scoped_models_derive_active_provider_from_model() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model_provider = "deepseek"
+model = "qwen3.6-plus"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "deepseek-key"
+
+[openai_compatible.deepseek.models."deepseek-v4-pro"]
+display_name = "DeepSeek v4 Pro"
+
+[openai_compatible.qwen]
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+api_key = "qwen-key"
+
+[openai_compatible.qwen.models."qwen3.6-plus"]
+display_name = "Qwen 3.6 Plus"
+"#,
+    )
+    .expect("config should parse before cross-field validation");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "qwen");
+    assert_eq!(config.model.as_deref(), Some("qwen3.6-plus"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn provider_scoped_models_reject_duplicate_model_ids() -> std::io::Result<()> {
+    let cfg: ConfigToml = toml::from_str(
+        r#"
+model_provider = "deepseek"
+model = "shared-model"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key = "deepseek-key"
+
+[openai_compatible.deepseek.models."shared-model"]
+display_name = "DeepSeek Shared"
+
+[openai_compatible.qwen]
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+api_key = "qwen-key"
+
+[openai_compatible.qwen.models."shared-model"]
+display_name = "Qwen Shared"
+"#,
+    )
+    .expect("config should parse before duplicate validation");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides_raw_for_tests(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("flat /model selection requires unique model ids");
+
+    assert_eq!(err.kind(), ErrorKind::InvalidInput);
+    assert!(
+        err.to_string().contains(
+            "model `shared-model` is configured under both provider `deepseek` and provider `qwen`"
+        ),
+        "unexpected error: {err}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn deepseek_chat_completions_openai_compatible_provider_defaults_to_chat_completions()
 -> std::io::Result<()> {
     let cfg: ConfigToml = toml::from_str(

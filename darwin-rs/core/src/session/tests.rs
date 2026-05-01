@@ -18,6 +18,8 @@ use crate::tools::format_exec_output_str;
 
 use darwin_code_features::Feature;
 use darwin_code_features::Features;
+use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
 use darwin_code_models_manager::bundled_models_response;
 use darwin_code_models_manager::model_info;
 use darwin_code_protocol::AgentPath;
@@ -1588,6 +1590,7 @@ async fn set_rate_limits_retains_previous_credits() {
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -1693,6 +1696,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -1832,7 +1836,8 @@ async fn turn_context_with_model_updates_model_fields() {
     turn_context.reasoning_effort = Some(ReasoningEffortConfig::Minimal);
     let updated = turn_context
         .with_model("gpt-5.1".to_string(), &session.services.models_manager)
-        .await;
+        .await
+        .expect("resolve provider for test model");
     let expected_model_info = session
         .services
         .models_manager
@@ -2048,6 +2053,7 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
     };
 
     SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -2079,6 +2085,141 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
         inherited_shell_snapshot: None,
         user_shell_override: None,
     }
+}
+
+#[tokio::test]
+async fn provider_model_session_update_sets_per_turn_provider_from_model() {
+    let mut session_configuration = make_session_configuration_for_tests().await;
+    let mut config = (*session_configuration.original_config_do_not_use).clone();
+    let deepseek_provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.example/v1".to_string(),
+        WireApi::ChatCompletions,
+        Option::<String>::None,
+    );
+    config
+        .model_providers
+        .insert("deepseek".to_string(), deepseek_provider.clone());
+    config
+        .model_provider_by_model
+        .insert("deepseek-v4-flash".to_string(), "deepseek".to_string());
+    session_configuration.original_config_do_not_use = Arc::new(config);
+
+    let selected_mode = CollaborationMode {
+        mode: ModeKind::Default,
+        settings: Settings {
+            model: "deepseek-v4-flash".to_string(),
+            reasoning_effort: None,
+            developer_instructions: None,
+        },
+    };
+
+    let updated = session_configuration
+        .apply(&SessionSettingsUpdate {
+            collaboration_mode: Some(selected_mode),
+            ..Default::default()
+        })
+        .expect("provider+model selection should apply");
+
+    assert_eq!(updated.model_provider_id, "deepseek");
+    assert_eq!(updated.provider, deepseek_provider);
+    assert_eq!(updated.collaboration_mode.model(), "deepseek-v4-flash");
+
+    let per_turn_config = Session::build_per_turn_config(&updated);
+    assert_eq!(per_turn_config.model_provider_id, "deepseek");
+    assert_eq!(per_turn_config.model.as_deref(), Some("deepseek-v4-flash"));
+    assert_eq!(per_turn_config.model_provider, deepseek_provider);
+}
+
+#[tokio::test]
+async fn provider_model_session_update_infers_unique_provider_from_model() {
+    let mut session_configuration = make_session_configuration_for_tests().await;
+    let mut config = (*session_configuration.original_config_do_not_use).clone();
+    let deepseek_provider = ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.example/v1".to_string(),
+        WireApi::ChatCompletions,
+        Option::<String>::None,
+    );
+    let qwen_provider = ModelProviderInfo::create_openai_compatible_provider(
+        "Qwen".to_string(),
+        "https://qwen.example/compatible-mode/v1".to_string(),
+        WireApi::ChatCompletions,
+        Option::<String>::None,
+    );
+    config
+        .model_providers
+        .insert("deepseek".to_string(), deepseek_provider.clone());
+    config
+        .model_providers
+        .insert("qwen".to_string(), qwen_provider.clone());
+    config
+        .model_provider_by_model
+        .insert("deepseek-v4-pro".to_string(), "deepseek".to_string());
+    config
+        .model_provider_by_model
+        .insert("qwen3.6-plus".to_string(), "qwen".to_string());
+    session_configuration.model_provider_id = "deepseek".to_string();
+    session_configuration.provider = deepseek_provider;
+    session_configuration.original_config_do_not_use = Arc::new(config);
+
+    let selected_mode = CollaborationMode {
+        mode: ModeKind::Default,
+        settings: Settings {
+            model: "qwen3.6-plus".to_string(),
+            reasoning_effort: None,
+            developer_instructions: None,
+        },
+    };
+
+    let updated = session_configuration
+        .apply(&SessionSettingsUpdate {
+            collaboration_mode: Some(selected_mode),
+            ..Default::default()
+        })
+        .expect("unique provider should be inferred from the selected model");
+
+    assert_eq!(updated.model_provider_id, "qwen");
+    assert_eq!(updated.provider, qwen_provider);
+    assert_eq!(updated.collaboration_mode.model(), "qwen3.6-plus");
+
+    let per_turn_config = Session::build_per_turn_config(&updated);
+    assert_eq!(per_turn_config.model_provider_id, "qwen");
+    assert_eq!(per_turn_config.model.as_deref(), Some("qwen3.6-plus"));
+    assert_eq!(per_turn_config.model_provider, qwen_provider);
+}
+
+#[tokio::test]
+async fn provider_model_session_update_rejects_unknown_model_when_provider_index_exists() {
+    let mut session_configuration = make_session_configuration_for_tests().await;
+    let mut config = (*session_configuration.original_config_do_not_use).clone();
+    config
+        .model_provider_by_model
+        .insert("deepseek-v4-flash".to_string(), "deepseek".to_string());
+    session_configuration.original_config_do_not_use = Arc::new(config);
+
+    let selected_mode = CollaborationMode {
+        mode: ModeKind::Default,
+        settings: Settings {
+            model: "qwen3.6-plus".to_string(),
+            reasoning_effort: None,
+            developer_instructions: None,
+        },
+    };
+
+    let err = match session_configuration.apply(&SessionSettingsUpdate {
+        collaboration_mode: Some(selected_mode),
+        ..Default::default()
+    }) {
+        Ok(_) => panic!("unknown configured model should be rejected"),
+        Err(err) => err,
+    };
+
+    let message = err.to_string();
+    assert!(
+        message.contains("model"),
+        "expected unknown model field, got {message}"
+    );
 }
 
 #[tokio::test]
@@ -2315,6 +2456,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -2416,6 +2558,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -2516,7 +2659,6 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         model_client: ModelClient::new(
             conversation_id,
             /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-            session_configuration.provider.clone(),
             session_configuration.session_source.clone(),
             config.model_verbosity,
             config.features.enabled(Feature::EnableRequestCompression),
@@ -2623,6 +2765,7 @@ async fn make_session_with_config_and_rx(
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -3369,6 +3512,7 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         },
     };
     let session_configuration = SessionConfiguration {
+        model_provider_id: config.model_provider_id.clone(),
         provider: config.model_provider.clone(),
         collaboration_mode,
         model_reasoning_summary: config.model_reasoning_summary,
@@ -3469,7 +3613,6 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
         model_client: ModelClient::new(
             conversation_id,
             /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-            session_configuration.provider.clone(),
             session_configuration.session_source.clone(),
             config.model_verbosity,
             config.features.enabled(Feature::EnableRequestCompression),
@@ -3680,7 +3823,8 @@ async fn build_settings_update_items_emits_environment_item_for_network_changes(
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
 
     let mut config = (*current_context.config).clone();
     let mut requirements = config.config_layer_stack.requirements().clone();
@@ -3742,7 +3886,8 @@ async fn build_settings_update_items_emits_environment_item_for_time_changes() {
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
     current_context.current_date = Some("2026-02-27".to_string());
     current_context.timezone = Some("Europe/Berlin".to_string());
 
@@ -3768,7 +3913,8 @@ async fn build_settings_update_items_omits_environment_item_when_disabled() {
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
     let mut config = (*current_context.config).clone();
     config.include_environment_context = false;
     current_context.config = Arc::new(config);
@@ -3797,7 +3943,8 @@ async fn build_settings_update_items_emits_realtime_start_when_session_becomes_l
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
     current_context.realtime_active = true;
 
     let update_items = session
@@ -3825,7 +3972,8 @@ async fn build_settings_update_items_emits_realtime_end_when_session_stops_being
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
     current_context.realtime_active = false;
 
     let update_items = session
@@ -3858,7 +4006,8 @@ async fn build_settings_update_items_uses_previous_turn_settings_for_realtime_en
             previous_context.model_info.slug.clone(),
             &session.services.models_manager,
         )
-        .await;
+        .await
+        .expect("resolve provider for test model");
     current_context.realtime_active = false;
 
     session
@@ -4319,7 +4468,8 @@ async fn record_context_updates_and_set_reference_context_item_persists_baseline
     };
     let turn_context = previous_context
         .with_model(next_model.to_string(), &session.services.models_manager)
-        .await;
+        .await
+        .expect("resolve provider for test model");
     let previous_context_item = previous_context.to_turn_context_item();
     {
         let mut state = session.state.lock().await;
@@ -4471,7 +4621,8 @@ async fn record_context_updates_and_set_reference_context_item_persists_full_rei
     };
     let turn_context = previous_context
         .with_model(next_model.to_string(), &session.services.models_manager)
-        .await;
+        .await
+        .expect("resolve provider for test model");
     let config = session.get_config().await;
     let recorder = RolloutRecorder::new(
         config.as_ref(),

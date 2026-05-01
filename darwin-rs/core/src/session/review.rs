@@ -9,11 +9,8 @@ pub(super) async fn spawn_review_thread(
     sub_id: String,
     resolved: crate::review_prompts::ResolvedReviewRequest,
 ) {
-    let model = config
-        .review_model
-        .clone()
-        .unwrap_or_else(|| parent_turn_context.model_info.slug.clone());
-    let review_model_info = sess
+    let model = parent_turn_context.model_info.slug.clone();
+    let active_model_info = sess
         .services
         .models_manager
         .get_model_info(&model, &config.to_models_manager_config())
@@ -24,7 +21,7 @@ pub(super) async fn spawn_review_thread(
     let _ = review_features.disable(Feature::WebSearchCached);
     let review_web_search_mode = WebSearchMode::Disabled;
     let tools_config = ToolsConfig::new(&ToolsConfigParams {
-        model_info: &review_model_info,
+        model_info: &active_model_info,
         available_models: &sess
             .services
             .models_manager
@@ -54,7 +51,7 @@ pub(super) async fn spawn_review_thread(
 
     let review_prompt = resolved.prompt.clone();
     let provider = parent_turn_context.provider.clone();
-    let model_info = review_model_info.clone();
+    let model_info = active_model_info.clone();
 
     // Build per‑turn client with the requested model/family.
     let mut per_turn_config = (*config).clone();
@@ -73,7 +70,7 @@ pub(super) async fn spawn_review_thread(
     let session_telemetry = parent_turn_context
         .session_telemetry
         .clone()
-        .with_model(model.as_str(), review_model_info.slug.as_str());
+        .with_model(model.as_str(), active_model_info.slug.as_str());
     let provider_for_context = provider.clone();
     let session_telemetry_for_context = session_telemetry.clone();
     let reasoning_effort = per_turn_config.model_reasoning_effort;

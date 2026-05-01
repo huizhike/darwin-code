@@ -29,6 +29,12 @@ pub enum ConfigEdit {
         model: Option<String>,
         effort: Option<ReasoningEffort>,
     },
+    /// Update the active model provider, model selection, and optional reasoning effort.
+    SetModelSelection {
+        provider: String,
+        model: String,
+        effort: Option<ReasoningEffort>,
+    },
     /// Update the service tier preference for future turns.
     SetServiceTier { service_tier: Option<ServiceTier> },
     /// Update the active (or default) model personality.
@@ -383,6 +389,21 @@ impl ConfigDocument {
                     &["model"],
                     model.as_ref().map(|model_value| value(model_value.clone())),
                 );
+                mutated |= self.write_profile_value(
+                    &["model_reasoning_effort"],
+                    effort.map(|effort| value(effort.to_string())),
+                );
+                mutated
+            }),
+            ConfigEdit::SetModelSelection {
+                provider,
+                model,
+                effort,
+            } => Ok({
+                let mut mutated = false;
+                mutated |=
+                    self.write_profile_value(&["model_provider"], Some(value(provider.clone())));
+                mutated |= self.write_profile_value(&["model"], Some(value(model.clone())));
                 mutated |= self.write_profile_value(
                     &["model_reasoning_effort"],
                     effort.map(|effort| value(effort.to_string())),
@@ -921,6 +942,20 @@ impl ConfigEditsBuilder {
     pub fn set_model(mut self, model: Option<&str>, effort: Option<ReasoningEffort>) -> Self {
         self.edits.push(ConfigEdit::SetModel {
             model: model.map(ToOwned::to_owned),
+            effort,
+        });
+        self
+    }
+
+    pub fn set_model_selection(
+        mut self,
+        provider: &str,
+        model: &str,
+        effort: Option<ReasoningEffort>,
+    ) -> Self {
+        self.edits.push(ConfigEdit::SetModelSelection {
+            provider: provider.to_string(),
+            model: model.to_string(),
             effort,
         });
         self

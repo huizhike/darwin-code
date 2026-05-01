@@ -49,7 +49,6 @@ mod resume_warning;
 mod review;
 mod rmcp_client;
 mod rollout_list_find;
-mod safety_check_downgrade;
 mod shell_command;
 mod shell_serialization;
 mod shell_snapshot;

@@ -540,6 +540,7 @@ async fn drain_to_completed(
 ) -> DarwinCodeResult<()> {
     let mut stream = client_session
         .stream(
+            &turn_context.provider,
             prompt,
             &turn_context.model_info,
             &turn_context.session_telemetry,

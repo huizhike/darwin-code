@@ -273,6 +273,14 @@
           "description": "Inline BYOK API key for local, untracked configs.",
           "type": "string"
         },
+        "available_models": {
+          "default": [],
+          "description": "Legacy list form for configured models.",
+          "items": {
+            "$ref": "#/definitions/ModelConfigToml"
+          },
+          "type": "array"
+        },
         "base_url": {
           "description": "Base URL for the provider endpoint.",
           "type": "string"
@@ -284,6 +292,14 @@
             }
           ],
           "description": "Provider protocol family. OpenAI-compatible is runnable today; native Gemini/Claude families are accepted as product config targets and fail with a clear runtime-gap error until their adapters land."
+        },
+        "models": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ProviderModelToml"
+          },
+          "default": {},
+          "description": "Provider-scoped model map used by Darwin Code.",
+          "type": "object"
         },
         "name": {
           "description": "Friendly display name for the provider.",
@@ -827,15 +843,12 @@
       "additionalProperties": false,
       "properties": {
         "images": {
-          "default": false,
           "type": "boolean"
         },
         "reasoning": {
-          "default": false,
           "type": "boolean"
         },
         "tools": {
-          "default": false,
           "type": "boolean"
         }
       },
@@ -857,9 +870,9 @@
             }
           ],
           "default": {
-            "images": false,
-            "reasoning": false,
-            "tools": false
+            "images": null,
+            "reasoning": null,
+            "tools": null
           },
           "description": "该模型支持的核心能力标识"
         },
@@ -1052,6 +1065,14 @@
         "base_url": {
           "description": "Base URL for the provider's API.",
           "type": "string"
+        },
+        "models": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ProviderModelToml"
+          },
+          "default": {},
+          "description": "Provider-scoped model map used by Darwin Code.",
+          "type": "object"
         }
       },
       "type": "object"
@@ -1183,6 +1204,14 @@
           "description": "Base URL for the provider's OpenAI-compatible API.",
           "type": "string"
         },
+        "models": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ProviderModelToml"
+          },
+          "default": {},
+          "description": "Provider-scoped model map used by Darwin Code.",
+          "type": "object"
+        },
         "name": {
           "description": "Friendly display name for the synthesized provider.",
           "type": "string"
@@ -1240,6 +1269,52 @@
       "properties": {
         "trust_level": {
           "$ref": "#/definitions/TrustLevel"
+        }
+      },
+      "type": "object"
+    },
+    "ProviderModelToml": {
+      "additionalProperties": false,
+      "properties": {
+        "auto_compact_token_limit": {
+          "description": "Token usage threshold triggering auto-compaction.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "context_window": {
+          "description": "Model context window, in tokens.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "description": {
+          "description": "Short description shown in model selection surfaces.",
+          "type": "string"
+        },
+        "display_name": {
+          "description": "Interface display name. Defaults to the model id map key.",
+          "type": "string"
+        },
+        "max_output_tokens": {
+          "description": "Maximum output tokens.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "multimodal": {
+          "description": "Whether the model accepts image input. Defaults to true.",
+          "type": "boolean"
+        },
+        "temperature": {
+          "description": "Sampling temperature for providers that support it.",
+          "format": "double",
+          "type": "number"
+        },
+        "thinking": {
+          "description": "Whether the model supports thinking/reasoning. Defaults to true.",
+          "type": "boolean"
+        },
+        "tools": {
+          "description": "Whether shell/tools are allowed for this model. Defaults to true.",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -2413,10 +2488,6 @@
         }
       ],
       "description": "Realtime voice session configuration."
-    },
-    "review_model": {
-      "description": "Review model override used by the `/review` feature.",
-      "type": "string"
     },
     "sandbox_mode": {
       "allOf": [

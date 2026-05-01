@@ -27,6 +27,7 @@ pub(crate) struct Session {
 #[derive(Clone)]
 pub(crate) struct SessionConfiguration {
     /// Provider identifier ("openai", "openrouter", ...).
+    pub(super) model_provider_id: String,
     pub(super) provider: ModelProviderInfo,
 
     pub(super) collaboration_mode: CollaborationMode,
@@ -89,7 +90,7 @@ impl SessionConfiguration {
     pub(super) fn thread_config_snapshot(&self) -> ThreadConfigSnapshot {
         ThreadConfigSnapshot {
             model: self.collaboration_mode.model().to_string(),
-            model_provider_id: self.original_config_do_not_use.model_provider_id.clone(),
+            model_provider_id: self.model_provider_id.clone(),
             service_tier: self.service_tier,
             approval_policy: self.approval_policy.value(),
             approvals_reviewer: self.approvals_reviewer,
@@ -112,6 +113,14 @@ impl SessionConfiguration {
         if let Some(collaboration_mode) = updates.collaboration_mode.clone() {
             next_configuration.collaboration_mode = collaboration_mode;
         }
+        let provider_selection = self
+            .original_config_do_not_use
+            .resolve_model_provider_for_model(
+                next_configuration.model_provider_id.as_str(),
+                next_configuration.collaboration_mode.model(),
+            )?;
+        next_configuration.model_provider_id = provider_selection.id;
+        next_configuration.provider = provider_selection.provider;
         if let Some(summary) = updates.reasoning_summary {
             next_configuration.model_reasoning_summary = Some(summary);
         }
@@ -572,7 +581,6 @@ impl Session {
             model_client: ModelClient::new(
                 conversation_id,
                 installation_id,
-                session_configuration.provider.clone(),
                 session_configuration.session_source.clone(),
                 config.model_verbosity,
                 config.features.enabled(Feature::EnableRequestCompression),
@@ -623,7 +631,7 @@ impl Session {
                 forked_from_id,
                 thread_name: session_configuration.thread_name.clone(),
                 model: session_configuration.collaboration_mode.model().to_string(),
-                model_provider_id: config.model_provider_id.clone(),
+                model_provider_id: session_configuration.model_provider_id.clone(),
                 service_tier: session_configuration.service_tier,
                 approval_policy: session_configuration.approval_policy.value(),
                 approvals_reviewer: session_configuration.approvals_reviewer,

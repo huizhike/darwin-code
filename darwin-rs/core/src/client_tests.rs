@@ -2,7 +2,10 @@ use super::ModelClient;
 use super::X_DARWIN_SUBAGENT_HEADER;
 use super::chat_messages_from_prompt;
 use super::create_tools_json_for_chat_completions_api;
+use super::current_client_setup;
+use darwin_code_model_provider::create_model_provider;
 use darwin_code_model_provider_info::ModelProviderInfo;
+use darwin_code_model_provider_info::WireApi;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::models::BaseInstructions;
 use darwin_code_protocol::models::ContentItem;
@@ -20,18 +23,47 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 fn test_model_client(session_source: SessionSource) -> ModelClient {
-    let provider =
-        ModelProviderInfo::create_openai_provider(Some("https://example.com/v1".to_string()), None);
     ModelClient::new(
         ThreadId::new(),
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        provider,
         session_source,
         /*model_verbosity*/ None,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
     )
+}
+
+#[tokio::test]
+async fn current_client_setup_uses_request_provider_not_session_client_state() {
+    let deepseek = create_model_provider(ModelProviderInfo::create_openai_compatible_provider(
+        "DeepSeek".to_string(),
+        "https://api.deepseek.example/v1".to_string(),
+        WireApi::ChatCompletions,
+        Option::<String>::None,
+    ));
+    let qwen = create_model_provider(ModelProviderInfo::create_openai_compatible_provider(
+        "Qwen".to_string(),
+        "https://qwen.example/compatible-mode/v1".to_string(),
+        WireApi::ChatCompletions,
+        Option::<String>::None,
+    ));
+
+    let deepseek_setup = current_client_setup(&deepseek)
+        .await
+        .expect("deepseek provider should resolve");
+    let qwen_setup = current_client_setup(&qwen)
+        .await
+        .expect("qwen provider should resolve");
+
+    assert_eq!(
+        deepseek_setup.api_provider.base_url,
+        "https://api.deepseek.example/v1"
+    );
+    assert_eq!(
+        qwen_setup.api_provider.base_url,
+        "https://qwen.example/compatible-mode/v1"
+    );
 }
 
 #[test]

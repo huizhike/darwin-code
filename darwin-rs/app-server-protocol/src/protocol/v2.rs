@@ -751,7 +751,6 @@ const fn default_include_platform_defaults() -> bool {
 #[ts(export_to = "v2/")]
 pub struct Config {
     pub model: Option<String>,
-    pub review_model: Option<String>,
     pub model_context_window: Option<i64>,
     pub model_auto_compact_token_limit: Option<i64>,
     pub model_provider: Option<String>,
@@ -1567,6 +1566,7 @@ impl From<CoreModelAvailabilityNux> for ModelAvailabilityNux {
 pub struct Model {
     pub id: String,
     pub model: String,
+    pub provider_id: Option<String>,
     pub upgrade: Option<String>,
     pub upgrade_info: Option<ModelUpgradeInfo>,
     pub availability_nux: Option<ModelAvailabilityNux>,
@@ -6958,7 +6958,6 @@ mod tests {
     fn config_granular_approval_policy_is_marked_experimental() {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&Config {
             model: None,
-            review_model: None,
             model_context_window: None,
             model_auto_compact_token_limit: None,
             model_provider: None,
@@ -6995,7 +6994,6 @@ mod tests {
     fn config_approvals_reviewer_is_marked_experimental() {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&Config {
             model: None,
-            review_model: None,
             model_context_window: None,
             model_auto_compact_token_limit: None,
             model_provider: None,
@@ -7026,7 +7024,6 @@ mod tests {
     fn config_nested_profile_granular_approval_policy_is_marked_experimental() {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&Config {
             model: None,
-            review_model: None,
             model_context_window: None,
             model_auto_compact_token_limit: None,
             model_provider: None,
@@ -7078,7 +7075,6 @@ mod tests {
     fn config_nested_profile_approvals_reviewer_is_marked_experimental() {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&Config {
             model: None,
-            review_model: None,
             model_context_window: None,
             model_auto_compact_token_limit: None,
             model_provider: None,

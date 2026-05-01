@@ -398,69 +398,10 @@ async fn review_does_not_emit_agent_message_on_structured_output() {
     server.verify().await;
 }
 
-/// Ensure that when a custom `review_model` is set in the config, the review
-/// request uses that model (and not the main chat model).
+/// Review requests reuse the active session model; there is no separate
+/// provider-less override.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn review_uses_custom_review_model_from_config() {
-    skip_if_no_network!();
-
-    // Minimal stream: just a completed event
-    let sse_raw = r#"[
-        {"type":"response.completed", "response": {"id": "__ID__"}}
-    ]"#;
-    let (server, request_log) =
-        start_responses_server_with_sse(sse_raw, /*expected_requests*/ 1).await;
-    let darwin_code_home = Arc::new(TempDir::new().unwrap());
-    // Choose a review model different from the main model; ensure it is used.
-    let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
-        cfg.model = Some("gpt-4.1".to_string());
-        cfg.review_model = Some("gpt-5.1".to_string());
-    })
-    .await;
-
-    darwin_code
-        .submit(Op::Review {
-            review_request: ReviewRequest {
-                target: ReviewTarget::Custom {
-                    instructions: "use custom model".to_string(),
-                },
-                user_facing_hint: None,
-            },
-        })
-        .await
-        .unwrap();
-
-    // Wait for completion
-    let _entered = wait_for_event(&darwin_code, |ev| {
-        matches!(ev, EventMsg::EnteredReviewMode(_))
-    })
-    .await;
-    let _closed = wait_for_event(&darwin_code, |ev| {
-        matches!(
-            ev,
-            EventMsg::ExitedReviewMode(ExitedReviewModeEvent {
-                review_output: None
-            })
-        )
-    })
-    .await;
-    let _complete =
-        wait_for_event(&darwin_code, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
-
-    // Assert the request body model equals the configured review model
-    let request = request_log.single_request();
-    assert_eq!(request.path(), "/v1/responses");
-    let body = request.body_json();
-    assert_eq!(body["model"].as_str().unwrap(), "gpt-5.1");
-
-    let _darwin_code_home_guard = darwin_code_home;
-    server.verify().await;
-}
-
-/// Ensure that when `review_model` is not set in the config, the review request
-/// uses the session model.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn review_uses_session_model_when_review_model_unset() {
+async fn review_uses_session_model() {
     skip_if_no_network!();
 
     // Minimal stream: just a completed event
@@ -472,7 +413,6 @@ async fn review_uses_session_model_when_review_model_unset() {
     let darwin_code_home = Arc::new(TempDir::new().unwrap());
     let darwin_code = new_conversation_for_server(&server, darwin_code_home.clone(), |cfg| {
         cfg.model = Some("gpt-4.1".to_string());
-        cfg.review_model = None;
     })
     .await;
 

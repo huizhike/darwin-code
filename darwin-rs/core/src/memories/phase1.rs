@@ -12,6 +12,8 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use darwin_code_api::ResponseEvent;
 use darwin_code_config::types::MemoriesConfig;
+use darwin_code_model_provider::SharedModelProvider;
+use darwin_code_model_provider::create_model_provider;
 use darwin_code_otel::SessionTelemetry;
 use darwin_code_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use darwin_code_protocol::config_types::ServiceTier;
@@ -35,6 +37,7 @@ use tracing::warn;
 
 #[derive(Clone, Debug)]
 pub(in crate::memories) struct RequestContext {
+    pub(in crate::memories) provider: SharedModelProvider,
     pub(in crate::memories) model_info: ModelInfo,
     pub(in crate::memories) session_telemetry: SessionTelemetry,
     pub(in crate::memories) reasoning_effort: Option<ReasoningEffortConfig>,
@@ -104,7 +107,14 @@ pub(in crate::memories) async fn run(session: &Arc<Session>, config: &Config) {
     }
 
     // 2. Build request.
-    let stage_one_context = build_request_context(session, config).await;
+    let Some(stage_one_context) = build_request_context(session, config).await else {
+        session.services.session_telemetry.counter(
+            metrics::MEMORY_PHASE_ONE_JOBS,
+            /*inc*/ 1,
+            &[("status", "skipped_invalid_model_provider")],
+        );
+        return;
+    };
 
     // 3. Run the parallel sampling.
     let outcomes = run_jobs(session, claimed_candidates, stage_one_context).await;
@@ -164,9 +174,11 @@ impl RequestContext {
     pub(in crate::memories) fn from_turn_context(
         turn_context: &TurnContext,
         turn_metadata_header: Option<String>,
+        provider: SharedModelProvider,
         model_info: ModelInfo,
     ) -> Self {
         Self {
+            provider,
             model_info,
             turn_metadata_header,
             session_telemetry: turn_context.session_telemetry.clone(),
@@ -219,23 +231,41 @@ async fn claim_startup_jobs(
     }
 }
 
-async fn build_request_context(session: &Arc<Session>, config: &Config) -> RequestContext {
+async fn build_request_context(session: &Arc<Session>, config: &Config) -> Option<RequestContext> {
     let model_name = config
         .memories
         .extract_model
         .clone()
         .unwrap_or(phase_one::MODEL.to_string());
+    let provider_selection = match config
+        .resolve_model_provider_for_model(config.model_provider_id.as_str(), &model_name)
+    {
+        Ok(provider_selection) => provider_selection,
+        Err(err) => {
+            warn!(
+                error = %err,
+                model = %model_name,
+                "failed to resolve memories stage-one provider; skipping phase-one extraction"
+            );
+            return None;
+        }
+    };
+    let mut model_config = config.clone();
+    model_config.model = Some(model_name.clone());
+    model_config.model_provider_id = provider_selection.id;
+    model_config.model_provider = provider_selection.provider.clone();
     let model = session
         .services
         .models_manager
-        .get_model_info(&model_name, &config.to_models_manager_config())
+        .get_model_info(&model_name, &model_config.to_models_manager_config())
         .await;
     let turn_context = session.new_default_turn().await;
-    RequestContext::from_turn_context(
+    Some(RequestContext::from_turn_context(
         turn_context.as_ref(),
         turn_context.turn_metadata_state.current_header_value(),
+        create_model_provider(provider_selection.provider),
         model,
-    )
+    ))
 }
 
 async fn run_jobs(
@@ -347,6 +377,7 @@ mod job {
         let mut client_session = session.services.model_client.new_session();
         let mut stream = client_session
             .stream(
+                &stage_one_context.provider,
                 &prompt,
                 &stage_one_context.model_info,
                 &stage_one_context.session_telemetry,

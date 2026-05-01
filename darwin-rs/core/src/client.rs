@@ -1,8 +1,8 @@
 //! Session- and turn-scoped helpers for talking to model provider APIs.
 //!
-//! `ModelClient` is intended to live for the lifetime of a DarwinCode session and holds the stable
-//! configuration and state needed to talk to a provider (auth, provider selection, conversation id,
-//! and transport fallback state).
+//! `ModelClient` is intended to live for the lifetime of a DarwinCode session and holds only stable
+//! request identity and transport state. Provider routing is turn-scoped: callers pass the provider
+//! resolved from the current model into every request.
 //!
 //! Per-turn settings (model selection, reasoning controls, and turn metadata)
 //! are passed explicitly to streaming and unary methods so that the turn lifetime is visible at the
@@ -75,8 +75,6 @@ use crate::flags::DARWIN_CODE_RS_SSE_FIXTURE;
 use crate::util::emit_feedback_auth_recovery_tags;
 use darwin_code_api::map_api_error;
 use darwin_code_model_provider::SharedModelProvider;
-use darwin_code_model_provider::create_model_provider;
-use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_protocol::error::Result;
 
@@ -98,7 +96,6 @@ struct ModelClientState {
     conversation_id: ThreadId,
     window_generation: AtomicU64,
     installation_id: String,
-    provider: SharedModelProvider,
     session_source: SessionSource,
     model_verbosity: Option<VerbosityConfig>,
     #[allow(dead_code)]
@@ -118,7 +115,7 @@ struct CurrentClientSetup {
 /// A session-scoped client for model-provider API calls.
 ///
 /// This holds configuration and state that should be shared across turns within a DarwinCode session
-/// (auth, provider selection, and conversation id).
+/// (conversation id, request identity headers, and transport fallback state).
 ///
 /// Turn-scoped settings (model selection, reasoning controls, turn metadata) are passed explicitly to the relevant methods to keep turn lifetime visible at the
 /// call site.
@@ -156,25 +153,23 @@ impl ModelClient {
     #[allow(clippy::too_many_arguments)]
     /// Creates a new session-scoped `ModelClient`.
     ///
-    /// All arguments are expected to be stable for the lifetime of a DarwinCode session. Per-turn values
-    /// are passed to [`ModelClientSession::stream`] (and other turn-scoped methods) explicitly.
+    /// All arguments are expected to be stable for the lifetime of a DarwinCode session. Per-turn values,
+    /// including provider routing, are passed to [`ModelClientSession::stream`] and related request
+    /// methods explicitly.
     pub fn new(
         conversation_id: ThreadId,
         installation_id: String,
-        provider_info: ModelProviderInfo,
         session_source: SessionSource,
         model_verbosity: Option<VerbosityConfig>,
         #[allow(dead_code)] enable_request_compression: bool,
         _include_timing_metrics: bool,
         beta_features_header: Option<String>,
     ) -> Self {
-        let model_provider = create_model_provider(provider_info);
         Self {
             state: Arc::new(ModelClientState {
                 conversation_id,
                 window_generation: AtomicU64::new(0),
                 installation_id,
-                provider: model_provider,
                 session_source,
                 model_verbosity,
                 enable_request_compression,
@@ -213,9 +208,10 @@ impl ModelClient {
     /// This is a unary call (no streaming) that returns a new list of
     /// `ResponseItem`s representing the compacted transcript.
     ///
-    /// The model selection is passed explicitly to keep `ModelClient` session-scoped.
+    /// The provider and model selection are passed explicitly to keep request routing turn-scoped.
     pub async fn compact_conversation_history(
         &self,
+        provider: &SharedModelProvider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
@@ -224,7 +220,7 @@ impl ModelClient {
         if prompt.input.is_empty() {
             return Ok(Vec::new());
         }
-        let client_setup = self.current_client_setup().await?;
+        let client_setup = current_client_setup(provider).await?;
         let transport = ReqwestTransport::new(darwin_code_client::build_reqwest_client());
         let client =
             ApiCompactClient::new(transport, client_setup.api_provider, client_setup.api_auth);
@@ -273,9 +269,11 @@ impl ModelClient {
     ///
     /// This is a unary call (no streaming) to `/v1/memories/trace_summarize`.
     ///
-    /// The model selection and reasoning effort are passed explicitly to keep `ModelClient` session-scoped.
+    /// The provider, model selection, and reasoning effort are passed explicitly to keep request routing
+    /// turn-scoped.
     pub async fn summarize_memories(
         &self,
+        provider: &SharedModelProvider,
         raw_memories: Vec<ApiRawMemory>,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
@@ -284,7 +282,7 @@ impl ModelClient {
             return Ok(Vec::new());
         }
 
-        let client_setup = self.current_client_setup().await?;
+        let client_setup = current_client_setup(provider).await?;
         let transport = ReqwestTransport::new(darwin_code_client::build_reqwest_client());
         let client =
             ApiMemoriesClient::new(transport, client_setup.api_provider, client_setup.api_auth);
@@ -345,19 +343,19 @@ impl ModelClient {
             None
         }
     }
+}
 
-    /// Returns auth + provider configuration resolved from the current session auth state.
-    ///
-    /// This centralizes setup used by both prewarm and normal request paths so they stay in
-    /// lockstep when auth/provider resolution changes.
-    async fn current_client_setup(&self) -> Result<CurrentClientSetup> {
-        let api_provider = self.state.provider.api_provider().await?;
-        let api_auth = self.state.provider.api_auth().await?;
-        Ok(CurrentClientSetup {
-            api_provider,
-            api_auth,
-        })
-    }
+/// Returns auth + provider configuration for the current turn provider.
+///
+/// This centralizes setup used by both prewarm and normal request paths so they stay in
+/// lockstep while still taking provider routing from the current model selection.
+async fn current_client_setup(provider: &SharedModelProvider) -> Result<CurrentClientSetup> {
+    let api_provider = provider.api_provider().await?;
+    let api_auth = provider.api_auth().await?;
+    Ok(CurrentClientSetup {
+        api_provider,
+        api_auth,
+    })
 }
 
 impl ModelClientSession {
@@ -435,14 +433,14 @@ impl ModelClientSession {
 
     fn build_chat_completions_request(
         &self,
+        provider: &SharedModelProvider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
     ) -> Result<ChatCompletionsApiRequest> {
         let messages = chat_messages_from_prompt(prompt);
         let tools = create_tools_json_for_chat_completions_api(&prompt.tools)?;
-        let is_openai_compatible =
-            self.client.state.provider.info().wire_api == WireApi::ChatCompletions;
+        let is_openai_compatible = provider.info().wire_api == WireApi::ChatCompletions;
         let reasoning_effort = if model_info.supports_reasoning_summaries && !is_openai_compatible {
             effort
                 .or(model_info.default_reasoning_level)
@@ -543,7 +541,7 @@ impl ModelClientSession {
         skip_all,
         fields(
             model = %model_info.slug,
-            wire_api = %self.client.state.provider.info().wire_api,
+            wire_api = %provider.info().wire_api,
             transport = "chat_completions_http",
             http.method = "POST",
             api.path = "chat/completions",
@@ -552,6 +550,7 @@ impl ModelClientSession {
     )]
     async fn stream_chat_completions_api(
         &self,
+        provider: &SharedModelProvider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         session_telemetry: &SessionTelemetry,
@@ -559,10 +558,11 @@ impl ModelClientSession {
         turn_metadata_header: Option<&str>,
     ) -> Result<ResponseStream> {
         loop {
-            let client_setup = self.client.current_client_setup().await?;
+            let client_setup = current_client_setup(provider).await?;
             let transport = ReqwestTransport::new(darwin_code_client::build_reqwest_client());
             let options = self.build_chat_completions_options(turn_metadata_header);
-            let request = self.build_chat_completions_request(prompt, model_info, effort)?;
+            let request =
+                self.build_chat_completions_request(provider, prompt, model_info, effort)?;
             let client = ApiChatCompletionsClient::new(
                 transport,
                 client_setup.api_provider,
@@ -597,7 +597,7 @@ impl ModelClientSession {
         skip_all,
         fields(
             model = %model_info.slug,
-            wire_api = %self.client.state.provider.info().wire_api,
+            wire_api = %provider.info().wire_api,
             transport = "responses_http",
             http.method = "POST",
             api.path = "responses",
@@ -606,6 +606,7 @@ impl ModelClientSession {
     )]
     async fn stream_responses_api(
         &self,
+        provider: &SharedModelProvider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         session_telemetry: &SessionTelemetry,
@@ -616,17 +617,15 @@ impl ModelClientSession {
     ) -> Result<ResponseStream> {
         if let Some(path) = &*DARWIN_CODE_RS_SSE_FIXTURE {
             warn!(path, "Streaming from fixture");
-            let stream = darwin_code_api::stream_from_fixture(
-                path,
-                self.client.state.provider.info().stream_idle_timeout(),
-            )
-            .map_err(map_api_error)?;
+            let stream =
+                darwin_code_api::stream_from_fixture(path, provider.info().stream_idle_timeout())
+                    .map_err(map_api_error)?;
             let stream = map_response_stream(stream, session_telemetry.clone());
             return Ok(stream);
         }
 
         loop {
-            let client_setup = self.client.current_client_setup().await?;
+            let client_setup = current_client_setup(provider).await?;
             let transport = ReqwestTransport::new(darwin_code_client::build_reqwest_client());
             let compression = self.responses_request_compression();
             let options = self.build_responses_options(turn_metadata_header, compression);
@@ -670,6 +669,7 @@ impl ModelClientSession {
     /// this runtime path.
     pub async fn stream(
         &mut self,
+        provider: &SharedModelProvider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         session_telemetry: &SessionTelemetry,
@@ -678,10 +678,11 @@ impl ModelClientSession {
         service_tier: Option<ServiceTier>,
         turn_metadata_header: Option<&str>,
     ) -> Result<ResponseStream> {
-        let wire_api = self.client.state.provider.info().wire_api;
+        let wire_api = provider.info().wire_api;
         match wire_api {
             WireApi::Responses => {
                 self.stream_responses_api(
+                    provider,
                     prompt,
                     model_info,
                     session_telemetry,
@@ -694,6 +695,7 @@ impl ModelClientSession {
             }
             WireApi::ChatCompletions => {
                 self.stream_chat_completions_api(
+                    provider,
                     prompt,
                     model_info,
                     session_telemetry,

@@ -808,7 +808,7 @@ async fn model_picker_single_effort_selection_closes_without_reasoning_popup() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::UpdateModel(model) if model == "single-effort-test"
+            AppEvent::UpdateModelSelection { model } if model == "single-effort-test"
         )),
         "expected model update event, got {events:?}"
     );
@@ -840,6 +840,7 @@ async fn model_picker_default_effort_selection_closes_when_catalog_has_no_choice
     let mut preset = get_available_model(&chat, "gpt-5.4");
     preset.model = "deepseek-v4-flash".to_string();
     preset.id = preset.model.clone();
+    preset.provider_id = Some("deepseek".to_string());
     preset.display_name = preset.model.clone();
     preset.supported_reasoning_efforts.clear();
     let expected_effort = Some(preset.default_reasoning_effort);
@@ -865,6 +866,17 @@ async fn model_picker_default_effort_selection_closes_when_catalog_has_no_choice
             .iter()
             .filter(|event| matches!(
                 event,
+                AppEvent::UpdateModelSelection { model } if model == "deepseek-v4-flash"
+            ))
+            .count(),
+        1,
+        "expected exactly one model update, got {events:?}"
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(
+                event,
                 AppEvent::PersistModelSelection { model, effort }
                     if model == "deepseek-v4-flash" && *effort == expected_effort
             ))
@@ -880,6 +892,119 @@ async fn model_picker_default_effort_selection_closes_when_catalog_has_no_choice
             .iter()
             .any(|event| matches!(event, AppEvent::PersistModelSelection { .. })),
         "second Enter should not re-select a stale model picker: {follow_up_events:?}"
+    );
+}
+
+#[tokio::test]
+async fn provider_model_picker_search_matches_provider_rows() {
+    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-darwin_code")).await;
+    set_fast_mode_test_catalog(&mut chat);
+    let template = get_available_model(&chat, "gpt-5.4");
+
+    let mut deepseek_flash = template.clone();
+    deepseek_flash.model = "deepseek-v4-flash".to_string();
+    deepseek_flash.id = deepseek_flash.model.clone();
+    deepseek_flash.display_name = "DeepSeek V4 Flash".to_string();
+    deepseek_flash.description = "DeepSeek provider".to_string();
+    deepseek_flash.provider_id = Some("deepseek".to_string());
+
+    let mut deepseek_pro = template.clone();
+    deepseek_pro.model = "deepseek-v4-pro".to_string();
+    deepseek_pro.id = deepseek_pro.model.clone();
+    deepseek_pro.display_name = "DeepSeek V4 Pro".to_string();
+    deepseek_pro.description = "DeepSeek provider".to_string();
+    deepseek_pro.provider_id = Some("deepseek".to_string());
+
+    let mut qwen = template;
+    qwen.model = "qwen3.6-plus".to_string();
+    qwen.id = qwen.model.clone();
+    qwen.display_name = "Qwen 3.6 Plus".to_string();
+    qwen.description = "Qwen provider".to_string();
+    qwen.provider_id = Some("qwen".to_string());
+
+    chat.open_all_models_popup(vec![qwen, deepseek_flash, deepseek_pro]);
+    for ch in "deeps".chars() {
+        chat.handle_key_event(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE));
+    }
+
+    let popup = render_bottom_popup(&chat, /*width*/ 100);
+    assert!(
+        popup.contains("deepseek-v4-flash"),
+        "provider search should show DeepSeek flash row, got:\n{popup}"
+    );
+    assert!(
+        popup.contains("deepseek-v4-pro"),
+        "provider search should show DeepSeek pro row, got:\n{popup}"
+    );
+    assert!(
+        !popup.contains("qwen3.6-plus"),
+        "provider search should hide non-matching provider rows, got:\n{popup}"
+    );
+}
+
+#[tokio::test]
+async fn model_picker_orders_current_default_then_provider_and_model() {
+    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("qwen3.6-plus")).await;
+    chat.set_model("qwen3.6-plus");
+    chat.set_model_provider("qwen", None);
+    set_fast_mode_test_catalog(&mut chat);
+    let template = get_available_model(&chat, "gpt-5.4");
+
+    let mut current = template.clone();
+    current.model = "qwen3.6-plus".to_string();
+    current.id = current.model.clone();
+    current.display_name = "Qwen 3.6 Plus".to_string();
+    current.description = "Qwen provider".to_string();
+    current.provider_id = Some("qwen".to_string());
+    current.is_default = false;
+
+    let mut default = template.clone();
+    default.model = "deepseek-v4-flash".to_string();
+    default.id = default.model.clone();
+    default.display_name = "DeepSeek V4 Flash".to_string();
+    default.description = "DeepSeek provider".to_string();
+    default.provider_id = Some("deepseek".to_string());
+    default.is_default = true;
+
+    let mut deepseek_pro = template.clone();
+    deepseek_pro.model = "deepseek-v4-pro".to_string();
+    deepseek_pro.id = deepseek_pro.model.clone();
+    deepseek_pro.display_name = "DeepSeek V4 Pro".to_string();
+    deepseek_pro.description = "DeepSeek provider".to_string();
+    deepseek_pro.provider_id = Some("deepseek".to_string());
+    deepseek_pro.is_default = false;
+
+    let mut claude = template.clone();
+    claude.model = "claude-sonnet".to_string();
+    claude.id = claude.model.clone();
+    claude.display_name = "Claude Sonnet".to_string();
+    claude.description = "Claude provider".to_string();
+    claude.provider_id = Some("claude".to_string());
+    claude.is_default = false;
+
+    let mut qwen_coder = template;
+    qwen_coder.model = "qwen-coder".to_string();
+    qwen_coder.id = qwen_coder.model.clone();
+    qwen_coder.display_name = "Qwen Coder".to_string();
+    qwen_coder.description = "Qwen provider".to_string();
+    qwen_coder.provider_id = Some("qwen".to_string());
+    qwen_coder.is_default = false;
+
+    chat.open_all_models_popup(vec![qwen_coder, deepseek_pro, default, current, claude]);
+    let popup = render_bottom_popup(&chat, /*width*/ 120);
+
+    let qwen_current = popup.find("qwen3.6-plus (current)").expect(&popup);
+    let deepseek_default = popup.find("deepseek-v4-flash (default)").expect(&popup);
+    let claude = popup.find("claude-sonnet").expect(&popup);
+    let deepseek_pro = popup.find("deepseek-v4-pro").expect(&popup);
+    let qwen_coder = popup.find("qwen-coder").expect(&popup);
+
+    assert!(
+        qwen_current < deepseek_default
+            && deepseek_default < claude
+            && claude < deepseek_pro
+            && deepseek_pro < qwen_coder,
+        "model picker order should be current, default, then provider/model alphabetic:\n{popup}"
     );
 }
 

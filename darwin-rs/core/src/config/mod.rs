@@ -20,9 +20,12 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
+use darwin_code_config::RequirementSource;
 use darwin_code_config::config_toml::ByokProviderFamily;
 use darwin_code_config::config_toml::ConfigToml;
+use darwin_code_config::config_toml::ModelConfigToml;
 use darwin_code_config::config_toml::ProjectConfig;
+use darwin_code_config::config_toml::ProviderModelToml;
 use darwin_code_config::config_toml::RealtimeAudioConfig;
 use darwin_code_config::config_toml::RealtimeConfig;
 use darwin_code_config::config_toml::validate_model_providers;
@@ -55,6 +58,7 @@ use darwin_code_mcp::McpConfig;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_models_manager::ModelsManagerConfig;
+use darwin_code_models_manager::model_info::BASE_INSTRUCTIONS;
 use darwin_code_protocol::config_types::AltScreenMode;
 use darwin_code_protocol::config_types::Personality;
 use darwin_code_protocol::config_types::ReasoningSummary;
@@ -65,8 +69,14 @@ use darwin_code_protocol::config_types::Verbosity;
 use darwin_code_protocol::config_types::WebSearchConfig;
 use darwin_code_protocol::config_types::WebSearchMode;
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
+use darwin_code_protocol::model_metadata::ConfigShellToolType;
+use darwin_code_protocol::model_metadata::InputModality;
+use darwin_code_protocol::model_metadata::ModelInfo;
+use darwin_code_protocol::model_metadata::ModelVisibility;
 use darwin_code_protocol::model_metadata::ModelsResponse;
 use darwin_code_protocol::model_metadata::ReasoningEffort;
+use darwin_code_protocol::model_metadata::TruncationPolicyConfig;
+use darwin_code_protocol::model_metadata::WebSearchToolType;
 use darwin_code_protocol::permissions::FileSystemSandboxPolicy;
 use darwin_code_protocol::permissions::NetworkSandboxPolicy;
 use darwin_code_protocol::protocol::AskForApproval;
@@ -99,6 +109,13 @@ pub(crate) mod service;
 pub use darwin_code_config::Constrained;
 pub use darwin_code_config::ConstraintError;
 pub use darwin_code_config::ConstraintResult;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModelProviderSelection {
+    pub id: String,
+    pub provider: ModelProviderInfo,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NetworkAccessAuditMetadata {
     pub conversation_id: Option<String>,
@@ -207,9 +224,6 @@ pub struct Config {
 
     /// Effective service tier preference for new turns (`fast` or `flex`).
     pub service_tier: Option<ServiceTier>,
-
-    /// Model used specifically for review sessions.
-    pub review_model: Option<String>,
 
     /// Size of the context window for the model, in tokens.
     pub model_context_window: Option<i64>,
@@ -346,6 +360,9 @@ pub struct Config {
 
     /// Combined provider map (defaults plus user-defined providers).
     pub model_providers: HashMap<String, ModelProviderInfo>,
+
+    /// Model id to owning provider id index built once from provider-scoped model config.
+    pub model_provider_by_model: HashMap<String, String>,
 
     /// Maximum number of bytes to include from an AGENTS.md project doc file.
     pub project_doc_max_bytes: usize,
@@ -710,8 +727,22 @@ fn ensure_default_byok_provider_for_tests(root_value: &mut TomlValue) {
 }
 
 impl Config {
+    pub fn resolve_model_provider_for_model(
+        &self,
+        current_model_provider_id: &str,
+        model: &str,
+    ) -> ConstraintResult<ModelProviderSelection> {
+        resolve_model_provider_selection(
+            &self.model_providers,
+            &self.model_provider_by_model,
+            current_model_provider_id,
+            model,
+        )
+    }
+
     pub fn to_models_manager_config(&self) -> ModelsManagerConfig {
         ModelsManagerConfig {
+            model_provider_id: Some(self.model_provider_id.clone()),
             model_context_window: self.model_context_window,
             model_auto_compact_token_limit: self.model_auto_compact_token_limit,
             tool_output_token_limit: self.tool_output_token_limit,
@@ -882,6 +913,236 @@ fn load_model_catalog(
     model_catalog_json
         .map(|path| load_catalog_json(&path))
         .transpose()
+}
+
+fn configured_model_info_from_legacy(
+    provider_id: &str,
+    provider_name: &str,
+    priority: i32,
+    model: &ModelConfigToml,
+) -> std::io::Result<ModelInfo> {
+    let slug = model.name.trim();
+    if slug.is_empty() {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("provider `{provider_id}` contains a model with empty name"),
+        ));
+    }
+    Ok(configured_model_info(
+        provider_id,
+        provider_name,
+        slug,
+        model.display_name.as_deref(),
+        None,
+        model.max_tokens.and_then(|value| i64::try_from(value).ok()),
+        model
+            .max_output_tokens
+            .and_then(|value| i64::try_from(value).ok()),
+        model
+            .auto_compact_limit
+            .and_then(|value| i64::try_from(value).ok()),
+        model.capabilities.images.unwrap_or(true),
+        model.capabilities.tools.unwrap_or(true),
+        priority,
+    ))
+}
+
+fn configured_model_info_from_map_entry(
+    provider_id: &str,
+    provider_name: &str,
+    priority: i32,
+    model_id: &str,
+    model: &ProviderModelToml,
+) -> std::io::Result<ModelInfo> {
+    let slug = model_id.trim();
+    if slug.is_empty() {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("providers.{provider_id}.models contains an empty model id"),
+        ));
+    }
+    Ok(configured_model_info(
+        provider_id,
+        provider_name,
+        slug,
+        model.display_name.as_deref(),
+        model.description.as_deref(),
+        model.context_window,
+        model.max_output_tokens,
+        model.auto_compact_token_limit,
+        model.multimodal.unwrap_or(true),
+        model.tools.unwrap_or(true),
+        priority,
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn configured_model_info(
+    provider_id: &str,
+    provider_name: &str,
+    slug: &str,
+    display_name: Option<&str>,
+    description: Option<&str>,
+    context_window: Option<i64>,
+    max_output_tokens: Option<i64>,
+    auto_compact_token_limit: Option<i64>,
+    supports_images: bool,
+    supports_tools: bool,
+    priority: i32,
+) -> ModelInfo {
+    let modalities = if supports_images {
+        vec![InputModality::Text, InputModality::Image]
+    } else {
+        vec![InputModality::Text]
+    };
+    let truncation_limit = max_output_tokens.or(context_window).unwrap_or(10_000);
+    ModelInfo {
+        slug: slug.to_string(),
+        provider_id: Some(provider_id.to_string()),
+        display_name: display_name.unwrap_or(slug).to_string(),
+        description: Some(description.unwrap_or(provider_name).to_string()),
+        default_reasoning_level: None,
+        supported_reasoning_levels: Vec::new(),
+        shell_type: if supports_tools {
+            ConfigShellToolType::ShellCommand
+        } else {
+            ConfigShellToolType::Disabled
+        },
+        visibility: ModelVisibility::List,
+        supported_in_api: true,
+        priority,
+        additional_speed_tiers: Vec::new(),
+        availability_nux: None,
+        upgrade: None,
+        base_instructions: BASE_INSTRUCTIONS.to_string(),
+        model_messages: None,
+        supports_reasoning_summaries: false,
+        default_reasoning_summary: ReasoningSummary::Auto,
+        support_verbosity: false,
+        default_verbosity: None,
+        apply_patch_tool_type: None,
+        web_search_tool_type: WebSearchToolType::Text,
+        truncation_policy: TruncationPolicyConfig::tokens(truncation_limit),
+        supports_parallel_tool_calls: false,
+        supports_image_detail_original: supports_images,
+        context_window,
+        auto_compact_token_limit,
+        effective_context_window_percent: 90,
+        experimental_supported_tools: Vec::new(),
+        input_modalities: modalities,
+        used_fallback_model_metadata: false,
+        supports_search_tool: false,
+    }
+}
+
+fn push_configured_models(
+    provider_id: &str,
+    provider_name: &str,
+    legacy_models: &[ModelConfigToml],
+    mapped_models: &HashMap<String, ProviderModelToml>,
+    models: &mut Vec<ModelInfo>,
+    model_provider_by_model: &mut HashMap<String, String>,
+) -> std::io::Result<()> {
+    for model in legacy_models {
+        let priority = i32::try_from(models.len() + 1).unwrap_or(i32::MAX);
+        let info = configured_model_info_from_legacy(provider_id, provider_name, priority, model)?;
+        register_configured_model(info, models, model_provider_by_model)?;
+    }
+    let mut mapped_entries: Vec<_> = mapped_models.iter().collect();
+    mapped_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (model_id, model) in mapped_entries {
+        let priority = i32::try_from(models.len() + 1).unwrap_or(i32::MAX);
+        let info = configured_model_info_from_map_entry(
+            provider_id,
+            provider_name,
+            priority,
+            model_id,
+            model,
+        )?;
+        register_configured_model(info, models, model_provider_by_model)?;
+    }
+    Ok(())
+}
+
+fn register_configured_model(
+    model: ModelInfo,
+    models: &mut Vec<ModelInfo>,
+    model_provider_by_model: &mut HashMap<String, String>,
+) -> std::io::Result<()> {
+    let provider_id = model.provider_id.clone().ok_or_else(|| {
+        std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("configured model `{}` is missing provider id", model.slug),
+        )
+    })?;
+    if let Some(existing_provider_id) =
+        model_provider_by_model.insert(model.slug.clone(), provider_id.clone())
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!(
+                "model `{}` is configured under both provider `{existing_provider_id}` and provider `{provider_id}`; model ids must be unique so `/model` can resolve exactly one provider",
+                model.slug,
+            ),
+        ));
+    }
+    models.push(model);
+    Ok(())
+}
+
+fn sorted_model_provider_ids(model_providers: &HashMap<String, ModelProviderInfo>) -> String {
+    let mut provider_ids = model_providers
+        .keys()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    provider_ids.sort_unstable();
+    provider_ids.join(", ")
+}
+
+fn sorted_configured_model_ids(model_provider_by_model: &HashMap<String, String>) -> String {
+    let mut model_ids = model_provider_by_model
+        .keys()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    model_ids.sort_unstable();
+    model_ids.join(", ")
+}
+
+fn resolve_model_provider_selection(
+    model_providers: &HashMap<String, ModelProviderInfo>,
+    model_provider_by_model: &HashMap<String, String>,
+    current_model_provider_id: &str,
+    model: &str,
+) -> ConstraintResult<ModelProviderSelection> {
+    let selected_provider_id = if let Some(configured_provider) = model_provider_by_model.get(model)
+    {
+        configured_provider.clone()
+    } else {
+        if !model_provider_by_model.is_empty() {
+            return Err(ConstraintError::InvalidValue {
+                field_name: "model",
+                candidate: model.to_string(),
+                allowed: sorted_configured_model_ids(model_provider_by_model),
+                requirement_source: RequirementSource::Unknown,
+            });
+        }
+        current_model_provider_id.to_string()
+    };
+
+    let provider = model_providers
+        .get(&selected_provider_id)
+        .cloned()
+        .ok_or_else(|| ConstraintError::InvalidValue {
+            field_name: "model_provider",
+            candidate: selected_provider_id.clone(),
+            allowed: sorted_model_provider_ids(model_providers),
+            requirement_source: RequirementSource::Unknown,
+        })?;
+
+    Ok(ModelProviderSelection {
+        id: selected_provider_id,
+        provider,
+    })
 }
 
 fn filter_mcp_servers_by_requirements(
@@ -1235,7 +1496,6 @@ fn apply_managed_filesystem_constraints(
 #[derive(Default, Debug, Clone)]
 pub struct ConfigOverrides {
     pub model: Option<String>,
-    pub review_model: Option<String>,
     pub cwd: Option<PathBuf>,
     pub approval_policy: Option<AskForApproval>,
     pub approvals_reviewer: Option<ApprovalsReviewer>,
@@ -1433,7 +1693,6 @@ impl Config {
         // Destructure ConfigOverrides fully to ensure all overrides are applied.
         let ConfigOverrides {
             model,
-            review_model: override_review_model,
             cwd,
             approval_policy: approval_policy_override,
             approvals_reviewer: approvals_reviewer_override,
@@ -1695,9 +1954,13 @@ impl Config {
             .clone()
             .or_else(|| config_profile.model_provider.clone())
             .or_else(|| cfg.model_provider.clone());
-        let model_provider_id = explicit_model_provider_id.unwrap_or_else(|| "openai".to_string());
+        let mut model_provider_id = explicit_model_provider_id
+            .clone()
+            .unwrap_or_else(|| "openai".to_string());
 
         let mut model_providers = HashMap::new();
+        let mut configured_models = Vec::new();
+        let mut model_provider_by_model = HashMap::new();
 
         if let Some(openai) = &cfg.openai {
             model_providers.insert(
@@ -1710,6 +1973,14 @@ impl Config {
                         .map(|key| key.expose_secret().to_string()),
                 ),
             );
+            push_configured_models(
+                "openai",
+                "OpenAI",
+                &openai.available_models,
+                &openai.models,
+                &mut configured_models,
+                &mut model_provider_by_model,
+            )?;
         } else {
             model_providers.insert(
                 "openai".to_string(),
@@ -1728,6 +1999,14 @@ impl Config {
                         .map(|key| key.expose_secret().to_string()),
                 ),
             );
+            push_configured_models(
+                "gemini",
+                "Google Gemini",
+                &gemini.available_models,
+                &gemini.models,
+                &mut configured_models,
+                &mut model_provider_by_model,
+            )?;
         } else {
             model_providers.insert(
                 "gemini".to_string(),
@@ -1746,6 +2025,14 @@ impl Config {
                         .map(|key| key.expose_secret().to_string()),
                 ),
             );
+            push_configured_models(
+                "claude",
+                "Anthropic Claude",
+                &claude.available_models,
+                &claude.models,
+                &mut configured_models,
+                &mut model_provider_by_model,
+            )?;
         } else {
             model_providers.insert(
                 "claude".to_string(),
@@ -1753,22 +2040,34 @@ impl Config {
             );
         }
 
-        for (id, custom_provider) in &cfg.openai_compatible {
+        let mut openai_compatible_entries: Vec<_> = cfg.openai_compatible.iter().collect();
+        openai_compatible_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+        for (id, custom_provider) in openai_compatible_entries {
             let resolved = custom_provider.resolve_with_id(id).map_err(|message| {
                 std::io::Error::new(std::io::ErrorKind::InvalidInput, message)
             })?;
             model_providers.insert(
                 id.clone(),
                 ModelProviderInfo::create_openai_compatible_provider(
-                    resolved.name,
+                    resolved.name.clone(),
                     resolved.base_url,
                     resolved.wire_api,
                     resolved.api_key,
                 ),
             );
+            push_configured_models(
+                id,
+                &resolved.name,
+                &resolved.available_models,
+                &custom_provider.models,
+                &mut configured_models,
+                &mut model_provider_by_model,
+            )?;
         }
 
-        for (id, byok_provider) in &cfg.providers {
+        let mut provider_entries: Vec<_> = cfg.providers.iter().collect();
+        provider_entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+        for (id, byok_provider) in provider_entries {
             if cfg.model_providers.contains_key(id) {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
@@ -1781,7 +2080,7 @@ impl Config {
             let provider = match resolved.family {
                 ByokProviderFamily::OpenAiCompatible => {
                     ModelProviderInfo::create_openai_compatible_provider(
-                        resolved.name,
+                        resolved.name.clone(),
                         resolved.base_url,
                         resolved.wire_api.unwrap_or(WireApi::ChatCompletions),
                         resolved.api_key,
@@ -1800,12 +2099,35 @@ impl Config {
                 }
             };
             model_providers.insert(id.clone(), provider);
+            push_configured_models(
+                id,
+                &resolved.name,
+                &resolved.available_models,
+                &resolved.models,
+                &mut configured_models,
+                &mut model_provider_by_model,
+            )?;
         }
 
         validate_model_providers(&cfg.model_providers)
             .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
         for (id, provider) in &cfg.model_providers {
             model_providers.insert(id.clone(), provider.clone());
+        }
+
+        let selected_model_slug = model
+            .as_deref()
+            .or(config_profile.model.as_deref())
+            .or(cfg.model.as_deref());
+        if let Some(model_slug) = selected_model_slug {
+            let selection = resolve_model_provider_selection(
+                &model_providers,
+                &model_provider_by_model,
+                model_provider_id.as_str(),
+                model_slug,
+            )
+            .map_err(std::io::Error::from)?;
+            model_provider_id = selection.id;
         }
 
         let model_provider = model_providers
@@ -2005,15 +2327,20 @@ api_key = \"your provider key\"",
             .or(config_profile.zsh_path.map(Into::into))
             .or(cfg.zsh_path.map(Into::into));
 
-        let review_model = override_review_model.or(cfg.review_model);
-
         let check_for_update_on_startup = cfg.check_for_update_on_startup.unwrap_or(true);
-        let model_catalog = load_model_catalog(
+        let loaded_model_catalog = load_model_catalog(
             config_profile
                 .model_catalog_json
                 .clone()
                 .or(cfg.model_catalog_json.clone()),
         )?;
+        let model_catalog = if configured_models.is_empty() {
+            loaded_model_catalog
+        } else {
+            Some(ModelsResponse {
+                models: configured_models,
+            })
+        };
 
         let log_dir = cfg
             .log_dir
@@ -2146,7 +2473,6 @@ api_key = \"your provider key\"",
         let config = Self {
             model,
             service_tier,
-            review_model,
             model_context_window: cfg.model_context_window,
             model_auto_compact_token_limit: cfg.model_auto_compact_token_limit,
             model_provider_id,
@@ -2177,6 +2503,7 @@ api_key = \"your provider key\"",
             include_environment_context,
             mcp_servers,
             model_providers,
+            model_provider_by_model,
             project_doc_max_bytes: cfg.project_doc_max_bytes.unwrap_or(AGENTS_MD_MAX_BYTES),
             project_doc_fallback_filenames: cfg
                 .project_doc_fallback_filenames
@@ -2366,6 +2693,7 @@ pub(crate) fn ensure_default_byok_provider_config_toml_for_tests(cfg: &mut Confi
                 "test-openai-compatible-api-key".to_string(),
             )),
             available_models: vec![],
+            models: HashMap::new(),
         },
     );
     if cfg.model_provider.is_none() {

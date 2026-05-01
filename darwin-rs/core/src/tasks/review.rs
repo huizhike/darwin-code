@@ -115,10 +115,7 @@ async fn start_review_conversation(
     sub_agent_config.base_instructions = Some(crate::REVIEW_PROMPT.to_string());
     sub_agent_config.permissions.approval_policy = Constrained::allow_only(AskForApproval::Never);
 
-    let model = config
-        .review_model
-        .clone()
-        .unwrap_or_else(|| ctx.model_info.slug.clone());
+    let model = ctx.model_info.slug.clone();
     sub_agent_config.model = Some(model);
     (run_darwin_code_thread_one_shot(
         sub_agent_config,

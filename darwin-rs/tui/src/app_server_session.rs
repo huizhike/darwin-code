@@ -377,26 +377,23 @@ impl AppServerSession {
         output_schema: Option<serde_json::Value>,
     ) -> Result<TurnStartResponse> {
         let request_id = self.next_request_id();
+        let params = turn_start_params(
+            thread_id,
+            items,
+            cwd,
+            approval_policy,
+            approvals_reviewer,
+            sandbox_policy,
+            model,
+            effort,
+            summary,
+            service_tier,
+            collaboration_mode,
+            personality,
+            output_schema,
+        );
         self.client
-            .request_typed(ClientRequest::TurnStart {
-                request_id,
-                params: TurnStartParams {
-                    thread_id: thread_id.to_string(),
-                    input: items.into_iter().map(Into::into).collect(),
-                    responsesapi_client_metadata: None,
-                    cwd: Some(cwd),
-                    approval_policy: Some(approval_policy.into()),
-                    approvals_reviewer: Some(approvals_reviewer.into()),
-                    sandbox_policy: Some(sandbox_policy.into()),
-                    model: Some(model),
-                    service_tier,
-                    effort,
-                    summary,
-                    personality,
-                    output_schema,
-                    collaboration_mode,
-                },
-            })
+            .request_typed(ClientRequest::TurnStart { request_id, params })
             .await
             .wrap_err("turn/start failed in TUI")
     }
@@ -747,6 +744,41 @@ impl AppServerSession {
         RequestId::Integer(request_id)
     }
 }
+
+#[allow(clippy::too_many_arguments)]
+fn turn_start_params(
+    thread_id: ThreadId,
+    items: Vec<darwin_code_protocol::user_input::UserInput>,
+    cwd: PathBuf,
+    approval_policy: AskForApproval,
+    approvals_reviewer: darwin_code_protocol::config_types::ApprovalsReviewer,
+    sandbox_policy: SandboxPolicy,
+    model: String,
+    effort: Option<darwin_code_protocol::model_metadata::ReasoningEffort>,
+    summary: Option<darwin_code_protocol::config_types::ReasoningSummary>,
+    service_tier: Option<Option<darwin_code_protocol::config_types::ServiceTier>>,
+    collaboration_mode: Option<darwin_code_protocol::config_types::CollaborationMode>,
+    personality: Option<darwin_code_protocol::config_types::Personality>,
+    output_schema: Option<serde_json::Value>,
+) -> TurnStartParams {
+    TurnStartParams {
+        thread_id: thread_id.to_string(),
+        input: items.into_iter().map(Into::into).collect(),
+        responsesapi_client_metadata: None,
+        cwd: Some(cwd),
+        approval_policy: Some(approval_policy.into()),
+        approvals_reviewer: Some(approvals_reviewer.into()),
+        sandbox_policy: Some(sandbox_policy.into()),
+        model: Some(model),
+        service_tier,
+        effort,
+        summary,
+        personality,
+        output_schema,
+        collaboration_mode,
+    }
+}
+
 fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
     let upgrade = model.upgrade.map(|upgrade_id| {
         let upgrade_info = model.upgrade_info.clone();
@@ -767,6 +799,7 @@ fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
     ModelPreset {
         id: model.id,
         model: model.model,
+        provider_id: model.provider_id,
         display_name: model.display_name,
         description: model.description,
         default_reasoning_effort: model.default_reasoning_effort,
@@ -1113,6 +1146,30 @@ mod tests {
 
         assert_eq!(params.cwd, Some(config.cwd.to_string_lossy().to_string()));
         assert_eq!(params.model_provider, Some(config.model_provider_id));
+    }
+
+    #[test]
+    fn provider_model_turn_start_params_send_model_only() {
+        let thread_id = ThreadId::new();
+
+        let params = turn_start_params(
+            thread_id.clone(),
+            Vec::new(),
+            PathBuf::from("/tmp/project"),
+            AskForApproval::Never,
+            darwin_code_protocol::config_types::ApprovalsReviewer::User,
+            SandboxPolicy::new_read_only_policy(),
+            "deepseek-v4-flash".to_string(),
+            /*effort*/ None,
+            /*summary*/ None,
+            /*service_tier*/ None,
+            /*collaboration_mode*/ None,
+            /*personality*/ None,
+            /*output_schema*/ None,
+        );
+
+        assert_eq!(params.thread_id, thread_id.to_string());
+        assert_eq!(params.model.as_deref(), Some("deepseek-v4-flash"));
     }
 
     #[tokio::test]

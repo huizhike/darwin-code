@@ -122,6 +122,9 @@ pub struct ModelPreset {
     pub id: String,
     /// Model slug (e.g., "gpt-5").
     pub model: String,
+    /// Provider id that owns this model when sourced from BYOK config.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_id: Option<String>,
     /// Display name shown in UIs.
     pub display_name: String,
     /// Short human description shown in UIs.
@@ -247,6 +250,8 @@ const fn default_effective_context_window_percent() -> i64 {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, TS, JsonSchema)]
 pub struct ModelInfo {
     pub slug: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_id: Option<String>,
     pub display_name: String,
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -427,6 +432,7 @@ impl From<ModelInfo> for ModelPreset {
         ModelPreset {
             id: info.slug.clone(),
             model: info.slug.clone(),
+            provider_id: info.provider_id,
             display_name: info.display_name,
             description: info.description.unwrap_or_default(),
             default_reasoning_effort: info
@@ -533,6 +539,7 @@ mod tests {
     fn test_model(spec: Option<ModelMessages>) -> ModelInfo {
         ModelInfo {
             slug: "test-model".to_string(),
+            provider_id: None,
             display_name: "Test Model".to_string(),
             description: None,
             default_reasoning_level: None,

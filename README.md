@@ -53,9 +53,12 @@ cargo run -p darwin-code-cli --bin darwin-code
 
 Darwin Code 的产品默认路径是 **BYOK（Bring Your Own Key）**：用户在
 `config.toml` 中明确选择 provider、model、`base_url`，并直接提供自己的
-`api_key`。本地 TUI/CLI 不再要求为模型 key 配置环境变量，也不再从 provider id
-推断变量名。除 BYOK direct key 外不支持 hosted OAuth/device sign-in、workspace/cloud
-auth、command-backed bearer token、keychain、`.env` loader 或隐式 OpenAI 登录。
+`api_key`。每个 provider 在自己的 `models` 表下声明可选模型；TUI `/model`
+直接显示模型列表，选中后自动写回 `model_provider` + `model`。
+
+本地 TUI/CLI 不再要求为模型 key 配置环境变量，也不再从 provider id 推断变量名。
+除 BYOK direct key 外不支持 hosted OAuth/device sign-in、workspace/cloud auth、
+command-backed bearer token、keychain、`.env` loader 或隐式 OpenAI 登录。
 
 ### DeepSeek（默认本地配置）
 
@@ -68,6 +71,20 @@ name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
 api_key = "你的 DeepSeek API Key"
+
+[openai_compatible.deepseek.models."deepseek-v4-flash"]
+display_name = "DeepSeek v4 Flash"
+context_window = 128000
+max_output_tokens = 8192
+thinking = true
+multimodal = true
+
+[openai_compatible.deepseek.models."deepseek-v4-pro"]
+display_name = "DeepSeek v4 Pro"
+context_window = 128000
+max_output_tokens = 8192
+thinking = true
+multimodal = true
 ```
 
 ### Generic OpenAI-compatible endpoint
@@ -84,6 +101,13 @@ name = "My Gateway"
 base_url = "http://127.0.0.1:8080/v1"
 wire_api = "responses"
 api_key = "你的网关 API Key"
+
+[openai_compatible.my-gateway.models."your-model"]
+display_name = "Your Model"
+context_window = 128000
+max_output_tokens = 8192
+thinking = true
+multimodal = true
 ```
 
 `wire_api` 表示 provider 实际支持的协议路径：DeepSeek 官方 API 使用

@@ -323,7 +323,6 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     // Load configuration and determine approval policy
     let overrides = ConfigOverrides {
         model,
-        review_model: None,
         config_profile,
         // Default to never ask for approvals in headless mode. Feature flags can override.
         approval_policy: Some(AskForApproval::Never),

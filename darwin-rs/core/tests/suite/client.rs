@@ -21,6 +21,7 @@ use darwin_code_client::originator;
 use darwin_code_core::ModelClient;
 use darwin_code_core::Prompt;
 use darwin_code_core::ResponseEvent;
+use darwin_code_model_provider::create_model_provider;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_models_manager::bundled_models_response;
@@ -1621,13 +1622,13 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let client = ModelClient::new(
         conversation_id,
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        provider.clone(),
         SessionSource::Exec,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
     );
+    let request_provider = create_model_provider(provider.clone());
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -1697,6 +1698,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
 
     let mut stream = client_session
         .stream(
+            &request_provider,
             &prompt,
             &model_info,
             &session_telemetry,

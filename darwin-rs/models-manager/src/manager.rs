@@ -251,8 +251,27 @@ impl ModelsManager {
     ) -> ModelInfo {
         // First use the normal longest-prefix match. If that misses, allow a narrowly scoped
         // retry for namespaced slugs like `custom/gpt-5.3-darwin-code`.
-        let remote = Self::find_model_by_longest_prefix(model, candidates)
-            .or_else(|| Self::find_model_by_namespaced_suffix(model, candidates));
+        let remote = if let Some(provider_id) = config.model_provider_id.as_deref() {
+            let provider_candidates = candidates
+                .iter()
+                .filter(|candidate| candidate.provider_id.as_deref() == Some(provider_id))
+                .cloned()
+                .collect::<Vec<_>>();
+            let provider_neutral_candidates = candidates
+                .iter()
+                .filter(|candidate| candidate.provider_id.is_none())
+                .cloned()
+                .collect::<Vec<_>>();
+            Self::find_model_by_longest_prefix(model, &provider_candidates)
+                .or_else(|| Self::find_model_by_namespaced_suffix(model, &provider_candidates))
+                .or_else(|| Self::find_model_by_longest_prefix(model, &provider_neutral_candidates))
+                .or_else(|| {
+                    Self::find_model_by_namespaced_suffix(model, &provider_neutral_candidates)
+                })
+        } else {
+            Self::find_model_by_longest_prefix(model, candidates)
+                .or_else(|| Self::find_model_by_namespaced_suffix(model, candidates))
+        };
         let model_info = if let Some(remote) = remote {
             ModelInfo {
                 slug: model.to_string(),

@@ -12,14 +12,11 @@
 # - 本地未跟踪配置可以直接写 api_key；仓库模板/文档示例不要提交真实 key。
 
 # =============================================================================
-# 1. 默认 BYOK provider：DeepSeek v4（OpenAI-compatible）
+# 1. 默认 BYOK provider/model（OpenAI-compatible）
 # =============================================================================
 
-model_provider = "deepseek"
-model = "deepseek-v4-flash"
-review_model = "deepseek-v4-pro"
-model_catalog_json = "/home/xklab/01-darwin/dcode/70-darwin-code/model-catalog.deepseek.json"
-model_reasoning_effort = "none"
+model_provider = "qwen"
+model = "qwen3.6-plus"
 approvals_reviewer = "user"
 
 [openai_compatible.deepseek]
@@ -29,6 +26,42 @@ wire_api = "chat-completions"
 # 本地 TUI 可以在 config.toml 中直接写明文 key；不要把真实 key 提交到仓库：
 # api_key = "your-api-key"
 api_key = "your-api-key"
+
+[openai_compatible.deepseek.models."deepseek-v4-flash"]
+display_name = "DeepSeek v4 Flash"
+description = "DeepSeek OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
+
+[openai_compatible.deepseek.models."deepseek-v4-pro"]
+display_name = "DeepSeek v4 Pro"
+description = "DeepSeek OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
+
+[openai_compatible.qwen]
+name = "Qwen"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+wire_api = "chat-completions"
+api_key = "your-api-key"
+
+[openai_compatible.qwen.models."qwen3.6-plus"]
+display_name = "Qwen 3.6 Plus"
+description = "Qwen OpenAI-compatible BYOK model."
+context_window = 128000
+max_output_tokens = 8192
+temperature = 0.7
+thinking = true
+multimodal = true
+tools = true
 
 [projects."/home/xklab/01-darwin/dcode/70-darwin-code"]
 trust_level = "trusted"
@@ -65,16 +98,13 @@ trust_level = "trusted"
 # =============================================================================
 
 # model = "gpt-5.5"                         # OpenAI 官方 BYOK 可选模型
-# review_model = "gpt-5.5"
 # model_provider = "openai"
 # model_context_window = 200000
 # model_auto_compact_token_limit = 180000
-# model_reasoning_effort = "medium"          # 可选："minimal"/"low"/"medium"/"high"
 # plan_mode_reasoning_effort = "medium"
 # model_reasoning_summary = "auto"           # 可选："auto"/"concise"/"detailed"/"none"
 # model_verbosity = "medium"                 # 可选："low"/"medium"/"high"
 # model_supports_reasoning_summaries = true
-# model_catalog_json = "/absolute/path/to/models.json"
 # model_instructions_file = "/absolute/path/to/instructions.md"
 # instructions = ""
 # developer_instructions = ""

@@ -304,8 +304,6 @@ use darwin_code_protocol::protocol::EventMsg;
 use darwin_code_protocol::protocol::ExecApprovalRequestEvent;
 use darwin_code_protocol::protocol::InitialHistory;
 use darwin_code_protocol::protocol::McpServerRefreshConfig;
-use darwin_code_protocol::protocol::ModelRerouteEvent;
-use darwin_code_protocol::protocol::ModelRerouteReason;
 use darwin_code_protocol::protocol::NetworkApprovalContext;
 use darwin_code_protocol::protocol::NonSteerableTurnKind;
 use darwin_code_protocol::protocol::Op;
@@ -381,9 +379,6 @@ pub(crate) struct DarwinCodeSpawnArgs {
 
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
 pub(crate) const SUBMISSION_CHANNEL_CAPACITY: usize = 512;
-const CYBER_VERIFY_URL: &str = "https://example.invalid/cyber";
-const CYBER_SAFETY_URL: &str = "https://docs.darwin.local/darwin-code/concepts/cyber-safety";
-
 impl DarwinCode {
     /// Spawn a new [`DarwinCode`] and initialize the session.
     pub(crate) async fn spawn(args: DarwinCodeSpawnArgs) -> DarwinCodeResult<DarwinCodeSpawnOk> {
@@ -582,6 +577,7 @@ impl DarwinCode {
             },
         };
         let session_configuration = SessionConfiguration {
+            model_provider_id: config.model_provider_id.clone(),
             provider: config.model_provider.clone(),
             collaboration_mode,
             model_reasoning_summary: config.model_reasoning_summary,
@@ -1981,47 +1977,6 @@ impl Session {
         };
 
         self.record_conversation_items(ctx, &[item]).await;
-    }
-
-    async fn maybe_warn_on_server_model_mismatch(
-        self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
-        server_model: String,
-    ) -> bool {
-        let requested_model = turn_context.model_info.slug.clone();
-        let server_model_normalized = server_model.to_ascii_lowercase();
-        let requested_model_normalized = requested_model.to_ascii_lowercase();
-        if server_model_normalized == requested_model_normalized {
-            info!("server reported model {server_model} (matches requested model)");
-            return false;
-        }
-
-        warn!("server reported model {server_model} while requested model was {requested_model}");
-
-        let warning_message = format!(
-            "Your account was flagged for potentially high-risk cyber activity and this request was routed to gpt-5.2 as a fallback. To regain access to gpt-5.3-darwin-code, apply for trusted access: {CYBER_VERIFY_URL} or learn more: {CYBER_SAFETY_URL}"
-        );
-
-        self.send_event(
-            turn_context,
-            EventMsg::ModelReroute(ModelRerouteEvent {
-                from_model: requested_model.clone(),
-                to_model: server_model.clone(),
-                reason: ModelRerouteReason::HighRiskCyberActivity,
-            }),
-        )
-        .await;
-
-        self.send_event(
-            turn_context,
-            EventMsg::Warning(WarningEvent {
-                message: warning_message.clone(),
-            }),
-        )
-        .await;
-        self.record_model_warning(warning_message, turn_context)
-            .await;
-        true
     }
 
     pub(crate) async fn replace_history(

@@ -4618,7 +4618,10 @@ impl App {
                 self.on_update_reasoning_effort(effort);
             }
             AppEvent::UpdateModel(model) => {
-                self.chat_widget.set_model(&model);
+                self.on_update_model_selection(&model)?;
+            }
+            AppEvent::UpdateModelSelection { model } => {
+                self.on_update_model_selection(&model)?;
             }
             AppEvent::UpdateCollaborationMode(mask) => {
                 self.chat_widget.set_collaboration_mask(mask);
@@ -4948,6 +4951,8 @@ impl App {
                                         /*sandbox_policy*/ None,
                                         #[cfg(target_os = "windows")]
                                         Some(windows_sandbox_level),
+                                        #[cfg(not(target_os = "windows"))]
+                                        None,
                                         /*model*/ None,
                                         /*effort*/ None,
                                         /*summary*/ None,
@@ -4974,6 +4979,8 @@ impl App {
                                         Some(preset.sandbox.clone()),
                                         #[cfg(target_os = "windows")]
                                         Some(windows_sandbox_level),
+                                        #[cfg(not(target_os = "windows"))]
+                                        None,
                                         /*model*/ None,
                                         /*effort*/ None,
                                         /*summary*/ None,
@@ -5016,18 +5023,36 @@ impl App {
             }
             AppEvent::PersistModelSelection { model, effort } => {
                 let profile = self.active_profile.as_deref();
-                match ConfigEditsBuilder::new(&self.config.darwin_code_home)
-                    .with_profile(profile)
-                    .set_model(Some(model.as_str()), effort)
-                    .apply()
-                    .await
-                {
+                let edits =
+                    ConfigEditsBuilder::new(&self.config.darwin_code_home).with_profile(profile);
+                let provider_selection = self
+                    .config
+                    .resolve_model_provider_for_model(
+                        self.config.model_provider_id.as_str(),
+                        model.as_str(),
+                    )
+                    .map_err(|err| color_eyre::eyre::eyre!(err.to_string()))?;
+                let provider = provider_selection.id;
+                let provider_info = provider_selection.provider;
+                let edits = edits.set_model_selection(provider.as_str(), model.as_str(), effort);
+                match edits.apply().await {
                     Ok(()) => {
+                        self.config.model = Some(model.clone());
+                        self.config.model_reasoning_effort = effort;
+                        self.config.model_provider_id = provider.clone();
+                        self.config.model_provider = provider_info.clone();
+                        self.chat_widget
+                            .set_model_provider(provider.as_str(), Some(&provider_info));
                         let effort_label = effort
                             .map(|selected_effort| selected_effort.to_string())
                             .unwrap_or_else(|| "default".to_string());
-                        tracing::info!("Selected model: {model}, Selected effort: {effort_label}");
+                        let provider_label = provider.as_str();
+                        tracing::info!(
+                            "Selected provider: {provider_label}, model: {model}, effort: {effort_label}"
+                        );
                         let mut message = format!("Model changed to {model}");
+                        message.push_str(" via ");
+                        message.push_str(provider.as_str());
                         if let Some(label) = Self::reasoning_label_for(&model, effort) {
                             message.push(' ');
                             message.push_str(label);
@@ -5901,6 +5926,22 @@ impl App {
         // Instead, explicitly pass the stored collaboration mode's effort into new sessions.
         self.config.model_reasoning_effort = effort;
         self.chat_widget.set_reasoning_effort(effort);
+    }
+
+    fn on_update_model_selection(&mut self, model: &str) -> Result<()> {
+        let provider_selection = self
+            .config
+            .resolve_model_provider_for_model(self.config.model_provider_id.as_str(), model)
+            .map_err(|err| color_eyre::eyre::eyre!(err.to_string()))?;
+        let provider_id = provider_selection.id;
+        let provider = provider_selection.provider;
+        self.config.model = Some(model.to_string());
+        self.config.model_provider_id = provider_id.clone();
+        self.config.model_provider = provider.clone();
+        self.chat_widget
+            .set_model_provider(provider_id.as_str(), Some(&provider));
+        self.chat_widget.set_model(model);
+        Ok(())
     }
 
     fn on_update_personality(&mut self, personality: Personality) {

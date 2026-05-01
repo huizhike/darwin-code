@@ -84,9 +84,17 @@ impl TurnContext {
         self.features.apps_enabled()
     }
 
-    pub(crate) async fn with_model(&self, model: String, models_manager: &ModelsManager) -> Self {
+    pub(crate) async fn with_model(
+        &self,
+        model: String,
+        models_manager: &ModelsManager,
+    ) -> crate::config::ConstraintResult<Self> {
         let mut config = (*self.config).clone();
         config.model = Some(model.clone());
+        let provider_selection =
+            config.resolve_model_provider_for_model(config.model_provider_id.as_str(), &model)?;
+        config.model_provider_id = provider_selection.id;
+        config.model_provider = provider_selection.provider.clone();
         let model_info = models_manager
             .get_model_info(model.as_str(), &config.to_models_manager_config())
             .await;
@@ -142,7 +150,7 @@ impl TurnContext {
             &config.agent_roles,
         ));
 
-        Self {
+        Ok(Self {
             sub_id: self.sub_id.clone(),
             trace_id: self.trace_id.clone(),
             realtime_active: self.realtime_active,
@@ -152,7 +160,7 @@ impl TurnContext {
                 .session_telemetry
                 .clone()
                 .with_model(model.as_str(), model_info.slug.as_str()),
-            provider: self.provider.clone(),
+            provider: create_model_provider(provider_selection.provider),
             reasoning_effort,
             reasoning_summary: self.reasoning_summary,
             session_source: self.session_source.clone(),
@@ -186,7 +194,7 @@ impl TurnContext {
             turn_metadata_state: self.turn_metadata_state.clone(),
             turn_skills: self.turn_skills.clone(),
             turn_timing_state: Arc::clone(&self.turn_timing_state),
-        }
+        })
     }
 
     pub(crate) fn resolve_path(&self, path: Option<String>) -> AbsolutePathBuf {
@@ -293,6 +301,9 @@ impl Session {
         // todo(aibrahim): store this state somewhere else so we don't need to mut config
         let config = session_configuration.original_config_do_not_use.clone();
         let mut per_turn_config = (*config).clone();
+        per_turn_config.model = Some(session_configuration.collaboration_mode.model().to_string());
+        per_turn_config.model_provider_id = session_configuration.model_provider_id.clone();
+        per_turn_config.model_provider = session_configuration.provider.clone();
         per_turn_config.cwd = session_configuration.cwd.clone();
         per_turn_config.model_reasoning_effort =
             session_configuration.collaboration_mode.reasoning_effort();

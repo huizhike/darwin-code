@@ -7,6 +7,7 @@ use core_test_support::test_darwin_code::test_darwin_code;
 use darwin_code_core::ModelClient;
 use darwin_code_core::Prompt;
 use darwin_code_core::ResponseEvent;
+use darwin_code_model_provider::create_model_provider;
 use darwin_code_model_provider_info::ModelProviderInfo;
 use darwin_code_model_provider_info::WireApi;
 use darwin_code_otel::SessionTelemetry;
@@ -94,13 +95,13 @@ async fn responses_stream_includes_subagent_header_on_review() {
     let client = ModelClient::new(
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
-        provider.clone(),
         session_source,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
     );
+    let request_provider = create_model_provider(provider.clone());
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -117,6 +118,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
 
     let mut stream = client_session
         .stream(
+            &request_provider,
             &prompt,
             &model_info,
             &session_telemetry,
@@ -214,13 +216,13 @@ async fn responses_stream_includes_subagent_header_on_other() {
     let client = ModelClient::new(
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
-        provider.clone(),
         session_source,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
     );
+    let request_provider = create_model_provider(provider.clone());
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -237,6 +239,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
 
     let mut stream = client_session
         .stream(
+            &request_provider,
             &prompt,
             &model_info,
             &session_telemetry,
@@ -320,13 +323,13 @@ async fn responses_respects_model_info_overrides_from_config() {
     let client = ModelClient::new(
         conversation_id,
         /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
-        provider.clone(),
         session_source,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
     );
+    let request_provider = create_model_provider(provider.clone());
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -343,6 +346,7 @@ async fn responses_respects_model_info_overrides_from_config() {
 
     let mut stream = client_session
         .stream(
+            &request_provider,
             &prompt,
             &model_info,
             &session_telemetry,

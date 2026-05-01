@@ -71,12 +71,33 @@ pub struct ModelConfigToml {
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct ModelCapabilitiesToml {
-    #[serde(default)]
-    pub tools: bool,
-    #[serde(default)]
-    pub reasoning: bool,
-    #[serde(default)]
-    pub images: bool,
+    pub tools: Option<bool>,
+    pub reasoning: Option<bool>,
+    pub images: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
+pub struct ProviderModelToml {
+    /// Interface display name. Defaults to the model id map key.
+    pub display_name: Option<String>,
+    /// Short description shown in model selection surfaces.
+    pub description: Option<String>,
+    /// Model context window, in tokens.
+    pub context_window: Option<i64>,
+    /// Maximum output tokens.
+    pub max_output_tokens: Option<i64>,
+    /// Token usage threshold triggering auto-compaction.
+    pub auto_compact_token_limit: Option<i64>,
+    /// Sampling temperature for providers that support it.
+    pub temperature: Option<f64>,
+    /// Whether the model supports thinking/reasoning. Defaults to true.
+    pub thinking: Option<bool>,
+    /// Whether the model accepts image input. Defaults to true.
+    pub multimodal: Option<bool>,
+    /// Whether shell/tools are allowed for this model. Defaults to true.
+    pub tools: Option<bool>,
 }
 
 /// Inline local API key value from config.toml.
@@ -104,7 +125,7 @@ impl fmt::Debug for ApiKeyToml {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct NativeProviderToml {
@@ -115,9 +136,12 @@ pub struct NativeProviderToml {
     /// List of available models provided by this provider.
     #[serde(default)]
     pub available_models: Vec<ModelConfigToml>,
+    /// Provider-scoped model map used by Darwin Code.
+    #[serde(default)]
+    pub models: HashMap<String, ProviderModelToml>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct OpenAiCompatibleProviderToml {
@@ -136,6 +160,9 @@ pub struct OpenAiCompatibleProviderToml {
     /// List of available models provided by this provider.
     #[serde(default)]
     pub available_models: Vec<ModelConfigToml>,
+    /// Provider-scoped model map used by Darwin Code.
+    #[serde(default)]
+    pub models: HashMap<String, ProviderModelToml>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -252,7 +279,7 @@ impl ByokProviderFamily {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
 pub struct ByokProviderToml {
@@ -269,9 +296,15 @@ pub struct ByokProviderToml {
     pub wire_api: Option<WireApi>,
     /// Inline BYOK API key for local, untracked configs.
     pub api_key: Option<ApiKeyToml>,
+    /// Legacy list form for configured models.
+    #[serde(default)]
+    pub available_models: Vec<ModelConfigToml>,
+    /// Provider-scoped model map used by Darwin Code.
+    #[serde(default)]
+    pub models: HashMap<String, ProviderModelToml>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedByokProvider {
     pub id: String,
     pub family: ByokProviderFamily,
@@ -279,6 +312,8 @@ pub struct ResolvedByokProvider {
     pub base_url: String,
     pub wire_api: Option<WireApi>,
     pub api_key: String,
+    pub available_models: Vec<ModelConfigToml>,
+    pub models: HashMap<String, ProviderModelToml>,
 }
 
 impl ByokProviderToml {
@@ -313,6 +348,8 @@ impl ByokProviderToml {
             base_url,
             wire_api: self.wire_api,
             api_key,
+            available_models: self.available_models.clone(),
+            models: self.models.clone(),
         })
     }
 
@@ -343,8 +380,6 @@ fn resolve_optional_string(
 pub struct ConfigToml {
     /// Optional override of model selection.
     pub model: Option<String>,
-    /// Review model override used by the `/review` feature.
-    pub review_model: Option<String>,
 
     /// Provider id to use.
     pub model_provider: Option<String>,

@@ -1907,7 +1907,7 @@ mod tests {
         ];
         let view = ListSelectionView::new(
             SelectionViewParams {
-                title: Some("Select Model and Effort".to_string()),
+                title: Some("Select Model".to_string()),
                 items,
                 ..Default::default()
             },
@@ -1989,7 +1989,7 @@ mod tests {
         ];
         let view = ListSelectionView::new(
             SelectionViewParams {
-                title: Some("Select Model and Effort".to_string()),
+                title: Some("Select Model".to_string()),
                 items,
                 ..Default::default()
             },

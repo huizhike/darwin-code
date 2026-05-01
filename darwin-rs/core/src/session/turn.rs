@@ -359,7 +359,6 @@ pub(crate) async fn run_turn(
     // Although from the perspective of darwin_code.rs, TurnDiffTracker has the lifecycle of a Task which contains
     // many turns, from the perspective of the user, it is a single turn.
     let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
-    let mut server_model_warning_emitted_for_turn = false;
 
     // `ModelClientSession` is turn-scoped and caches WebSocket + sticky routing state, so we reuse
     // one instance across retries within this turn.
@@ -450,7 +449,6 @@ pub(crate) async fn run_turn(
             sampling_request_input,
             &explicitly_enabled_connectors,
             skills_outcome,
-            &mut server_model_warning_emitted_for_turn,
             cancellation_token.child_token(),
         )
         .await
@@ -744,11 +742,16 @@ async fn maybe_run_previous_model_inline_compact(
     let Some(previous_turn_settings) = sess.previous_turn_settings().await else {
         return Ok(false);
     };
-    let previous_model_turn_context = Arc::new(
-        turn_context
-            .with_model(previous_turn_settings.model, &sess.services.models_manager)
-            .await,
-    );
+    let previous_model_turn_context = match turn_context
+        .with_model(previous_turn_settings.model, &sess.services.models_manager)
+        .await
+    {
+        Ok(turn_context) => Arc::new(turn_context),
+        Err(err) => {
+            warn!("failed to resolve provider for previous model compaction context: {err}");
+            return Ok(false);
+        }
+    };
 
     let Some(old_context_window) = previous_model_turn_context.model_context_window() else {
         return Ok(false);
@@ -980,7 +983,6 @@ async fn run_sampling_request(
     input: Vec<ResponseItem>,
     explicitly_enabled_connectors: &HashSet<String>,
     skills_outcome: Option<&SkillLoadOutcome>,
-    server_model_warning_emitted_for_turn: &mut bool,
     cancellation_token: CancellationToken,
 ) -> DarwinCodeResult<SamplingRequestResult> {
     let router = built_tools(
@@ -1034,7 +1036,6 @@ async fn run_sampling_request(
             client_session,
             turn_metadata_header,
             Arc::clone(&turn_diff_tracker),
-            server_model_warning_emitted_for_turn,
             &prompt,
             cancellation_token.child_token(),
         )
@@ -1788,7 +1789,6 @@ async fn try_run_sampling_request(
     client_session: &mut ModelClientSession,
     turn_metadata_header: Option<&str>,
     turn_diff_tracker: SharedTurnDiffTracker,
-    server_model_warning_emitted_for_turn: &mut bool,
     prompt: &Prompt,
     cancellation_token: CancellationToken,
 ) -> DarwinCodeResult<SamplingRequestResult> {
@@ -1802,6 +1802,7 @@ async fn try_run_sampling_request(
     );
     let mut stream = client_session
         .stream(
+            &turn_context.provider,
             prompt,
             &turn_context.model_info,
             &turn_context.session_telemetry,
@@ -1986,13 +1987,11 @@ async fn try_run_sampling_request(
                 }
             }
             ResponseEvent::ServerModel(server_model) => {
-                if !*server_model_warning_emitted_for_turn
-                    && sess
-                        .maybe_warn_on_server_model_mismatch(&turn_context, server_model)
-                        .await
-                {
-                    *server_model_warning_emitted_for_turn = true;
-                }
+                tracing::debug!(
+                    %server_model,
+                    requested_model = %turn_context.model_info.slug,
+                    "provider reported response model"
+                );
             }
             ResponseEvent::ServerReasoningIncluded(included) => {
                 sess.set_server_reasoning_included(included).await;

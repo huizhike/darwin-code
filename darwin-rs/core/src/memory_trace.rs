@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::ModelClient;
 use darwin_code_api::RawMemory as ApiRawMemory;
 use darwin_code_api::RawMemoryMetadata as ApiRawMemoryMetadata;
+use darwin_code_model_provider::SharedModelProvider;
 use darwin_code_protocol::error::DarwinCodeErr;
 use darwin_code_protocol::error::Result;
 use darwin_code_protocol::model_metadata::ModelInfo;
@@ -30,10 +31,11 @@ struct PreparedTrace {
 /// The request/response wiring mirrors the memory summarize E2E flow:
 /// `/v1/memories/trace_summarize` with one output object per input raw memory.
 ///
-/// The caller provides the model selection and reasoning effort explicitly so the session-scoped
-/// [`ModelClient`] can be reused across turns.
+/// The caller provides provider routing, model selection, and reasoning effort explicitly so the
+/// session-scoped [`ModelClient`] can be reused across turns without stale provider state.
 pub async fn build_memories_from_trace_files(
     client: &ModelClient,
+    provider: &SharedModelProvider,
     trace_paths: &[PathBuf],
     model_info: &ModelInfo,
     effort: Option<ReasoningEffortConfig>,
@@ -49,7 +51,7 @@ pub async fn build_memories_from_trace_files(
 
     let raw_memories = prepared.iter().map(|trace| trace.payload.clone()).collect();
     let output = client
-        .summarize_memories(raw_memories, model_info, effort)
+        .summarize_memories(provider, raw_memories, model_info, effort)
         .await?;
     if output.len() != prepared.len() {
         return Err(DarwinCodeErr::InvalidRequest(format!(
