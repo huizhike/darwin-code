@@ -5,7 +5,7 @@ expression: sanitized
 /status
 
 ╭─────────────────────────────────────────────────────────────────────────────╮
-│  >_ Darwin Code (v0.0.0)                                              │
+│  >_ Darwin Code (v0.0.1)                                              │
 │                                                                             │
 │ BYOK mode uses provider-side billing,                                       │
 │ rate limits, and quota from the configured API endpoint                     │

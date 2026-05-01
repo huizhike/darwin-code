@@ -1,9 +1,37 @@
 Darwin Code
-Copyright 2025 Darwin Code contributors
+Copyright 2025 Darwin Code contributors
 
-This project includes code derived from [Ratatui](https://github.com/ratatui/ratatui), licensed under the MIT license.
+This project is a downstream derivative of OpenAI Codex.
+
+OpenAI Codex
+Copyright 2025 OpenAI
+Licensed under the Apache License, Version 2.0.
+
+Darwin Code modifies the OpenAI Codex baseline for a BYOK-only execution
+engine and removes/replaces OpenAI product surfaces that are not part of
+the Darwin Code target.
+
+This project includes code derived from Ratatui (https://github.com/ratatui/ratatui),
+licensed under the MIT license.
 Copyright (c) 2016-2022 Florian Dehau
 Copyright (c) 2023-2025 The Ratatui Developers
 
-This project includes Meriyah parser assets from [meriyah](https://github.com/meriyah/meriyah), licensed under the ISC license.
+This project includes Meriyah parser assets from meriyah
+(https://github.com/meriyah/meriyah), licensed under the ISC license.
 Copyright (c) 2019 and later, KFlash and others.
+
+This project includes WezTerm-derived terminal code/assets from WezTerm
+(https://github.com/wezterm/wezterm), licensed under the MIT license.
+Copyright (c) 2018-Present Wez Furlong
+
+This project includes path normalization code adapted from path-absolutize,
+licensed under the MIT license.
+Copyright (c) 2018 magiclen.org (Ron Li)
+
+The Linux sandbox can compile vendored bubblewrap sources from
+darwin-rs/vendor/bubblewrap, licensed under LGPL-2.0-or-later.
+Copyright (C) 2016 Alexander Larsson
+
+The npm package includes a DotSlash manifest for ripgrep 15.1.0; the
+downloaded ripgrep executable is licensed under MIT OR Unlicense by the
+ripgrep project.

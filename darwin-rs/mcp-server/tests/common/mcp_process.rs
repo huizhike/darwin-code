@@ -132,7 +132,7 @@ impl McpProcess {
             client_info: Implementation {
                 name: "elicitation test".into(),
                 title: Some("Elicitation Test".into()),
-                version: "0.0.0".into(),
+                version: "0.0.1".into(),
                 description: None,
                 icons: None,
                 website_url: None,
@@ -153,7 +153,7 @@ impl McpProcess {
         let build_version = env!("CARGO_PKG_VERSION");
         let originator = darwin_code_client::originator().value;
         let user_agent = format!(
-            "{originator}/{build_version} ({} {}; {}) {} (elicitation test; 0.0.0)",
+            "{originator}/{build_version} ({} {}; {}) {} (elicitation test; 0.0.1)",
             os_info.os_type(),
             os_info.version(),
             os_info.architecture().unwrap_or("unknown"),
@@ -180,7 +180,7 @@ impl McpProcess {
                 "serverInfo": {
                     "name": "darwin-code-mcp-server",
                     "title": "DarwinCode",
-                    "version": "0.0.0",
+                    "version": "0.0.1",
                     "user_agent": user_agent
                 },
                 "protocolVersion": ProtocolVersion::V_2025_03_26

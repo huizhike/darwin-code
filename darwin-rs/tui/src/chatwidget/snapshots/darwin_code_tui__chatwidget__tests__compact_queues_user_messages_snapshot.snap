@@ -6,7 +6,7 @@ expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
 
 
 ╭───────────────────────────────────────╮
-│ >_ Darwin Code (v0.0.0)         │
+│ >_ Darwin Code (v0.0.1)         │
 │                                       │
 │ model:     loading   /model to change │
 │ directory: /tmp/project               │

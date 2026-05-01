@@ -8553,7 +8553,7 @@ mod tests {
             updated_at: updated_at.with_timezone(&Utc),
             archived_at: None,
             cwd: PathBuf::from("/tmp"),
-            cli_version: "0.0.0".to_string(),
+            cli_version: "0.0.1".to_string(),
             source: SessionSource::Cli,
             agent_nickname: None,
             agent_role: None,
@@ -8883,7 +8883,7 @@ mod tests {
                 "timestamp": timestamp,
                 "cwd": "/",
                 "originator": "darwin_code",
-                "cli_version": "0.0.0",
+                "cli_version": "0.0.1",
                 "model_provider": "test-provider"
             }),
             json!({
@@ -8924,7 +8924,7 @@ mod tests {
             preview: "Count to 5".to_string(),
             model_provider: "test-provider".to_string(),
             cwd: PathBuf::from("/"),
-            cli_version: "0.0.0".to_string(),
+            cli_version: "0.0.1".to_string(),
             source: SessionSource::VSCode,
             git_info: None,
         };
@@ -9155,7 +9155,7 @@ mod tests {
             "2025-09-05T16:53:12Z".to_string(),
             "test-provider".to_string(),
             PathBuf::from("/"),
-            "0.0.0".to_string(),
+            "0.0.1".to_string(),
             source,
             Some("atlas".to_string()),
             Some("explorer".to_string()),

@@ -3,6 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { existsSync } from "fs";
+import os from "node:os";
 import { createRequire } from "node:module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,12 +14,12 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 const PLATFORM_PACKAGE_BY_TARGET = {
-  "x86_64-unknown-linux-musl": "@darwin/darwin-code-linux-x64",
-  "aarch64-unknown-linux-musl": "@darwin/darwin-code-linux-arm64",
-  "x86_64-apple-darwin": "@darwin/darwin-code-darwin-x64",
-  "aarch64-apple-darwin": "@darwin/darwin-code-darwin-arm64",
-  "x86_64-pc-windows-msvc": "@darwin/darwin-code-win32-x64",
-  "aarch64-pc-windows-msvc": "@darwin/darwin-code-win32-arm64",
+  "x86_64-unknown-linux-musl": "@darwin-code/darwin-code-linux-x64",
+  "aarch64-unknown-linux-musl": "@darwin-code/darwin-code-linux-arm64",
+  "x86_64-apple-darwin": "@darwin-code/darwin-code-darwin-x64",
+  "aarch64-apple-darwin": "@darwin-code/darwin-code-darwin-arm64",
+  "x86_64-pc-windows-msvc": "@darwin-code/darwin-code-win32-x64",
+  "aarch64-pc-windows-msvc": "@darwin-code/darwin-code-win32-arm64",
 };
 
 const { platform, arch } = process;
@@ -76,7 +77,9 @@ if (!platformPackage) {
 }
 
 const darwinCodeBinaryName = process.platform === "win32" ? "darwin-code.exe" : "darwin-code";
-const localVendorRoot = path.join(__dirname, "..", "vendor");
+const packageRoot = path.join(__dirname, "..");
+const packageConfigPath = path.join(packageRoot, "config.toml");
+const localVendorRoot = path.join(packageRoot, "vendor");
 const localBinaryPath = path.join(
   localVendorRoot,
   targetTriple,
@@ -95,8 +98,8 @@ try {
     const packageManager = detectPackageManager();
     const updateCommand =
       packageManager === "bun"
-        ? "bun install -g @darwin/darwin-code@latest"
-        : "npm install -g @darwin/darwin-code@latest";
+        ? "bun install -g @darwin-code/darwin-code@latest"
+        : "npm install -g @darwin-code/darwin-code@latest";
     throw new Error(
       `Missing optional dependency ${platformPackage}. Reinstall darwin-code: ${updateCommand}`,
     );
@@ -107,8 +110,8 @@ if (!vendorRoot) {
   const packageManager = detectPackageManager();
   const updateCommand =
     packageManager === "bun"
-      ? "bun install -g @darwin/darwin-code@latest"
-      : "npm install -g @darwin/darwin-code@latest";
+      ? "bun install -g @darwin-code/darwin-code@latest"
+      : "npm install -g @darwin-code/darwin-code@latest";
   throw new Error(
     `Missing optional dependency ${platformPackage}. Reinstall darwin-code: ${updateCommand}`,
   );
@@ -166,6 +169,16 @@ if (existsSync(pathDir)) {
 const updatedPath = getUpdatedPath(additionalDirs);
 
 const env = { ...process.env, PATH: updatedPath };
+
+// Published npm packages include a config.toml generated from the repository
+// config-example.toml at pack time. Use it only when the user has not set an
+// explicit DARWIN_CODE_HOME and has not already created ~/.darwin/config.toml.
+if (!env.DARWIN_CODE_HOME && existsSync(packageConfigPath)) {
+  const defaultUserConfigPath = path.join(os.homedir(), ".darwin", "config.toml");
+  if (!existsSync(defaultUserConfigPath)) {
+    env.DARWIN_CODE_HOME = packageRoot;
+  }
+}
 const packageManagerEnvVar =
   detectPackageManager() === "bun"
     ? "DARWIN_CODE_MANAGED_BY_BUN"

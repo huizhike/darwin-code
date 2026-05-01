@@ -7932,7 +7932,7 @@ mod tests {
                 "status": { "type": "idle" },
                 "path": null,
                 "cwd": absolute_path_string("tmp"),
-                "cliVersion": "0.0.0",
+                "cliVersion": "0.0.1",
                 "source": "exec",
                 "agentNickname": null,
                 "agentRole": null,

@@ -24,13 +24,9 @@
       cargoToml = builtins.fromTOML (builtins.readFile ./darwin-rs/Cargo.toml);
       cargoVersion = cargoToml.workspace.package.version;
 
-      # When building from a release commit the Cargo.toml already carries the
-      # real version (e.g. "0.101.0").  On the main branch it is the placeholder
-      # "0.0.0", so we fall back to a dev version derived from the flake source.
-      version =
-        if cargoVersion != "0.0.0"
-        then cargoVersion
-        else "0.0.0-dev+${self.shortRev or "dirty"}";
+      # Cargo.toml carries the Darwin Code package version used by the
+      # release/install surfaces.
+      version = cargoVersion;
     in
     {
       packages = forAllSystems (system:

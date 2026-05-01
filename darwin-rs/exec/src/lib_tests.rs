@@ -421,7 +421,7 @@ fn session_configured_from_thread_response_uses_review_policy_from_response() {
             status: darwin_code_app_server_protocol::ThreadStatus::Idle,
             path: Some(PathBuf::from("/tmp/rollout.jsonl")),
             cwd: test_path_buf("/tmp").abs(),
-            cli_version: "0.0.0".to_string(),
+            cli_version: "0.0.1".to_string(),
             source: darwin_code_app_server_protocol::SessionSource::Cli,
             agent_nickname: None,
             agent_role: None,

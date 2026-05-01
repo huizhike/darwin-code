@@ -3,7 +3,7 @@ source: tui/src/chatwidget/tests/exec_flow.rs
 expression: normalize_snapshot_paths(rendered)
 ---
 ╭───────────────────────────────────────╮
-│ >_ Darwin Code (v0.0.0)         │
+│ >_ Darwin Code (v0.0.1)         │
 │                                       │
 │ model:     loading   /model to change │
 │ directory: /tmp/project               │

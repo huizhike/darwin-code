@@ -2,7 +2,7 @@
 name = "darwin-code-linux-sandbox"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license = "Apache-2.0 AND LGPL-2.0-or-later"
 
 [[bin]]
 name = "darwin-code-linux-sandbox"

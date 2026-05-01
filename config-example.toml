@@ -1,31 +1,39 @@
 # DarwinCode default config template
 #
-# 用法：
+# Usage:
 #   cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
 #   cargo run -p darwin-code-cli --bin darwin-code
 #
-# 说明：
-# - 这是一个可解析的默认模板；未启用的配置项以注释形式列出，表示“保持程序默认值”。
-# - 复制为 config.toml 后，从源码 checkout 内运行且未显式设置 DARWIN_CODE_HOME 时，会自动读取该文件。
-# - 如需覆盖配置目录，可显式设置 DARWIN_CODE_HOME。
-# - DarwinCode 产品默认是 BYOK：provider / model / base_url / api_key 由用户配置。
-# - 本地未跟踪配置可以直接写 api_key；仓库模板/文档示例不要提交真实 key。
+# Notes:
+# - This is a parseable example template. Commented settings keep runtime defaults.
+# - Copy or rename this file to config.toml. When running from the source checkout
+#   root without DARWIN_CODE_HOME, Darwin Code reads config.toml from that root.
+# - Set DARWIN_CODE_HOME explicitly if you want a different config directory.
+# - Darwin Code is BYOK by default: users configure provider, model, base_url,
+#   and api_key explicitly.
+# - Fill real api_key values only in config.toml. Do not commit real keys.
 
 # =============================================================================
-# 1. 默认 BYOK provider/model（OpenAI-compatible）
+# 1. Active provider/model
 # =============================================================================
 
+# DeepSeek and Qwen are separate providers. Select the active provider/model here.
 model_provider = "qwen"
 model = "qwen3.6-plus"
 approvals_reviewer = "user"
+model_reasoning_effort = "none"
+
+# =============================================================================
+# 2. BYOK providers
+# =============================================================================
 
 [openai_compatible.deepseek]
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
-# 本地 TUI 可以在 config.toml 中直接写明文 key；不要把真实 key 提交到仓库：
-# api_key = "your-api-key"
-api_key = "your-api-key"
+# For local TUI runs, write the real key in config.toml only. Do not commit it.
+# api_key = "YOUR_DEEPSEEK_API_KEY"
+api_key = "YOUR_DEEPSEEK_API_KEY"
 
 [openai_compatible.deepseek.models."deepseek-v4-flash"]
 display_name = "DeepSeek v4 Flash"
@@ -51,7 +59,7 @@ tools = true
 name = "Qwen"
 base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
 wire_api = "chat-completions"
-api_key = "your-api-key"
+api_key = "YOUR_QWEN_API_KEY"
 
 [openai_compatible.qwen.models."qwen3.6-plus"]
 display_name = "Qwen 3.6 Plus"
@@ -68,54 +76,57 @@ trust_level = "trusted"
 
 # [openai]
 # base_url = "https://api.openai.com/v1"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 
 # [openai_compatible.deepseek]
 # name = "DeepSeek"
 # base_url = "https://api.deepseek.com"
 # wire_api = "chat-completions"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 
-# 通用 OpenAI-compatible 网关示例：公司网关、本地代理等都按标准 endpoint 处理。
+# Generic OpenAI-compatible gateway example. Company gateways and local proxies
+# should be configured as standard endpoints.
 # [openai_compatible.my-gateway]
 # name = "My Gateway"
 # base_url = "http://127.0.0.1:8080/v1"
 # wire_api = "responses"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 
-# Gemini / Claude native 是目标协议族；当前 runtime adapter 未落地时，选择它们会明确报错。
-# 临时使用 Gemini/Claude 的 OpenAI-compatible 网关时，请把 family 改成 "openai-compatible"。
+# Gemini and Claude native providers are target protocol families. If the runtime
+# adapter is not implemented yet, selecting them should fail clearly. For a
+# temporary Gemini/Claude OpenAI-compatible gateway, configure it under
+# [openai_compatible.<id>] instead.
 # [gemini]
 # base_url = "https://generativelanguage.googleapis.com/v1beta"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 #
 # [claude]
 # base_url = "https://api.anthropic.com"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 
 # =============================================================================
-# 2. 所有顶层配置项默认模板（保持注释即使用程序默认值）
+# 3. Top-level config defaults
 # =============================================================================
 
-# model = "gpt-5.5"                         # OpenAI 官方 BYOK 可选模型
+# model = "gpt-5.5"                         # Optional model for direct BYOK providers
 # model_provider = "openai"
 # model_context_window = 200000
 # model_auto_compact_token_limit = 180000
 # plan_mode_reasoning_effort = "medium"
-# model_reasoning_summary = "auto"           # 可选："auto"/"concise"/"detailed"/"none"
-# model_verbosity = "medium"                 # 可选："low"/"medium"/"high"
+# model_reasoning_summary = "auto"           # Options: "auto"/"concise"/"detailed"/"none"
+# model_verbosity = "medium"                 # Options: "low"/"medium"/"high"
 # model_supports_reasoning_summaries = true
 # model_instructions_file = "/absolute/path/to/instructions.md"
 # instructions = ""
 # developer_instructions = ""
 # compact_prompt = ""
 # personality = "none"
-# service_tier = "auto"                      # 可选："auto"/"default"/"flex"
+# service_tier = "auto"                      # Options: "auto"/"default"/"flex"
 
-# approval_policy = "untrusted"              # 常见："untrusted"/"on-failure"/"on-request"/"never"
+# approval_policy = "untrusted"              # Common: "untrusted"/"on-failure"/"on-request"/"never"
 # approvals_reviewer = "user"
-# sandbox_mode = "workspace-write"           # 常见："read-only"/"workspace-write"/"danger-full-access"
-# allow_login_shell = true                    # 默认 true
+# sandbox_mode = "workspace-write"           # Common: "read-only"/"workspace-write"/"danger-full-access"
+# allow_login_shell = true                    # Default: true
 # default_permissions = "default"
 
 # include_permissions_instructions = true
@@ -127,13 +138,13 @@ trust_level = "trusted"
 # check_for_update_on_startup = true
 # windows_wsl_setup_acknowledged = false
 
-# openai_base_url = "https://api.openai.com/v1"  # 可选：显式 model_provider = "openai" 时的 OpenAI BYOK endpoint 覆盖
+# openai_base_url = "https://api.openai.com/v1"  # Optional endpoint override when model_provider = "openai"
 
 # project_doc_max_bytes = 32768
 # project_doc_fallback_filenames = ["AGENTS.md"]
 # project_root_markers = [".git"]
 # tool_output_token_limit = 20000
-# background_terminal_max_timeout = 300000       # ms，默认 5 分钟
+# background_terminal_max_timeout = 300000       # ms, default: 5 minutes
 # js_repl_node_path = "/absolute/path/to/node"
 # js_repl_node_module_dirs = ["/absolute/path/to/node_modules"]
 # zsh_path = "/absolute/path/to/zsh"
@@ -143,11 +154,11 @@ trust_level = "trusted"
 # notify = ["terminal-notifier", "DarwinCode finished"]
 
 # =============================================================================
-# 3. 子表默认模板
+# 4. Subtable defaults
 # =============================================================================
 
 # [shell_environment_policy]
-# inherit = "all"                              # 可选："all"/"core"/"none"
+# inherit = "all"                              # Options: "all"/"core"/"none"
 # ignore_default_excludes = false
 # include_only = []
 # exclude = []
@@ -161,13 +172,13 @@ trust_level = "trusted"
 # exclude_slash_tmp = false
 
 # [permissions]
-# # 在这里定义命名 permissions profile；default_permissions 指向 profile 名。
+# # Define named permission profiles here. default_permissions points to a profile name.
 #
 # [permissions.default]
-# # 具体字段以 schema 为准；保持注释则使用运行时默认权限策略。
+# # See the generated schema for exact fields. Commented settings keep runtime defaults.
 
 # [history]
-# persistence = "save-all"                     # 常见："save-all"/"none"
+# persistence = "save-all"                     # Common: "save-all"/"none"
 # max_bytes = 10485760
 
 # [tui]
@@ -175,7 +186,7 @@ trust_level = "trusted"
 # notifications = true
 
 # [web_search]
-# mode = "cached"                              # 可选："disabled"/"cached"/"live"
+# mode = "cached"                              # Options: "disabled"/"cached"/"live"
 
 # [tools]
 # web_search = "cached"
@@ -196,7 +207,7 @@ trust_level = "trusted"
 # enabled = true
 
 # [features]
-# # 功能开关统一放在这里；保持注释即使用默认 feature 状态。
+# # Feature flags live here. Commented settings keep default feature states.
 
 # [ghost_snapshot]
 # enabled = false
@@ -205,13 +216,13 @@ trust_level = "trusted"
 # level = "none"
 
 # [projects]
-# # 以绝对项目路径为 key，保存项目 trust 等本地状态。
+# # Use absolute project paths as keys for project-local trust and state.
 #
 # [projects."/absolute/path/to/project"]
 # trust_level = "trusted"
 
 # [profiles]
-# # 命名 profile，可通过 profile = "work" 选择。
+# # Named profiles can be selected with profile = "work".
 #
 # [profiles.work]
 # model_provider = "openai"
@@ -219,7 +230,7 @@ trust_level = "trusted"
 # approval_policy = "untrusted"
 
 # [mcp_servers]
-# # MCP server 示例。
+# # MCP server example.
 #
 # [mcp_servers.example]
 # command = "example-mcp-server"
@@ -228,28 +239,31 @@ trust_level = "trusted"
 # supports_parallel_tool_calls = false
 
 # [plugins]
-# # 插件配置 keyed by plugin name。
+# # Plugin config keyed by plugin name.
 
 # [marketplaces]
-# # 插件 marketplace 配置 keyed by marketplace name。
+# # Plugin marketplace config keyed by marketplace name.
 
 # [model_providers]
-# # 高级兼容入口。DarwinCode 产品默认请使用 [openai_compatible.<id>]。
+# # Advanced compatibility entry. Darwin Code product configs should prefer
+# # [openai_compatible.<id>].
 #
 # [model_providers.openai-custom]
 # name = "OpenAI custom"
 # base_url = "https://api.openai.com/v1"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"
 # wire_api = "responses"
 # request_max_retries = 4
 # stream_max_retries = 10
 # stream_idle_timeout_ms = 300000
-# BYOK-only：不要配置 experimental_bearer_token、[auth]、requires_openai_auth 或 supports_websockets。
+# BYOK only: do not configure experimental_bearer_token, [auth],
+# requires_openai_auth, or supports_websockets.
 
 # [openai_compatible_provider]
-# # 旧单 provider 迁移入口；新配置请使用 [openai_compatible.<id>]。
+# # Legacy single-provider migration entry. New configs should use
+# # [openai_compatible.<id>].
 # preset = "deepseek"
 # name = "DeepSeek"
 # base_url = "https://api.deepseek.com"
 # wire_api = "chat-completions"
-# api_key = "your-api-key"
+# api_key = "YOUR_PROVIDER_API_KEY"

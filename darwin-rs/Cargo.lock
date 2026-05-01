@@ -1229,7 +1229,7 @@ dependencies = [
 
 [[package]]
 name = "core_test_support"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1636,7 +1636,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-analytics"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-app-server-protocol",
  "darwin-code-client",
@@ -1655,7 +1655,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-ansi-escape"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "ansi-to-tui",
  "ratatui",
@@ -1664,7 +1664,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-api"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -1696,7 +1696,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-app-server"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1766,7 +1766,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-app-server-client"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-app-server",
  "darwin-code-app-server-protocol",
@@ -1789,7 +1789,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-app-server-protocol"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1816,7 +1816,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-apply-patch"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1835,7 +1835,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-arg0"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-apply-patch",
@@ -1852,7 +1852,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-async-utils"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "pretty_assertions",
@@ -1862,7 +1862,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-backend-openapi-models"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1871,7 +1871,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-cli"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1920,7 +1920,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-client"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1952,7 +1952,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-code-mode"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -1969,11 +1969,11 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-collaboration-mode-templates"
-version = "0.0.0"
+version = "0.0.1"
 
 [[package]]
 name = "darwin-code-config"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-app-server-protocol",
@@ -2002,7 +2002,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-connectors"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-app-server-protocol",
@@ -2014,7 +2014,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-core"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2138,7 +2138,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-core-plugins"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "darwin-code-app-server-protocol",
@@ -2163,7 +2163,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-core-skills"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-analytics",
@@ -2192,7 +2192,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-exec"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2234,7 +2234,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-exec-server"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2264,7 +2264,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-execpolicy"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2281,7 +2281,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-experimental-api-macros"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2290,7 +2290,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-features"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-otel",
  "darwin-code-protocol",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-feedback"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-protocol",
@@ -2315,7 +2315,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-file-search"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2331,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-git-utils"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "assert_matches",
  "darwin-code-exec-server",
@@ -2352,7 +2352,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-hooks"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2371,7 +2371,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-install-context"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-utils-home-dir",
  "pretty_assertions",
@@ -2380,7 +2380,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-instructions"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-protocol",
  "pretty_assertions",
@@ -2389,7 +2389,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-linux-sandbox"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "cc",
  "clap",
@@ -2413,7 +2413,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-mcp"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-mcp-server"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "core_test_support",
@@ -2475,7 +2475,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-model-provider"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "darwin-code-api",
@@ -2488,7 +2488,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-model-provider-info"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-api",
  "darwin-code-app-server-protocol",
@@ -2505,7 +2505,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-models-manager"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "core_test_support",
@@ -2534,7 +2534,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-otel"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "chrono",
  "darwin-code-api",
@@ -2566,7 +2566,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-plugin"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-utils-absolute-path",
  "darwin-code-utils-plugins",
@@ -2575,7 +2575,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-process-hardening"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "libc",
  "pretty_assertions",
@@ -2583,7 +2583,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-protocol"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -2622,7 +2622,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-response-debug-context"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "darwin-code-api",
@@ -2633,7 +2633,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-rmcp-client"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -2664,7 +2664,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-rollout"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2689,7 +2689,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-sandboxing"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2709,7 +2709,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-secrets"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "age",
  "anyhow",
@@ -2728,7 +2728,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-shell-command"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2748,7 +2748,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-shell-escalation"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2769,7 +2769,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-skills"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-utils-absolute-path",
  "include_dir",
@@ -2778,7 +2778,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-state"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2801,7 +2801,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-stdio-to-uds"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "darwin-code-utils-cargo-bin",
@@ -2812,7 +2812,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-terminal-detection"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "pretty_assertions",
  "tracing",
@@ -2820,7 +2820,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-thread-store"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2844,7 +2844,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-tools"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-app-server-protocol",
  "darwin-code-code-mode",
@@ -2861,7 +2861,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-tui"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2956,7 +2956,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-absolute-path"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "dirs",
  "dunce",
@@ -2970,14 +2970,14 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-approval-presets"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-protocol",
 ]
 
 [[package]]
 name = "darwin-code-utils-cache"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "lru 0.16.3",
  "sha1",
@@ -2986,7 +2986,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-cargo-bin"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "assert_cmd",
  "runfiles",
@@ -2995,7 +2995,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-cli"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "clap",
  "darwin-code-protocol",
@@ -3006,15 +3006,15 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-elapsed"
-version = "0.0.0"
+version = "0.0.1"
 
 [[package]]
 name = "darwin-code-utils-fuzzy-match"
-version = "0.0.0"
+version = "0.0.1"
 
 [[package]]
 name = "darwin-code-utils-home-dir"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-utils-absolute-path",
  "dirs",
@@ -3024,7 +3024,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-image"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "darwin-code-utils-cache",
@@ -3036,7 +3036,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-json-to-toml"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "pretty_assertions",
  "serde_json",
@@ -3045,7 +3045,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-output-truncation"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-protocol",
  "darwin-code-utils-string",
@@ -3054,7 +3054,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-path"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-utils-absolute-path",
  "dunce",
@@ -3064,7 +3064,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-plugins"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-client",
  "darwin-code-exec-server",
@@ -3077,7 +3077,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-pty"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "filedescriptor",
@@ -3093,7 +3093,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-readiness"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -3104,14 +3104,14 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-rustls-provider"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "rustls",
 ]
 
 [[package]]
 name = "darwin-code-utils-sandbox-summary"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "darwin-code-core",
  "darwin-code-model-provider-info",
@@ -3122,7 +3122,7 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-sleep-inhibitor"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "core-foundation 0.9.4",
  "libc",
@@ -3132,14 +3132,14 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-stream-parser"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "pretty_assertions",
 ]
 
 [[package]]
 name = "darwin-code-utils-string"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "pretty_assertions",
  "regex-lite",
@@ -3147,14 +3147,14 @@ dependencies = [
 
 [[package]]
 name = "darwin-code-utils-template"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "pretty_assertions",
 ]
 
 [[package]]
 name = "darwin-code-windows-sandbox"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5381,7 +5381,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 
 [[package]]
 name = "mcp_test_support"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "core_test_support",

@@ -455,7 +455,7 @@ mod tests {
         OtelSettings {
             environment: "test".to_string(),
             service_name: "darwin-code-test".to_string(),
-            service_version: "0.0.0".to_string(),
+            service_version: "0.0.1".to_string(),
             darwin_code_home: PathBuf::from("."),
             exporter: OtelExporter::None,
             trace_exporter: OtelExporter::None,

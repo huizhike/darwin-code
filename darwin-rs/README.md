@@ -1,102 +1,120 @@
-# Darwin Code CLI (Rust Implementation)
+# Darwin Code Rust Workspace
 
-We provide Darwin Code CLI as a standalone executable to ensure a zero-dependency install.
+This directory is the Rust implementation of Darwin Code. The currently tested
+install path is source-based. The public npm registry package is not available
+yet, so do not document `npm i -g @darwin-code/darwin-code` as a working user install
+until the package has been published and verified.
 
-## Installing Darwin Code
+## Run from source
 
-Today, the easiest way to install Darwin Code is via `npm`:
-
-```shell
-npm i -g @darwin/darwin-code
-darwin
-```
-
-You can also install via Homebrew (`brew install --cask darwin`) or download a platform-specific release directly from our [GitHub Releases](https://github.com/darwin/darwin-code/releases).
-
-## Documentation quickstart
-
-- First run with Darwin Code? Start with [`docs/getting-started.md`](../docs/getting-started.md).
-- Want deeper control? See [`docs/config.md`](../docs/config.md) and [`docs/install.md`](../docs/install.md).
-
-## What's new in the Rust CLI
-
-The Rust implementation is the maintained Darwin Code CLI and serves as the default experience.
-
-### Config
-
-Darwin Code supports a rich set of configuration options. Note that the Rust CLI uses `config.toml` instead of `config.json`. See [`docs/config.md`](../docs/config.md) for details.
-
-### Model Context Protocol Support
-
-#### MCP client
-
-Darwin Code CLI functions as an MCP client that allows the Darwin Code CLI and IDE extension to connect to MCP servers on startup. See the [`configuration documentation`](../docs/config.md#connecting-to-mcp-servers) for details.
-
-#### MCP server (experimental)
-
-Darwin Code can be launched as an MCP _server_ by running `darwin mcp-server`. This allows _other_ MCP clients to use Darwin Code as a tool for another agent.
-
-Use the [`@modelcontextprotocol/inspector`](https://github.com/modelcontextprotocol/inspector) to try it out:
+Use source runs for local development. This avoids installing a large debug
+binary into your user PATH:
 
 ```shell
-npx @modelcontextprotocol/inspector darwin mcp-server
+cd /home/xklab/01-darwin/dcode/70-darwin-code
+cp config-example.toml config.toml
+$EDITOR config.toml
+cd darwin-rs
+cargo run -p darwin-code-cli --bin darwin-code
 ```
 
-Use `darwin mcp` to add/list/get/remove MCP server launchers defined in `config.toml`, and `darwin mcp-server` to run the MCP server directly.
+`config.toml` is local runtime configuration and must not be committed with real
+keys. Keep provider, model, endpoint, and API key settings explicit.
 
-### Notifications
-
-You can enable notifications by configuring a script that is run whenever the agent finishes a turn. The [notify documentation](../docs/config.md#notify) includes a detailed example that explains how to get desktop notifications via [terminal-notifier](https://github.com/julienXX/terminal-notifier) on macOS. When Darwin Code detects that it is running under WSL 2 inside Windows Terminal (`WT_SESSION` is set), the TUI automatically falls back to native Windows toast notifications so approval prompts and completed turns surface even though Windows Terminal does not implement OSC 9.
-
-### `darwin exec` to run Darwin Code programmatically/non-interactively
-
-To run Darwin Code non-interactively, run `darwin exec PROMPT` (you can also pass the prompt via `stdin`) and Darwin Code will work on your task until it decides that it is done and exits. If you provide both a prompt argument and piped stdin, Darwin Code appends stdin as a `<stdin>` block after the prompt so patterns like `echo "my output" | darwin exec "Summarize this concisely"` work naturally. Output is printed to the terminal directly. You can set the `RUST_LOG` environment variable to see more about what's going on.
-Use `darwin exec --ephemeral ...` to run without persisting session rollout files to disk.
-
-### Experimenting with the Darwin Code Sandbox
-
-To test to see what happens when a command is run under the sandbox provided by Darwin Code, we provide the following subcommands in Darwin Code CLI:
-
-```
-# macOS
-darwin sandbox macos [--full-auto] [--log-denials] [COMMAND]...
-
-# Linux
-darwin sandbox linux [--full-auto] [COMMAND]...
-
-# Windows
-darwin sandbox windows [--full-auto] [COMMAND]...
-
-# Legacy aliases
-darwin debug seatbelt [--full-auto] [--log-denials] [COMMAND]...
-darwin debug landlock [--full-auto] [COMMAND]...
-```
-
-### Selecting a sandbox policy via `--sandbox`
-
-The Rust CLI exposes a dedicated `--sandbox` (`-s`) flag that lets you pick the sandbox policy **without** having to reach for the generic `-c/--config` option:
+If you intentionally need a user-level command, install a release build and make
+sure `$HOME/.local/bin` is in `PATH`:
 
 ```shell
-# Run Darwin Code with the default, read-only sandbox
-darwin --sandbox read-only
-
-# Allow the agent to write within the current workspace while still blocking network access
-darwin --sandbox workspace-write
-
-# Danger! Disable sandboxing entirely (only do this if you are already running in a container or other isolated env)
-darwin --sandbox danger-full-access
+cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
+cargo install --path cli --locked --root "$HOME/.local"
+command -v darwin-code
+darwin-code --help
 ```
 
-The same setting can be persisted in `~/.darwin/config.toml` via the top-level `sandbox_mode = "MODE"` key, e.g. `sandbox_mode = "workspace-write"`.
-In `workspace-write`, Darwin Code also includes `~/.darwin/memories` in its writable roots so memory maintenance does not require an extra approval.
+Do not use `cargo install --debug` for a normal user install; it is fast for
+smoke tests but can create a very large binary. Remove an unwanted user install
+with `rm -f ~/.local/bin/darwin-code`.
 
-## Code Organization
+## npm package status
 
-This folder is the root of a Cargo workspace. It contains quite a bit of experimental code, but here are the key crates:
+`npm i -g @darwin-code/darwin-code` currently fails because the package is not present
+in the public npm registry. To make that command work, publish the package under
+the `@darwin-code` scope first:
 
-- [`core/`](./core) contains the business logic for Darwin Code. Ultimately, we hope this to be a library crate that is generally useful for building other Rust/native applications that use Darwin Code.
-- [`exec/`](./exec) "headless" CLI for use in automation.
-- [`tui/`](./tui) CLI that launches a fullscreen TUI built with [Ratatui](https://ratatui.rs/).
-- [`cli/`](./cli) CLI multitool that provides the aforementioned CLIs via subcommands.
+```shell
+cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-cli
+npm login
+npm publish --access public
+npm view @darwin-code/darwin-code version
+```
 
-If you want to contribute or inspect behavior in detail, start by reading the module-level `README.md` files under each crate and run the project workspace from the top-level `darwin-rs` directory so shared config, features, and build scripts stay aligned.
+Publishing under `@darwin-code` requires an npm account with permission to that scope
+(or an npm organization/user scope that owns it). The package must include a
+working platform binary payload before publishing; otherwise the JavaScript
+wrapper installs but cannot launch `darwin-code`.
+
+For a local npm-wrapper smoke test before publishing, stage a built binary into
+the wrapper package and install from that staged folder:
+
+```shell
+cd /home/xklab/01-darwin/dcode/70-darwin-code
+cargo build --manifest-path darwin-rs/Cargo.toml -p darwin-code-cli --bin darwin-code
+rm -rf /tmp/darwin-cli-stage
+cp -a darwin-cli /tmp/darwin-cli-stage
+mkdir -p /tmp/darwin-cli-stage/vendor/x86_64-unknown-linux-musl/darwin-code
+cp darwin-rs/target/debug/darwin-code \
+  /tmp/darwin-cli-stage/vendor/x86_64-unknown-linux-musl/darwin-code/darwin-code
+npm install -g /tmp/darwin-cli-stage
+darwin-code --help
+```
+
+## Common commands
+
+```shell
+# Interactive TUI
+cargo run -p darwin-code-cli --bin darwin-code
+
+# Non-interactive execution
+cargo run -p darwin-code-cli --bin darwin-code -- exec "say hello"
+
+# MCP server over stdio
+cargo run -p darwin-code-cli --bin darwin-code -- mcp-server
+
+# Sandbox helpers
+cargo run -p darwin-code-cli --bin darwin-code -- sandbox linux --help
+cargo run -p darwin-code-cli --bin darwin-code -- sandbox macos --help
+cargo run -p darwin-code-cli --bin darwin-code -- sandbox windows --help
+```
+
+The repository `justfile` also provides:
+
+```shell
+just d
+just test
+just fmt
+just clippy
+```
+
+## Development validation
+
+```shell
+cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
+cargo clean
+cargo test --workspace
+cargo fmt --all
+cargo clippy --workspace --all-targets
+```
+
+## Workspace layout
+
+- `cli/` contains the top-level `darwin-code` command and subcommand routing.
+- `core/` contains provider configuration, session orchestration, tool execution,
+  and runtime policy.
+- `tui/` contains the interactive terminal UI.
+- `exec/` contains non-interactive execution support.
+- `mcp-server/` contains the stdio MCP server.
+- `app-server/` and `app-server-protocol/` contain the local app-server surfaces.
+- `utils/` contains shared helper crates.
+
+See the top-level [`README.md`](../README.md), [`docs/getting-started.md`](../docs/getting-started.md),
+and [`docs/config.md`](../docs/config.md) for user-facing setup details.

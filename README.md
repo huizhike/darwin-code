@@ -1,38 +1,70 @@
 # Darwin Code Engine
 
-Internal fork of Darwin Code CLI for Darwin's autonomous coding pipeline.
-
-## Upstream Source
-
-| Field | Value |
-|-------|-------|
-| **Upstream** | `darwin/darwin-code` (Apache-2.0) |
-| **Stable npm version** | `@darwin/darwin-code@0.121.0` (`latest` dist-tag) |
-| **Source commit** | `def6467d2bb7c9ff6333d59b6f64a0acf839817a` (2026-04-18) |
-| **Alpha (not used)** | `0.122.0-alpha.9` |
+BYOK-only execution engine for Darwin's autonomous coding pipeline.
 
 ## Directory Structure
 
 - `darwin-cli/` — Node.js CLI entry point
-- `darwin-rs/` — Rust sandbox runtime (darwin-code-exec, darwin-code-core, darwin-code-tui)
+- `darwin-rs/` — Rust sandbox runtime (`darwin-code-exec`, `darwin-code-core`, `darwin-code-tui`)
 - `docs/` — Documentation
 
 ## Run from Source
 
-> **⚠️ 警告: 编译产物体积与磁盘空间**
+> **Warning: build artifact size and disk usage**
 >
-> Rust 项目默认会产生巨大的增量编译缓存。长期开发可能导致 `target/` 目录累积突破 100GB，给系统存储造成灾难。系统已默认配置了底层的 cargo 命令拦截器，每天会自动在后台静默清理 1 天前的冗余缓存。如果依然遭遇空间不足，可手动执行 `cargo sweep --time 1`。
+> Rust projects can produce large incremental build caches. Long-running local development may grow `target/` beyond 100 GB and put system storage at risk. This checkout is configured with a low-level Cargo command interceptor that silently sweeps redundant caches older than one day in the background. If disk space is still tight, run `cargo sweep --time 1` manually.
 
-### 配置文件
+### Configuration file
+
+Copy the redacted example into a local config file first. In a private fork, you may rename the file instead:
 
 ```bash
-cd 70-darwin-code
+cd /home/xklab/01-darwin/dcode/70-darwin-code
 cp config-example.toml config.toml
-$EDITOR config.toml   # 填写 api_key，按需修改 provider/model/base_url
+# Or: mv config-example.toml config.toml
+$EDITOR config.toml
 ```
 
-`config.toml` 是本地配置，不提交；从源码运行时默认读取 checkout 根目录的
-`config.toml`。如需使用其他配置目录，设置 `DARWIN_CODE_HOME`。
+`config-example.toml` is the redacted template. `config.toml` is the local real configuration and must not be committed. When running from source, Darwin Code reads `config.toml` from the checkout root by default. Set `DARWIN_CODE_HOME` if you need a different config directory.
+
+During npm packaging, the root `config-example.toml` is copied and renamed to package-local `config.toml`. Local `config.toml` is not packaged. After installing the npm package, replace the placeholder key in the packaged `config.toml` with your own key:
+
+```bash
+$EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
+```
+
+You can also keep configuration under your user directory by copying the packaged template and editing it there:
+
+```bash
+mkdir -p ~/.darwin
+cp "$(npm root -g)/@darwin-code/darwin-code/config.toml" ~/.darwin/config.toml
+$EDITOR ~/.darwin/config.toml
+```
+
+At minimum, verify these four groups of fields in `config.toml`:
+
+```toml
+model_provider = "qwen"        # Current provider id
+model = "qwen3.6-plus"         # Current model; /model lists this provider's models
+
+[openai_compatible.qwen]
+name = "Qwen"
+base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+wire_api = "chat-completions"  # Use chat-completions or responses to match the endpoint
+api_key = "YOUR_QWEN_API_KEY"  # Put real keys only in local config.toml
+```
+
+To add a model, add it under the matching provider:
+
+```toml
+[openai_compatible.qwen.models."your-model"]
+display_name = "Your Model"
+context_window = 128000
+max_output_tokens = 8192
+thinking = true
+multimodal = true
+tools = true
+```
 
 ```bash
 cd 70-darwin-code
@@ -41,7 +73,7 @@ cargo clean
 cargo run -p darwin-code-cli --bin darwin-code
 ```
 
-使用其他配置目录：
+Use another config directory:
 
 ```bash
 export DARWIN_CODE_HOME=/path/to/darwin-code-home
@@ -51,16 +83,11 @@ cargo run -p darwin-code-cli --bin darwin-code
 
 ## BYOK quick start
 
-Darwin Code 的产品默认路径是 **BYOK（Bring Your Own Key）**：用户在
-`config.toml` 中明确选择 provider、model、`base_url`，并直接提供自己的
-`api_key`。每个 provider 在自己的 `models` 表下声明可选模型；TUI `/model`
-直接显示模型列表，选中后自动写回 `model_provider` + `model`。
+Darwin Code's default product path is **BYOK (Bring Your Own Key)**: select the provider, model, and `base_url` explicitly in `config.toml`, then provide your own `api_key` directly. Each provider declares selectable models under its own `models` table. The TUI `/model` command shows that model list and writes the selected `model_provider` plus `model` back to the config.
 
-本地 TUI/CLI 不再要求为模型 key 配置环境变量，也不再从 provider id 推断变量名。
-除 BYOK direct key 外不支持 hosted OAuth/device sign-in、workspace/cloud auth、
-command-backed bearer token、keychain、`.env` loader 或隐式 OpenAI 登录。
+The local TUI/CLI no longer requires environment variables for model keys and no longer derives environment variable names from provider ids. Beyond BYOK direct keys, Darwin Code does not support hosted OAuth/device sign-in, workspace/cloud auth, command-backed bearer tokens, keychain storage, `.env` loading, or implicit OpenAI login.
 
-### DeepSeek（默认本地配置）
+### DeepSeek provider example
 
 ```toml
 model_provider = "deepseek"
@@ -70,7 +97,7 @@ model = "deepseek-v4-flash"
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
-api_key = "你的 DeepSeek API Key"
+api_key = "YOUR_DEEPSEEK_API_KEY"
 
 [openai_compatible.deepseek.models."deepseek-v4-flash"]
 display_name = "DeepSeek v4 Flash"
@@ -89,8 +116,7 @@ multimodal = true
 
 ### Generic OpenAI-compatible endpoint
 
-任何实现 OpenAI-compatible API 的外部网关（例如公司网关、本地代理）都作为
-标准 endpoint 出现在 Darwin Code 里：
+Any external gateway that implements an OpenAI-compatible API, such as a company gateway or a local proxy, appears in Darwin Code as a standard endpoint:
 
 ```toml
 model_provider = "my-gateway"
@@ -100,7 +126,7 @@ model = "your-model"
 name = "My Gateway"
 base_url = "http://127.0.0.1:8080/v1"
 wire_api = "responses"
-api_key = "你的网关 API Key"
+api_key = "YOUR_GATEWAY_API_KEY"
 
 [openai_compatible.my-gateway.models."your-model"]
 display_name = "Your Model"
@@ -110,11 +136,7 @@ thinking = true
 multimodal = true
 ```
 
-`wire_api` 表示 provider 实际支持的协议路径：DeepSeek 官方 API 使用
-`chat-completions`（请求 `/chat/completions`）；兼容 OpenAI Responses API
-的网关使用 `responses`（请求 `/responses`）。不要把
-DeepSeek 的 `base_url` 写成带 `/v1` 后再走 Responses，否则会命中 DeepSeek 不支持的
-`/v1/responses`。
+`wire_api` must match the protocol path that the provider actually supports. DeepSeek's official API uses `chat-completions`, which sends requests to `/chat/completions`. Gateways compatible with the OpenAI Responses API use `responses`, which sends requests to `/responses`. Do not set DeepSeek's `base_url` to a `/v1` URL and then use Responses API mode; that would hit DeepSeek's unsupported `/v1/responses` path.
 
 ### OpenAI / Gemini / Claude direct key
 
@@ -124,7 +146,7 @@ model = "gpt-5"
 
 [openai]
 base_url = "https://api.openai.com/v1"
-api_key = "你的 OpenAI API Key"
+api_key = "YOUR_OPENAI_API_KEY"
 ```
 
 ```toml
@@ -133,7 +155,7 @@ model = "gemini-2.5-pro"
 
 [gemini]
 base_url = "https://generativelanguage.googleapis.com/v1beta"
-api_key = "你的 Gemini API Key"
+api_key = "YOUR_GEMINI_API_KEY"
 ```
 
 ```toml
@@ -142,10 +164,11 @@ model = "claude-sonnet-4-5"
 
 [claude]
 base_url = "https://api.anthropic.com"
-api_key = "你的 Claude API Key"
+api_key = "YOUR_CLAUDE_API_KEY"
 ```
 
-当前可运行投影优先覆盖 `[openai_compatible.<id>]`；Gemini/Claude native runtime
-adapter 尚未落地时，如果直接选择对应 provider，启动会给出明确错误。临时使用
-Gemini/Claude 的 OpenAI-compatible 网关时，应改用 `[openai_compatible.<id>]` 并填写
-网关的 `base_url` 与 `api_key`。
+The current runnable projection primarily covers `[openai_compatible.<id>]`. If Gemini or Claude native runtime adapters are not yet available, selecting those providers directly will fail with an explicit error. To use Gemini or Claude through an OpenAI-compatible gateway in the meantime, configure `[openai_compatible.<id>]` with the gateway `base_url` and `api_key`.
+
+## License and upstream
+
+Darwin Code is a downstream derivative of OpenAI Codex. See [`LICENSE`](LICENSE), [`NOTICE`](NOTICE), and [`docs/license.md`](docs/license.md) for upstream attribution, downstream modifications, and third-party license notes.

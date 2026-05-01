@@ -1272,7 +1272,7 @@ mod tests {
                 status: ThreadStatus::Idle,
                 path: None,
                 cwd: test_path_buf("/tmp/project").abs(),
-                cli_version: "0.0.0".to_string(),
+                cli_version: "0.0.1".to_string(),
                 source: darwin_code_protocol::protocol::SessionSource::Cli.into(),
                 agent_nickname: None,
                 agent_role: None,
