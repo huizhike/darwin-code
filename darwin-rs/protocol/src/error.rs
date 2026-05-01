@@ -1,6 +1,5 @@
 use crate::ThreadId;
-use crate::auth::KnownPlan;
-use crate::auth::PlanType;
+use crate::account::PlanType;
 use crate::exec_output::ExecToolCallOutput;
 use crate::network_policy::NetworkPolicyDecisionPayload;
 use crate::protocol::DarwinCodeErrorInfo;
@@ -466,37 +465,36 @@ impl std::fmt::Display for UsageLimitReachedError {
         }
 
         let message = match self.plan_type.as_ref() {
-            Some(PlanType::Known(KnownPlan::Plus)) => format!(
+            Some(PlanType::Plus) => format!(
                 "You've hit your usage limit. check provider billing or quota settings{}",
                 retry_suffix_after_or(self.resets_at.as_ref())
             ),
-            Some(PlanType::Known(
-                KnownPlan::Team
-                | KnownPlan::SelfServeBusinessUsageBased
-                | KnownPlan::Business
-                | KnownPlan::EnterpriseCbpUsageBased,
-            )) => {
+            Some(
+                PlanType::Team
+                | PlanType::SelfServeBusinessUsageBased
+                | PlanType::Business
+                | PlanType::EnterpriseCbpUsageBased,
+            ) => {
                 format!(
                     "You've hit your usage limit. To get more access now, send a request to your admin{}",
                     retry_suffix_after_or(self.resets_at.as_ref())
                 )
             }
-            Some(PlanType::Known(KnownPlan::Free)) | Some(PlanType::Known(KnownPlan::Go)) => {
+            Some(PlanType::Free) | Some(PlanType::Go) => {
                 format!(
                     "You've hit your usage limit. check provider billing or quota settings,{}",
                     retry_suffix_after_or(self.resets_at.as_ref())
                 )
             }
-            Some(PlanType::Known(KnownPlan::Pro | KnownPlan::ProLite)) => format!(
+            Some(PlanType::Pro | PlanType::ProLite) => format!(
                 "You've hit your usage limit. Check provider billing or quota settings{}",
                 retry_suffix_after_or(self.resets_at.as_ref())
             ),
-            Some(PlanType::Known(KnownPlan::Enterprise))
-            | Some(PlanType::Known(KnownPlan::Edu)) => format!(
+            Some(PlanType::Enterprise) | Some(PlanType::Edu) => format!(
                 "You've hit your usage limit.{}",
                 retry_suffix(self.resets_at.as_ref())
             ),
-            Some(PlanType::Unknown(_)) | None => format!(
+            Some(PlanType::Unknown) | None => format!(
                 "You've hit your usage limit.{}",
                 retry_suffix(self.resets_at.as_ref())
             ),

@@ -53,6 +53,7 @@ use darwin_code_protocol::model_metadata::ModelInfo;
 use darwin_code_protocol::model_metadata::ReasoningEffort as ReasoningEffortConfig;
 use darwin_code_protocol::models::ContentItem;
 use darwin_code_protocol::models::FunctionCallOutputBody;
+use darwin_code_protocol::models::LocalShellAction;
 use darwin_code_protocol::models::ResponseItem;
 use darwin_code_protocol::protocol::SessionSource;
 use darwin_code_protocol::protocol::SubAgentSource;
@@ -726,12 +727,24 @@ fn chat_messages_from_prompt(prompt: &Prompt) -> Vec<ChatCompletionsMessage> {
     }
 
     let mut current_assistant_msg: Option<ChatCompletionsMessage> = None;
+    let mut pending_tool_call_ids: Vec<String> = Vec::new();
+    let mut deferred_messages: Vec<ChatCompletionsMessage> = Vec::new();
     let push_current = |messages: &mut Vec<ChatCompletionsMessage>,
-                        current: &mut Option<ChatCompletionsMessage>| {
+                        current: &mut Option<ChatCompletionsMessage>,
+                        pending_tool_call_ids: &mut Vec<String>| {
         if let Some(msg) = current.take() {
+            pending_tool_call_ids.extend(msg.tool_calls.iter().map(|tc| tc.id.clone()));
             messages.push(msg);
         }
     };
+    let flush_deferred =
+        |messages: &mut Vec<ChatCompletionsMessage>,
+         pending_tool_call_ids: &[String],
+         deferred_messages: &mut Vec<ChatCompletionsMessage>| {
+            if pending_tool_call_ids.is_empty() {
+                messages.append(deferred_messages);
+            }
+        };
 
     for item in prompt.get_formatted_input() {
         match item {
@@ -745,16 +758,41 @@ fn chat_messages_from_prompt(prompt: &Prompt) -> Vec<ChatCompletionsMessage> {
                 let text = content_items_to_plain_text(&content);
 
                 if role_str == "assistant" {
-                    push_current(&mut messages, &mut current_assistant_msg);
+                    let has_open_tool_calls = current_assistant_msg
+                        .as_ref()
+                        .is_some_and(|msg| !msg.tool_calls.is_empty())
+                        || !pending_tool_call_ids.is_empty();
+                    push_current(
+                        &mut messages,
+                        &mut current_assistant_msg,
+                        &mut pending_tool_call_ids,
+                    );
                     if !text.is_empty() || reasoning_content.is_some() {
                         let mut msg = ChatCompletionsMessage::text(role_str, text);
                         msg.reasoning_content = reasoning_content.clone();
-                        current_assistant_msg = Some(msg);
+                        if has_open_tool_calls {
+                            deferred_messages.push(msg);
+                        } else {
+                            current_assistant_msg = Some(msg);
+                        }
                     }
                 } else {
-                    push_current(&mut messages, &mut current_assistant_msg);
                     if !text.is_empty() {
-                        messages.push(ChatCompletionsMessage::text(role_str, text));
+                        let msg = ChatCompletionsMessage::text(role_str, text);
+                        if current_assistant_msg
+                            .as_ref()
+                            .is_some_and(|msg| !msg.tool_calls.is_empty())
+                            || !pending_tool_call_ids.is_empty()
+                        {
+                            deferred_messages.push(msg);
+                        } else {
+                            push_current(
+                                &mut messages,
+                                &mut current_assistant_msg,
+                                &mut pending_tool_call_ids,
+                            );
+                            messages.push(msg);
+                        }
                     }
                 }
             }
@@ -779,12 +817,45 @@ fn chat_messages_from_prompt(prompt: &Prompt) -> Vec<ChatCompletionsMessage> {
                         Some(ChatCompletionsMessage::assistant_tool_calls(vec![tc]));
                 }
             }
+            ResponseItem::LocalShellCall {
+                id,
+                call_id,
+                action,
+                ..
+            } => {
+                if let Some(call_id) = call_id.clone().or_else(|| id.clone()) {
+                    let tc = ChatCompletionsToolCall {
+                        id: call_id,
+                        r#type: "function".to_string(),
+                        function: ChatCompletionsFunctionCall {
+                            name: "local_shell".to_string(),
+                            arguments: local_shell_action_to_chat_arguments(&action),
+                        },
+                    };
+                    if let Some(msg) = &mut current_assistant_msg {
+                        msg.tool_calls.push(tc);
+                    } else {
+                        current_assistant_msg =
+                            Some(ChatCompletionsMessage::assistant_tool_calls(vec![tc]));
+                    }
+                }
+            }
             ResponseItem::FunctionCallOutput { call_id, output } => {
-                push_current(&mut messages, &mut current_assistant_msg);
+                push_current(
+                    &mut messages,
+                    &mut current_assistant_msg,
+                    &mut pending_tool_call_ids,
+                );
                 messages.push(ChatCompletionsMessage::tool_output(
-                    call_id,
+                    call_id.clone(),
                     function_output_to_plain_text(output),
                 ));
+                pending_tool_call_ids.retain(|id| id != &call_id);
+                flush_deferred(
+                    &mut messages,
+                    &pending_tool_call_ids,
+                    &mut deferred_messages,
+                );
             }
             ResponseItem::CustomToolCall {
                 call_id,
@@ -810,19 +881,52 @@ fn chat_messages_from_prompt(prompt: &Prompt) -> Vec<ChatCompletionsMessage> {
             ResponseItem::CustomToolCallOutput {
                 call_id, output, ..
             } => {
-                push_current(&mut messages, &mut current_assistant_msg);
+                push_current(
+                    &mut messages,
+                    &mut current_assistant_msg,
+                    &mut pending_tool_call_ids,
+                );
                 messages.push(ChatCompletionsMessage::tool_output(
-                    call_id,
+                    call_id.clone(),
                     function_output_to_plain_text(output),
                 ));
+                pending_tool_call_ids.retain(|id| id != &call_id);
+                flush_deferred(
+                    &mut messages,
+                    &pending_tool_call_ids,
+                    &mut deferred_messages,
+                );
             }
             _ => {}
         }
     }
 
-    push_current(&mut messages, &mut current_assistant_msg);
+    push_current(
+        &mut messages,
+        &mut current_assistant_msg,
+        &mut pending_tool_call_ids,
+    );
+    for call_id in pending_tool_call_ids.drain(..) {
+        messages.push(ChatCompletionsMessage::tool_output(call_id, "aborted"));
+    }
+    flush_deferred(
+        &mut messages,
+        &pending_tool_call_ids,
+        &mut deferred_messages,
+    );
 
     messages
+}
+
+fn local_shell_action_to_chat_arguments(action: &LocalShellAction) -> String {
+    match action {
+        LocalShellAction::Exec(exec) => serde_json::json!({
+            "command": exec.command,
+            "workdir": exec.working_directory,
+            "timeout_ms": exec.timeout_ms,
+        })
+        .to_string(),
+    }
 }
 
 fn chat_role(role: &str) -> &str {
