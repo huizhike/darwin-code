@@ -1,11 +1,11 @@
 {
-  "name": "codex-monorepo",
+  "name": "darwin-code-monorepo",
   "private": true,
   "description": "Tools for repo-wide maintenance.",
   "scripts": {
     "format": "prettier --check *.json *.md docs/*.md .github/workflows/*.yml **/*.js",
     "format:fix": "prettier --write *.json *.md docs/*.md .github/workflows/*.yml **/*.js",
-    "write-hooks-schema": "cargo run --manifest-path ./codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures"
+    "write-hooks-schema": "cargo run --manifest-path ./darwin-rs/Cargo.toml -p darwin-code-hooks --bin write_hooks_schema_fixtures"
   },
   "devDependencies": {
     "prettier": "^3.5.3"

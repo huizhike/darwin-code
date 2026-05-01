@@ -1,0 +1,10 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "windows-sandbox-rs",
+    crate_name = "darwin_code_windows_sandbox",
+    build_script_data = [
+        "Cargo.toml",
+        "darwin-code-windows-sandbox-setup.manifest",
+    ],
+)

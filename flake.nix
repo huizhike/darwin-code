@@ -1,5 +1,5 @@
 {
-  description = "Development Nix flake for OpenAI Codex CLI";
+  description = "Development Nix flake for Darwin Code CLI";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -21,7 +21,7 @@
 
       # Read the version from the workspace Cargo.toml (the single source of
       # truth used by the release workflow).
-      cargoToml = builtins.fromTOML (builtins.readFile ./codex-rs/Cargo.toml);
+      cargoToml = builtins.fromTOML (builtins.readFile ./darwin-rs/Cargo.toml);
       cargoVersion = cargoToml.workspace.package.version;
 
       # When building from a release commit the Cargo.toml already carries the
@@ -39,7 +39,7 @@
             inherit system;
             overlays = [ rust-overlay.overlays.default ];
           };
-          codex-rs = pkgs.callPackage ./codex-rs {
+          darwin-rs = pkgs.callPackage ./darwin-rs {
             inherit version;
             rustPlatform = pkgs.makeRustPlatform {
               cargo = pkgs.rust-bin.stable.latest.minimal;
@@ -48,8 +48,8 @@
           };
         in
         {
-          codex-rs = codex-rs;
-          default = codex-rs;
+          darwin-rs = darwin-rs;
+          default = darwin-rs;
         }
       );
 

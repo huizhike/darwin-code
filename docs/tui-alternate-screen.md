@@ -2,13 +2,13 @@
 
 ## Overview
 
-This document explains the design decision behind Codex's alternate screen handling, particularly in terminal multiplexers like Zellij. This addresses a fundamental conflict between fullscreen TUI behavior and terminal scrollback history preservation.
+This document explains the design decision behind Darwin Code's alternate screen handling, particularly in terminal multiplexers like Zellij. This addresses a fundamental conflict between fullscreen TUI behavior and terminal scrollback history preservation.
 
 ## The Problem
 
 ### Fullscreen TUI Benefits
 
-Codex's TUI uses the terminal's **alternate screen buffer** to provide a clean fullscreen experience. This approach:
+Darwin Code's TUI uses the terminal's **alternate screen buffer** to provide a clean fullscreen experience. This approach:
 
 - Uses the entire viewport without polluting the terminal's scrollback history
 - Provides a dedicated environment for the chat interface
@@ -22,7 +22,7 @@ Terminal multiplexers like **Zellij** strictly follow the xterm specification, w
 - **Rationale:** The xterm spec explicitly states that alternate screen mode disallows scrollback
 - **Configurability:** This is not configurable in Zellij—there is no option to enable scrollback in alternate screen mode
 
-When using Codex's TUI in Zellij, users cannot scroll back through the conversation history because:
+When using Darwin Code's TUI in Zellij, users cannot scroll back through the conversation history because:
 
 1. The TUI runs in alternate screen mode (fullscreen)
 2. Zellij disables scrollback in alternate screen buffers (per xterm spec)
@@ -30,7 +30,7 @@ When using Codex's TUI in Zellij, users cannot scroll back through the conversat
 
 ## The Solution
 
-Codex implements a **pragmatic workaround** with three modes, controlled by `tui.alternate_screen` in `config.toml`:
+Darwin Code implements a **pragmatic workaround** with three modes, controlled by `tui.alternate_screen` in `config.toml`:
 
 ### 1. `auto` (default)
 
@@ -55,7 +55,7 @@ Codex implements a **pragmatic workaround** with three modes, controlled by `tui
 The `--no-alt-screen` CLI flag can override the config setting at runtime:
 
 ```bash
-codex --no-alt-screen
+darwin --no-alt-screen
 ```
 
 This runs the TUI in inline mode regardless of the configuration, useful for:
@@ -71,15 +71,15 @@ This runs the TUI in inline mode regardless of the configuration, useful for:
 The `auto` mode detects Zellij by checking the `ZELLIJ` environment variable:
 
 ```rust
-let terminal_info = codex_core::terminal::terminal_info();
+let terminal_info = darwin_code_core::terminal::terminal_info();
 !matches!(terminal_info.multiplexer, Some(Multiplexer::Zellij { .. }))
 ```
 
-This detection happens in the helper function `determine_alt_screen_mode()` in `codex-rs/tui/src/lib.rs`.
+This detection happens in the helper function `determine_alt_screen_mode()` in `darwin-rs/tui/src/lib.rs`.
 
 ### Configuration Schema
 
-The `AltScreenMode` enum is defined in `codex-rs/protocol/src/config_types.rs` and serializes to lowercase TOML:
+The `AltScreenMode` enum is defined in `darwin-rs/protocol/src/config_types.rs` and serializes to lowercase TOML:
 
 ```toml
 [tui]
@@ -97,8 +97,8 @@ We use `auto` detection instead of always disabling in Zellij because:
 
 ## Related Issues and References
 
-- **Original Issue:** [GitHub #2558](https://github.com/openai/codex/issues/2558) - "No scrollback in Zellij"
-- **Implementation PR:** [GitHub #8555](https://github.com/openai/codex/pull/8555)
+- **Original Issue:** [GitHub #2558](https://github.com/darwin/darwin-code/issues/2558) - "No scrollback in Zellij"
+- **Implementation PR:** [GitHub #8555](https://github.com/darwin/darwin-code/pull/8555)
 - **Zellij PR:** https://github.com/zellij-org/zellij/pull/1032 (why scrollback is disabled)
 - **xterm Spec:** Alternate screen buffers should not have scrollback
 
@@ -112,7 +112,7 @@ We use `auto` detection instead of always disabling in Zellij because:
 
 ### Transcript Pager
 
-Codex's transcript pager (opened with Ctrl+T) provides an alternative way to review conversation history, even in fullscreen mode. However, this is not as seamless as natural scrollback.
+Darwin Code's transcript pager (opened with Ctrl+T) provides an alternative way to review conversation history, even in fullscreen mode. However, this is not as seamless as natural scrollback.
 
 ## For Developers
 
@@ -123,7 +123,7 @@ When modifying TUI code, remember:
 - CLI flag is in `cli.no_alt_screen`
 - The behavior is applied via `tui.set_alt_screen_enabled()`
 
-If you encounter issues with terminal state after running Codex, you can restore your terminal with:
+If you encounter issues with terminal state after running Darwin Code, you can restore your terminal with:
 
 ```bash
 reset

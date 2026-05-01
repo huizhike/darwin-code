@@ -1,0 +1,22 @@
+---
+source: tui/src/chatwidget/tests/slash_commands.rs
+expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
+---
+
+
+
+╭───────────────────────────────────────╮
+│ >_ Darwin Code (v0.0.0)         │
+│                                       │
+│ model:     loading   /model to change │
+│ directory: /tmp/project               │
+╰───────────────────────────────────────╯
+
+• Working (0s • esc to interrupt)
+
+• Messages to be submitted at end of turn
+  ↳ Steer submitted while /compact was running.
+
+› Explain this codebase
+
+  gpt-5.3-darwin-code default · /tmp/project

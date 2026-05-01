@@ -1,21 +1,20 @@
 # Darwin Code Engine
 
-Internal fork of OpenAI Codex CLI for Darwin's autonomous coding pipeline.
+Internal fork of Darwin Code CLI for Darwin's autonomous coding pipeline.
 
 ## Upstream Source
 
 | Field | Value |
 |-------|-------|
-| **Upstream** | `openai/codex` (Apache-2.0) |
-| **Stable npm version** | `@openai/codex@0.121.0` (`latest` dist-tag) |
+| **Upstream** | `darwin/darwin-code` (Apache-2.0) |
+| **Stable npm version** | `@darwin/darwin-code@0.121.0` (`latest` dist-tag) |
 | **Source commit** | `def6467d2bb7c9ff6333d59b6f64a0acf839817a` (2026-04-18) |
 | **Alpha (not used)** | `0.122.0-alpha.9` |
 
 ## Directory Structure
 
-- `codex-cli/` — Node.js CLI entry point
-- `codex-rs/` — Rust sandbox runtime (codex-exec, codex-core, codex-tui)
-- `sdk/` — SDK bindings
+- `darwin-cli/` — Node.js CLI entry point
+- `darwin-rs/` — Rust sandbox runtime (darwin-code-exec, darwin-code-core, darwin-code-tui)
 - `docs/` — Documentation
 
 ## Run from Source
@@ -24,16 +23,25 @@ Internal fork of OpenAI Codex CLI for Darwin's autonomous coding pipeline.
 >
 > Rust 项目默认会产生巨大的增量编译缓存。长期开发可能导致 `target/` 目录累积突破 100GB，给系统存储造成灾难。系统已默认配置了底层的 cargo 命令拦截器，每天会自动在后台静默清理 1 天前的冗余缓存。如果依然遭遇空间不足，可手动执行 `cargo sweep --time 1`。
 
+### 配置文件
+
 ```bash
 cd 70-darwin-code
-# 在本地未跟踪 config.toml 中填写 [openai_compatible.deepseek].api_key
-cd codex-rs
+cp config-example.toml config.toml
+$EDITOR config.toml   # 填写 api_key，按需修改 provider/model/base_url
+```
+
+`config.toml` 是本地配置，不提交；从源码运行时默认读取 checkout 根目录的
+`config.toml`。如需使用其他配置目录，设置 `DARWIN_CODE_HOME`。
+
+```bash
+cd 70-darwin-code
+cd darwin-rs
 cargo clean
 cargo run -p darwin-code-cli --bin darwin-code
 ```
 
-从源码目录运行且未设置 `DARWIN_CODE_HOME` / `CODEX_HOME` 时，Darwin Code 会
-自动使用 checkout 根目录的 `config.toml`。如需覆盖配置目录，可显式设置：
+使用其他配置目录：
 
 ```bash
 export DARWIN_CODE_HOME=/path/to/darwin-code-home
@@ -62,10 +70,10 @@ wire_api = "chat-completions"
 api_key = "你的 DeepSeek API Key"
 ```
 
-### Local cli2api / generic OpenAI-compatible endpoint
+### Generic OpenAI-compatible endpoint
 
-任何实现 OpenAI-compatible API 的外部网关（例如公司网关、`cli2api`、本地代理）
-都作为标准 endpoint 出现在 Darwin Code 里：
+任何实现 OpenAI-compatible API 的外部网关（例如公司网关、本地代理）都作为
+标准 endpoint 出现在 Darwin Code 里：
 
 ```toml
 model_provider = "my-gateway"
@@ -79,8 +87,8 @@ api_key = "你的网关 API Key"
 ```
 
 `wire_api` 表示 provider 实际支持的协议路径：DeepSeek 官方 API 使用
-`chat-completions`（请求 `/chat/completions`）；本地 `cli2api` 或其他兼容
-OpenAI Responses API 的网关使用 `responses`（请求 `/responses`）。不要把
+`chat-completions`（请求 `/chat/completions`）；兼容 OpenAI Responses API
+的网关使用 `responses`（请求 `/responses`）。不要把
 DeepSeek 的 `base_url` 写成带 `/v1` 后再走 Responses，否则会命中 DeepSeek 不支持的
 `/v1/responses`。
 

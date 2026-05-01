@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "otel",
+    crate_name = "darwin_code_otel",
+    integration_test_args = ["--test-threads=1"],
+)

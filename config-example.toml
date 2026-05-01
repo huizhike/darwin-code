@@ -1,0 +1,225 @@
+# DarwinCode default config template
+#
+# 用法：
+#   cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
+#   cargo run -p darwin-code-cli --bin darwin-code
+#
+# 说明：
+# - 这是一个可解析的默认模板；未启用的配置项以注释形式列出，表示“保持程序默认值”。
+# - 复制为 config.toml 后，从源码 checkout 内运行且未显式设置 DARWIN_CODE_HOME 时，会自动读取该文件。
+# - 如需覆盖配置目录，可显式设置 DARWIN_CODE_HOME。
+# - DarwinCode 产品默认是 BYOK：provider / model / base_url / api_key 由用户配置。
+# - 本地未跟踪配置可以直接写 api_key；仓库模板/文档示例不要提交真实 key。
+
+# =============================================================================
+# 1. 默认 BYOK provider：DeepSeek v4（OpenAI-compatible）
+# =============================================================================
+
+model_provider = "deepseek"
+model = "deepseek-v4-flash"
+review_model = "deepseek-v4-pro"
+model_catalog_json = "/home/xklab/01-darwin/dcode/70-darwin-code/model-catalog.deepseek.json"
+model_reasoning_effort = "none"
+approvals_reviewer = "user"
+
+[openai_compatible.deepseek]
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+wire_api = "chat-completions"
+# 本地 TUI 可以在 config.toml 中直接写明文 key；不要把真实 key 提交到仓库：
+# api_key = "your-api-key"
+api_key = "your-api-key"
+
+[projects."/home/xklab/01-darwin/dcode/70-darwin-code"]
+trust_level = "trusted"
+
+# [openai]
+# base_url = "https://api.openai.com/v1"
+# api_key = "your-api-key"
+
+# [openai_compatible.deepseek]
+# name = "DeepSeek"
+# base_url = "https://api.deepseek.com"
+# wire_api = "chat-completions"
+# api_key = "your-api-key"
+
+# 通用 OpenAI-compatible 网关示例：公司网关、本地代理等都按标准 endpoint 处理。
+# [openai_compatible.my-gateway]
+# name = "My Gateway"
+# base_url = "http://127.0.0.1:8080/v1"
+# wire_api = "responses"
+# api_key = "your-api-key"
+
+# Gemini / Claude native 是目标协议族；当前 runtime adapter 未落地时，选择它们会明确报错。
+# 临时使用 Gemini/Claude 的 OpenAI-compatible 网关时，请把 family 改成 "openai-compatible"。
+# [gemini]
+# base_url = "https://generativelanguage.googleapis.com/v1beta"
+# api_key = "your-api-key"
+#
+# [claude]
+# base_url = "https://api.anthropic.com"
+# api_key = "your-api-key"
+
+# =============================================================================
+# 2. 所有顶层配置项默认模板（保持注释即使用程序默认值）
+# =============================================================================
+
+# model = "gpt-5.5"                         # OpenAI 官方 BYOK 可选模型
+# review_model = "gpt-5.5"
+# model_provider = "openai"
+# model_context_window = 200000
+# model_auto_compact_token_limit = 180000
+# model_reasoning_effort = "medium"          # 可选："minimal"/"low"/"medium"/"high"
+# plan_mode_reasoning_effort = "medium"
+# model_reasoning_summary = "auto"           # 可选："auto"/"concise"/"detailed"/"none"
+# model_verbosity = "medium"                 # 可选："low"/"medium"/"high"
+# model_supports_reasoning_summaries = true
+# model_catalog_json = "/absolute/path/to/models.json"
+# model_instructions_file = "/absolute/path/to/instructions.md"
+# instructions = ""
+# developer_instructions = ""
+# compact_prompt = ""
+# personality = "none"
+# service_tier = "auto"                      # 可选："auto"/"default"/"flex"
+
+# approval_policy = "untrusted"              # 常见："untrusted"/"on-failure"/"on-request"/"never"
+# approvals_reviewer = "user"
+# sandbox_mode = "workspace-write"           # 常见："read-only"/"workspace-write"/"danger-full-access"
+# allow_login_shell = true                    # 默认 true
+# default_permissions = "default"
+
+# include_permissions_instructions = true
+# include_environment_context = true
+# hide_agent_reasoning = false
+# show_raw_agent_reasoning = false
+# disable_paste_burst = false
+# suppress_unstable_features_warning = false
+# check_for_update_on_startup = true
+# windows_wsl_setup_acknowledged = false
+
+# openai_base_url = "https://api.openai.com/v1"  # 可选：显式 model_provider = "openai" 时的 OpenAI BYOK endpoint 覆盖
+
+# project_doc_max_bytes = 32768
+# project_doc_fallback_filenames = ["AGENTS.md"]
+# project_root_markers = [".git"]
+# tool_output_token_limit = 20000
+# background_terminal_max_timeout = 300000       # ms，默认 5 分钟
+# js_repl_node_path = "/absolute/path/to/node"
+# js_repl_node_module_dirs = ["/absolute/path/to/node_modules"]
+# zsh_path = "/absolute/path/to/zsh"
+# sqlite_home = "/absolute/path/to/sqlite-home"
+# log_dir = "/absolute/path/to/log"
+# commit_attribution = ""
+# notify = ["terminal-notifier", "DarwinCode finished"]
+
+# =============================================================================
+# 3. 子表默认模板
+# =============================================================================
+
+# [shell_environment_policy]
+# inherit = "all"                              # 可选："all"/"core"/"none"
+# ignore_default_excludes = false
+# include_only = []
+# exclude = []
+# set = {}
+# experimental_use_profile = false
+
+# [sandbox_workspace_write]
+# writable_roots = []
+# network_access = false
+# exclude_tmpdir_env_var = false
+# exclude_slash_tmp = false
+
+# [permissions]
+# # 在这里定义命名 permissions profile；default_permissions 指向 profile 名。
+#
+# [permissions.default]
+# # 具体字段以 schema 为准；保持注释则使用运行时默认权限策略。
+
+# [history]
+# persistence = "save-all"                     # 常见："save-all"/"none"
+# max_bytes = 10485760
+
+# [tui]
+# alternate_screen = "auto"
+# notifications = true
+
+# [web_search]
+# mode = "cached"                              # 可选："disabled"/"cached"/"live"
+
+# [tools]
+# web_search = "cached"
+# view_image = true
+
+# [tool_suggest]
+# enabled = true
+
+# [agents]
+# max_threads = 8
+# max_depth = 4
+# job_max_runtime_seconds = 3600
+
+# [memories]
+# enabled = true
+
+# [skills]
+# enabled = true
+
+# [features]
+# # 功能开关统一放在这里；保持注释即使用默认 feature 状态。
+
+# [ghost_snapshot]
+# enabled = false
+
+# [windows]
+# level = "none"
+
+# [projects]
+# # 以绝对项目路径为 key，保存项目 trust 等本地状态。
+#
+# [projects."/absolute/path/to/project"]
+# trust_level = "trusted"
+
+# [profiles]
+# # 命名 profile，可通过 profile = "work" 选择。
+#
+# [profiles.work]
+# model_provider = "openai"
+# model = "gpt-5"
+# approval_policy = "untrusted"
+
+# [mcp_servers]
+# # MCP server 示例。
+#
+# [mcp_servers.example]
+# command = "example-mcp-server"
+# args = []
+# env = {}
+# supports_parallel_tool_calls = false
+
+# [plugins]
+# # 插件配置 keyed by plugin name。
+
+# [marketplaces]
+# # 插件 marketplace 配置 keyed by marketplace name。
+
+# [model_providers]
+# # 高级兼容入口。DarwinCode 产品默认请使用 [openai_compatible.<id>]。
+#
+# [model_providers.openai-custom]
+# name = "OpenAI custom"
+# base_url = "https://api.openai.com/v1"
+# api_key = "your-api-key"
+# wire_api = "responses"
+# request_max_retries = 4
+# stream_max_retries = 10
+# stream_idle_timeout_ms = 300000
+# BYOK-only：不要配置 experimental_bearer_token、[auth]、requires_openai_auth 或 supports_websockets。
+
+# [openai_compatible_provider]
+# # 旧单 provider 迁移入口；新配置请使用 [openai_compatible.<id>]。
+# preset = "deepseek"
+# name = "DeepSeek"
+# base_url = "https://api.deepseek.com"
+# wire_api = "chat-completions"
+# api_key = "your-api-key"

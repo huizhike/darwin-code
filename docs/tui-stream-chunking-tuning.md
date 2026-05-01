@@ -6,8 +6,8 @@ changing the underlying policy shape.
 ## Scope
 
 Use this guide when adjusting queue-pressure thresholds and hysteresis windows in
-`codex-rs/tui/src/streaming/chunking.rs`, and baseline commit cadence in
-`codex-rs/tui/src/app.rs`.
+`darwin-rs/tui/src/streaming/chunking.rs`, and baseline commit cadence in
+`darwin-rs/tui/src/app.rs`.
 
 This guide is about tuning behavior, not redesigning the policy.
 
@@ -17,7 +17,7 @@ This guide is about tuning behavior, not redesigning the policy.
   - `Smooth` mode drains one line per baseline tick.
   - `CatchUp` mode drains queued backlog immediately.
 - Capture trace logs with:
-  - `codex_tui::streaming::commit_tick`
+  - `darwin_code_tui::streaming::commit_tick`
 - Evaluate on sustained, bursty, and mixed-output prompts.
 
 See `docs/tui-stream-chunking-validation.md` for the measurement process.
@@ -92,7 +92,7 @@ Change one logical group at a time and re-measure before the next group.
 
 ## Validation checklist after each tuning pass
 
-- `cargo test -p codex-tui` passes.
+- `cargo test -p darwin-code-tui` passes.
 - Trace window shows bounded queue-age behavior.
 - Mode transitions are not concentrated in repeated short-interval cycles.
 - Catch-up clears backlog quickly once mode enters `CatchUp`.

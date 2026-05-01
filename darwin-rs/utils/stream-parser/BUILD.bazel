@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "stream-parser",
+    crate_name = "darwin_code_utils_stream_parser",
+)

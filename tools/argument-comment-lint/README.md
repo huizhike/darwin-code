@@ -25,7 +25,7 @@ self-descriptive at the callsite.
 Given:
 
 ```rust
-fn create_openai_url(base_url: Option<String>, retry_count: usize) -> String {
+fn create_darwin_url(base_url: Option<String>, retry_count: usize) -> String {
     let _ = (base_url, retry_count);
     String::new()
 }
@@ -34,19 +34,19 @@ fn create_openai_url(base_url: Option<String>, retry_count: usize) -> String {
 This is accepted:
 
 ```rust
-create_openai_url(/*base_url*/ None, /*retry_count*/ 3);
+create_darwin_url(/*base_url*/ None, /*retry_count*/ 3);
 ```
 
 This is warned on by `argument_comment_mismatch`:
 
 ```rust
-create_openai_url(/*api_base*/ None, 3);
+create_darwin_url(/*api_base*/ None, 3);
 ```
 
 This is only warned on when `uncommented_anonymous_literal_argument` is enabled:
 
 ```rust
-create_openai_url(None, 3);
+create_darwin_url(None, 3);
 ```
 
 ## Development
@@ -85,7 +85,7 @@ rustup toolchain install nightly-2025-09-18 \
 
 The checked-in DotSlash file lives at `tools/argument-comment-lint/argument-comment-lint`.
 `run-prebuilt-linter.py` resolves that file via `dotslash` and is the path used by
-targeted package runs such as `just argument-comment-lint -p codex-core`.
+targeted package runs such as `just argument-comment-lint -p darwin-code-core`.
 Repo-wide runs now go through a native Bazel aspect that invokes a custom
 `rustc_driver` and reuses Bazel-managed Rust dependency metadata instead of
 spawning `cargo dylint` once per crate. The source-build path remains available
@@ -112,59 +112,22 @@ host-qualified nightly filename to the plain `nightly-2025-09-18` channel when
 needed, and then invokes `cargo-dylint dylint --lib-path <that-library>` with
 the repo's default `DYLINT_RUSTFLAGS` and `CARGO_INCREMENTAL=0` settings.
 
-The checked-in `run-prebuilt-linter.py` wrapper uses the fetched package
-contents directly so the current checked-in alpha artifact works the same way.
-It also makes sure the `rustup` shims stay ahead of any direct toolchain
-`cargo` binary on `PATH`, and sets `RUSTUP_HOME` from `rustup show home` when
-the environment does not already provide it. That extra `RUSTUP_HOME` export is
-required for the current Windows Dylint driver path.
-
-If you are changing the lint crate itself, use the source-build wrapper:
-
-```bash
-./tools/argument-comment-lint/run.py -p codex-core
-```
-
-Run the lint against `codex-rs` from the repo root:
+Run the lint against `darwin-rs` from the repo root:
 
 ```bash
 just argument-comment-lint
 bazel build --config=argument-comment-lint -- \
   $(./tools/argument-comment-lint/list-bazel-targets.sh)
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core
-just argument-comment-lint -p codex-core
 ```
 
-If no package selection is provided, `just argument-comment-lint` now defaults
-to the Bazel aspect path over `//codex-rs/...`. The Python wrappers remain the
-package-scoped escape hatch and still default the underlying Cargo invocation
-to `--all-targets` unless you explicitly narrow the target set, so targeted
-wrapper runs cover test-only call sites by default. The Bazel entrypoints use
-`tools/argument-comment-lint/list-bazel-targets.sh` to add the internal
-manual `*-unit-tests-bin` Rust targets explicitly, so inline `#[cfg(test)]`
-call sites are covered without pulling in unrelated manual release targets.
+`just argument-comment-lint` uses the Bazel aspect path over `//darwin-rs/...`.
+The Bazel entrypoints use `tools/argument-comment-lint/list-bazel-targets.sh`
+to add the internal manual `*-unit-tests-bin` Rust targets explicitly, so inline
+`#[cfg(test)]` call sites are covered without pulling in unrelated manual
+release targets.
 
 Repo runs also promote `argument_comment_mismatch` and
 `uncommented_anonymous_literal_argument` to errors by default:
 
-```bash
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core
-```
-
-The wrapper does that by setting `DYLINT_RUSTFLAGS`, and it leaves an explicit
-existing setting alone. It also defaults `CARGO_INCREMENTAL=0` unless you have
-already set it, because the current nightly Dylint flow can otherwise hit a
-rustc incremental compilation ICE locally. To override that behavior for an ad
-hoc run:
-
-```bash
-DYLINT_RUSTFLAGS="-A argument-comment-mismatch -A uncommented-anonymous-literal-argument" \
-CARGO_INCREMENTAL=1 \
-  ./tools/argument-comment-lint/run.py -p codex-core
-```
-
-To override an explicitly narrow target selection, or to be explicit in scripts:
-
-```bash
-./tools/argument-comment-lint/run-prebuilt-linter.py -p codex-core -- --all-targets
-```
+Use the Bazel aspect path for repo runs; Python wrapper entrypoints are not part
+of the Darwin Code pure execution surface.

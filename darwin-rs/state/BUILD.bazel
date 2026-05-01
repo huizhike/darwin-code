@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "state",
+    crate_name = "darwin_code_state",
+    compile_data = glob(["logs_migrations/**", "migrations/**"]),
+)

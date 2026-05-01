@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "fuzzy-match",
+    crate_name = "darwin_code_utils_fuzzy_match",
+)

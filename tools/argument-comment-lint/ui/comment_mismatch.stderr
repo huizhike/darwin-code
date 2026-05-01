@@ -1,7 +1,7 @@
 warning: argument comment `/*api_base*/` does not match parameter `base_url`
   --> $DIR/comment_mismatch.rs:9:44
    |
-LL |     let _ = create_openai_url(/*api_base*/ None);
+LL |     let _ = create_darwin_url(/*api_base*/ None);
    |                                            ^^^^
    |
    = help: use `/*base_url*/`

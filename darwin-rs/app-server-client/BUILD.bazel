@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "app-server-client",
+    crate_name = "darwin_code_app_server_client",
+)

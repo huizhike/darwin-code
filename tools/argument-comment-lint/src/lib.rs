@@ -62,21 +62,21 @@ rustc_session::declare_lint! {
     /// ### Example
     ///
     /// ```rust
-    /// fn create_openai_url(base_url: Option<String>) -> String {
+    /// fn create_darwin_url(base_url: Option<String>) -> String {
     ///     String::new()
     /// }
     ///
-    /// create_openai_url(/*api_base*/ None);
+    /// create_darwin_url(/*api_base*/ None);
     /// ```
     ///
     /// Use instead:
     ///
     /// ```rust
-    /// fn create_openai_url(base_url: Option<String>) -> String {
+    /// fn create_darwin_url(base_url: Option<String>) -> String {
     ///     String::new()
     /// }
     ///
-    /// create_openai_url(/*base_url*/ None);
+    /// create_darwin_url(/*base_url*/ None);
     /// ```
     pub ARGUMENT_COMMENT_MISMATCH,
     Warn,
@@ -101,21 +101,21 @@ rustc_session::declare_lint! {
     /// ### Example
     ///
     /// ```rust
-    /// fn create_openai_url(base_url: Option<String>) -> String {
+    /// fn create_darwin_url(base_url: Option<String>) -> String {
     ///     String::new()
     /// }
     ///
-    /// create_openai_url(None);
+    /// create_darwin_url(None);
     /// ```
     ///
     /// Use instead:
     ///
     /// ```rust
-    /// fn create_openai_url(base_url: Option<String>) -> String {
+    /// fn create_darwin_url(base_url: Option<String>) -> String {
     ///     String::new()
     /// }
     ///
-    /// create_openai_url(/*base_url*/ None);
+    /// create_darwin_url(/*base_url*/ None);
     /// ```
     pub UNCOMMENTED_ANONYMOUS_LITERAL_ARGUMENT,
     Allow,
@@ -252,7 +252,7 @@ fn is_meaningful_parameter_name(name: &str) -> bool {
 }
 
 fn is_workspace_crate_name(name: &str) -> bool {
-    name.starts_with("codex_")
+    name.starts_with("darwin_code_")
         || matches!(
             name,
             "app_test_support" | "core_test_support" | "mcp_test_support"
@@ -266,8 +266,8 @@ fn ui() {
 
 #[test]
 fn workspace_crate_filter_accepts_first_party_names_only() {
-    assert!(is_workspace_crate_name("codex_core"));
-    assert!(is_workspace_crate_name("codex_tui"));
+    assert!(is_workspace_crate_name("darwin_code_core"));
+    assert!(is_workspace_crate_name("darwin_code_tui"));
     assert!(is_workspace_crate_name("core_test_support"));
     assert!(!is_workspace_crate_name("std"));
     assert!(!is_workspace_crate_name("tokio"));

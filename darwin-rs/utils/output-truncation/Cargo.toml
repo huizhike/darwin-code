@@ -1,0 +1,15 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-utils-output-truncation"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-protocol = { workspace = true }
+darwin-code-utils-string = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

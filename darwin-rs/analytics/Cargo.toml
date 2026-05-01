@@ -1,0 +1,33 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-analytics"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "darwin_code_analytics"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-client = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-git-utils = { workspace = true }
+darwin-code-plugin = { workspace = true }
+darwin-code-protocol = { workspace = true }
+os_info = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+] }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+darwin-code-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }

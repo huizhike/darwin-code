@@ -1,7 +1,0 @@
-load("//:defs.bzl", "darwin_code_rust_crate")
-
-darwin_code_rust_crate(
-    name = "common",
-    crate_name = "app_test_support",
-    crate_srcs = glob(["*.rs"]),
-)

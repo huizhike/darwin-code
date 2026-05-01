@@ -1,0 +1,40 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-core-skills"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "darwin_code_core_skills"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+darwin-code-analytics = { workspace = true }
+darwin-code-app-server-protocol = { workspace = true }
+darwin-code-config = { workspace = true }
+darwin-code-exec-server = { workspace = true }
+darwin-code-instructions = { workspace = true }
+darwin-code-otel = { workspace = true }
+darwin-code-protocol = { workspace = true }
+darwin-code-skills = { workspace = true }
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-output-truncation = { workspace = true }
+darwin-code-utils-plugins = { workspace = true }
+dirs = { workspace = true }
+dunce = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

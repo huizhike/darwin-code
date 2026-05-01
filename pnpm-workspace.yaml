@@ -1,6 +1,5 @@
 packages:
-  - codex-cli
-  - sdk/typescript
+  - darwin-cli
 
 ignoredBuiltDependencies:
   - esbuild

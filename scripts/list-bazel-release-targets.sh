@@ -12,5 +12,5 @@ cd "${repo_root}"
 # build machinery that is unrelated to the release-only Rust regression this
 # workflow is meant to catch.
 printf '%s\n' \
-  "//codex-rs/..." \
-  "-//codex-rs/v8-poc:all"
+  "//darwin-rs/..." \
+  "-//darwin-rs/v8-poc:all"

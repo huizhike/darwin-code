@@ -1,0 +1,6 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "cache",
+    crate_name = "darwin_code_utils_cache",
+)

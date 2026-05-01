@@ -1,0 +1,11 @@
+[package]
+name = "darwin-code-utils-approval-presets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-protocol = { workspace = true }

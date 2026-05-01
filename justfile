@@ -1,37 +1,37 @@
-set working-directory := "codex-rs"
+set working-directory := "darwin-rs"
 set positional-arguments
 
 # Display help
 help:
     just -l
 
-# `codex`
-alias c := codex
-codex *args:
-    cargo run --bin codex -- "$@"
+# `darwin`
+alias c := darwin
+darwin *args:
+    cargo run --bin darwin -- "$@"
 
 # `darwin-code`
 alias d := darwin-code
 darwin-code *args:
     cargo run -p darwin-code-cli --bin darwin-code -- "$@"
 
-# `codex exec`
+# `darwin exec`
 exec *args:
-    cargo run --bin codex -- exec "$@"
+    cargo run --bin darwin -- exec "$@"
 
-# Start `codex exec-server` and run codex-tui.
+# Start `darwin exec-server` and run darwin-code-tui.
 [no-cd]
 tui-with-exec-server *args:
     {{ justfile_directory() }}/scripts/run_tui_with_exec_server.sh "$@"
 
 # Run the CLI version of the file-search crate.
 file-search *args:
-    cargo run --bin codex-file-search -- "$@"
+    cargo run --bin darwin-code-file-search -- "$@"
 
 # Build the CLI and run the app-server test client
 app-server-test-client *args:
-    cargo build -p codex-cli
-    cargo run -p codex-app-server-test-client -- --codex-bin ./target/debug/codex "$@"
+    cargo build -p darwin-cli
+    cargo run -p darwin-code-app-server-test-client -- --darwin-code-bin ./target/debug/darwin "$@"
 
 # format code
 fmt:
@@ -56,12 +56,12 @@ install:
 test:
     cargo nextest run --no-fail-fast
 
-# Build and run Codex from source using Bazel.
+# Build and run Darwin Code from source using Bazel.
 # Note we have to use the combination of `[no-cd]` and `--run_under="cd $PWD &&"`
 # to ensure that Bazel runs the command in the current working directory.
 [no-cd]
-bazel-codex *args:
-    bazel run //codex-rs/cli:codex --run_under="cd $PWD &&" -- "$@"
+bazel-darwin *args:
+    bazel run //darwin-rs/cli:darwin --run_under="cd $PWD &&" -- "$@"
 
 [no-cd]
 bazel-lock-update:
@@ -86,11 +86,11 @@ bazel-remote-test:
     bazel test --test_tag_filters=-argument-comment-lint //... --config=remote --platforms=//:rbe --keep_going
 
 build-for-release:
-    bazel build //codex-rs/cli:release_binaries --config=remote
+    bazel build //darwin-rs/cli:release_binaries --config=remote
 
 # Run the MCP server
 mcp-server-run *args:
-    cargo run -p codex-mcp-server -- "$@"
+    cargo run -p darwin-code-mcp-server -- "$@"
 
 # Regenerate the json schema for config.toml from the current config types.
 write-config-schema:
@@ -98,25 +98,17 @@ write-config-schema:
 
 # Regenerate vendored app-server protocol schema artifacts.
 write-app-server-schema *args:
-    cargo run -p codex-app-server-protocol --bin write_schema_fixtures -- "$@"
+    cargo run -p darwin-code-app-server-protocol --bin write_schema_fixtures -- "$@"
 
 [no-cd]
 write-hooks-schema:
-    cargo run --manifest-path {{ justfile_directory() }}/codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures
+    cargo run --manifest-path {{ justfile_directory() }}/darwin-rs/Cargo.toml -p darwin-code-hooks --bin write_hooks_schema_fixtures
 
-# Run the argument-comment Dylint checks across codex-rs.
+# Run the argument-comment Dylint checks across darwin-rs.
 [no-cd]
-argument-comment-lint *args:
-    if [ "$#" -eq 0 ]; then \
-      bazel build --config=argument-comment-lint -- $({{ justfile_directory() }}/tools/argument-comment-lint/list-bazel-targets.sh); \
-    else \
-      {{ justfile_directory() }}/tools/argument-comment-lint/run-prebuilt-linter.py "$@"; \
-    fi
-
-[no-cd]
-argument-comment-lint-from-source *args:
-    {{ justfile_directory() }}/tools/argument-comment-lint/run.py "$@"
+argument-comment-lint:
+    bazel build --config=argument-comment-lint -- $({{ justfile_directory() }}/tools/argument-comment-lint/list-bazel-targets.sh)
 
 # Tail logs from the state SQLite database
 log *args:
-    if [ "${1:-}" = "--" ]; then shift; fi; cargo run -p codex-state --bin logs_client -- "$@"
+    if [ "${1:-}" = "--" ]; then shift; fi; cargo run -p darwin-code-state --bin logs_client -- "$@"

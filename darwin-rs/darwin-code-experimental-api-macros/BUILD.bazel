@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "darwin-code-experimental-api-macros",
+    crate_name = "darwin_code_experimental_api_macros",
+    proc_macro = True,
+)

@@ -5,11 +5,11 @@ for Windows terminals.
 
 Primary implementations:
 
-- `codex-rs/tui/src/bottom_pane/chat_composer.rs`
+- `darwin-rs/tui/src/bottom_pane/chat_composer.rs`
 
 Paste-burst detector:
 
-- `codex-rs/tui/src/bottom_pane/paste_burst.rs`
+- `darwin-rs/tui/src/bottom_pane/paste_burst.rs`
 
 ## What problem is being solved?
 
@@ -55,7 +55,7 @@ The solution is to detect paste-like _bursts_ and buffer them into a single expl
 
 Up/Down recall is handled by `ChatComposerHistory` and merges two sources:
 
-- **Persistent history** (cross-session, fetched from `~/.codex/history.jsonl`): text-only. It
+- **Persistent history** (cross-session, fetched from `~/.darwin/history.jsonl`): text-only. It
   does **not** carry text element ranges or image attachments, so recalling one of these entries
   only restores the text.
 - **Local history** (current session): stores the full submission payload, including text
@@ -76,7 +76,7 @@ The search query and composer text intentionally remain separate. A no-match res
 ## Config gating for reuse
 
 `ChatComposer` now supports feature gating via `ChatComposerConfig`
-(`codex-rs/tui/src/bottom_pane/chat_composer.rs`). The default config preserves current chat
+(`darwin-rs/tui/src/bottom_pane/chat_composer.rs`). The default config preserves current chat
 behavior.
 
 Flags:
@@ -96,7 +96,7 @@ Key effects when disabled:
   dropping the draft.
 
 Built-in slash command availability is centralized in
-`codex-rs/tui/src/bottom_pane/slash_commands.rs` and reused by both the composer and the command
+`darwin-rs/tui/src/bottom_pane/slash_commands.rs` and reused by both the composer and the command
 popup so gating stays in sync.
 
 ## Submission flow (Enter/Tab)
@@ -337,7 +337,7 @@ Non-char input must not leak burst state across unrelated actions:
 
 The `PasteBurst` logic is currently exercised through `ChatComposer` integration tests.
 
-- `codex-rs/tui/src/bottom_pane/chat_composer.rs`
+- `darwin-rs/tui/src/bottom_pane/chat_composer.rs`
   - `non_ascii_burst_handles_newline`
   - `ascii_burst_treats_enter_as_newline`
   - `question_mark_does_not_toggle_during_paste_burst`

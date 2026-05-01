@@ -1,0 +1,18 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "darwin-code-plugin"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "darwin_code_plugin"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+darwin-code-utils-absolute-path = { workspace = true }
+darwin-code-utils-plugins = { workspace = true }
+thiserror = { workspace = true }

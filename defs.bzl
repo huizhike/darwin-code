@@ -122,7 +122,7 @@ workspace_root_test = rule(
     },
 )
 
-def codex_rust_crate(
+def darwin_code_rust_crate(
         name,
         crate_name,
         crate_features = [],
@@ -155,7 +155,7 @@ def codex_rust_crate(
         name: Bazel target name for the library, should be the directory name.
             Example: `app-server`.
         crate_name: Cargo crate name from Cargo.toml
-            Example: `codex_app_server`.
+            Example: `darwin_code_app_server`.
         crate_features: Cargo features to enable for this crate.
             Crates are only compiled in a single configuration across the workspace, i.e.
             with all features in this list enabled. So use sparingly, and prefer to refactor
@@ -190,7 +190,7 @@ def codex_rust_crate(
     test_env = {
         # The launcher resolves an absolute workspace root at runtime so
         # manifest-only platforms like macOS still point Insta at the real
-        # `codex-rs` checkout.
+        # `darwin-rs` checkout.
         "INSTA_WORKSPACE_ROOT": ".",
         "INSTA_SNAPSHOT_PATH": "src",
     }
@@ -214,8 +214,8 @@ def codex_rust_crate(
     } | rustc_env
 
     manifest_relpath = native.package_name()
-    if manifest_relpath.startswith("codex-rs/"):
-        manifest_relpath = manifest_relpath[len("codex-rs/"):]
+    if manifest_relpath.startswith("darwin-rs/"):
+        manifest_relpath = manifest_relpath[len("darwin-rs/"):]
     manifest_path = manifest_relpath + "/Cargo.toml"
 
     binaries = DEP_DATA.get(native.package_name())["binaries"]
@@ -266,13 +266,13 @@ def codex_rust_crate(
             # Unit tests also compile to standalone Windows executables, so
             # keep their stack reserve aligned with binaries and integration
             # tests under gnullvm.
-            # Bazel has emitted both `codex-rs/<crate>/...` and
-            # `../codex-rs/<crate>/...` paths for `file!()`. Strip either
+            # Bazel has emitted both `darwin-rs/<crate>/...` and
+            # `../darwin-rs/<crate>/...` paths for `file!()`. Strip either
             # prefix so the workspace-root launcher sees Cargo-like metadata
             # such as `tui/src/...`.
             rustc_flags = rustc_flags_extra + WINDOWS_RUSTC_LINK_FLAGS + [
-                "--remap-path-prefix=../codex-rs=",
-                "--remap-path-prefix=codex-rs=",
+                "--remap-path-prefix=../darwin-rs=",
+                "--remap-path-prefix=darwin-rs=",
             ],
             rustc_env = rustc_env,
             data = test_data_extra,
@@ -291,7 +291,7 @@ def codex_rust_crate(
             name = unit_test_name,
             env = test_env,
             test_bin = ":" + unit_test_binary,
-            workspace_root_marker = "//codex-rs/utils/cargo-bin:repo_root.marker",
+            workspace_root_marker = "//darwin-rs/utils/cargo-bin:repo_root.marker",
             tags = test_tags,
             **unit_test_kwargs
         )
@@ -350,16 +350,16 @@ def codex_rust_crate(
             data = native.glob(["tests/**"], allow_empty = True) + sanitized_binaries + test_data_extra,
             compile_data = native.glob(["tests/**"], allow_empty = True) + integration_compile_data_extra,
             deps = all_crate_deps(normal = True, normal_dev = True) + maybe_deps + deps_extra,
-            # Bazel has emitted both `codex-rs/<crate>/...` and
-            # `../codex-rs/<crate>/...` paths for `file!()`. Strip either
+            # Bazel has emitted both `darwin-rs/<crate>/...` and
+            # `../darwin-rs/<crate>/...` paths for `file!()`. Strip either
             # prefix so Insta records Cargo-like metadata such as `core/tests/...`.
             rustc_flags = rustc_flags_extra + WINDOWS_RUSTC_LINK_FLAGS + [
-                "--remap-path-prefix=../codex-rs=",
-                "--remap-path-prefix=codex-rs=",
+                "--remap-path-prefix=../darwin-rs=",
+                "--remap-path-prefix=darwin-rs=",
             ],
             rustc_env = rustc_env,
             # Important: do not merge `test_env` here. Its unit-test-only
-            # `INSTA_WORKSPACE_ROOT="codex-rs"` is tuned for unit tests that
+            # `INSTA_WORKSPACE_ROOT="darwin-rs"` is tuned for unit tests that
             # execute from the repo root and can misplace integration snapshots.
             env = cargo_env,
             tags = test_tags,

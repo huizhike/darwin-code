@@ -1,11 +1,5 @@
 # Configuration
 
-For basic configuration instructions, see [this documentation](https://developers.openai.com/codex/config-basic).
-
-For advanced configuration instructions, see [this documentation](https://developers.openai.com/codex/config-advanced).
-
-For a full configuration reference, see [this documentation](https://developers.openai.com/codex/config-reference).
-
 ## BYOK providers
 
 Darwin Code 的默认产品配置是 BYOK：用户在 `config.toml` 中选择一个 provider id，
@@ -19,22 +13,9 @@ Runtime behavior:
 - `model_provider` selects a built-in native id (`openai`, `gemini`, `claude`) or an id from `[openai_compatible.<id>]`.
 - `model` is the provider model id.
 - `api_key` is the direct BYOK key Darwin uses for model auth.
-- `base_url` is owned by the user config. External gateways such as `cli2api` or a company proxy are just standard endpoints from Darwin Code's perspective.
+- `base_url` is owned by the user config. External gateways such as a company proxy or local proxy are just standard endpoints from Darwin Code's perspective.
 - `wire_api` selects the provider's protocol path. Use `chat-completions` for providers such as DeepSeek that expose `/chat/completions`; use `responses` for OpenAI Responses-compatible gateways that expose `/responses`.
 - Defining the same id in both `[openai_compatible.<id>]` and `[model_providers.<id>]` is rejected to avoid ambiguous provider merging.
-
-### Local cli2api default
-
-```toml
-model_provider = "cli2api"
-model = "gpt-5.3-codex-spark" # alternatives: gpt-5.5
-
-[openai_compatible.cli2api]
-name = "Local cli2api"
-base_url = "http://127.0.0.1:8317/v1"
-wire_api = "responses"
-api_key = "你的 cli2api API Key"
-```
 
 ### OpenAI official BYOK
 
@@ -108,7 +89,7 @@ The Darwin product configuration surface is intentionally small: BYOK providers,
 model selection, permissions/sandboxing, MCP servers, plugins/skills, local
 tooling, and stable feature switches.
 
-Inherited Codex product sections for analytics, feedback, app connectors,
+Inherited Darwin Code product sections for analytics, feedback, app connectors,
 external telemetry, realtime/audio, notice state, file-opener preferences, and
 legacy experimental realtime/prompt/tool aliases are no longer valid user TOML
 configuration. Some similarly named concepts can still appear in Rust runtime
@@ -118,9 +99,7 @@ configuration sections.
 
 ## Connecting to MCP servers
 
-Codex can connect to MCP servers configured in `~/.codex/config.toml`. See the configuration reference for the latest MCP server options:
-
-- https://developers.openai.com/codex/config-reference
+Darwin Code can connect to MCP servers configured in `~/.darwin/config.toml`.
 
 MCP tools default to serialized calls. To mark every tool exposed by one server
 as eligible for parallel tool calls, set `supports_parallel_tool_calls` on that
@@ -138,8 +117,8 @@ resources, review those read/write race conditions before enabling this setting.
 
 ## MCP tool approvals
 
-Codex stores approval defaults and per-tool overrides for custom MCP servers
-under `mcp_servers` in `~/.codex/config.toml`. Set
+Darwin Code stores approval defaults and per-tool overrides for custom MCP servers
+under `mcp_servers` in `~/.darwin/config.toml`. Set
 `default_tools_approval_mode` on the server to apply a default to every tool,
 and use per-tool `approval_mode` entries for exceptions:
 
@@ -154,39 +133,37 @@ approval_mode = "prompt"
 
 ## Notify
 
-Codex can run a notification hook when the agent finishes a turn. See the configuration reference for the latest notification settings:
+Darwin Code can run a notification hook when the agent finishes a turn.
 
-- https://developers.openai.com/codex/config-reference
-
-When Codex knows which client started the turn, the legacy notify JSON payload also includes a top-level `client` field. The TUI reports `codex-tui`, and the app server reports the `clientInfo.name` value from `initialize`.
+When Darwin Code knows which client started the turn, the legacy notify JSON payload also includes a top-level `client` field. The TUI reports `darwin-code-tui`, and the app server reports the `clientInfo.name` value from `initialize`.
 
 ## JSON Schema
 
-The generated JSON Schema for `config.toml` lives at `codex-rs/core/config.schema.json`.
+The generated JSON Schema for `config.toml` lives at `darwin-rs/core/config.schema.json`.
 
 ## SQLite State DB
 
-Codex stores the SQLite-backed state DB under `sqlite_home` (config key) or the
-`CODEX_SQLITE_HOME` environment variable. When unset, WorkspaceWrite sandbox
-sessions default to a temp directory; other modes default to `CODEX_HOME`.
+Darwin Code stores the SQLite-backed state DB under `sqlite_home` (config key) or the
+`DARWIN_CODE_SQLITE_HOME` environment variable. When unset, WorkspaceWrite sandbox
+sessions default to a temp directory; other modes default to `DARWIN_CODE_HOME`.
 
 ## Custom CA Certificates
 
-Codex can trust a custom root CA bundle for outbound HTTPS connections when
+Darwin Code can trust a custom root CA bundle for outbound HTTPS connections when
 enterprise proxies or gateways intercept TLS. Darwin model traffic is BYOK
 HTTP/SSE, not hosted login or Responses WebSocket; this CA setting also applies
 to other Darwin components that build reqwest clients and remote MCP connections
-that use the shared `codex-client` CA-loading path.
+that use the shared `darwin-client` CA-loading path.
 
-Set `CODEX_CA_CERTIFICATE` to the path of a PEM file containing one or more
-certificate blocks to use a Codex-specific CA bundle. If
-`CODEX_CA_CERTIFICATE` is unset, Codex falls back to `SSL_CERT_FILE`. If
-neither variable is set, Codex uses the system root certificates.
+Set `DARWIN_CODE_CA_CERTIFICATE` to the path of a PEM file containing one or more
+certificate blocks to use a Darwin Code-specific CA bundle. If
+`DARWIN_CODE_CA_CERTIFICATE` is unset, Darwin Code falls back to `SSL_CERT_FILE`. If
+neither variable is set, Darwin Code uses the system root certificates.
 
-`CODEX_CA_CERTIFICATE` takes precedence over `SSL_CERT_FILE`. Empty values are
+`DARWIN_CODE_CA_CERTIFICATE` takes precedence over `SSL_CERT_FILE`. Empty values are
 treated as unset.
 
-The PEM file may contain multiple certificates. Codex also tolerates OpenSSL
+The PEM file may contain multiple certificates. Darwin Code also tolerates OpenSSL
 `TRUSTED CERTIFICATE` labels and ignores well-formed `X509 CRL` sections in the
 same bundle. If the file is empty, unreadable, or malformed, the affected Darwin HTTP
 connection reports a user-facing error that points back to these environment

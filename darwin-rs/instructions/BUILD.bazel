@@ -1,0 +1,16 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "instructions",
+    crate_name = "darwin_code_instructions",
+    compile_data = glob(
+        include = ["**"],
+        exclude = [
+            "BUILD.bazel",
+            "Cargo.toml",
+        ],
+        allow_empty = True,
+    ) + [
+        "//darwin-rs:node-version.txt",
+    ],
+)

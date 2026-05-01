@@ -1,0 +1,4 @@
+edition = "2024"
+# The warnings caused by this setting can be ignored.
+# See the upstream rustfmt tracking issue for details.
+imports_granularity = "Item"

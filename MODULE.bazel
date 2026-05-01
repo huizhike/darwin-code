@@ -1,4 +1,4 @@
-module(name = "codex")
+module(name = "darwin")
 
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -164,8 +164,8 @@ register_toolchains("@rust_toolchains//:all")
 
 crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
 crate.from_cargo(
-    cargo_lock = "//codex-rs:Cargo.lock",
-    cargo_toml = "//codex-rs:Cargo.toml",
+    cargo_lock = "//darwin-rs:Cargo.lock",
+    cargo_toml = "//darwin-rs:Cargo.toml",
     platform_triples = [
         "aarch64-unknown-linux-gnu",
         "aarch64-unknown-linux-musl",
@@ -477,7 +477,7 @@ http_file(
     downloaded_file_path = "librusty_v8_release_aarch64-unknown-linux-musl.a.gz",
     sha256 = "27a08ed26c34297bfd93e514692ccc44b85f8b15c6aa39cf34e784f84fb37e8e",
     urls = [
-        "https://github.com/openai/codex/releases/download/rusty-v8-v146.4.0/librusty_v8_release_aarch64-unknown-linux-musl.a.gz",
+        "https://github.com/darwin/darwin-code/releases/download/rusty-v8-v146.4.0/librusty_v8_release_aarch64-unknown-linux-musl.a.gz",
     ],
 )
 
@@ -486,7 +486,7 @@ http_file(
     downloaded_file_path = "src_binding_release_aarch64-unknown-linux-musl.rs",
     sha256 = "09f8900ced8297c229246c7a50b2e0ec23c54d0a554f369619cc29863f38dd1a",
     urls = [
-        "https://github.com/openai/codex/releases/download/rusty-v8-v146.4.0/src_binding_release_aarch64-unknown-linux-musl.rs",
+        "https://github.com/darwin/darwin-code/releases/download/rusty-v8-v146.4.0/src_binding_release_aarch64-unknown-linux-musl.rs",
     ],
 )
 
@@ -495,7 +495,7 @@ http_file(
     downloaded_file_path = "librusty_v8_release_x86_64-unknown-linux-musl.a.gz",
     sha256 = "20d8271ad712323d352c1383c36e3c4b755abc41ece35819c49c75ec7134d2f8",
     urls = [
-        "https://github.com/openai/codex/releases/download/rusty-v8-v146.4.0/librusty_v8_release_x86_64-unknown-linux-musl.a.gz",
+        "https://github.com/darwin/darwin-code/releases/download/rusty-v8-v146.4.0/librusty_v8_release_x86_64-unknown-linux-musl.a.gz",
     ],
 )
 
@@ -504,7 +504,7 @@ http_file(
     downloaded_file_path = "src_binding_release_x86_64-unknown-linux-musl.rs",
     sha256 = "09f8900ced8297c229246c7a50b2e0ec23c54d0a554f369619cc29863f38dd1a",
     urls = [
-        "https://github.com/openai/codex/releases/download/rusty-v8-v146.4.0/src_binding_release_x86_64-unknown-linux-musl.rs",
+        "https://github.com/darwin/darwin-code/releases/download/rusty-v8-v146.4.0/src_binding_release_x86_64-unknown-linux-musl.rs",
     ],
 )
 

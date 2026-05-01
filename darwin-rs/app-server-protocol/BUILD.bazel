@@ -1,0 +1,7 @@
+load("//:defs.bzl", "darwin_code_rust_crate")
+
+darwin_code_rust_crate(
+    name = "app-server-protocol",
+    crate_name = "darwin_code_app_server_protocol",
+    test_data_extra = glob(["schema/**"], allow_empty = True),
+)

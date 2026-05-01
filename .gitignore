@@ -16,7 +16,7 @@ out/
 storybook-static/
 
 # ignore README for publishing
-codex-cli/README.md
+darwin-cli/README.md
 
 # ignore Nix derivation results
 result
@@ -32,7 +32,12 @@ result
 # cli tools
 CLAUDE.md
 .claude/
+.codex/
+AGENTS.md
 AGENTS.override.md
+
+# local devcontainer setup
+.devcontainer/
 
 # caches
 .cache/
@@ -52,6 +57,7 @@ yarn-error.log*
 # env
 .env*
 !.env.example
+.venv/
 
 # package
 *.tgz
@@ -94,22 +100,30 @@ __pycache__/
 
 # local one-off analysis helpers
 scan_telemetry_impact*.sh
+
+# generated app-server protocol schemas
+darwin-rs/app-server-protocol/schema/json/
+darwin-rs/app-server-protocol/schema/typescript/
+
+# local Codex/Darwin runtime hooks
 .omx/
-.codex/*
-!.codex/agents/
-!.codex/agents/**
-!.codex/skills/
-!.codex/skills/**
-.codex/skills/.system/**
-!.codex/prompts/
-!.codex/prompts/**
+.darwin/*
+!.darwin/agents/
+!.darwin/agents/**
+!.darwin/skills/
+!.darwin/skills/**
+.darwin/skills/.system/**
+!.darwin/prompts/
+!.darwin/prompts/**
 
 # local Darwin Code runtime state
+CHANGELOG.md
 config.toml
 history.jsonl
 installation_id
 .personality_migration
 .tmp/
+memories/
 sessions/
 shell_snapshots/
 skills/
@@ -118,7 +132,9 @@ state_*.sqlite-*
 logs_*.sqlite
 logs_*.sqlite-*
 model-catalog.*.json
+rules/
+sdk/
 
 # test/sandbox marker files created inside crates
-codex-rs/**/.codex
-codex-rs/**/.darwin_code
+darwin-rs/**/.darwin
+darwin-rs/**/.darwin_code
