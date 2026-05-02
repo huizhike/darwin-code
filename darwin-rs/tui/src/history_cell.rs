@@ -530,7 +530,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/darwin/darwin-code".cyan().underlined(),
+                "https://github.com/huizhike/darwin-code".cyan().underlined(),
                 " for installation options."
             ]
         };
@@ -545,7 +545,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             update_instruction,
             "",
             "See full release notes:",
-            "https://github.com/darwin/darwin-code/releases/latest"
+            "https://github.com/huizhike/darwin-code/releases/latest"
                 .cyan()
                 .underlined(),
         ];

@@ -204,7 +204,7 @@ impl WidgetRef for &UpdatePromptScreen {
         column.push(
             Line::from(vec![
                 "Release notes: ".dim(),
-                "https://github.com/darwin/darwin-code/releases/latest"
+                "https://github.com/huizhike/darwin-code/releases/latest"
                     .dim()
                     .underlined(),
             ])

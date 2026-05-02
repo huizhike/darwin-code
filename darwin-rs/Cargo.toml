@@ -399,7 +399,7 @@ split-debuginfo = "off"
 # remove everything to make the binary as small as possible.
 strip = "symbols"
 
-# See https://github.com/darwin/darwin-code/issues/1411 for details.
+# See https://github.com/huizhike/darwin-code/issues/1411 for details.
 codegen-units = 1
 
 [profile.ci-test]

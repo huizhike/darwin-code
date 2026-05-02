@@ -111,7 +111,7 @@ release_url_for_asset() {
   asset="$1"
   resolved_version="$2"
 
-  printf 'https://github.com/darwin/darwin-code/releases/download/rust-v%s/%s\n' "$resolved_version" "$asset"
+  printf 'https://github.com/huizhike/darwin-code/releases/download/rust-v%s/%s\n' "$resolved_version" "$asset"
 }
 
 release_metadata_url() {

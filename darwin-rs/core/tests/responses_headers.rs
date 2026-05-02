@@ -462,7 +462,7 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         "remote",
         "add",
         "origin",
-        "https://github.com/darwin/darwin-code.git",
+        "https://github.com/huizhike/darwin-code.git",
     ]);
 
     let expected_head = String::from_utf8(run_git(&["rev-parse", "HEAD"]).stdout)

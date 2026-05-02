@@ -50,7 +50,7 @@ rustPlatform.buildRustPackage (_: {
   meta = with lib; {
     description = "Darwin Code command‑line interface rust implementation";
     license = licenses.asl20;
-    homepage = "https://github.com/darwin/darwin-code";
+    homepage = "https://github.com/huizhike/darwin-code";
     mainProgram = "darwin";
   };
 })
