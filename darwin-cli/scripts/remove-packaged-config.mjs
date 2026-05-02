@@ -7,21 +7,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const packageRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(packageRoot, "..");
-const generatedConfig = path.join(packageRoot, "config.toml");
 
-if (existsSync(generatedConfig)) {
-  const contents = readFileSync(generatedConfig, "utf8");
-  if (
-    contents.includes("YOUR_QWEN_API_KEY") ||
-    contents.includes("YOUR_PROVIDER_API_KEY")
-  ) {
-    unlinkSync(generatedConfig);
-  }
-}
+const generatedFiles = [
+  ["config.toml", "config.toml"],
+  [".env.example", ".env.example"],
+  ["README.md", "README.md"],
+  ["LICENSE", "LICENSE"],
+  ["NOTICE", "NOTICE"],
+];
 
-for (const generatedName of ["LICENSE", "NOTICE"]) {
+for (const [sourceName, generatedName] of generatedFiles) {
+  const sourcePath = path.join(repoRoot, sourceName);
   const generatedPath = path.join(packageRoot, generatedName);
-  const sourcePath = path.join(repoRoot, generatedName);
 
   if (
     existsSync(generatedPath) &&

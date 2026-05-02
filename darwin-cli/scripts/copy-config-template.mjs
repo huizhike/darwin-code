@@ -9,6 +9,8 @@ const packageRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(packageRoot, "..");
 const generatedFiles = [
   ["config.toml", "config.toml"],
+  [".env.example", ".env.example"],
+  ["README.md", "README.md"],
   ["LICENSE", "LICENSE"],
   ["NOTICE", "NOTICE"],
 ];
