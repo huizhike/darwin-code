@@ -8,7 +8,9 @@ BYOK-only execution engine for Darwin's autonomous coding pipeline.
 - `darwin-rs/` — Rust sandbox runtime (`darwin-code-exec`, `darwin-code-core`, `darwin-code-tui`)
 - `docs/` — Documentation
 
-## Install from npm
+## Install / Run
+
+### npm install
 
 ```bash
 npm install -g @darwin-code/darwin-code
@@ -22,7 +24,7 @@ Then edit the packaged config template and replace placeholder API keys:
 $EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
 ```
 
-## Run from Source
+### Run from source
 
 > **Warning: build artifact size and disk usage**
 >
@@ -154,9 +156,11 @@ multimodal = true
 
 ### OpenAI / Gemini / Claude direct key
 
+Model IDs below are current provider examples; access still depends on your account, region, and provider rollout.
+
 ```toml
 model_provider = "openai"
-model = "gpt-5"
+model = "gpt-5.5"
 
 [openai]
 base_url = "https://api.openai.com/v1"
@@ -165,7 +169,7 @@ api_key = "YOUR_OPENAI_API_KEY"
 
 ```toml
 model_provider = "gemini"
-model = "gemini-2.5-pro"
+model = "gemini-3.1-pro-preview"
 
 [gemini]
 base_url = "https://generativelanguage.googleapis.com/v1beta"
@@ -174,7 +178,7 @@ api_key = "YOUR_GEMINI_API_KEY"
 
 ```toml
 model_provider = "claude"
-model = "claude-sonnet-4-5"
+model = "claude-opus-4-7"
 
 [claude]
 base_url = "https://api.anthropic.com"

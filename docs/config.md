@@ -19,9 +19,11 @@ Runtime behavior:
 
 ### OpenAI official BYOK
 
+Use a currently available model ID for your account. The examples below track the latest provider examples verified during docs updates.
+
 ```toml
 model_provider = "openai"
-model = "gpt-5"
+model = "gpt-5.5"
 
 [openai]
 base_url = "https://api.openai.com/v1"
@@ -58,7 +60,7 @@ api_key = "你的 Provider API Key"
 
 ```toml
 model_provider = "gemini"
-model = "gemini-2.5-pro"
+model = "gemini-3.1-pro-preview"
 
 [gemini]
 base_url = "https://generativelanguage.googleapis.com/v1beta"
@@ -67,7 +69,7 @@ api_key = "你的 Gemini API Key"
 
 ```toml
 model_provider = "claude"
-model = "claude-sonnet-4-5"
+model = "claude-opus-4-7"
 
 [claude]
 base_url = "https://api.anthropic.com"
