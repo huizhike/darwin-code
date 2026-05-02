@@ -10,7 +10,36 @@ BYOK-only execution engine for Darwin's autonomous coding pipeline.
 
 ## Install / Run
 
-### npm install
+### Preferred: run from source
+
+Use source install when you need the latest GitHub code.
+
+> **Warning: build artifact size and disk usage**
+>
+> Rust projects can produce large incremental build caches. Long-running local development may grow `target/` beyond 100 GB and put system storage at risk. This checkout is configured with a low-level Cargo command interceptor that silently sweeps redundant caches older than one day in the background. If disk space is still tight, run `cargo sweep --time 1` manually.
+
+```bash
+cd /your/own/path/darwin-code
+cp config-example.toml config.toml
+$EDITOR config.toml
+cd darwin-rs
+cargo clean
+cargo run -p darwin-code-cli --bin darwin-code
+```
+
+`config-example.toml` is the redacted template. `config.toml` is the local real configuration and must not be committed. When running from source, Darwin Code reads `config.toml` from the checkout root by default. Set `DARWIN_CODE_HOME` if you need a different config directory.
+
+Use another config directory:
+
+```bash
+export DARWIN_CODE_HOME=/path/to/darwin-code-home
+cargo clean
+cargo run -p darwin-code-cli --bin darwin-code
+```
+
+### Alternative: npm install
+
+The npm package is convenient, but it may lag behind the latest GitHub source.
 
 ```bash
 npm install -g @darwin-code/darwin-code
@@ -19,31 +48,6 @@ darwin-code --help
 ```
 
 Then edit the packaged config template and replace placeholder API keys:
-
-```bash
-$EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
-```
-
-### Run from source
-
-> **Warning: build artifact size and disk usage**
->
-> Rust projects can produce large incremental build caches. Long-running local development may grow `target/` beyond 100 GB and put system storage at risk. This checkout is configured with a low-level Cargo command interceptor that silently sweeps redundant caches older than one day in the background. If disk space is still tight, run `cargo sweep --time 1` manually.
-
-### Configuration file
-
-Copy the redacted example into a local config file first. In a private fork, you may rename the file instead:
-
-```bash
-cd /home/xklab/01-darwin/dcode/70-darwin-code
-cp config-example.toml config.toml
-# Or: mv config-example.toml config.toml
-$EDITOR config.toml
-```
-
-`config-example.toml` is the redacted template. `config.toml` is the local real configuration and must not be committed. When running from source, Darwin Code reads `config.toml` from the checkout root by default. Set `DARWIN_CODE_HOME` if you need a different config directory.
-
-During npm packaging, the root `config-example.toml` is copied and renamed to package-local `config.toml`. Local `config.toml` is not packaged. After installing the npm package, replace the placeholder key in the packaged `config.toml` with your own key:
 
 ```bash
 $EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
@@ -80,21 +84,6 @@ max_output_tokens = 8192
 thinking = true
 multimodal = true
 tools = true
-```
-
-```bash
-cd 70-darwin-code
-cd darwin-rs
-cargo clean
-cargo run -p darwin-code-cli --bin darwin-code
-```
-
-Use another config directory:
-
-```bash
-export DARWIN_CODE_HOME=/path/to/darwin-code-home
-cargo clean
-cargo run -p darwin-code-cli --bin darwin-code
 ```
 
 ## BYOK quick start
