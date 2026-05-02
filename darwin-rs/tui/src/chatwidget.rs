@@ -3477,11 +3477,11 @@ impl ChatWidget {
                     GuardianAssessmentAction::McpToolCall {
                         server, tool_name, ..
                     } => history_cell::new_guardian_timed_out_action_request(format!(
-                        "darwin_code could call MCP tool {server}.{tool_name}"
+                        "Darwin Code could call MCP tool {server}.{tool_name}"
                     )),
                     GuardianAssessmentAction::NetworkAccess { target, .. } => {
                         history_cell::new_guardian_timed_out_action_request(format!(
-                            "darwin_code could access {target}"
+                            "Darwin Code could access {target}"
                         ))
                     }
                     GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -3515,11 +3515,11 @@ impl ChatWidget {
                 GuardianAssessmentAction::McpToolCall {
                     server, tool_name, ..
                 } => history_cell::new_guardian_denied_action_request(format!(
-                    "darwin_code to call MCP tool {server}.{tool_name}"
+                    "Darwin Code to call MCP tool {server}.{tool_name}"
                 )),
                 GuardianAssessmentAction::NetworkAccess { target, .. } => {
                     history_cell::new_guardian_denied_action_request(format!(
-                        "darwin_code to access {target}"
+                        "Darwin Code to access {target}"
                     ))
                 }
                 GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -8697,6 +8697,11 @@ impl ChatWidget {
             tx.send(AppEvent::UpdateAskForApprovalPolicy(approval));
             tx.send(AppEvent::UpdateSandboxPolicy(sandbox_clone));
             tx.send(AppEvent::UpdateApprovalsReviewer(approvals_reviewer));
+            tx.send(AppEvent::PersistPermissionSelection {
+                approval_policy: approval,
+                sandbox_policy: sandbox.clone(),
+                approvals_reviewer,
+            });
             tx.send(AppEvent::InsertHistoryCell(Box::new(
                 history_cell::new_info_event(
                     format!("Permissions updated to {label}"),
@@ -9256,7 +9261,9 @@ impl ChatWidget {
     /// Set the sandbox policy in the widget's config copy.
     #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     pub(crate) fn set_sandbox_policy(&mut self, policy: SandboxPolicy) -> ConstraintResult<()> {
-        self.config.permissions.sandbox_policy.set(policy)?;
+        self.config
+            .permissions
+            .set_legacy_sandbox_policy(policy, self.config.cwd.as_path())?;
         Ok(())
     }
 
@@ -9903,7 +9910,7 @@ impl ChatWidget {
 
     fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
         let resume_cmd = crate::legacy_core::util::resume_command(Some(name), thread_id)
-            .unwrap_or_else(|| format!("darwin_code resume {name}"));
+            .unwrap_or_else(|| format!("darwin-code resume {name}"));
         let name = name.to_string();
         let line = vec![
             "• ".into(),

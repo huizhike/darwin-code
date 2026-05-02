@@ -20,7 +20,7 @@ pub(crate) async fn run_responses_command(
     let payload: serde_json::Value = serde_json::from_str(&payload_text)
         .map_err(|err| anyhow::anyhow!("failed to parse Responses API JSON payload: {err}"))?;
     if payload.get("stream").and_then(serde_json::Value::as_bool) != Some(true) {
-        anyhow::bail!("darwin_code responses expects a streaming payload with `\"stream\": true`");
+        anyhow::bail!("darwin-code responses expects a streaming payload with `\"stream\": true`");
     }
 
     let cli_overrides = root_config_overrides

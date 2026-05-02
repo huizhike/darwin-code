@@ -20,18 +20,23 @@ Use source install when you need the latest GitHub code.
 
 ```bash
 cd /your/own/path/darwin-code
-cp config-example.toml config.toml
-$EDITOR config.toml
+cp .env.example .env
+$EDITOR .env
+$EDITOR config.toml  # optional: change provider/model/API endpoint
 cd darwin-rs
 cargo clean
 cargo run -p darwin-code-cli --bin darwin-code
 ```
 
-`config-example.toml` is the redacted template. `config.toml` is the local real configuration and must not be committed. When running from source, Darwin Code reads `config.toml` from the checkout root by default. Set `DARWIN_CODE_HOME` if you need a different config directory.
+`config.toml` is the checked-in default source-run configuration. It must stay secret-free: commit provider ids, endpoints, model metadata, and `api_key_env` names only. Put real keys in `${DARWIN_CODE_HOME}/.env` or your parent shell environment. When running from the source checkout root or any child directory such as `darwin-rs/`, Darwin Code resolves the checkout root as `DARWIN_CODE_HOME` and loads the root `.env` automatically. You do not need to `source .env`; if you do source it manually from `darwin-rs/`, use `source ../.env`. Set `DARWIN_CODE_HOME` only if you need a different config directory.
 
 Use another config directory:
 
 ```bash
+mkdir -p /path/to/darwin-code-home
+cp config.toml /path/to/darwin-code-home/config.toml
+cp .env.example /path/to/darwin-code-home/.env
+$EDITOR /path/to/darwin-code-home/.env
 export DARWIN_CODE_HOME=/path/to/darwin-code-home
 cargo clean
 cargo run -p darwin-code-cli --bin darwin-code
@@ -47,21 +52,23 @@ darwin-code --version
 darwin-code --help
 ```
 
-Then edit the packaged config template and replace placeholder API keys:
+Then edit the packaged default config and set provider/key environment names:
 
 ```bash
 $EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
+$EDITOR "$(npm root -g)/@darwin-code/darwin-code/.env"
 ```
 
-You can also keep configuration under your user directory by copying the packaged template and editing it there:
+You can also keep configuration under your user directory by copying the packaged default config and editing it there:
 
 ```bash
 mkdir -p ~/.darwin
 cp "$(npm root -g)/@darwin-code/darwin-code/config.toml" ~/.darwin/config.toml
 $EDITOR ~/.darwin/config.toml
+$EDITOR ~/.darwin/.env
 ```
 
-At minimum, verify these four groups of fields in `config.toml`:
+At minimum, verify these fields in `config.toml` and put the real key in `${DARWIN_CODE_HOME}/.env`:
 
 ```toml
 model_provider = "qwen"        # Current provider id
@@ -71,7 +78,7 @@ model = "qwen3.6-plus"         # Current model; /model lists this provider's mod
 name = "Qwen"
 base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
 wire_api = "chat-completions"  # Use chat-completions or responses to match the endpoint
-api_key = "YOUR_QWEN_API_KEY"  # Put real keys only in local config.toml
+api_key_env = "QWEN_API_KEY"  # Real key lives in ${DARWIN_CODE_HOME}/.env
 ```
 
 To add a model, add it under the matching provider:
@@ -88,9 +95,10 @@ tools = true
 
 ## BYOK quick start
 
-Darwin Code's default product path is **BYOK (Bring Your Own Key)**: select the provider, model, and `base_url` explicitly in `config.toml`, then provide your own `api_key` directly. Each provider declares selectable models under its own `models` table. The TUI `/model` command shows that model list and writes the selected `model_provider` plus `model` back to the config.
+Darwin Code's default product path is **BYOK (Bring Your Own Key)**: select the provider, model, `base_url`, and `api_key_env` explicitly in `config.toml`, then put the real key in `${DARWIN_CODE_HOME}/.env` or an external environment variable. Each provider declares selectable models under its own `models` table. The TUI `/model` command shows that model list and writes the selected `model_provider` plus `model` back to the config.
 
-The local TUI/CLI no longer requires environment variables for model keys and no longer derives environment variable names from provider ids. Beyond BYOK direct keys, Darwin Code does not support hosted OAuth/device sign-in, workspace/cloud auth, command-backed bearer tokens, keychain storage, `.env` loading, or implicit OpenAI login.
+The local TUI/CLI does not derive key names from provider ids. It loads `${DARWIN_CODE_HOME}/.env` early, without overriding existing parent environment variables. Direct `api_key` remains a local backward-compatible escape hatch, but docs and templates use `api_key_env`. Darwin Code does not support hosted OAuth/device sign-in, workspace/cloud auth, command-backed bearer tokens, keychain storage, or implicit OpenAI login.
+
 
 ### DeepSeek provider example
 
@@ -102,7 +110,7 @@ model = "deepseek-v4-flash"
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
-api_key = "YOUR_DEEPSEEK_API_KEY"
+api_key_env = "DEEPSEEK_API_KEY"
 
 [openai_compatible.deepseek.models."deepseek-v4-flash"]
 display_name = "DeepSeek v4 Flash"
@@ -131,7 +139,7 @@ model = "your-model"
 name = "My Gateway"
 base_url = "http://127.0.0.1:8080/v1"
 wire_api = "responses"
-api_key = "YOUR_GATEWAY_API_KEY"
+api_key_env = "MY_GATEWAY_API_KEY"
 
 [openai_compatible.my-gateway.models."your-model"]
 display_name = "Your Model"
@@ -143,7 +151,7 @@ multimodal = true
 
 `wire_api` must match the protocol path that the provider actually supports. DeepSeek's official API uses `chat-completions`, which sends requests to `/chat/completions`. Gateways compatible with the OpenAI Responses API use `responses`, which sends requests to `/responses`. Do not set DeepSeek's `base_url` to a `/v1` URL and then use Responses API mode; that would hit DeepSeek's unsupported `/v1/responses` path.
 
-### OpenAI / Gemini / Claude direct key
+### OpenAI / Gemini / Claude native providers
 
 Model IDs below are current provider examples; access still depends on your account, region, and provider rollout.
 
@@ -153,7 +161,7 @@ model = "gpt-5.5"
 
 [openai]
 base_url = "https://api.openai.com/v1"
-api_key = "YOUR_OPENAI_API_KEY"
+api_key_env = "OPENAI_API_KEY"
 ```
 
 ```toml
@@ -162,7 +170,7 @@ model = "gemini-3.1-pro-preview"
 
 [gemini]
 base_url = "https://generativelanguage.googleapis.com/v1beta"
-api_key = "YOUR_GEMINI_API_KEY"
+api_key_env = "GEMINI_API_KEY"
 ```
 
 ```toml
@@ -171,10 +179,10 @@ model = "claude-opus-4-7"
 
 [claude]
 base_url = "https://api.anthropic.com"
-api_key = "YOUR_CLAUDE_API_KEY"
+api_key_env = "CLAUDE_API_KEY"
 ```
 
-The current runnable projection primarily covers `[openai_compatible.<id>]`. If Gemini or Claude native runtime adapters are not yet available, selecting those providers directly will fail with an explicit error. To use Gemini or Claude through an OpenAI-compatible gateway in the meantime, configure `[openai_compatible.<id>]` with the gateway `base_url` and `api_key`.
+The current runnable projection primarily covers `[openai_compatible.<id>]`. If Gemini or Claude native runtime adapters are not yet available, selecting those providers directly will fail with an explicit error. To use Gemini or Claude through an OpenAI-compatible gateway in the meantime, configure `[openai_compatible.<id>]` with the gateway `base_url` and `api_key_env`.
 
 ## License and upstream
 

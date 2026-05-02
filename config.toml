@@ -6,12 +6,13 @@
 #
 # Notes:
 # - This is a parseable example template. Commented settings keep runtime defaults.
-# - Copy or rename this file to config.toml. When running from the source checkout
-#   root without DARWIN_CODE_HOME, Darwin Code reads config.toml from that root.
+# - This checked-in config.toml is the default source-run configuration.
+#   When running from the source checkout root without DARWIN_CODE_HOME, Darwin Code reads this file.
 # - Set DARWIN_CODE_HOME explicitly if you want a different config directory.
 # - Darwin Code is BYOK by default: users configure provider, model, base_url,
-#   and api_key explicitly.
-# - Fill real api_key values only in config.toml. Do not commit real keys.
+#   and api_key_env explicitly.
+# - Put real keys in ${DARWIN_CODE_HOME}/.env or external environment variables. Do not commit real keys.
+# - Keep this file secret-free; commit provider ids, endpoints, model metadata, and api_key_env names only.
 
 # =============================================================================
 # 1. Active provider/model
@@ -22,6 +23,8 @@ model_provider = "qwen"
 model = "qwen3.6-plus"
 approvals_reviewer = "user"
 model_reasoning_effort = "none"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
 
 # =============================================================================
 # 2. BYOK providers
@@ -31,9 +34,9 @@ model_reasoning_effort = "none"
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
-# For local TUI runs, write the real key in config.toml only. Do not commit it.
-# api_key = "YOUR_DEEPSEEK_API_KEY"
-api_key = "YOUR_DEEPSEEK_API_KEY"
+# For local TUI runs, put the real key in ${DARWIN_CODE_HOME}/.env or an external environment variable.
+# api_key_env = "DEEPSEEK_API_KEY"
+api_key_env = "DEEPSEEK_API_KEY"
 
 [openai_compatible.deepseek.models."deepseek-v4-flash"]
 display_name = "DeepSeek v4 Flash"
@@ -59,7 +62,7 @@ tools = true
 name = "Qwen"
 base_url = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
 wire_api = "chat-completions"
-api_key = "YOUR_QWEN_API_KEY"
+api_key_env = "QWEN_API_KEY"
 
 [openai_compatible.qwen.models."qwen3.6-plus"]
 display_name = "Qwen 3.6 Plus"
@@ -71,18 +74,15 @@ thinking = true
 multimodal = true
 tools = true
 
-[projects."/your/own/path/darwin-code"]
-trust_level = "trusted"
-
 # [openai]
 # base_url = "https://api.openai.com/v1"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "OPENAI_API_KEY"
 
 # [openai_compatible.deepseek]
 # name = "DeepSeek"
 # base_url = "https://api.deepseek.com"
 # wire_api = "chat-completions"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "DEEPSEEK_API_KEY"
 
 # Generic OpenAI-compatible gateway example. Company gateways and local proxies
 # should be configured as standard endpoints.
@@ -90,7 +90,7 @@ trust_level = "trusted"
 # name = "My Gateway"
 # base_url = "http://127.0.0.1:8080/v1"
 # wire_api = "responses"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "MY_GATEWAY_API_KEY"
 
 # Gemini and Claude native providers are target protocol families. If the runtime
 # adapter is not implemented yet, selecting them should fail clearly. For a
@@ -98,11 +98,11 @@ trust_level = "trusted"
 # [openai_compatible.<id>] instead.
 # [gemini]
 # base_url = "https://generativelanguage.googleapis.com/v1beta"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "GEMINI_API_KEY"
 #
 # [claude]
 # base_url = "https://api.anthropic.com"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "CLAUDE_API_KEY"
 
 # =============================================================================
 # 3. Top-level config defaults
@@ -251,7 +251,7 @@ trust_level = "trusted"
 # [model_providers.openai-custom]
 # name = "OpenAI custom"
 # base_url = "https://api.openai.com/v1"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "OPENAI_CUSTOM_API_KEY"
 # wire_api = "responses"
 # request_max_retries = 4
 # stream_max_retries = 10
@@ -266,4 +266,4 @@ trust_level = "trusted"
 # name = "DeepSeek"
 # base_url = "https://api.deepseek.com"
 # wire_api = "chat-completions"
-# api_key = "YOUR_PROVIDER_API_KEY"
+# api_key_env = "DEEPSEEK_API_KEY"

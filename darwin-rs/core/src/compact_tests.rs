@@ -200,6 +200,7 @@ fn should_use_remote_compact_task_for_azure_provider() {
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-direct-api-key".to_string(),
         )),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,

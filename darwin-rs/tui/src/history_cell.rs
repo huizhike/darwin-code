@@ -530,7 +530,9 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/huizhike/darwin-code".cyan().underlined(),
+                "https://github.com/huizhike/darwin-code"
+                    .cyan()
+                    .underlined(),
                 " for installation options."
             ]
         };
@@ -1778,7 +1780,7 @@ pub(crate) fn new_web_search_call(
 ///
 /// Manual testing tip:
 /// - Run the rmcp stdio test server (`darwin_code-rs/rmcp-client/src/bin/test_stdio_server.rs`) and
-///   register it as an MCP server via `darwin_code mcp add`.
+///   register it as an MCP server via `darwin-code mcp add`.
 /// - Use its `image_scenario` tool with cases like `text_then_image`,
 ///   `invalid_base64_then_image`, or `invalid_image_bytes_then_image` to ensure this path triggers
 ///   even when the first block is not a valid image.

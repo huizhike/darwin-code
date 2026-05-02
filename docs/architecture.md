@@ -211,7 +211,7 @@ flowchart TD
     compat --> providerInfo
     generic --> providerInfo
     providerInfo --> validation
-    validation -->|direct api_key only| auth
+    validation -->|api_key_env or direct api_key| auth
     validation -. rejects .-> legacy[command auth / experimental bearer token]
     auth --> wire
     wire -->|responses| responses
@@ -226,8 +226,8 @@ flowchart TD
 %%{init: {"theme": "base", "themeVariables": {"background": "#f5f5f7", "mainBkg": "#f5f5f7", "primaryColor": "#f5f5f7", "primaryTextColor": "#1d1d1f", "primaryBorderColor": "#86868b", "secondaryColor": "#e8e8ed", "secondaryTextColor": "#1d1d1f", "secondaryBorderColor": "#a1a1a6", "tertiaryColor": "#ffffff", "tertiaryTextColor": "#1d1d1f", "tertiaryBorderColor": "#d2d2d7", "clusterBkg": "#f5f5f7", "clusterBorder": "#d2d2d7", "lineColor": "#6e6e73", "edgeLabelBackground": "#ffffff", "actorBkg": "#f5f5f7", "actorBorder": "#86868b", "actorTextColor": "#1d1d1f", "activationBkgColor": "#e8e8ed", "activationBorderColor": "#86868b", "noteBkgColor": "#f5f5f7", "noteTextColor": "#1d1d1f", "fontFamily": "-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, sans-serif"}}}%%
 flowchart LR
     subgraph inputs[Configuration inputs]
-        example[config-example.toml]
-        local[local config.toml]
+        defaultConfig[checked-in config.toml]
+        envFile[ignored .env]
         home[DARWIN_CODE_HOME]
         env[DARWIN_CODE_SQLITE_HOME]
         overrides[CLI/UI runtime overrides]
@@ -253,8 +253,8 @@ flowchart LR
         cache[models cache]
     end
 
-    example --> local
-    local --> loader
+    defaultConfig --> loader
+    envFile --> loader
     home --> loader
     overrides --> loader
     loader --> toml

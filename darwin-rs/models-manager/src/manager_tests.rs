@@ -68,6 +68,7 @@ fn provider_for(base_url: String) -> ModelProviderInfo {
         name: "mock".into(),
         base_url: Some(base_url),
         api_key: None,
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,

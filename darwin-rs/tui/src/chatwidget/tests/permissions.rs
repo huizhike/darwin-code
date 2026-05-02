@@ -617,9 +617,11 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
     );
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
 
-    let op = std::iter::from_fn(|| rx.try_recv().ok())
+    let events = std::iter::from_fn(|| rx.try_recv().ok()).collect::<Vec<_>>();
+    let op = events
+        .iter()
         .find_map(|event| match event {
-            AppEvent::DarwinCodeOp(op @ Op::OverrideTurnContext { .. }) => Some(op),
+            AppEvent::DarwinCodeOp(op @ Op::OverrideTurnContext { .. }) => Some(op.clone()),
             _ => None,
         })
         .expect("expected OverrideTurnContext op");
@@ -639,6 +641,17 @@ async fn permissions_selection_sends_approvals_reviewer_in_override_turn_context
             collaboration_mode: None,
             personality: None,
         }
+    );
+    assert!(
+        events.iter().any(|event| matches!(
+            event,
+            AppEvent::PersistPermissionSelection {
+                approval_policy: AskForApproval::OnRequest,
+                sandbox_policy: SandboxPolicy::WorkspaceWrite { .. },
+                approvals_reviewer: ApprovalsReviewer::GuardianSubagent,
+            }
+        )),
+        "expected permissions selection to persist for the next launch: {events:?}"
     );
 }
 

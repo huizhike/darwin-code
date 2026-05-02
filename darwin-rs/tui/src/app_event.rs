@@ -364,6 +364,13 @@ pub(crate) enum AppEvent {
     /// Update the current approvals reviewer in the running app and widget.
     UpdateApprovalsReviewer(ApprovalsReviewer),
 
+    /// Persist the selected permissions preset for future TUI launches.
+    PersistPermissionSelection {
+        approval_policy: AskForApproval,
+        sandbox_policy: SandboxPolicy,
+        approvals_reviewer: ApprovalsReviewer,
+    },
+
     /// Update feature flags and persist them to the top-level config.
     UpdateFeatureFlags {
         updates: Vec<(Feature, bool)>,

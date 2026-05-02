@@ -17,15 +17,17 @@ darwin-code --version
 darwin-code --help
 ```
 
-After install, edit the packaged template config or copy it into a user config
-directory before running the TUI with real BYOK provider keys:
+After install, edit the packaged default config or copy it into a user config
+directory. Put real BYOK provider keys in `.env` or the parent shell environment:
 
 ```shell
 $EDITOR "$(npm root -g)/@darwin-code/darwin-code/config.toml"
+$EDITOR "$(npm root -g)/@darwin-code/darwin-code/.env"
 # Or:
 mkdir -p ~/.darwin
 cp "$(npm root -g)/@darwin-code/darwin-code/config.toml" ~/.darwin/config.toml
 $EDITOR ~/.darwin/config.toml
+$EDITOR ~/.darwin/.env
 ```
 
 ### Run from source
@@ -35,14 +37,18 @@ binary into your user PATH:
 
 ```shell
 cd /your/own/path/darwin-code
-cp config-example.toml config.toml
-$EDITOR config.toml
+cp .env.example .env
+$EDITOR .env
+$EDITOR config.toml  # optional: change provider/model/API endpoint
 cd darwin-rs
 cargo run -p darwin-code-cli --bin darwin-code
 ```
 
-`config.toml` is local runtime configuration and must not be committed with real
-keys. Keep provider, model, endpoint, and API key settings explicit.
+`config.toml` is the checked-in default source-run configuration and must stay
+secret-free. Keep provider, model, endpoint, and `api_key_env` names explicit.
+When running from this `darwin-rs/` directory, Darwin Code resolves the checkout
+root as `DARWIN_CODE_HOME` and loads the root `.env` automatically. You do not
+need to `source .env`; if you do source manually from here, use `source ../.env`.
 
 If you intentionally need a user-level command, install a release build and make
 sure `$HOME/.local/bin` is in `PATH`:

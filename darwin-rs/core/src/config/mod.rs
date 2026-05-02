@@ -28,6 +28,7 @@ use darwin_code_config::config_toml::ProjectConfig;
 use darwin_code_config::config_toml::ProviderModelToml;
 use darwin_code_config::config_toml::RealtimeAudioConfig;
 use darwin_code_config::config_toml::RealtimeConfig;
+use darwin_code_config::config_toml::resolve_api_key_source;
 use darwin_code_config::config_toml::validate_model_providers;
 use darwin_code_config::profile_toml::ConfigProfile;
 use darwin_code_config::types::ApprovalsReviewer;
@@ -207,6 +208,23 @@ pub struct Permissions {
     pub windows_sandbox_mode: Option<WindowsSandboxModeToml>,
     /// Whether the final Windows sandboxed child should run on a private desktop.
     pub windows_sandbox_private_desktop: bool,
+}
+
+impl Permissions {
+    /// Replace the legacy sandbox policy while keeping the split filesystem and
+    /// network sandbox projections in sync.
+    pub fn set_legacy_sandbox_policy(
+        &mut self,
+        sandbox_policy: SandboxPolicy,
+        cwd: &Path,
+    ) -> ConstraintResult<()> {
+        self.sandbox_policy.set(sandbox_policy)?;
+        let effective_sandbox_policy = self.sandbox_policy.get().clone();
+        self.file_system_sandbox_policy =
+            FileSystemSandboxPolicy::from_legacy_sandbox_policy(&effective_sandbox_policy, cwd);
+        self.network_sandbox_policy = NetworkSandboxPolicy::from(&effective_sandbox_policy);
+        Ok(())
+    }
 }
 
 /// Application configuration loaded from disk and merged with overrides.
@@ -827,7 +845,7 @@ impl Config {
 
     /// This is a secondary way of creating [Config], which is appropriate when
     /// the harness is meant to be used with a specific configuration that
-    /// ignores user settings. For example, the `darwin_code exec` subcommand is
+    /// ignores user settings. For example, the `darwin-code exec` subcommand is
     /// designed to use [AskForApproval::Never] exclusively.
     ///
     /// Further, [ConfigOverrides] contains some options that are not supported
@@ -1963,15 +1981,15 @@ impl Config {
         let mut model_provider_by_model = HashMap::new();
 
         if let Some(openai) = &cfg.openai {
+            let api_key = resolve_api_key_source(
+                "openai",
+                openai.api_key.as_ref(),
+                openai.api_key_env.as_deref(),
+            )
+            .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
             model_providers.insert(
                 "openai".to_string(),
-                ModelProviderInfo::create_openai_provider(
-                    openai.base_url.clone(),
-                    openai
-                        .api_key
-                        .as_ref()
-                        .map(|key| key.expose_secret().to_string()),
-                ),
+                ModelProviderInfo::create_openai_provider(openai.base_url.clone(), api_key),
             );
             push_configured_models(
                 "openai",
@@ -1989,15 +2007,15 @@ impl Config {
         }
 
         if let Some(gemini) = &cfg.gemini {
+            let api_key = resolve_api_key_source(
+                "gemini",
+                gemini.api_key.as_ref(),
+                gemini.api_key_env.as_deref(),
+            )
+            .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
             model_providers.insert(
                 "gemini".to_string(),
-                ModelProviderInfo::create_gemini_native_provider(
-                    gemini.base_url.clone(),
-                    gemini
-                        .api_key
-                        .as_ref()
-                        .map(|key| key.expose_secret().to_string()),
-                ),
+                ModelProviderInfo::create_gemini_native_provider(gemini.base_url.clone(), api_key),
             );
             push_configured_models(
                 "gemini",
@@ -2015,15 +2033,15 @@ impl Config {
         }
 
         if let Some(claude) = &cfg.claude {
+            let api_key = resolve_api_key_source(
+                "claude",
+                claude.api_key.as_ref(),
+                claude.api_key_env.as_deref(),
+            )
+            .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message))?;
             model_providers.insert(
                 "claude".to_string(),
-                ModelProviderInfo::create_claude_native_provider(
-                    claude.base_url.clone(),
-                    claude
-                        .api_key
-                        .as_ref()
-                        .map(|key| key.expose_secret().to_string()),
-                ),
+                ModelProviderInfo::create_claude_native_provider(claude.base_url.clone(), api_key),
             );
             push_configured_models(
                 "claude",
@@ -2146,7 +2164,7 @@ impl Config {
         {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
-                "BYOK provider is required: configure `model_provider` with a direct `api_key`.\n\
+                "BYOK provider is required: configure `model_provider` with `api_key_env` or a direct `api_key`.\n\
 Example:\n\
 model_provider = \"my-gateway\"\n\
 model = \"your-model\"\n\n\
@@ -2154,7 +2172,7 @@ model = \"your-model\"\n\n\
 name = \"My Gateway\"\n\
 base_url = \"https://provider.example/v1\"\n\
 wire_api = \"responses\"\n\
-api_key = \"your provider key\"",
+api_key_env = \"MY_GATEWAY_API_KEY\"",
             ));
         }
 
@@ -2692,6 +2710,7 @@ pub(crate) fn ensure_default_byok_provider_config_toml_for_tests(cfg: &mut Confi
             api_key: Some(darwin_code_config::config_toml::ApiKeyToml::new(
                 "test-openai-compatible-api-key".to_string(),
             )),
+            api_key_env: None,
             available_models: vec![],
             models: HashMap::new(),
         },
@@ -2791,8 +2810,9 @@ fn is_darwin_code_source_home(path: &Path) -> bool {
 
     let cargo_marker = std::fs::read_to_string(cargo_toml)
         .is_ok_and(|cargo| cargo.contains("darwin-code-cli") || cargo.contains("darwin-code-core"));
-    let readme_marker = std::fs::read_to_string(path.join("README.md"))
-        .is_ok_and(|readme| readme.contains("DarwinCode Engine"));
+    let readme_marker = std::fs::read_to_string(path.join("README.md")).is_ok_and(|readme| {
+        readme.contains("Darwin Code Engine") || readme.contains("DarwinCode Engine")
+    });
     cargo_marker || readme_marker
 }
 

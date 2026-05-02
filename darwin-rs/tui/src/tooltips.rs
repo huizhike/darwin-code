@@ -8,9 +8,9 @@ const ANNOUNCEMENT_TIP_URL: &str = "https://docs.darwin.local/darwin-code/announ
 const IS_MACOS: bool = cfg!(target_os = "macos");
 const IS_WINDOWS: bool = cfg!(target_os = "windows");
 
-const APP_TOOLTIP: &str = "Try the **DarwinCode App**. Run 'darwin_code app' or visit https://example.invalid/darwin-code/app";
+const APP_TOOLTIP: &str = "Try the **DarwinCode App**. Run 'darwin-code app' or visit https://example.invalid/darwin-code/app";
 const FAST_TOOLTIP: &str = "*New* Use **/fast** to enable our fastest inference at 2X plan usage.";
-const OTHER_TOOLTIP: &str = "*New* Build faster with the **DarwinCode App**. Run 'darwin_code app' or visit https://example.invalid/darwin-code/app";
+const OTHER_TOOLTIP: &str = "*New* Build faster with the **DarwinCode App**. Run 'darwin-code app' or visit https://example.invalid/darwin-code/app";
 const OTHER_TOOLTIP_NON_MAC: &str = "*New* Build faster with DarwinCode.";
 const FREE_GO_TOOLTIP: &str = "*New* For a limited time, DarwinCode is included in your plan for free – let’s build together.";
 
@@ -24,7 +24,7 @@ lazy_static! {
             if line.is_empty() || line.starts_with('#') {
                 return false;
             }
-            if !IS_MACOS && !IS_WINDOWS && line.contains("darwin_code app") {
+            if !IS_MACOS && !IS_WINDOWS && line.contains("darwin-code app") {
                 return false;
             }
             true

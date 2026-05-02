@@ -9,6 +9,8 @@ use darwin_code_api::Provider as ApiProvider;
 use darwin_code_api::RetryConfig as ApiRetryConfig;
 use darwin_code_api::is_azure_responses_provider;
 use darwin_code_protocol::config_types::ModelProviderAuthInfo;
+use darwin_code_protocol::error::DarwinCodeErr;
+use darwin_code_protocol::error::EnvVarError;
 use darwin_code_protocol::error::Result as DarwinCodeResult;
 use http::HeaderMap;
 use http::header::HeaderName;
@@ -123,11 +125,15 @@ pub struct ModelProviderInfo {
     /// leaking secrets through status/config APIs.
     #[serde(default, skip_serializing)]
     pub api_key: Option<InlineApiKey>,
+    /// Environment variable containing the BYOK API key.
+    #[serde(default)]
+    pub api_key_env: Option<String>,
     /// Legacy bearer-token field retained only for config-schema compatibility.
-    /// DarwinCode is BYOK-only; provider configs use direct `api_key`.
+    /// DarwinCode is BYOK-only; provider configs use `api_key_env` or direct
+    /// `api_key`.
     pub experimental_bearer_token: Option<String>,
     /// Legacy command-backed bearer-token configuration. DarwinCode is
-    /// BYOK-only; provider configs use direct `api_key`.
+    /// BYOK-only; provider configs use `api_key_env` or direct `api_key`.
     pub auth: Option<ModelProviderAuthInfo>,
     /// Which wire protocol this provider expects.
     #[serde(default)]
@@ -153,15 +159,25 @@ pub struct ModelProviderInfo {
 
 impl ModelProviderInfo {
     pub fn validate(&self) -> std::result::Result<(), String> {
+        if self.api_key.is_some() && self.api_key_env.is_some() {
+            return Err("cannot set both `api_key` and `api_key_env`".to_string());
+        }
+        if self
+            .api_key_env
+            .as_deref()
+            .is_some_and(|env_var| env_var.trim().is_empty())
+        {
+            return Err("`api_key_env` must not be empty".to_string());
+        }
         if self.experimental_bearer_token.is_some() {
             return Err(
-                "BYOK-only provider auth rejects experimental_bearer_token; use direct api_key"
+                "BYOK-only provider auth rejects experimental_bearer_token; use api_key or api_key_env"
                     .to_string(),
             );
         }
         if self.auth.is_some() {
             return Err(
-                "BYOK-only provider auth rejects command-backed auth; use direct api_key"
+                "BYOK-only provider auth rejects command-backed auth; use api_key or api_key_env"
                     .to_string(),
             );
         }
@@ -196,7 +212,7 @@ impl ModelProviderInfo {
     }
 
     pub fn to_api_provider(&self) -> DarwinCodeResult<ApiProvider> {
-        let base_url = self.base_url.clone().unwrap_or_else(|| "".to_string());
+        let base_url = self.base_url.clone().unwrap_or_default();
 
         let headers = self.build_header_map()?;
         let retry = ApiRetryConfig {
@@ -217,16 +233,38 @@ impl ModelProviderInfo {
         })
     }
 
-    /// Returns the direct BYOK API key configured for this provider, if any.
+    /// Returns the BYOK API key configured for this provider, if any.
     pub fn api_key(&self) -> DarwinCodeResult<Option<String>> {
-        Ok(self
-            .api_key
-            .as_ref()
-            .map(|api_key| api_key.expose_secret().to_string()))
+        if let Some(api_key) = self.api_key.as_ref() {
+            return Ok(Some(api_key.expose_secret().to_string()));
+        }
+
+        let Some(env_var) = self.api_key_env.as_deref() else {
+            return Ok(None);
+        };
+        let env_var = env_var.trim();
+        if env_var.is_empty() {
+            return Err(DarwinCodeErr::Fatal(
+                "`api_key_env` must not be empty".to_string(),
+            ));
+        }
+        let value = std::env::var(env_var).map_err(|_| {
+            DarwinCodeErr::EnvVar(EnvVarError {
+                var: env_var.to_string(),
+                instructions: Some("Set it or update `api_key_env`.".to_string()),
+            })
+        })?;
+        if value.trim().is_empty() {
+            return Err(DarwinCodeErr::Fatal(format!(
+                "Environment variable `{env_var}` referenced by `api_key_env` must not be empty"
+            )));
+        }
+        Ok(Some(value))
     }
 
     pub fn with_api_key(mut self, api_key: Option<String>) -> Self {
         self.api_key = api_key.map(InlineApiKey::new);
+        self.api_key_env = None;
         self
     }
 
@@ -259,6 +297,7 @@ impl ModelProviderInfo {
             name: OPENAI_PROVIDER_NAME.into(),
             base_url: Some(base_url.unwrap_or_else(|| "https://api.openai.com/v1".to_string())),
             api_key: api_key.map(InlineApiKey::new),
+            api_key_env: None,
             experimental_bearer_token: None,
             auth: None,
             wire_api: WireApi::Responses,
@@ -298,6 +337,7 @@ impl ModelProviderInfo {
                 }),
             ),
             api_key: api_key.map(InlineApiKey::new),
+            api_key_env: None,
             experimental_bearer_token: None,
             auth: None,
             wire_api: WireApi::GeminiGenerate,
@@ -318,6 +358,7 @@ impl ModelProviderInfo {
             name: "Anthropic Claude".into(),
             base_url: Some(base_url.unwrap_or_else(|| "https://api.anthropic.com/v1".to_string())),
             api_key: api_key.map(InlineApiKey::new),
+            api_key_env: None,
             experimental_bearer_token: None,
             auth: None,
             wire_api: WireApi::ClaudeMessages,
@@ -344,6 +385,7 @@ impl ModelProviderInfo {
             name,
             base_url: Some(base_url),
             api_key: api_key.into().map(InlineApiKey::new),
+            api_key_env: None,
             experimental_bearer_token: None,
             auth: None,
             wire_api,

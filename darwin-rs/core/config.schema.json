@@ -273,6 +273,10 @@
           "description": "Inline BYOK API key for local, untracked configs.",
           "type": "string"
         },
+        "api_key_env": {
+          "description": "Environment variable containing the BYOK API key.",
+          "type": "string"
+        },
         "available_models": {
           "default": [],
           "description": "Legacy list form for configured models.",
@@ -955,13 +959,18 @@
           "type": "string",
           "writeOnly": true
         },
+        "api_key_env": {
+          "default": null,
+          "description": "Environment variable containing the BYOK API key.",
+          "type": "string"
+        },
         "auth": {
           "allOf": [
             {
               "$ref": "#/definitions/ModelProviderAuthInfo"
             }
           ],
-          "description": "Legacy command-backed bearer-token configuration. DarwinCode is BYOK-only; provider configs use direct `api_key`."
+          "description": "Legacy command-backed bearer-token configuration. DarwinCode is BYOK-only; provider configs use `api_key_env` or direct `api_key`."
         },
         "base_url": {
           "description": "Base URL for the provider's OpenAI-compatible API.",
@@ -975,7 +984,7 @@
           "type": "object"
         },
         "experimental_bearer_token": {
-          "description": "Legacy bearer-token field retained only for config-schema compatibility. DarwinCode is BYOK-only; provider configs use direct `api_key`.",
+          "description": "Legacy bearer-token field retained only for config-schema compatibility. DarwinCode is BYOK-only; provider configs use `api_key_env` or direct `api_key`.",
           "type": "string"
         },
         "http_headers": {
@@ -1052,6 +1061,10 @@
       "properties": {
         "api_key": {
           "description": "Inline BYOK API key for local, untracked configs.",
+          "type": "string"
+        },
+        "api_key_env": {
+          "description": "Environment variable containing the BYOK API key.",
           "type": "string"
         },
         "available_models": {
@@ -1190,6 +1203,10 @@
       "properties": {
         "api_key": {
           "description": "Inline BYOK API key for local, untracked configs.",
+          "type": "string"
+        },
+        "api_key_env": {
+          "description": "Environment variable containing the BYOK API key.",
           "type": "string"
         },
         "available_models": {

@@ -125,6 +125,59 @@ impl fmt::Debug for ApiKeyToml {
     }
 }
 
+pub fn resolve_api_key_source(
+    field_prefix: &str,
+    direct_api_key: Option<&ApiKeyToml>,
+    api_key_env: Option<&str>,
+) -> Result<Option<String>, String> {
+    if direct_api_key.is_some() && api_key_env.is_some() {
+        return Err(format!(
+            "{field_prefix} cannot set both `api_key` and `api_key_env`"
+        ));
+    }
+
+    if let Some(api_key) = direct_api_key {
+        return resolve_optional_string(
+            &format!("{field_prefix}.api_key"),
+            Some(api_key.expose_secret()),
+            None,
+            None,
+        );
+    }
+
+    let Some(env_var) = api_key_env else {
+        return Ok(None);
+    };
+    let Some(env_var) = resolve_optional_string(
+        &format!("{field_prefix}.api_key_env"),
+        Some(env_var),
+        None,
+        None,
+    )?
+    else {
+        return Ok(None);
+    };
+
+    let value = std::env::var(&env_var).map_err(|_| {
+        format!("{field_prefix}.api_key_env references missing environment variable `{env_var}`")
+    })?;
+    resolve_optional_string(
+        &format!("{field_prefix}.api_key_env({env_var})"),
+        Some(&value),
+        None,
+        None,
+    )
+}
+
+pub fn resolve_required_api_key_source(
+    field_prefix: &str,
+    direct_api_key: Option<&ApiKeyToml>,
+    api_key_env: Option<&str>,
+) -> Result<String, String> {
+    resolve_api_key_source(field_prefix, direct_api_key, api_key_env)?
+        .ok_or_else(|| format!("{field_prefix} requires non-empty `api_key` or `api_key_env`"))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(deny_unknown_fields)]
@@ -133,6 +186,8 @@ pub struct NativeProviderToml {
     pub base_url: Option<String>,
     /// Inline BYOK API key for local, untracked configs.
     pub api_key: Option<ApiKeyToml>,
+    /// Environment variable containing the BYOK API key.
+    pub api_key_env: Option<String>,
     /// List of available models provided by this provider.
     #[serde(default)]
     pub available_models: Vec<ModelConfigToml>,
@@ -157,6 +212,8 @@ pub struct OpenAiCompatibleProviderToml {
     pub wire_api: Option<WireApi>,
     /// Inline BYOK API key for local, untracked configs.
     pub api_key: Option<ApiKeyToml>,
+    /// Environment variable containing the BYOK API key.
+    pub api_key_env: Option<String>,
     /// List of available models provided by this provider.
     #[serde(default)]
     pub available_models: Vec<ModelConfigToml>,
@@ -195,13 +252,11 @@ impl OpenAiCompatibleProviderToml {
         .ok_or_else(|| {
             format!("{field_prefix} requires either `preset` or non-empty `base_url`")
         })?;
-        let api_key = resolve_optional_string(
-            &format!("{field_prefix}.api_key"),
-            self.api_key.as_ref().map(ApiKeyToml::expose_secret),
-            None,
-            None,
-        )?
-        .ok_or_else(|| format!("{field_prefix} requires non-empty `api_key`"))?;
+        let api_key = resolve_required_api_key_source(
+            &field_prefix,
+            self.api_key.as_ref(),
+            self.api_key_env.as_deref(),
+        )?;
         let wire_api = self
             .wire_api
             .or_else(|| preset.as_ref().and_then(|preset| preset.wire_api))
@@ -296,6 +351,8 @@ pub struct ByokProviderToml {
     pub wire_api: Option<WireApi>,
     /// Inline BYOK API key for local, untracked configs.
     pub api_key: Option<ApiKeyToml>,
+    /// Environment variable containing the BYOK API key.
+    pub api_key_env: Option<String>,
     /// Legacy list form for configured models.
     #[serde(default)]
     pub available_models: Vec<ModelConfigToml>,
@@ -333,13 +390,11 @@ impl ByokProviderToml {
             None,
         )?
         .ok_or_else(|| format!("{field_prefix} requires non-empty `base_url`"))?;
-        let api_key = resolve_optional_string(
-            &format!("{field_prefix}.api_key"),
-            self.api_key.as_ref().map(ApiKeyToml::expose_secret),
-            None,
-            None,
-        )?
-        .ok_or_else(|| format!("{field_prefix} requires non-empty `api_key`"))?;
+        let api_key = resolve_required_api_key_source(
+            &field_prefix,
+            self.api_key.as_ref(),
+            self.api_key_env.as_deref(),
+        )?;
 
         Ok(ResolvedByokProvider {
             id: id.to_string(),

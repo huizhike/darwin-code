@@ -53,6 +53,7 @@ async fn retries_on_early_close() {
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-direct-api-key".to_string(),
         )),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,

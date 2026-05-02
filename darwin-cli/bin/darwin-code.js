@@ -170,9 +170,9 @@ const updatedPath = getUpdatedPath(additionalDirs);
 
 const env = { ...process.env, PATH: updatedPath };
 
-// Published npm packages include a config.toml generated from the repository
-// config-example.toml at pack time. Use it only when the user has not set an
-// explicit DARWIN_CODE_HOME and has not already created ~/.darwin/config.toml.
+// Published npm packages include a config.toml copied from the repository root
+// default config at pack time. Use it only when the user has not set an explicit
+// DARWIN_CODE_HOME and has not already created ~/.darwin/config.toml.
 if (!env.DARWIN_CODE_HOME && existsSync(packageConfigPath)) {
   const defaultUserConfigPath = path.join(os.homedir(), ".darwin", "config.toml");
   if (!existsSync(defaultUserConfigPath)) {

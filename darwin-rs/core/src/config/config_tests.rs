@@ -31,6 +31,18 @@ use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
 
+fn set_env_var_for_test(key: &str, value: &str) {
+    // SAFETY: Tests using this helper use unique variable names and set them
+    // immediately before config resolution.
+    unsafe { std::env::set_var(key, value) };
+}
+
+fn remove_env_var_for_test(key: &str) {
+    // SAFETY: Tests using this helper use unique variable names and clean them
+    // after config resolution.
+    unsafe { std::env::remove_var(key) };
+}
+
 #[allow(dead_code)]
 fn stdio_mcp(command: &str) -> McpServerConfig {
     McpServerConfig {
@@ -1691,7 +1703,7 @@ fn test_cwd() -> std::io::Result<TempDir> {
 
 fn write_darwin_code_source_home(root: &Path) -> std::io::Result<()> {
     std::fs::write(root.join("config.toml"), "model = \"test-model\"\n")?;
-    std::fs::write(root.join("README.md"), "# DarwinCode Engine\n")?;
+    std::fs::write(root.join("README.md"), "# Darwin Code Engine\n")?;
     std::fs::create_dir_all(root.join("darwin-rs"))?;
     std::fs::write(
         root.join("darwin-rs").join("Cargo.toml"),
@@ -1848,6 +1860,115 @@ api_key = "test-direct-key"
         Some("https://api.deepseek.com")
     );
     assert_eq!(config.model_provider.wire_api, WireApi::ChatCompletions);
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_reads_api_key_env() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_DEEPSEEK_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    set_env_var_for_test(ENV_KEY, "test-env-key");
+
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+wire_api = "chat-completions"
+api_key_env = "{ENV_KEY}"
+"#
+    ))
+    .expect("valid api_key_env config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+    remove_env_var_for_test(ENV_KEY);
+
+    assert_eq!(config.model_provider_id, "deepseek");
+    assert_eq!(
+        config.model_provider.api_key().expect("env key resolves"),
+        Some("test-env-key".to_string())
+    );
+    assert!(
+        !format!("{:?}", config.model_provider).contains("test-env-key"),
+        "env-resolved api key should be redacted from debug output"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn native_providers_read_api_key_env() -> std::io::Result<()> {
+    const OPENAI_ENV: &str = "DARWIN_CODE_TEST_OPENAI_API_KEY_ENV";
+    const GEMINI_ENV: &str = "DARWIN_CODE_TEST_GEMINI_API_KEY_ENV";
+    const CLAUDE_ENV: &str = "DARWIN_CODE_TEST_CLAUDE_API_KEY_ENV";
+    for key in [OPENAI_ENV, GEMINI_ENV, CLAUDE_ENV] {
+        remove_env_var_for_test(key);
+    }
+    set_env_var_for_test(OPENAI_ENV, "test-openai-env-key");
+    set_env_var_for_test(GEMINI_ENV, "test-gemini-env-key");
+    set_env_var_for_test(CLAUDE_ENV, "test-claude-env-key");
+
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "gpt-test"
+model_provider = "openai"
+
+[openai]
+api_key_env = "{OPENAI_ENV}"
+
+[gemini]
+api_key_env = "{GEMINI_ENV}"
+
+[claude]
+api_key_env = "{CLAUDE_ENV}"
+"#
+    ))
+    .expect("valid native api_key_env config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+    for key in [OPENAI_ENV, GEMINI_ENV, CLAUDE_ENV] {
+        remove_env_var_for_test(key);
+    }
+
+    assert_eq!(
+        config.model_providers["openai"]
+            .api_key()
+            .expect("openai env key resolves"),
+        Some("test-openai-env-key".to_string())
+    );
+    assert_eq!(
+        config.model_providers["gemini"]
+            .api_key()
+            .expect("gemini env key resolves"),
+        Some("test-gemini-env-key".to_string())
+    );
+    assert_eq!(
+        config.model_providers["claude"]
+            .api_key()
+            .expect("claude env key resolves"),
+        Some("test-claude-env-key".to_string())
+    );
     Ok(())
 }
 
@@ -2091,7 +2212,7 @@ api_key = "test-direct-key"
 }
 
 #[tokio::test]
-async fn openai_compatible_provider_rejects_missing_direct_api_key() -> std::io::Result<()> {
+async fn openai_compatible_provider_rejects_missing_api_key_source() -> std::io::Result<()> {
     let cfg: ConfigToml = toml::from_str(
         r#"
 model = "deepseek-chat"
@@ -2101,7 +2222,7 @@ model_provider = "deepseek"
 base_url = "https://api.deepseek.com"
 "#,
     )
-    .expect("cross-field direct api_key validation happens during config load");
+    .expect("cross-field api_key validation happens during config load");
     let cwd = test_cwd()?;
     let darwin_code_home = TempDir::new()?;
 
@@ -2114,7 +2235,7 @@ base_url = "https://api.deepseek.com"
         darwin_code_home.abs(),
     )
     .await
-    .expect_err("missing direct api_key should be rejected");
+    .expect_err("missing api_key source should be rejected");
 
     assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
     assert!(
@@ -2122,9 +2243,84 @@ base_url = "https://api.deepseek.com"
         "unexpected error: {err}"
     );
     assert!(
-        !err.to_string().contains("DEEPSEEK"),
-        "error should not mention derived env vars: {err}"
+        err.to_string().contains("api_key_env"),
+        "error should mention env-backed key option: {err}"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_rejects_missing_api_key_env() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_MISSING_DEEPSEEK_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key_env = "{ENV_KEY}"
+"#
+    ))
+    .expect("config with api_key_env should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("missing api_key_env target should be rejected");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("api_key_env"));
+    assert!(err.to_string().contains(ENV_KEY));
+    assert!(!err.to_string().contains("test-env-key"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_compatible_provider_rejects_blank_api_key_env_value() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_BLANK_DEEPSEEK_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    set_env_var_for_test(ENV_KEY, "   ");
+
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[openai_compatible.deepseek]
+base_url = "https://api.deepseek.com"
+api_key_env = "{ENV_KEY}"
+"#
+    ))
+    .expect("config with api_key_env should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("blank api_key_env target should be rejected");
+    remove_env_var_for_test(ENV_KEY);
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("api_key_env"));
+    assert!(err.to_string().contains(ENV_KEY));
+    assert!(err.to_string().contains("must not be empty"));
     Ok(())
 }
 
@@ -2168,23 +2364,43 @@ api_key = "   "
     Ok(())
 }
 
-#[test]
-fn openai_compatible_provider_rejects_removed_env_field() {
-    let removed_field = format!("api_key_{}", "env");
-    let toml = format!(
+#[tokio::test]
+async fn openai_compatible_provider_rejects_api_key_source_conflict() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_CONFLICT_DEEPSEEK_API_KEY_ENV";
+    set_env_var_for_test(ENV_KEY, "test-env-key");
+    let cfg: ConfigToml = toml::from_str(&format!(
         r#"
 model = "deepseek-chat"
 model_provider = "deepseek"
 
 [openai_compatible.deepseek]
 base_url = "https://api.deepseek.com"
-{removed_field} = "OLD_API_KEY"
+api_key = "test-direct-key"
+api_key_env = "{ENV_KEY}"
 "#
-    );
-    let err = toml::from_str::<ConfigToml>(&toml)
-        .expect_err("removed env-backed key field should be rejected by TOML parser");
+    ))
+    .expect("conflict is detected during config load");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
 
-    assert!(err.to_string().contains(&removed_field));
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await
+    .expect_err("conflicting api_key sources should be rejected");
+    remove_env_var_for_test(ENV_KEY);
+
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(err.to_string().contains("api_key"));
+    assert!(err.to_string().contains("api_key_env"));
+    assert!(!err.to_string().contains("test-direct-key"));
+    assert!(!err.to_string().contains("test-env-key"));
+    Ok(())
 }
 
 #[tokio::test]
@@ -2311,7 +2527,48 @@ api_key = "test-direct-key"
 }
 
 #[tokio::test]
-async fn byok_provider_rejects_missing_direct_api_key() -> std::io::Result<()> {
+async fn byok_provider_reads_api_key_env() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_BYOK_DEEPSEEK_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    set_env_var_for_test(ENV_KEY, "test-byok-env-key");
+
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "deepseek-chat"
+model_provider = "deepseek"
+
+[providers.deepseek]
+family = "openai-compatible"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com"
+api_key_env = "{ENV_KEY}"
+"#
+    ))
+    .expect("valid BYOK provider api_key_env config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+    remove_env_var_for_test(ENV_KEY);
+
+    assert_eq!(config.model_provider_id, "deepseek");
+    assert_eq!(
+        config.model_provider.api_key().expect("env key resolves"),
+        Some("test-byok-env-key".to_string())
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn byok_provider_rejects_missing_api_key_source() -> std::io::Result<()> {
     let cfg: ConfigToml = toml::from_str(
         r#"
 model = "deepseek-chat"
@@ -2335,11 +2592,12 @@ base_url = "https://api.deepseek.com"
         darwin_code_home.abs(),
     )
     .await
-    .expect_err("missing direct api_key should be rejected");
+    .expect_err("missing api_key source should be rejected");
 
     assert_eq!(err.kind(), ErrorKind::InvalidInput);
     assert!(err.to_string().contains("providers.deepseek"));
     assert!(err.to_string().contains("api_key"));
+    assert!(err.to_string().contains("api_key_env"));
     Ok(())
 }
 
@@ -2442,13 +2700,58 @@ command = "./print-token"
             "command-backed auth",
         ),
     ] {
-        let err = toml::from_str::<ConfigToml>(toml)
+        let cfg =
+            toml::from_str::<ConfigToml>(toml).expect("advanced provider config should parse");
+        let err = validate_model_providers(&cfg.model_providers)
             .expect_err("advanced provider auth surface should be rejected");
         assert!(
-            err.to_string().contains(expected),
+            err.contains(expected),
             "expected `{expected}` in error, got: {err}"
         );
     }
+}
+
+#[tokio::test]
+async fn advanced_model_provider_reads_api_key_env() -> std::io::Result<()> {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_ADVANCED_PROVIDER_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    set_env_var_for_test(ENV_KEY, "test-advanced-env-key");
+
+    let cfg: ConfigToml = toml::from_str(&format!(
+        r#"
+model = "custom-model"
+model_provider = "custom"
+
+[model_providers.custom]
+name = "Custom"
+base_url = "https://example.test/v1"
+api_key_env = "{ENV_KEY}"
+"#
+    ))
+    .expect("valid advanced provider api_key_env config should parse");
+    let cwd = test_cwd()?;
+    let darwin_code_home = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        darwin_code_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(config.model_provider_id, "custom");
+    assert_eq!(
+        config
+            .model_provider
+            .api_key()
+            .expect("advanced env key resolves"),
+        Some("test-advanced-env-key".to_string())
+    );
+    remove_env_var_for_test(ENV_KEY);
+    Ok(())
 }
 
 #[tokio::test]
@@ -2569,6 +2872,7 @@ model_verbosity = "high"
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-direct-key".to_string(),
         )),
+        api_key_env: None,
         wire_api: WireApi::Responses,
         experimental_bearer_token: None,
         auth: None,
@@ -2585,6 +2889,7 @@ model_verbosity = "high"
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-openai-direct-key".to_string(),
         )),
+        api_key_env: None,
         wire_api: WireApi::Responses,
         experimental_bearer_token: None,
         auth: None,
@@ -2927,6 +3232,35 @@ async fn approvals_reviewer_defaults_to_manual_only_without_guardian_feature() -
         .await?;
 
     assert_eq!(config.approvals_reviewer, ApprovalsReviewer::User);
+    Ok(())
+}
+
+#[tokio::test]
+async fn set_legacy_sandbox_policy_keeps_split_permissions_in_sync() -> std::io::Result<()> {
+    let darwin_code_home = TempDir::new()?;
+
+    let mut config = ConfigBuilder::without_managed_config_for_tests()
+        .darwin_code_home(darwin_code_home.path().to_path_buf())
+        .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
+        .build()
+        .await?;
+    let cwd = config.cwd.clone();
+    let policy = SandboxPolicy::new_workspace_write_policy();
+
+    config
+        .permissions
+        .set_legacy_sandbox_policy(policy.clone(), cwd.as_path())
+        .expect("set legacy sandbox policy");
+
+    assert_eq!(config.permissions.sandbox_policy.get(), &policy);
+    assert_eq!(
+        config.permissions.file_system_sandbox_policy,
+        FileSystemSandboxPolicy::from_legacy_sandbox_policy(&policy, cwd.as_path())
+    );
+    assert_eq!(
+        config.permissions.network_sandbox_policy,
+        NetworkSandboxPolicy::from(&policy)
+    );
     Ok(())
 }
 

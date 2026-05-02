@@ -199,7 +199,7 @@ async fn exec_cli_applies_model_instructions_file() {
     );
 }
 
-/// Verify that `darwin_code exec --profile ...` preserves the active profile when it
+/// Verify that `darwin-code exec --profile ...` preserves the active profile when it
 /// starts the in-process app-server thread, so profile-scoped
 /// `model_instructions_file` is applied to the outbound request.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

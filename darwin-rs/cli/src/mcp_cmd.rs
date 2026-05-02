@@ -60,7 +60,7 @@ pub struct GetArgs {
 }
 
 #[derive(Debug, clap::Parser)]
-#[command(override_usage = "darwin_code mcp add [OPTIONS] <NAME> (--url <URL> | -- <COMMAND>...)")]
+#[command(override_usage = "darwin-code mcp add [OPTIONS] <NAME> (--url <URL> | -- <COMMAND>...)")]
 pub struct AddArgs {
     /// Name for the MCP server configuration.
     pub name: String,
@@ -368,7 +368,7 @@ async fn run_list(config_overrides: &CliConfigOverrides, list_args: ListArgs) ->
     }
 
     if entries.is_empty() {
-        println!("No MCP servers configured yet. Try `darwin_code mcp add my-tool -- my-command`.");
+        println!("No MCP servers configured yet. Try `darwin-code mcp add my-tool -- my-command`.");
         return Ok(());
     }
 
@@ -708,7 +708,7 @@ async fn run_get(config_overrides: &CliConfigOverrides, get_args: GetArgs) -> Re
         };
         println!("  default_tools_approval_mode: {approval_mode}");
     }
-    println!("  remove: darwin_code mcp remove {}", get_args.name);
+    println!("  remove: darwin-code mcp remove {}", get_args.name);
 
     Ok(())
 }

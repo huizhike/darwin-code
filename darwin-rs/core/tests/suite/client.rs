@@ -1584,6 +1584,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         name: "azure".into(),
         base_url: Some(format!("{}/openai", server.uri())),
         api_key: None,
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -2198,6 +2199,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-direct-api-key".to_string(),
         )),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         query_params: Some(std::collections::HashMap::from([(
@@ -2282,6 +2284,7 @@ async fn env_var_overrides_loaded_auth() {
         api_key: Some(darwin_code_model_provider_info::InlineApiKey::new(
             "test-direct-api-key".to_string(),
         )),
+        api_key_env: None,
         query_params: Some(std::collections::HashMap::from([(
             "api-version".to_string(),
             "2025-04-01-preview".to_string(),

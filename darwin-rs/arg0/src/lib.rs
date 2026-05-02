@@ -161,7 +161,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
 /// `darwin-code-linux-sandbox` we *directly* execute
 /// [`darwin_code_linux_sandbox::run_main`] (which never returns). Otherwise we:
 ///
-/// 1.  Load `.env` values from `~/.darwin/.env` before creating any threads.
+/// 1.  Load `.env` values from the resolved DarwinCode home before creating any threads.
 /// 2.  Construct a Tokio multi-thread runtime.
 /// 3.  Capture the current executable path and derive the
 ///     `darwin-code-linux-sandbox` helper path (falling back to the current
@@ -226,7 +226,7 @@ fn build_runtime() -> anyhow::Result<tokio::runtime::Runtime> {
 
 const ILLEGAL_ENV_VAR_PREFIX: &str = "DARWIN_CODE_";
 
-/// Load env vars from ~/.darwin/.env.
+/// Load env vars from the resolved DarwinCode home `.env`.
 ///
 /// Security: Do not allow `.env` files to create or modify any variables
 /// with names starting with `DARWIN_CODE_`.
@@ -239,12 +239,17 @@ fn load_dotenv() {
 }
 
 /// Helper to set vars from a dotenvy iterator while filtering out `DARWIN_CODE_` keys.
+///
+/// Existing parent environment variables win over `.env` values.
 fn set_filtered<I>(iter: I)
 where
     I: IntoIterator<Item = Result<(String, String), dotenvy::Error>>,
 {
     for (key, value) in iter.into_iter().flatten() {
         if !key.to_ascii_uppercase().starts_with(ILLEGAL_ENV_VAR_PREFIX) {
+            if std::env::var_os(&key).is_some() {
+                continue;
+            }
             // It is safe to call set_var() because our process is
             // single-threaded at this point in its execution.
             unsafe { std::env::set_var(&key, &value) };
@@ -444,6 +449,7 @@ mod tests {
     use super::LOCK_FILENAME;
     use super::janitor_cleanup;
     use super::linux_sandbox_exe_path;
+    use super::set_filtered;
     use std::fs;
     use std::fs::File;
     use std::path::Path;
@@ -458,6 +464,76 @@ mod tests {
             .create(true)
             .truncate(false)
             .open(lock_path)
+    }
+
+    fn remove_env_var_for_test(key: &str) {
+        // SAFETY: Tests use unique variable names and remove them before/after
+        // checking dotenv behavior.
+        unsafe { std::env::remove_var(key) };
+    }
+
+    fn set_env_var_for_test(key: &str, value: &str) {
+        // SAFETY: Tests use unique variable names and set them immediately
+        // before checking dotenv behavior.
+        unsafe { std::env::set_var(key, value) };
+    }
+
+    #[test]
+    fn set_filtered_loads_normal_variables() {
+        const KEY: &str = "DARWIN_TEST_DOTENV_LOADS_NORMAL";
+        remove_env_var_for_test(KEY);
+
+        set_filtered(vec![Ok::<_, dotenvy::Error>((
+            KEY.to_string(),
+            "from-dotenv".to_string(),
+        ))]);
+
+        assert_eq!(std::env::var(KEY).as_deref(), Ok("from-dotenv"));
+        remove_env_var_for_test(KEY);
+    }
+
+    #[test]
+    fn set_filtered_ignores_darwin_code_variables() {
+        const KEY: &str = "DARWIN_CODE_TEST_DOTENV_IGNORED";
+        remove_env_var_for_test(KEY);
+
+        set_filtered(vec![Ok::<_, dotenvy::Error>((
+            KEY.to_string(),
+            "from-dotenv".to_string(),
+        ))]);
+
+        assert!(std::env::var(KEY).is_err());
+    }
+
+    #[test]
+    fn set_filtered_does_not_overwrite_existing_variables() {
+        const KEY: &str = "DARWIN_TEST_DOTENV_KEEP_PARENT";
+        remove_env_var_for_test(KEY);
+        set_env_var_for_test(KEY, "from-parent");
+
+        set_filtered(vec![Ok::<_, dotenvy::Error>((
+            KEY.to_string(),
+            "from-dotenv".to_string(),
+        ))]);
+
+        assert_eq!(std::env::var(KEY).as_deref(), Ok("from-parent"));
+        remove_env_var_for_test(KEY);
+    }
+
+    #[test]
+    fn set_filtered_accepts_dotenv_export_syntax() -> std::io::Result<()> {
+        const KEY: &str = "DARWIN_TEST_DOTENV_EXPORT_SYNTAX";
+        remove_env_var_for_test(KEY);
+        let temp_dir = TempDir::new()?;
+        let dotenv_path = temp_dir.path().join(".env");
+        fs::write(&dotenv_path, format!("export {KEY}=from-export\n"))?;
+
+        let iter = dotenvy::from_path_iter(&dotenv_path).map_err(std::io::Error::other)?;
+        set_filtered(iter);
+
+        assert_eq!(std::env::var(KEY).as_deref(), Ok("from-export"));
+        remove_env_var_for_test(KEY);
+        Ok(())
     }
 
     #[test]

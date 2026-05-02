@@ -112,6 +112,7 @@ use darwin_code_otel::SessionTelemetry;
 use darwin_code_protocol::ThreadId;
 use darwin_code_protocol::approvals::ExecApprovalRequestEvent;
 use darwin_code_protocol::config_types::Personality;
+use darwin_code_protocol::config_types::SandboxMode;
 #[cfg(target_os = "windows")]
 use darwin_code_protocol::config_types::WindowsSandboxLevel;
 use darwin_code_protocol::model_metadata::ModelAvailabilityNux;
@@ -321,11 +322,10 @@ fn session_summary(
     rollout_path: Option<&Path>,
 ) -> Option<SessionSummary> {
     let usage_line = (!token_usage.is_zero()).then(|| FinalOutput::from(token_usage).to_string());
-    let (thread_id, thread_name) = resumable_thread(thread_id, thread_name, rollout_path)
-        .map(|thread| (Some(thread.thread_id), thread.thread_name))
-        .unwrap_or((None, None));
+    let thread_id =
+        resumable_thread(thread_id, thread_name, rollout_path).map(|thread| thread.thread_id);
     let resume_command =
-        crate::legacy_core::util::resume_command(thread_name.as_deref(), thread_id);
+        crate::legacy_core::util::resume_command(/*thread_name*/ None, thread_id);
 
     if usage_line.is_none() && resume_command.is_none() {
         return None;
@@ -1203,7 +1203,9 @@ impl App {
             ));
         }
         if let Some(policy) = self.runtime_sandbox_policy_override.as_ref()
-            && let Err(err) = config.permissions.sandbox_policy.set(policy.clone())
+            && let Err(err) = config
+                .permissions
+                .set_legacy_sandbox_policy(policy.clone(), config.cwd.as_path())
         {
             tracing::warn!(%err, "failed to carry forward sandbox policy override");
             self.chat_widget.add_error_message(format!(
@@ -1215,6 +1217,66 @@ impl App {
     fn set_approvals_reviewer_in_app_and_widget(&mut self, reviewer: ApprovalsReviewer) {
         self.config.approvals_reviewer = reviewer;
         self.chat_widget.set_approvals_reviewer(reviewer);
+    }
+
+    fn config_segments_for_active_profile(&self, key: &str) -> Vec<String> {
+        if let Some(profile) = self.active_profile.as_deref() {
+            vec!["profiles".to_string(), profile.to_string(), key.to_string()]
+        } else {
+            vec![key.to_string()]
+        }
+    }
+
+    fn sandbox_mode_for_policy(policy: &SandboxPolicy) -> SandboxMode {
+        match policy {
+            SandboxPolicy::DangerFullAccess => SandboxMode::DangerFullAccess,
+            SandboxPolicy::ReadOnly { .. } => SandboxMode::ReadOnly,
+            SandboxPolicy::WorkspaceWrite { .. } => SandboxMode::WorkspaceWrite,
+            SandboxPolicy::ExternalSandbox { .. } => SandboxMode::DangerFullAccess,
+        }
+    }
+
+    async fn persist_permission_selection(
+        &mut self,
+        approval_policy: AskForApproval,
+        sandbox_policy: SandboxPolicy,
+        approvals_reviewer: ApprovalsReviewer,
+    ) {
+        let mut edits = vec![
+            ConfigEdit::SetPath {
+                segments: self.config_segments_for_active_profile("approval_policy"),
+                value: approval_policy.to_string().into(),
+            },
+            ConfigEdit::SetPath {
+                segments: self.config_segments_for_active_profile("sandbox_mode"),
+                value: Self::sandbox_mode_for_policy(&sandbox_policy)
+                    .to_string()
+                    .into(),
+            },
+            ConfigEdit::SetPath {
+                segments: self.config_segments_for_active_profile("approvals_reviewer"),
+                value: approvals_reviewer.to_string().into(),
+            },
+        ];
+
+        // The permissions popup exposes named presets, not arbitrary workspace
+        // write customization. Clear stale workspace-write details so choosing
+        // "Default" restarts with the actual built-in default rather than old
+        // writable roots or network access from a previous config.
+        edits.push(ConfigEdit::ClearPath {
+            segments: vec!["sandbox_workspace_write".to_string()],
+        });
+
+        if let Err(err) = ConfigEditsBuilder::new(&self.config.darwin_code_home)
+            .with_profile(self.active_profile.as_deref())
+            .with_edits(edits)
+            .apply()
+            .await
+        {
+            tracing::error!(error = %err, "failed to persist permissions selection");
+            self.chat_widget
+                .add_error_message(format!("Failed to save permissions selection: {err}"));
+        }
     }
 
     fn try_set_approval_policy_on_config(
@@ -1241,7 +1303,10 @@ impl App {
         user_message_prefix: &str,
         log_message: &str,
     ) -> bool {
-        if let Err(err) = config.permissions.sandbox_policy.set(policy) {
+        if let Err(err) = config
+            .permissions
+            .set_legacy_sandbox_policy(policy, config.cwd.as_path())
+        {
             tracing::warn!(error = %err, "{log_message}");
             self.chat_widget
                 .add_error_message(format!("{user_message_prefix}: {err}"));
@@ -3125,6 +3190,40 @@ impl App {
                     );
                 }
                 true
+            }
+        }
+    }
+
+    async fn sync_active_thread_permission_settings_to_cached_session(&mut self) {
+        let Some(active_thread_id) = self.active_thread_id else {
+            return;
+        };
+
+        let approval_policy = self.config.permissions.approval_policy.value();
+        let approvals_reviewer = self.config.approvals_reviewer;
+        let sandbox_policy = self
+            .chat_widget
+            .config_ref()
+            .permissions
+            .sandbox_policy
+            .get()
+            .clone();
+        let update_session = |session: &mut ThreadSessionState| {
+            session.approval_policy = approval_policy;
+            session.approvals_reviewer = approvals_reviewer;
+            session.sandbox_policy = sandbox_policy.clone();
+        };
+
+        if self.primary_thread_id == Some(active_thread_id)
+            && let Some(session) = self.primary_session_configured.as_mut()
+        {
+            update_session(session);
+        }
+
+        if let Some(channel) = self.thread_event_channels.get(&active_thread_id) {
+            let mut store = channel.store.lock().await;
+            if let Some(session) = store.session.as_mut() {
+                update_session(session);
             }
         }
     }
@@ -5222,6 +5321,8 @@ impl App {
                     Some(self.config.permissions.approval_policy.value());
                 self.chat_widget
                     .set_approval_policy(self.config.permissions.approval_policy.value());
+                self.sync_active_thread_permission_settings_to_cached_session()
+                    .await;
             }
             AppEvent::UpdateSandboxPolicy(policy) => {
                 #[cfg(target_os = "windows")]
@@ -5250,6 +5351,8 @@ impl App {
                 }
                 self.runtime_sandbox_policy_override =
                     Some(self.config.permissions.sandbox_policy.get().clone());
+                self.sync_active_thread_permission_settings_to_cached_session()
+                    .await;
 
                 // If sandbox policy becomes workspace-write or read-only, run the Windows world-writable scan.
                 #[cfg(target_os = "windows")]
@@ -5284,6 +5387,8 @@ impl App {
             AppEvent::UpdateApprovalsReviewer(policy) => {
                 self.config.approvals_reviewer = policy;
                 self.chat_widget.set_approvals_reviewer(policy);
+                self.sync_active_thread_permission_settings_to_cached_session()
+                    .await;
                 let profile = self.active_profile.as_deref();
                 let segments = if let Some(profile) = profile {
                     vec![
@@ -5310,6 +5415,18 @@ impl App {
                     self.chat_widget
                         .add_error_message(format!("Failed to save approvals reviewer: {err}"));
                 }
+            }
+            AppEvent::PersistPermissionSelection {
+                approval_policy,
+                sandbox_policy,
+                approvals_reviewer,
+            } => {
+                self.persist_permission_selection(
+                    approval_policy,
+                    sandbox_policy,
+                    approvals_reviewer,
+                )
+                .await;
             }
             AppEvent::UpdateFeatureFlags { updates } => {
                 self.update_feature_flags(updates).await;
@@ -9579,6 +9696,149 @@ guardian_approval = true
         }
     }
 
+    #[tokio::test]
+    async fn permission_settings_sync_updates_active_snapshot_without_rewriting_other_thread() {
+        let mut app = make_test_app().await;
+        let main_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000401")
+            .expect("valid main thread id");
+        let other_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000402")
+            .expect("valid other thread id");
+        let main_session = test_thread_session(main_thread_id, test_path_buf("/tmp/main"));
+        let other_session = ThreadSessionState {
+            approval_policy: AskForApproval::OnRequest,
+            sandbox_policy: SandboxPolicy::new_workspace_write_policy(),
+            ..test_thread_session(other_thread_id, test_path_buf("/tmp/other"))
+        };
+
+        app.primary_thread_id = Some(main_thread_id);
+        app.active_thread_id = Some(main_thread_id);
+        app.primary_session_configured = Some(main_session.clone());
+        app.thread_event_channels.insert(
+            main_thread_id,
+            ThreadEventChannel::new_with_session(
+                /*capacity*/ 4,
+                main_session.clone(),
+                Vec::new(),
+            ),
+        );
+        app.thread_event_channels.insert(
+            other_thread_id,
+            ThreadEventChannel::new_with_session(
+                /*capacity*/ 4,
+                other_session.clone(),
+                Vec::new(),
+            ),
+        );
+
+        app.config.permissions.approval_policy =
+            crate::legacy_core::config::Constrained::allow_any(AskForApproval::OnRequest);
+        app.config.approvals_reviewer = ApprovalsReviewer::GuardianSubagent;
+        let expected_sandbox_policy = SandboxPolicy::new_workspace_write_policy();
+        app.chat_widget.handle_thread_session(main_session.clone());
+        app.chat_widget
+            .set_sandbox_policy(expected_sandbox_policy.clone())
+            .expect("set widget sandbox policy");
+        app.config
+            .permissions
+            .set_legacy_sandbox_policy(expected_sandbox_policy.clone(), main_session.cwd.as_path())
+            .expect("set app sandbox policy");
+
+        app.sync_active_thread_permission_settings_to_cached_session()
+            .await;
+
+        let expected_main_session = ThreadSessionState {
+            approval_policy: AskForApproval::OnRequest,
+            approvals_reviewer: ApprovalsReviewer::GuardianSubagent,
+            sandbox_policy: expected_sandbox_policy,
+            ..main_session
+        };
+        assert_eq!(
+            app.primary_session_configured,
+            Some(expected_main_session.clone())
+        );
+
+        let main_store_session = app
+            .thread_event_channels
+            .get(&main_thread_id)
+            .expect("main thread channel")
+            .store
+            .lock()
+            .await
+            .session
+            .clone();
+        assert_eq!(main_store_session, Some(expected_main_session));
+
+        let other_store_session = app
+            .thread_event_channels
+            .get(&other_thread_id)
+            .expect("other thread channel")
+            .store
+            .lock()
+            .await
+            .session
+            .clone();
+        assert_eq!(other_store_session, Some(other_session));
+    }
+
+    #[tokio::test]
+    async fn runtime_sandbox_override_keeps_split_permissions_in_sync() {
+        let mut app = make_test_app().await;
+        let mut config = app.config.clone();
+        let cwd = config.cwd.clone();
+        let policy = SandboxPolicy::new_workspace_write_policy();
+
+        app.runtime_sandbox_policy_override = Some(policy.clone());
+        app.apply_runtime_policy_overrides(&mut config);
+
+        assert_eq!(config.permissions.sandbox_policy.get(), &policy);
+        assert_eq!(
+            config.permissions.file_system_sandbox_policy,
+            darwin_code_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy(
+                &policy,
+                cwd.as_path()
+            )
+        );
+        assert_eq!(
+            config.permissions.network_sandbox_policy,
+            darwin_code_protocol::permissions::NetworkSandboxPolicy::from(&policy)
+        );
+    }
+
+    #[tokio::test]
+    async fn persist_permission_selection_writes_full_access_for_next_launch() -> Result<()> {
+        let mut app = make_test_app().await;
+        let darwin_code_home = tempdir()?;
+        crate::test_support::ensure_default_byok_provider_config(darwin_code_home.path())?;
+        app.config.darwin_code_home = darwin_code_home.path().to_path_buf().abs();
+
+        app.persist_permission_selection(
+            AskForApproval::Never,
+            SandboxPolicy::DangerFullAccess,
+            ApprovalsReviewer::User,
+        )
+        .await;
+
+        let config_toml = std::fs::read_to_string(darwin_code_home.path().join("config.toml"))?;
+        assert!(config_toml.contains("approval_policy = \"never\""));
+        assert!(config_toml.contains("sandbox_mode = \"danger-full-access\""));
+        assert!(config_toml.contains("approvals_reviewer = \"user\""));
+
+        let loaded = ConfigBuilder::default()
+            .darwin_code_home(darwin_code_home.path().to_path_buf())
+            .fallback_cwd(Some(darwin_code_home.path().to_path_buf()))
+            .build()
+            .await?;
+        assert_eq!(
+            loaded.permissions.approval_policy.value(),
+            AskForApproval::Never
+        );
+        assert_eq!(
+            loaded.permissions.sandbox_policy.get(),
+            &SandboxPolicy::DangerFullAccess
+        );
+        Ok(())
+    }
+
     fn test_turn(turn_id: &str, status: TurnStatus, items: Vec<ThreadItem>) -> Turn {
         Turn {
             id: turn_id.to_string(),
@@ -11367,12 +11627,12 @@ guardian_approval = true
         );
         assert_eq!(
             summary.resume_command,
-            Some("darwin_code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+            Some("darwin-code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
         );
     }
 
     #[tokio::test]
-    async fn session_summary_prefers_name_over_id() {
+    async fn session_summary_uses_id_even_when_thread_has_name() {
         let usage = TokenUsage {
             input_tokens: 10,
             output_tokens: 2,
@@ -11393,7 +11653,7 @@ guardian_approval = true
         .expect("summary");
         assert_eq!(
             summary.resume_command,
-            Some("darwin_code resume my-session".to_string())
+            Some("darwin-code resume 123e4567-e89b-12d3-a456-426614174000".to_string())
         );
     }
 }

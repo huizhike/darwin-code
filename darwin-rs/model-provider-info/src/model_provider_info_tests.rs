@@ -1,11 +1,24 @@
 use super::*;
 use pretty_assertions::assert_eq;
 
+fn set_env_var_for_test(key: &str, value: &str) {
+    // SAFETY: Tests use unique variable names and set them immediately before
+    // resolving provider config.
+    unsafe { std::env::set_var(key, value) };
+}
+
+fn remove_env_var_for_test(key: &str) {
+    // SAFETY: Tests use unique variable names and remove them after provider
+    // config resolution.
+    unsafe { std::env::remove_var(key) };
+}
+
 fn expected_minimal_provider(name: &str, base_url: &str) -> ModelProviderInfo {
     ModelProviderInfo {
         name: name.into(),
         base_url: Some(base_url.into()),
         api_key: None,
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -43,6 +56,7 @@ query_params = { api-version = "2025-04-01-preview" }
         name: "Azure".into(),
         base_url: Some("https://xxxxx.openai.azure.com/openai".into()),
         api_key: Some(InlineApiKey::new("azure-direct-key".into())),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -77,6 +91,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         name: "Example".into(),
         base_url: Some("https://example.com".into()),
         api_key: Some(InlineApiKey::new("example-direct-key".into())),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -151,6 +166,7 @@ fn test_create_openai_compatible_provider_uses_direct_api_key() {
             name: "DeepSeek".to_string(),
             base_url: Some("https://api.deepseek.com".to_string()),
             api_key: Some(InlineApiKey::new("test-direct-api-key".to_string())),
+            api_key_env: None,
             experimental_bearer_token: None,
             auth: None,
             wire_api: WireApi::ChatCompletions,
@@ -200,6 +216,57 @@ fn test_provider_without_direct_api_key_returns_none() {
 }
 
 #[test]
+fn test_provider_api_key_env_resolves() {
+    const ENV_KEY: &str = "DARWIN_CODE_TEST_MODEL_PROVIDER_API_KEY_ENV";
+    remove_env_var_for_test(ENV_KEY);
+    set_env_var_for_test(ENV_KEY, "test-env-api-key");
+
+    let provider_toml = format!(
+        r#"
+name = "Advanced"
+base_url = "https://example.test/v1"
+api_key_env = "{ENV_KEY}"
+        "#
+    );
+
+    let provider: ModelProviderInfo = toml::from_str(&provider_toml).unwrap();
+    assert_eq!(
+        provider.api_key().expect("env api_key should resolve"),
+        Some("test-env-api-key".to_string())
+    );
+    assert!(
+        !format!("{provider:?}").contains("test-env-api-key"),
+        "env-resolved api key should be redacted from debug output"
+    );
+    assert!(
+        !toml::to_string(&provider)
+            .expect("provider should serialize")
+            .contains("test-env-api-key"),
+        "serialization should not contain resolved env secret"
+    );
+    remove_env_var_for_test(ENV_KEY);
+}
+
+#[test]
+fn test_provider_api_key_sources_conflict_is_rejected() {
+    let provider_toml = r#"
+name = "Advanced"
+base_url = "https://example.test/v1"
+api_key = "direct-key"
+api_key_env = "ADVANCED_API_KEY"
+        "#;
+
+    let provider: ModelProviderInfo = toml::from_str(provider_toml).unwrap();
+    let err = provider
+        .validate()
+        .expect_err("api_key and api_key_env should conflict");
+
+    assert!(err.contains("api_key"));
+    assert!(err.contains("api_key_env"));
+    assert!(!err.contains("direct-key"));
+}
+
+#[test]
 fn test_legacy_env_backed_key_field_is_rejected() {
     let removed_field = format!("env_{}", "key");
     let provider_toml = format!(
@@ -220,6 +287,7 @@ fn test_supports_remote_compaction_for_azure_name() {
         name: "Azure".into(),
         base_url: Some("https://example.com/openai".into()),
         api_key: Some(InlineApiKey::new("azure-direct-key".into())),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,
@@ -240,6 +308,7 @@ fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
         name: "Example".into(),
         base_url: Some("https://example.com/v1".into()),
         api_key: Some(InlineApiKey::new("example-direct-key".into())),
+        api_key_env: None,
         experimental_bearer_token: None,
         auth: None,
         wire_api: WireApi::Responses,

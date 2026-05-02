@@ -60,9 +60,9 @@ use darwin_code_terminal_detection::TerminalName;
     subcommand_negates_reqs = true,
     // The executable is sometimes invoked via a platform‑specific name like
     // `darwin_code-x86_64-unknown-linux-musl`, but the help output should always use
-    // the generic `darwin_code` command name that users run.
-    bin_name = "darwin_code",
-    override_usage = "darwin_code [OPTIONS] [PROMPT]\n       darwin_code [OPTIONS] <COMMAND> [ARGS]"
+    // the generic `darwin-code` command name that users run.
+    bin_name = "darwin-code",
+    override_usage = "darwin-code [OPTIONS] [PROMPT]\n       darwin-code [OPTIONS] <COMMAND> [ARGS]"
 )]
 struct MultitoolCli {
     #[clap(flatten)]
@@ -379,7 +379,6 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
     let AppExitInfo {
         token_usage,
         thread_id: conversation_id,
-        thread_name,
         ..
     } = exit_info;
 
@@ -392,7 +391,7 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
     }
 
     if let Some(resume_cmd) =
-        darwin_code_core::util::resume_command(thread_name.as_deref(), conversation_id)
+        darwin_code_core::util::resume_command(/*thread_name*/ None, conversation_id)
     {
         let command = if color_enabled {
             resume_cmd.cyan().to_string()
@@ -1145,12 +1144,12 @@ fn reject_remote_mode_for_subcommand(
 ) -> anyhow::Result<()> {
     if let Some(remote) = remote {
         anyhow::bail!(
-            "`--remote {remote}` is only supported for interactive TUI commands, not `darwin_code {subcommand}`"
+            "`--remote {remote}` is only supported for interactive TUI commands, not `darwin-code {subcommand}`"
         );
     }
     if remote_auth_token_env.is_some() {
         anyhow::bail!(
-            "`--remote-auth-token-env` is only supported for interactive TUI commands, not `darwin_code {subcommand}`"
+            "`--remote-auth-token-env` is only supported for interactive TUI commands, not `darwin-code {subcommand}`"
         );
     }
     Ok(())
@@ -1255,7 +1254,7 @@ fn confirm(prompt: &str) -> std::io::Result<bool> {
     Ok(answer.eq_ignore_ascii_case("y") || answer.eq_ignore_ascii_case("yes"))
 }
 
-/// Build the final `TuiCli` for a `darwin_code resume` invocation.
+/// Build the final `TuiCli` for a `darwin-code resume` invocation.
 fn finalize_resume_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1266,7 +1265,7 @@ fn finalize_resume_interactive(
     resume_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so resume shares the same
-    // configuration surface area as `darwin_code` without additional flags.
+    // configuration surface area as `darwin-code` without additional flags.
     let resume_session_id = session_id;
     interactive.resume_picker = resume_session_id.is_none() && !last;
     interactive.resume_last = last;
@@ -1283,7 +1282,7 @@ fn finalize_resume_interactive(
     interactive
 }
 
-/// Build the final `TuiCli` for a `darwin_code fork` invocation.
+/// Build the final `TuiCli` for a `darwin-code fork` invocation.
 fn finalize_fork_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1293,7 +1292,7 @@ fn finalize_fork_interactive(
     fork_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so fork shares the same
-    // configuration surface area as `darwin_code` without additional flags.
+    // configuration surface area as `darwin-code` without additional flags.
     let fork_session_id = session_id;
     interactive.fork_picker = fork_session_id.is_none() && !last;
     interactive.fork_last = last;
@@ -1309,7 +1308,7 @@ fn finalize_fork_interactive(
     interactive
 }
 
-/// Merge flags provided to `darwin_code resume`/`darwin_code fork` so they take precedence over any
+/// Merge flags provided to `darwin-code resume`/`darwin-code fork` so they take precedence over any
 /// root-level flags. Only overrides fields explicitly set on the subcommand-scoped
 /// CLI. Also appends `-c key=value` overrides with highest precedence.
 fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli) {
@@ -1561,7 +1560,7 @@ mod tests {
             lines,
             vec![
                 "Token usage: total=2 input=0 output=2".to_string(),
-                "To continue this session, run darwin_code resume 123e4567-e89b-12d3-a456-426614174000"
+                "To continue this session, run darwin-code resume 123e4567-e89b-12d3-a456-426614174000"
                     .to_string(),
             ]
         );
@@ -1579,7 +1578,7 @@ mod tests {
     }
 
     #[test]
-    fn format_exit_messages_prefers_thread_name() {
+    fn format_exit_messages_uses_id_even_when_thread_has_name() {
         let exit_info = sample_exit_info(
             Some("123e4567-e89b-12d3-a456-426614174000"),
             Some("my-thread"),
@@ -1589,7 +1588,7 @@ mod tests {
             lines,
             vec![
                 "Token usage: total=2 input=0 output=2".to_string(),
-                "To continue this session, run darwin_code resume my-thread".to_string(),
+                "To continue this session, run darwin-code resume 123e4567-e89b-12d3-a456-426614174000".to_string(),
             ]
         );
     }

@@ -402,7 +402,7 @@ async fn load_debug_sandbox_config_with_darwin_code_home(
     if config_uses_permission_profiles(&config) {
         if full_auto {
             anyhow::bail!(
-                "`darwin_code sandbox --full-auto` is only supported for legacy `sandbox_mode` configs; choose a writable `[permissions]` profile instead"
+                "`darwin-code sandbox --full-auto` is only supported for legacy `sandbox_mode` configs; choose a writable `[permissions]` profile instead"
             );
         }
         return Ok(config);

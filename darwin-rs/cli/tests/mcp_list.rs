@@ -144,7 +144,7 @@ async fn list_and_get_render_expected_output() -> Result<()> {
     assert!(stdout.contains("APP_TOKEN=*****"));
     assert!(stdout.contains("WORKSPACE_ID=*****"));
     assert!(stdout.contains("enabled: true"));
-    assert!(stdout.contains("remove: darwin_code mcp remove docs"));
+    assert!(stdout.contains("remove: darwin-code mcp remove docs"));
 
     let mut get_json_cmd = darwin_code_command(darwin_code_home.path())?;
     get_json_cmd

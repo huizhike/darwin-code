@@ -49,7 +49,7 @@ fn colorize(text: &str, style: Style) -> String {
 #[allow(clippy::print_stderr)]
 fn print_websocket_startup_banner(addr: SocketAddr) {
     let title = colorize(
-        "darwin_code app-server (WebSockets)",
+        "darwin-code app-server (WebSockets)",
         Style::new().bold().cyan(),
     );
     let listening_label = colorize("listening on:", Style::new().dimmed());

@@ -119,7 +119,6 @@ darwin-rs/app-server-protocol/schema/typescript/
 
 # local Darwin Code runtime state
 CHANGELOG.md
-config.toml
 history.jsonl
 installation_id
 .personality_migration

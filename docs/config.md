@@ -2,24 +2,28 @@
 
 ## BYOK providers
 
-Darwin Code 的默认产品配置是 BYOK：用户在 `config.toml` 中选择一个 provider id，
-指定模型、endpoint，并直接写入本地 direct `api_key`。模型认证路径不再读取旧环境变量字段，也不从 provider id 推断环境变量。仓库模板可以保留占位 key，但不要提交真实
-密钥；真实 key 应只存在于本地未跟踪配置或用户自己的私有配置中。Darwin Code 不实现
-`.env` loader、OAuth/device sign-in、workspace/cloud auth、command-backed bearer token、
-keychain 或隐式 OpenAI 登录。
+Darwin Code is BYOK by default. Users choose a provider id, model, endpoint,
+and key environment variable in `config.toml`; real keys live in
+`${DARWIN_CODE_HOME}/.env` or the parent shell environment.
 
 Runtime behavior:
 
-- `model_provider` selects a built-in native id (`openai`, `gemini`, `claude`) or an id from `[openai_compatible.<id>]`.
+- `model_provider` selects a built-in native id (`openai`, `gemini`, `claude`) or an id from `[openai_compatible.<id>]` / `[providers.<id>]` / `[model_providers.<id>]`.
 - `model` is the provider model id.
-- `api_key` is the direct BYOK key Darwin uses for model auth.
-- `base_url` is owned by the user config. External gateways such as a company proxy or local proxy are just standard endpoints from Darwin Code's perspective.
-- `wire_api` selects the provider's protocol path. Use `chat-completions` for providers such as DeepSeek that expose `/chat/completions`; use `responses` for OpenAI Responses-compatible gateways that expose `/responses`.
+- `api_key_env` names the environment variable Darwin Code reads for model auth.
+- Direct `api_key` remains supported for local backward compatibility, but templates and docs prefer `api_key_env`.
+- `${DARWIN_CODE_HOME}/.env` is loaded before config resolution and does not override already-set parent environment variables.
+- `wire_api` selects the provider protocol path: `chat-completions` for `/chat/completions`, `responses` for `/responses`.
 - Defining the same id in both `[openai_compatible.<id>]` and `[model_providers.<id>]` is rejected to avoid ambiguous provider merging.
 
-### OpenAI official BYOK
+Example `.env`:
 
-Use a currently available model ID for your account. The examples below track the latest provider examples verified during docs updates.
+```bash
+export DEEPSEEK_API_KEY=your_deepseek_api_key
+export QWEN_API_KEY=your_qwen_api_key
+```
+
+### OpenAI official BYOK
 
 ```toml
 model_provider = "openai"
@@ -27,7 +31,7 @@ model = "gpt-5.5"
 
 [openai]
 base_url = "https://api.openai.com/v1"
-api_key = "你的 OpenAI API Key"
+api_key_env = "OPENAI_API_KEY"
 ```
 
 ### DeepSeek / generic OpenAI-compatible
@@ -40,7 +44,7 @@ model = "deepseek-chat"
 name = "DeepSeek"
 base_url = "https://api.deepseek.com"
 wire_api = "chat-completions"
-api_key = "你的 DeepSeek API Key"
+api_key_env = "DEEPSEEK_API_KEY"
 ```
 
 Generic gateway:
@@ -52,8 +56,8 @@ model = "your-model"
 [openai_compatible.my-provider]
 name = "My Provider"
 base_url = "https://provider.example/v1"
-wire_api = "responses" # 如果该网关实现 OpenAI Responses API；Chat-only provider 改用 "chat-completions"
-api_key = "你的 Provider API Key"
+wire_api = "responses"
+api_key_env = "MY_PROVIDER_API_KEY"
 ```
 
 ### Gemini / Claude native target families
@@ -64,7 +68,7 @@ model = "gemini-3.1-pro-preview"
 
 [gemini]
 base_url = "https://generativelanguage.googleapis.com/v1beta"
-api_key = "你的 Gemini API Key"
+api_key_env = "GEMINI_API_KEY"
 ```
 
 ```toml
@@ -73,17 +77,10 @@ model = "claude-opus-4-7"
 
 [claude]
 base_url = "https://api.anthropic.com"
-api_key = "你的 Claude API Key"
+api_key_env = "CLAUDE_API_KEY"
 ```
 
-As of this implementation slice, the runtime adapter projection is implemented for
-`[openai_compatible.<id>]`. Selecting native `[gemini]` or `[claude]` returns an actionable
-runtime-gap error instead of silently falling back to OpenAI. Until those native adapters land,
-use an OpenAI-compatible gateway via `[openai_compatible.<id>]`.
-
-Advanced users may still define custom providers under `[model_providers.<id>]`, but that
-inherited compatibility surface is constrained by the BYOK boundary: use direct `api_key` or
-`api_key_env`; do not configure hosted-account authentication.
+Advanced users may still define custom providers under `[model_providers.<id>]`, but that inherited compatibility surface is constrained by the BYOK boundary: use `api_key_env` or direct `api_key`; do not configure hosted-account authentication.
 
 ## Product configuration boundary
 

@@ -1204,17 +1204,23 @@ fn parse_timestamp_str(ts: &str) -> Option<DateTime<Utc>> {
         .ok()
 }
 
+fn picker_layout(area: Rect) -> [Rect; 5] {
+    Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Min(area.height.saturating_sub(4)),
+        Constraint::Length(1),
+    ])
+    .areas(area)
+}
+
 fn draw_picker(tui: &mut Tui, state: &PickerState) -> std::io::Result<()> {
     // Render full-screen overlay
     let height = tui.terminal.size()?.height;
     tui.draw(height, |frame| {
         let area = frame.area();
-        let [header, search, columns, list, hint] = Layout::vertical([
-            Constraint::Length(1),
-            Constraint::Min(area.height.saturating_sub(4)),
-            Constraint::Length(1),
-        ])
-        .areas(area);
+        let [header, search, columns, list, hint] = picker_layout(area);
 
         // Header
         let header_line: Line = vec![
@@ -1727,6 +1733,17 @@ mod tests {
             num_scanned_files,
             reached_scan_cap,
         })
+    }
+
+    #[test]
+    fn picker_layout_allocates_header_search_columns_list_and_hint() {
+        let [header, search, columns, list, hint] = picker_layout(Rect::new(0, 0, 80, 20));
+
+        assert_eq!(header.height, 1);
+        assert_eq!(search.height, 1);
+        assert_eq!(columns.height, 1);
+        assert_eq!(list.height, 16);
+        assert_eq!(hint.height, 1);
     }
 
     #[allow(dead_code)]
