@@ -1,7 +1,7 @@
 # DarwinCode default config template
 #
 # Usage:
-#   cd /home/xklab/01-darwin/dcode/70-darwin-code/darwin-rs
+#   cd /your/own/path/darwin-code/darwin-rs
 #   cargo run -p darwin-code-cli --bin darwin-code
 #
 # Notes:
@@ -71,7 +71,7 @@ thinking = true
 multimodal = true
 tools = true
 
-[projects."/home/xklab/01-darwin/dcode/70-darwin-code"]
+[projects."/your/own/path/darwin-code"]
 trust_level = "trusted"
 
 # [openai]
